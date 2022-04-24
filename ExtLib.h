@@ -153,11 +153,16 @@ typedef struct MemFile {
 	} param;
 } MemFile;
 
+typedef enum {
+	ITEM_NO_FREE,
+} ItemFlag;
+
 typedef struct ItemList {
-	char*  buffer;
-	u32    writePoint;
-	char** item;
-	u32    num;
+	char*    buffer;
+	u32      writePoint;
+	char**   item;
+	u32      num;
+	ItemFlag flag;
 } ItemList;
 
 typedef enum {
@@ -225,6 +230,8 @@ bool Sys_Command(const char* cmd);
 char* Sys_CommandGet(const char* cmd);
 
 void ItemList_NumericalSort(ItemList* list);
+void ItemList_Free(ItemList* itemList);
+ItemList ItemList_Initialize(void);
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_SetPrefix(char* fmt);

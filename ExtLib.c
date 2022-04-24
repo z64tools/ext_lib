@@ -3,7 +3,7 @@
 #ifndef EXTLIB
 #warning ExtLib Version not defined
 #else
-#if EXTLIB < 102
+#if EXTLIB < 103
 #warning Your local ExtLib copy seems to be old, please update it!
 #endif
 #endif
@@ -327,8 +327,8 @@ void Dir_ItemList(DirCtx* ctx, ItemList* itemList, bool isPath) {
 	if (itemList->num) {
 		u32 i = 0;
 		dir = opendir(ctx->curPath);
-		itemList->buffer = Tmp_Alloc(bufSize);
-		itemList->item = Tmp_Alloc(sizeof(char*) * itemList->num);
+		itemList->buffer = Calloc(0, bufSize);
+		itemList->item = Calloc(0, sizeof(char*) * itemList->num);
 		
 		while ((entry = readdir(dir)) != NULL) {
 			if (isPath) {
@@ -356,14 +356,19 @@ void Dir_ItemList(DirCtx* ctx, ItemList* itemList, bool isPath) {
 static void Dir_ItemList_Recursive_ChildCount(DirCtx* ctx, ItemList* target, char* pathTo, char* keyword) {
 	ItemList folder = { 0 };
 	ItemList file = { 0 };
+	char* path;
 	
 	Dir_ItemList(ctx, &folder, true);
 	Dir_ItemList(ctx, &file, false);
 	
 	for (s32 i = 0; i < folder.num; i++) {
 		Dir_Enter(ctx, folder.item[i]); {
-			Dir_ItemList_Recursive_ChildCount(ctx, target, Tmp_Printf("%s%s", pathTo, folder.item[i]), keyword);
+			path = Calloc(path, 0x128);
+			sprintf(path, "%s%s", pathTo, folder.item[i]);
+			
+			Dir_ItemList_Recursive_ChildCount(ctx, target, path, keyword);
 			Dir_Leave(ctx);
+			Free(path);
 		}
 	}
 	
@@ -371,33 +376,46 @@ static void Dir_ItemList_Recursive_ChildCount(DirCtx* ctx, ItemList* target, cha
 		if (keyword && !StrStr(file.item[i], keyword) && !StrStr(pathTo, keyword))
 			continue;
 		target->num++;
+		target->writePoint += strlen(pathTo) + strlen(file.item[i]) + 1;
 	}
+	
+	ItemList_Free(&folder);
+	ItemList_Free(&file);
 }
 
 static void Dir_ItemList_Recursive_ChildWrite(DirCtx* ctx, ItemList* target, char* pathTo, char* keyword) {
 	ItemList folder = { 0 };
 	ItemList file = { 0 };
+	char* path;
 	
 	Dir_ItemList(ctx, &folder, true);
 	Dir_ItemList(ctx, &file, false);
 	
 	for (s32 i = 0; i < folder.num; i++) {
 		Dir_Enter(ctx, folder.item[i]); {
-			Dir_ItemList_Recursive_ChildWrite(ctx, target, Tmp_Printf("%s%s", pathTo, folder.item[i]), keyword);
+			path = Calloc(path, 0x128);
+			sprintf(path, "%s%s", pathTo, folder.item[i]);
+			
+			Dir_ItemList_Recursive_ChildWrite(ctx, target, path, keyword);
 			Dir_Leave(ctx);
+			Free(path);
 		}
 	}
 	
 	for (s32 i = 0; i < file.num; i++) {
 		if (keyword && !StrStr(file.item[i], keyword) && !StrStr(pathTo, keyword))
 			continue;
-		target->item[target->num++] = Tmp_Printf("%s%s", pathTo, file.item[i]);
+		target->item[target->num] = &target->buffer[target->writePoint];
+		sprintf(target->item[target->num], "%s%s", pathTo, file.item[i]);
+		target->writePoint += strlen(target->item[target->num]) + 1;
+		target->num++;
 	}
+	
+	ItemList_Free(&folder);
+	ItemList_Free(&file);
 }
 
 void Dir_ItemList_Recursive(DirCtx* ctx, ItemList* target, char* keyword) {
-	memset(target, 0, sizeof(*target));
-	
 	Dir_ItemList_Recursive_ChildCount(ctx, target, "", keyword);
 	if (target->num == 0) {
 		Log(__FUNCTION__, __LINE__, "target->num == 0");
@@ -406,7 +424,9 @@ void Dir_ItemList_Recursive(DirCtx* ctx, ItemList* target, char* keyword) {
 		return;
 	}
 	Log(__FUNCTION__, __LINE__, "target->num == %d", target->num);
-	target->item = Tmp_Alloc(sizeof(char*) * target->num);
+	target->item = Calloc(0, sizeof(char*) * target->num);
+	target->buffer = Calloc(0, target->writePoint);
+	target->writePoint = 0;
 	target->num = 0;
 	Dir_ItemList_Recursive_ChildWrite(ctx, target, "", keyword);
 }
@@ -511,6 +531,52 @@ void Dir_ItemList_Keyword(DirCtx* ctx, ItemList* itemList, char* ext) {
 		}
 		closedir(dir);
 	}
+}
+
+void ItemList_NumericalSort(ItemList* list) {
+	ItemList sorted = ItemList_Initialize();
+	u32 highestNum = 0;
+	
+	for (s32 i = 0; i < list->num; i++) {
+		if (String_GetInt(list->item[i]) > highestNum)
+			highestNum = String_GetInt(list->item[i]);
+	}
+	
+	sorted.buffer = Calloc(0, list->writePoint * 4);
+	sorted.item = Calloc(0, sizeof(char*) * (highestNum + 1));
+	
+	for (s32 i = 0; i <= highestNum; i++) {
+		u32 null = true;
+		
+		for (s32 j = 0; j < list->num; j++) {
+			if (String_GetInt(list->item[j]) == i) {
+				sorted.item[sorted.num] = &sorted.buffer[sorted.writePoint];
+				strcpy(sorted.item[sorted.num], list->item[j]);
+				sorted.writePoint += strlen(sorted.item[sorted.num]) + 1;
+				sorted.num++;
+				null = false;
+				break;
+			}
+		}
+		
+		if (null == true) {
+			sorted.item[sorted.num++] = NULL;
+		}
+	}
+	
+	ItemList_Free(list);
+	
+	*list = sorted;
+}
+
+void ItemList_Free(ItemList* itemList) {
+	Free(itemList->buffer);
+	Free(itemList->item);
+	itemList[0] = ItemList_Initialize();
+}
+
+ItemList ItemList_Initialize(void) {
+	return (ItemList) { 0 };
 }
 
 Time Sys_Stat(const char* item) {
@@ -640,38 +706,6 @@ char* Sys_CommandGet(const char* cmd) {
 	printf_WinFix();
 	
 	return out;
-}
-
-// ItemList
-void ItemList_NumericalSort(ItemList* list) {
-	ItemList sorted = { 0 };
-	u32 highestNum = 0;
-	
-	for (s32 i = 0; i < list->num; i++) {
-		if (String_GetInt(list->item[i]) > highestNum)
-			highestNum = String_GetInt(list->item[i]);
-	}
-	
-	sorted.buffer = NULL;
-	sorted.item = Tmp_Alloc(sizeof(char*) * (highestNum + 1));
-	
-	for (s32 i = 0; i <= highestNum; i++) {
-		u32 null = true;
-		
-		for (s32 j = 0; j < list->num; j++) {
-			if (String_GetInt(list->item[j]) == i) {
-				sorted.item[sorted.num++] = Tmp_String(list->item[j]);
-				null = false;
-				break;
-			}
-		}
-		
-		if (null == true) {
-			sorted.item[sorted.num++] = NULL;
-		}
-	}
-	
-	*list = sorted;
 }
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
