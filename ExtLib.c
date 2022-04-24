@@ -248,15 +248,17 @@ Time Dir_Stat(DirCtx* ctx, const char* item) {
 	return st.st_mtime;
 }
 
+// @bug: SegFaults on empty ctx->curPath
 char* Dir_GetWildcard(DirCtx* ctx, char* x) {
 	ItemList list;
 	char* sEnd;
 	char* sStart = NULL;
 	char* restorePath;
 	char* search = StrStr(x, "*");
-	char* posPath = String_GetPath(Tmp_Printf("%s%s", ctx->curPath, x));
+	char* posPath;
 	
 	sEnd = Tmp_String(&search[1]);
+	posPath = String_GetPath(Tmp_Printf("%s%s", ctx->curPath, x));
 	
 	if ((uPtr)search - (uPtr)x > 0) {
 		sStart = Tmp_Alloc((uPtr)search - (uPtr)x + 2);
