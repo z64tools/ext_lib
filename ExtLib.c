@@ -3,7 +3,7 @@
 #ifndef EXTLIB
 #warning ExtLib Version not defined
 #else
-#if EXTLIB < 101
+#if EXTLIB < 102
 #warning Your local ExtLib copy seems to be old, please update it!
 #endif
 #endif
@@ -32,7 +32,6 @@ char* sPrintfPrefix = "ExtLib";
 u8 sPrintfType = 1;
 u8 gPrintfProgressing;
 u8* sSegment[255];
-char sCurrentPath[2048];
 char* sPrintfPreType[][4] = {
 	{
 		NULL,
@@ -120,44 +119,38 @@ f32 Time_Get(void) {
 	return (sTimeStop.tv_sec - sTimeStart.tv_sec) + (f32)(sTimeStop.tv_usec - sTimeStart.tv_usec) / 1000000;
 }
 
-struct {
-	s32 enterCount[512];
-	s32 pos;
-	DirParam param;
-} sDir;
-
-void Dir_SetParam(DirParam w) {
-	sDir.param |= w;
+void Dir_SetParam(DirCtx* ctx, DirParam w) {
+	ctx->param |= w;
 }
 
-void Dir_UnsetParam(DirParam w) {
-	sDir.param &= ~(w);
+void Dir_UnsetParam(DirCtx* ctx, DirParam w) {
+	ctx->param &= ~(w);
 }
 
-void Dir_Set(char* path, ...) {
+void Dir_Set(DirCtx* ctx, char* path, ...) {
 	s32 firstSet = 0;
 	va_list args;
 	
-	if (sCurrentPath[0] == '\0')
+	if (ctx->curPath[0] == '\0')
 		firstSet++;
 	
-	memset(sCurrentPath, 0, 512);
+	memset(ctx->curPath, 0, 512);
 	va_start(args, path);
-	vsnprintf(sCurrentPath, ArrayCount(sCurrentPath), path, args);
+	vsnprintf(ctx->curPath, ArrayCount(ctx->curPath), path, args);
 	va_end(args);
 	
 	if (firstSet) {
 		for (s32 i = 0; i < 512; i++) {
-			sDir.enterCount[i] = 0;
+			ctx->enterCount[i] = 0;
 		}
-		for (s32 i = 0; i < strlen(sCurrentPath); i++) {
-			if (sCurrentPath[i] == '/' || sCurrentPath[i] == '\\')
-				sDir.enterCount[++sDir.pos] = 1;
+		for (s32 i = 0; i < strlen(ctx->curPath); i++) {
+			if (ctx->curPath[i] == '/' || ctx->curPath[i] == '\\')
+				ctx->enterCount[++ctx->pos] = 1;
 		}
 	}
 }
 
-void Dir_Enter(char* fmt, ...) {
+void Dir_Enter(DirCtx* ctx, char* fmt, ...) {
 	va_list args;
 	char buffer[512];
 	
@@ -165,46 +158,48 @@ void Dir_Enter(char* fmt, ...) {
 	vsnprintf(buffer, ArrayCount(buffer), fmt, args);
 	va_end(args);
 	
-	if (!(sDir.param & DIR__MAKE_ON_ENTER)) {
-		if (!Dir_Stat(buffer)) {
-			printf_error("Could not enter folder [%s%s]", sCurrentPath, buffer);
+	if (!(ctx->param & DIR__MAKE_ON_ENTER)) {
+		if (!Dir_Stat(ctx, buffer)) {
+			printf_error("Could not enter folder [%s%s]", ctx->curPath, buffer);
 		}
 	}
 	
-	sDir.pos++;
-	sDir.enterCount[sDir.pos] = 0;
+	ctx->pos++;
+	ctx->enterCount[ctx->pos] = 0;
 	for (s32 i = 0;; i++) {
 		if (buffer[i] == '\0')
 			break;
 		if (buffer[i] == '/' || buffer[i] == '\\')
-			sDir.enterCount[sDir.pos]++;
+			ctx->enterCount[ctx->pos]++;
 	}
 	
-	strcat(sCurrentPath, buffer);
+	Log(__FUNCTION__, __LINE__, PRNT_BLUE "--> ..%s", buffer);
+	strcat(ctx->curPath, buffer);
 	
-	if (sDir.param & DIR__MAKE_ON_ENTER) {
-		Dir_MakeCurrent();
+	if (ctx->param & DIR__MAKE_ON_ENTER) {
+		Dir_MakeCurrent(ctx);
 	}
 }
 
-void Dir_Leave(void) {
-	s32 count = sDir.enterCount[sDir.pos];
+void Dir_Leave(DirCtx* ctx) {
+	s32 count = ctx->enterCount[ctx->pos];
 	
 	for (s32 i = 0; i < count; i++) {
 #ifndef NDEBUG
 		char compBuffer[512];
-		strcpy(compBuffer, sCurrentPath);
+		strcpy(compBuffer, ctx->curPath);
 #endif
 		
-		sCurrentPath[strlen(sCurrentPath) - 1] = '\0';
-		strcpy(sCurrentPath, String_GetPath(sCurrentPath));
+		ctx->curPath[strlen(ctx->curPath) - 1] = '\0';
+		Log(__FUNCTION__, __LINE__, PRNT_REDD "<-- ..%s/", String_GetFilename(ctx->curPath));
+		strcpy(ctx->curPath, String_GetPath(ctx->curPath));
 	}
 	
-	sDir.enterCount[sDir.pos] = 0;
-	sDir.pos--;
+	ctx->enterCount[ctx->pos] = 0;
+	ctx->pos--;
 }
 
-void Dir_Make(char* dir, ...) {
+void Dir_Make(DirCtx* ctx, char* dir, ...) {
 	char argBuf[512];
 	va_list args;
 	
@@ -212,18 +207,18 @@ void Dir_Make(char* dir, ...) {
 	vsnprintf(argBuf, ArrayCount(argBuf), dir, args);
 	va_end(args);
 	
-	Sys_MakeDir(Tmp_Printf("%s%s", sCurrentPath, argBuf));
+	Sys_MakeDir(Tmp_Printf("%s%s", ctx->curPath, argBuf));
 }
 
-void Dir_MakeCurrent(void) {
-	Sys_MakeDir(sCurrentPath);
+void Dir_MakeCurrent(DirCtx* ctx) {
+	Sys_MakeDir(ctx->curPath);
 }
 
-char* Dir_Current(void) {
-	return sCurrentPath;
+char* Dir_Current(DirCtx* ctx) {
+	return ctx->curPath;
 }
 
-char* Dir_File(char* fmt, ...) {
+char* Dir_File(DirCtx* ctx, char* fmt, ...) {
 	char* buffer;
 	char argBuf[512];
 	va_list args;
@@ -233,18 +228,18 @@ char* Dir_File(char* fmt, ...) {
 	va_end(args);
 	
 	if (StrStr(argBuf, "*")) {
-		return Dir_GetWildcard(argBuf);
+		return Dir_GetWildcard(ctx, argBuf);
 	}
 	
-	buffer = Tmp_Printf("%s%s", sCurrentPath, argBuf);
+	buffer = Tmp_Printf("%s%s", ctx->curPath, argBuf);
 	
 	return buffer;
 }
 
-Time Dir_Stat(char* item) {
+Time Dir_Stat(DirCtx* ctx, const char* item) {
 	struct stat st = { 0 };
 	
-	if (stat(Tmp_Printf("%s%s", sCurrentPath, item), &st) == -1)
+	if (stat(Tmp_Printf("%s%s", ctx->curPath, item), &st) == -1)
 		return 0;
 	
 	if (st.st_mtime == 0)
@@ -253,13 +248,13 @@ Time Dir_Stat(char* item) {
 	return st.st_mtime;
 }
 
-char* Dir_GetWildcard(char* x) {
+char* Dir_GetWildcard(DirCtx* ctx, char* x) {
 	ItemList list;
 	char* sEnd;
 	char* sStart = NULL;
 	char* restorePath;
 	char* search = StrStr(x, "*");
-	char* posPath = String_GetPath(Tmp_Printf("%s%s", sCurrentPath, x));
+	char* posPath = String_GetPath(Tmp_Printf("%s%s", ctx->curPath, x));
 	
 	sEnd = Tmp_String(&search[1]);
 	
@@ -268,16 +263,16 @@ char* Dir_GetWildcard(char* x) {
 		memcpy(sStart, x, (uPtr)search - (uPtr)x);
 	}
 	
-	restorePath = Tmp_String(sCurrentPath);
+	restorePath = Tmp_String(ctx->curPath);
 	
 	if (strcmp(posPath, restorePath)) {
-		Dir_Set(posPath);
+		Dir_Set(ctx, posPath);
 	}
 	
-	Dir_ItemList(&list, false);
+	Dir_ItemList(ctx, &list, false);
 	
 	if (strcmp(posPath, restorePath)) {
-		Dir_Set(restorePath);
+		Dir_Set(ctx, restorePath);
 	}
 	
 	for (s32 i = 0; i < list.num; i++) {
@@ -301,26 +296,26 @@ static bool __isDir(char* path) {
 	return false;
 }
 
-void Dir_ItemList(ItemList* itemList, bool isPath) {
-	DIR* dir = opendir(sCurrentPath);
+void Dir_ItemList(DirCtx* ctx, ItemList* itemList, bool isPath) {
+	DIR* dir = opendir(ctx->curPath);
 	u32 bufSize = 0;
 	struct dirent* entry;
 	
 	*itemList = (ItemList) { 0 };
 	
 	if (dir == NULL)
-		printf_error_align("Could not opendir()", "%s", sCurrentPath);
+		printf_error_align("Could not opendir()", "%s", ctx->curPath);
 	
 	while ((entry = readdir(dir)) != NULL) {
 		if (isPath) {
-			if (__isDir(Dir_File(entry->d_name))) {
+			if (__isDir(Dir_File(ctx, entry->d_name))) {
 				if (entry->d_name[0] == '.')
 					continue;
 				itemList->num++;
 				bufSize += strlen(entry->d_name) + 2;
 			}
 		} else {
-			if (!__isDir(Dir_File(entry->d_name))) {
+			if (!__isDir(Dir_File(ctx, entry->d_name))) {
 				itemList->num++;
 				bufSize += strlen(entry->d_name) + 2;
 			}
@@ -331,13 +326,13 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 	
 	if (itemList->num) {
 		u32 i = 0;
-		dir = opendir(sCurrentPath);
+		dir = opendir(ctx->curPath);
 		itemList->buffer = Tmp_Alloc(bufSize);
 		itemList->item = Tmp_Alloc(sizeof(char*) * itemList->num);
 		
 		while ((entry = readdir(dir)) != NULL) {
 			if (isPath) {
-				if (__isDir(Dir_File(entry->d_name))) {
+				if (__isDir(Dir_File(ctx, entry->d_name))) {
 					if (entry->d_name[0] == '.')
 						continue;
 					strcpy(&itemList->buffer[itemList->writePoint], Tmp_Printf("%s/", entry->d_name));
@@ -346,7 +341,7 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 					i++;
 				}
 			} else {
-				if (!__isDir(Dir_File(entry->d_name))) {
+				if (!__isDir(Dir_File(ctx, entry->d_name))) {
 					strcpy(&itemList->buffer[itemList->writePoint], Tmp_Printf("%s", entry->d_name));
 					itemList->item[i] = &itemList->buffer[itemList->writePoint];
 					itemList->writePoint += strlen(itemList->item[i]) + 1;
@@ -358,17 +353,17 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 	}
 }
 
-static void Dir_ItemList_Recursive_ChildCount(ItemList* target, char* pathTo, char* keyword) {
+static void Dir_ItemList_Recursive_ChildCount(DirCtx* ctx, ItemList* target, char* pathTo, char* keyword) {
 	ItemList folder = { 0 };
 	ItemList file = { 0 };
 	
-	Dir_ItemList(&folder, true);
-	Dir_ItemList(&file, false);
+	Dir_ItemList(ctx, &folder, true);
+	Dir_ItemList(ctx, &file, false);
 	
 	for (s32 i = 0; i < folder.num; i++) {
-		Dir_Enter(folder.item[i]); {
-			Dir_ItemList_Recursive_ChildCount(target, Tmp_Printf("%s%s/", pathTo, folder.item[i]), keyword);
-			Dir_Leave();
+		Dir_Enter(ctx, folder.item[i]); {
+			Dir_ItemList_Recursive_ChildCount(ctx, target, Tmp_Printf("%s%s", pathTo, folder.item[i]), keyword);
+			Dir_Leave(ctx);
 		}
 	}
 	
@@ -379,17 +374,17 @@ static void Dir_ItemList_Recursive_ChildCount(ItemList* target, char* pathTo, ch
 	}
 }
 
-static void Dir_ItemList_Recursive_ChildWrite(ItemList* target, char* pathTo, char* keyword) {
+static void Dir_ItemList_Recursive_ChildWrite(DirCtx* ctx, ItemList* target, char* pathTo, char* keyword) {
 	ItemList folder = { 0 };
 	ItemList file = { 0 };
 	
-	Dir_ItemList(&folder, true);
-	Dir_ItemList(&file, false);
+	Dir_ItemList(ctx, &folder, true);
+	Dir_ItemList(ctx, &file, false);
 	
 	for (s32 i = 0; i < folder.num; i++) {
-		Dir_Enter(folder.item[i]); {
-			Dir_ItemList_Recursive_ChildWrite(target, Tmp_Printf("%s%s", pathTo, folder.item[i]), keyword);
-			Dir_Leave();
+		Dir_Enter(ctx, folder.item[i]); {
+			Dir_ItemList_Recursive_ChildWrite(ctx, target, Tmp_Printf("%s%s", pathTo, folder.item[i]), keyword);
+			Dir_Leave(ctx);
 		}
 	}
 	
@@ -400,28 +395,35 @@ static void Dir_ItemList_Recursive_ChildWrite(ItemList* target, char* pathTo, ch
 	}
 }
 
-void Dir_ItemList_Recursive(ItemList* target, char* keyword) {
+void Dir_ItemList_Recursive(DirCtx* ctx, ItemList* target, char* keyword) {
 	memset(target, 0, sizeof(*target));
 	
-	Dir_ItemList_Recursive_ChildCount(target, "", keyword);
+	Dir_ItemList_Recursive_ChildCount(ctx, target, "", keyword);
+	if (target->num == 0) {
+		Log(__FUNCTION__, __LINE__, "target->num == 0");
+		memset(target, 0, sizeof(*target));
+		
+		return;
+	}
+	Log(__FUNCTION__, __LINE__, "target->num == %d", target->num);
 	target->item = Tmp_Alloc(sizeof(char*) * target->num);
 	target->num = 0;
-	Dir_ItemList_Recursive_ChildWrite(target, "", keyword);
+	Dir_ItemList_Recursive_ChildWrite(ctx, target, "", keyword);
 }
 
-void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not) {
-	DIR* dir = opendir(sCurrentPath);
+void Dir_ItemList_Not(DirCtx* ctx, ItemList* itemList, bool isPath, char* not) {
+	DIR* dir = opendir(ctx->curPath);
 	u32 bufSize = 0;
 	struct dirent* entry;
 	
 	*itemList = (ItemList) { 0 };
 	
 	if (dir == NULL)
-		printf_error_align("Could not opendir()", "%s", sCurrentPath);
+		printf_error_align("Could not opendir()", "%s", ctx->curPath);
 	
 	while ((entry = readdir(dir)) != NULL) {
 		if (isPath) {
-			if (__isDir(Dir_File(entry->d_name))) {
+			if (__isDir(Dir_File(ctx, entry->d_name))) {
 				if (entry->d_name[0] == '.')
 					continue;
 				if (strcmp(entry->d_name, not) == 0)
@@ -430,7 +432,7 @@ void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not) {
 				bufSize += strlen(entry->d_name) + 2;
 			}
 		} else {
-			if (!__isDir(Dir_File(entry->d_name))) {
+			if (!__isDir(Dir_File(ctx, entry->d_name))) {
 				itemList->num++;
 				bufSize += strlen(entry->d_name) + 2;
 			}
@@ -441,13 +443,13 @@ void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not) {
 	
 	if (itemList->num) {
 		u32 i = 0;
-		dir = opendir(sCurrentPath);
+		dir = opendir(ctx->curPath);
 		itemList->buffer = Tmp_Alloc(bufSize);
 		itemList->item = Tmp_Alloc(sizeof(char*) * itemList->num);
 		
 		while ((entry = readdir(dir)) != NULL) {
 			if (isPath) {
-				if (__isDir(Dir_File(entry->d_name))) {
+				if (__isDir(Dir_File(ctx, entry->d_name))) {
 					if (entry->d_name[0] == '.')
 						continue;
 					if (strcmp(entry->d_name, not) == 0)
@@ -458,7 +460,7 @@ void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not) {
 					i++;
 				}
 			} else {
-				if (!__isDir(Dir_File(entry->d_name))) {
+				if (!__isDir(Dir_File(ctx, entry->d_name))) {
 					strcpy(&itemList->buffer[itemList->writePoint], Tmp_Printf("%s", entry->d_name));
 					itemList->item[i] = &itemList->buffer[itemList->writePoint];
 					itemList->writePoint += strlen(itemList->item[i]) + 1;
@@ -470,18 +472,18 @@ void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not) {
 	}
 }
 
-void Dir_ItemList_Keyword(ItemList* itemList, char* ext) {
-	DIR* dir = opendir(sCurrentPath);
+void Dir_ItemList_Keyword(DirCtx* ctx, ItemList* itemList, char* ext) {
+	DIR* dir = opendir(ctx->curPath);
 	u32 bufSize = 0;
 	struct dirent* entry;
 	
 	*itemList = (ItemList) { 0 };
 	
 	if (dir == NULL)
-		printf_error_align("Could not opendir()", "%s", sCurrentPath);
+		printf_error_align("Could not opendir()", "%s", ctx->curPath);
 	
 	while ((entry = readdir(dir)) != NULL) {
-		if (!__isDir(Dir_File(entry->d_name))) {
+		if (!__isDir(Dir_File(ctx, entry->d_name))) {
 			if (!StrStr(entry->d_name, ext))
 				continue;
 			itemList->num++;
@@ -493,12 +495,12 @@ void Dir_ItemList_Keyword(ItemList* itemList, char* ext) {
 	
 	if (itemList->num) {
 		u32 i = 0;
-		dir = opendir(sCurrentPath);
+		dir = opendir(ctx->curPath);
 		itemList->buffer = Tmp_Alloc(bufSize);
 		itemList->item = Tmp_Alloc(sizeof(char*) * itemList->num);
 		
 		while ((entry = readdir(dir)) != NULL) {
-			if (!__isDir(Dir_File(entry->d_name))) {
+			if (!__isDir(Dir_File(ctx, entry->d_name))) {
 				if (!StrStr(entry->d_name, ext))
 					continue;
 				strcpy(&itemList->buffer[itemList->writePoint], Tmp_Printf("%s", entry->d_name));
@@ -606,6 +608,38 @@ const char* Sys_AppDir(void) {
 
 void Sys_SetWorkDir(const char* txt) {
 	chdir(txt);
+}
+
+bool Sys_Command(const char* cmd) {
+	if (system(cmd)) {
+		Log(__FUNCTION__, __LINE__, "Failed Sysem CLI: %s", cmd);
+		
+		return 1;
+	}
+	
+	return 0;
+}
+
+char* Sys_CommandGet(const char* cmd) {
+	FILE* file = popen(cmd, "r");
+	char result[128] = { 0x0 };
+	char* out;
+	MemFile mem = MemFile_Initialize();
+	
+	MemFile_Malloc(&mem, MbToBin(32.0));
+	while (fgets(result, sizeof(result), file) != NULL) {
+		MemFile_Printf(&mem, result);
+	}
+	
+	out = Malloc(0, mem.dataSize);
+	memcpy(out, mem.data, mem.dataSize);
+	
+	pclose(file);
+	MemFile_Free(&mem);
+	
+	printf_WinFix();
+	
+	return out;
 }
 
 // ItemList
@@ -837,11 +871,6 @@ void printf_error(const char* fmt, ...) {
 		printf("\n");
 		va_end(args);
 	}
-	
-#ifdef _WIN32
-	printf(PRNT_RSET "Press any key to exit...");
-	getchar();
-#endif
 	exit(EXIT_FAILURE);
 }
 
@@ -2250,7 +2279,7 @@ f32 Config_GetFloat(MemFile* memFile, char* floatName) {
 #include <signal.h>
 
 #define FAULT_BUFFER_SIZE (256 * 2)
-#define FAULT_LOG_NUM     18
+#define FAULT_LOG_NUM     14
 
 char* sLogMsg[FAULT_LOG_NUM];
 char* sLogFunc[FAULT_LOG_NUM];
@@ -2285,25 +2314,33 @@ static void Log_Signal(int arg) {
 		"\aUNDEFINED",
 	};
 	u32 msgsNum = 0;
+	u32 repeat = 0;
 	
 	printf("\n");
 	if (arg != 0xDEADBEEF)
-		printf("" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "%s " PRNT_DGRY "]\n", errorMsg[ClampMax(arg, 23)]);
+		printf("\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "%s " PRNT_DGRY "]", errorMsg[ClampMax(arg, 23)]);
 	else
-		printf("" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "LOG " PRNT_DGRY "]\n");
+		printf("\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "LOG " PRNT_DGRY "]");
 	
 	for (s32 i = FAULT_LOG_NUM - 1; i >= 0; i--) {
 		if (strlen(sLogMsg[i]) > 0) {
 			if (msgsNum == 0 || strcmp(sLogFunc[i], sLogFunc[i + 1]))
-				printf("" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_GREN " %s"PRNT_RSET "();" PRNT_RSET "\n", sLogFunc[i]);
-			printf(
-				"" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ %4d ]" PRNT_RSET " %s" PRNT_RSET "\n",
-				sLogLine[i],
-				sLogMsg[i]
-			);
+				printf("\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_YELW " %s" PRNT_DGRY "();" PRNT_RSET, sLogFunc[i]);
+			if (msgsNum == 0 || strcmp(sLogMsg[i], sLogMsg[i + 1])) {
+				printf(
+					"\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ %4d ]" PRNT_RSET " %s" PRNT_RSET,
+					sLogLine[i],
+					sLogMsg[i]
+				);
+				if (repeat) printf( PRNT_PRPL " x %d" PRNT_RSET, repeat + 1);
+				repeat = 0;
+			} else {
+				repeat++;
+			}
 			msgsNum++;
 		}
 	}
+	printf("\n");
 	
 	if (arg != 0xDEADBEEF) {
 		printf(

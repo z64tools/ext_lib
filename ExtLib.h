@@ -164,6 +164,13 @@ typedef enum {
 	DIR__MAKE_ON_ENTER = (1) << 0,
 } DirParam;
 
+typedef struct {
+	char curPath[2048];
+	s32  enterCount[512];
+	s32  pos;
+	DirParam param;
+} DirCtx;
+
 typedef void (* SoundCallback)(void*, void*, u32);
 
 typedef enum {
@@ -193,29 +200,31 @@ typedef enum {
 	IS_DIR         = 1,
 } DirEnum;
 
-void Dir_SetParam(DirParam w);
-void Dir_UnsetParam(DirParam w);
-void Dir_Set(char* path, ...);
-void Dir_Enter(char* ent, ...);
-void Dir_Leave(void);
-void Dir_Make(char* dir, ...);
-void Dir_MakeCurrent(void);
-char* Dir_Current(void);
-char* Dir_File(char* fmt, ...);
-Time Dir_Stat(char* item);
-void Dir_ItemList(ItemList* itemList, bool isPath);
-void Dir_ItemList_Recursive(ItemList* target, char* keyword);
-void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not);
-void Dir_ItemList_Keyword(ItemList* itemList, char* ext);
+void Dir_SetParam(DirCtx* ctx, DirParam w);
+void Dir_UnsetParam(DirCtx* ctx, DirParam w);
+void Dir_Set(DirCtx* ctx, char* path, ...);
+void Dir_Enter(DirCtx* ctx, char* fmt, ...);
+void Dir_Leave(DirCtx* ctx);
+void Dir_Make(DirCtx* ctx, char* dir, ...);
+void Dir_MakeCurrent(DirCtx* ctx);
+char* Dir_Current(DirCtx* ctx);
+char* Dir_File(DirCtx* ctx, char* fmt, ...);
+Time Dir_Stat(DirCtx* ctx, const char* item);
+char* Dir_GetWildcard(DirCtx* ctx, char* x);
+void Dir_ItemList(DirCtx* ctx, ItemList* itemList, bool isPath);
+void Dir_ItemList_Recursive(DirCtx* ctx, ItemList* target, char* keyword);
+void Dir_ItemList_Not(DirCtx* ctx, ItemList* itemList, bool isPath, char* not);
+void Dir_ItemList_Keyword(DirCtx* ctx, ItemList* itemList, char* ext);
 
 void Sys_MakeDir(const char* dir, ...);
 Time Sys_Stat(const char* item);
 const char* Sys_WorkDir(void);
 const char* Sys_AppDir(void);
 void Sys_SetWorkDir(const char* txt);
+bool Sys_Command(const char* cmd);
+char* Sys_CommandGet(const char* cmd);
 
 void ItemList_NumericalSort(ItemList* list);
-char* Dir_GetWildcard(char* x);
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_SetPrefix(char* fmt);
@@ -552,8 +561,8 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #endif
 
 #define Main(y1, y2) main(y1, y2)
-
-#define XARG(arg) ParseArgs(argv, arg, &parArg)
+#define XARG(arg)    ParseArgs(argv, arg, &parArg)
+#define SEG_FAULT ((u32*)0)[0] = 0
 
 #define AttPacked __attribute__ ((packed))
 #define AttAligned(x) __attribute__((aligned(x)))
