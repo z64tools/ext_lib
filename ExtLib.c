@@ -1,14 +1,30 @@
 #define __EXTLIB_C__
+
+#ifndef EXTLIB
+#warning ExtLib Version not defined
+#else
+#if EXTLIB < 101
+#warning Your local ExtLib copy seems to be old, please update it!
+#endif
+#endif
+
+#ifdef __IDE_FLAG__
+
+#ifdef _WIN32
+#undef _WIN32
+#endif
+void gettimeofday(void*, void*);
+void readlink(char*, char*, int);
+#endif
+
 #include "ExtLib.h"
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
 #include <unistd.h>
 
-#ifdef __IDE_FLAG__
 #ifdef _WIN32
-#undef _WIN32
-#endif
+#include <libloaderapi.h>
 #endif
 
 PrintfSuppressLevel gPrintfSuppress = 0;
@@ -36,7 +52,6 @@ u32 sSeek_Temp = 0;
 time_t sTime;
 MemFile sLog;
 
-// Segment
 void SetSegment(const u8 id, void* segment) {
 	sSegment[id] = segment;
 }
@@ -52,7 +67,6 @@ void32 VirtualToSegmented(const u8 id, void* ptr) {
 	return (uPtr)ptr - (uPtr)sSegment[id];
 }
 
-// Static Memory
 void* Tmp_Alloc(u32 size) {
 	u8* ret;
 	
@@ -63,7 +77,7 @@ void* Tmp_Alloc(u32 size) {
 		return NULL;
 	
 	if (sSeek_Temp + size + 0x10 > sizeof(sBuffer_Temp)) {
-		printf_warning_align("Tmp_Alloc:", "rewind\a");
+		Log(__FUNCTION__, __LINE__, "Tmp_Alloc: rewind\a");
 		sSeek_Temp = 0;
 	}
 	
@@ -106,7 +120,6 @@ f32 Time_Get(void) {
 	return (sTimeStop.tv_sec - sTimeStart.tv_sec) + (f32)(sTimeStop.tv_usec - sTimeStart.tv_usec) / 1000000;
 }
 
-// Dir
 struct {
 	s32 enterCount[512];
 	s32 pos;
@@ -199,11 +212,11 @@ void Dir_Make(char* dir, ...) {
 	vsnprintf(argBuf, ArrayCount(argBuf), dir, args);
 	va_end(args);
 	
-	MakeDir(Tmp_Printf("%s%s", sCurrentPath, argBuf));
+	Sys_MakeDir(Tmp_Printf("%s%s", sCurrentPath, argBuf));
 }
 
 void Dir_MakeCurrent(void) {
-	MakeDir(sCurrentPath);
+	Sys_MakeDir(sCurrentPath);
 }
 
 char* Dir_Current(void) {
@@ -235,7 +248,7 @@ Time Dir_Stat(char* item) {
 		return 0;
 	
 	if (st.st_mtime == 0)
-		printf_error("Stat: [%s] time is zero?!", item);
+		printf_error("Sys_Stat: [%s] time is zero?!", item);
 	
 	return st.st_mtime;
 }
@@ -360,7 +373,7 @@ static void Dir_ItemList_Recursive_ChildCount(ItemList* target, char* pathTo, ch
 	}
 	
 	for (s32 i = 0; i < file.num; i++) {
-		if (keyword && !StrStrCase(file.item[i], keyword))
+		if (keyword && !StrStr(file.item[i], keyword) && !StrStr(pathTo, keyword))
 			continue;
 		target->num++;
 	}
@@ -381,7 +394,7 @@ static void Dir_ItemList_Recursive_ChildWrite(ItemList* target, char* pathTo, ch
 	}
 	
 	for (s32 i = 0; i < file.num; i++) {
-		if (keyword && !StrStrCase(file.item[i], keyword))
+		if (keyword && !StrStr(file.item[i], keyword) && !StrStr(pathTo, keyword))
 			continue;
 		target->item[target->num++] = Tmp_Printf("%s%s", pathTo, file.item[i]);
 	}
@@ -498,35 +511,42 @@ void Dir_ItemList_Keyword(ItemList* itemList, char* ext) {
 	}
 }
 
-Time Stat(char* item) {
+Time Sys_Stat(const char* item) {
 	struct stat st = { 0 };
 	
 	if (stat(item, &st) == -1)
 		return 0;
 	
 	if (st.st_mtime == 0)
-		printf_error("Stat: [%s] time is zero?!", item);
+		printf_error("Sys_Stat: [%s] time is zero?!", item);
 	
 	return st.st_mtime;
 }
 
+volatile bool sThreadOverlapFlag;
+
 static void __MakeDir(const char* buffer) {
+	if (Sys_Stat(buffer))
+		return;
+	
 	struct stat st = { 0 };
 	
 	if (stat(buffer, &st) == -1) {
 #ifdef _WIN32
 		if (mkdir(buffer)) {
-			printf_error_align("mkdir", "%s", buffer);
+			if (!Sys_Stat(buffer))
+				Log(__FUNCTION__, __LINE__, "mkdir error: [%s]", buffer);
 		}
 #else
 		if (mkdir(buffer, 0700)) {
-			printf_error_align("mkdir", "%s", buffer);
+			if (!Sys_Stat(buffer))
+				Log(__FUNCTION__, __LINE__, "mkdir error: [%s]", buffer);
 		}
 #endif
 	}
 }
 
-void MakeDir(const char* dir, ...) {
+void Sys_MakeDir(const char* dir, ...) {
 	char buffer[512];
 	s32 pathNum;
 	va_list args;
@@ -555,11 +575,11 @@ void MakeDir(const char* dir, ...) {
 	}
 }
 
-char* CurWorkDir(void) {
+const char* Sys_WorkDir(void) {
 	static char buf[512];
 	
 	if (getcwd(buf, sizeof(buf)) == NULL) {
-		printf_error("Could not get CurWorkDir");
+		printf_error("Could not get Sys_WorkDir");
 	}
 	
 	for (s32 i = 0; i < strlen(buf); i++) {
@@ -570,6 +590,22 @@ char* CurWorkDir(void) {
 	strcat(buf, "/");
 	
 	return buf;
+}
+
+const char* Sys_AppDir(void) {
+	static char buf[256];
+	
+#ifdef _WIN32
+	GetModuleFileName(NULL, buf, 256);
+#else
+	readlink("/proc/self/exe", buf, 256);
+#endif
+	
+	return String_GetPath(buf);
+}
+
+void Sys_SetWorkDir(const char* txt) {
+	chdir(txt);
 }
 
 // ItemList
@@ -600,13 +636,6 @@ void ItemList_NumericalSort(ItemList* list) {
 			sorted.item[sorted.num++] = NULL;
 		}
 	}
-	
-#ifndef NDEBUG
-	printf_info("sorted, %d -> %d", list->num, sorted.num);
-	for (s32 i = 0; i < sorted.num; i++) {
-		printf_info("%d - %s", i, sorted.item[i]);
-	}
-#endif
 	
 	*list = sorted;
 }
@@ -867,6 +896,8 @@ void printf_info(const char* fmt, ...) {
 }
 
 void printf_info_align(const char* info, const char* fmt, ...) {
+	char printfBuf[256];
+	
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
 	
@@ -2218,7 +2249,7 @@ f32 Config_GetFloat(MemFile* memFile, char* floatName) {
 
 #include <signal.h>
 
-#define FAULT_BUFFER_SIZE 256
+#define FAULT_BUFFER_SIZE (256 * 2)
 #define FAULT_LOG_NUM     18
 
 char* sLogMsg[FAULT_LOG_NUM];
@@ -2300,7 +2331,8 @@ void Log_Free() {
 }
 
 void Log_Print() {
-	Log_Signal(0xDEADBEEF);
+	if (sLogMsg[0][0] != 0)
+		Log_Signal(0xDEADBEEF);
 }
 
 void Log(const char* func, u32 line, const char* txt, ...) {

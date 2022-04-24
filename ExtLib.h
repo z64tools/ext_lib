@@ -30,6 +30,9 @@ typedef u32 void32;
 typedef time_t Time;
 typedef pthread_t Thread;
 
+#define Thread_Create(thread, func, arg) pthread_create(&(thread), NULL, (void*)func, (void*)(arg))
+#define Thread_Join(thread)              pthread_join(thread, NULL)
+
 typedef struct {
 	f32 h;
 	f32 s;
@@ -205,9 +208,11 @@ void Dir_ItemList_Recursive(ItemList* target, char* keyword);
 void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not);
 void Dir_ItemList_Keyword(ItemList* itemList, char* ext);
 
-void MakeDir(const char* dir, ...);
-Time Stat(char* item);
-char* CurWorkDir(void);
+void Sys_MakeDir(const char* dir, ...);
+Time Sys_Stat(const char* item);
+const char* Sys_WorkDir(void);
+const char* Sys_AppDir(void);
+void Sys_SetWorkDir(const char* txt);
 
 void ItemList_NumericalSort(ItemList* list);
 char* Dir_GetWildcard(char* x);
