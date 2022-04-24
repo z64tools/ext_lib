@@ -201,13 +201,16 @@ void Dir_Leave(DirCtx* ctx) {
 
 void Dir_Make(DirCtx* ctx, char* dir, ...) {
 	char argBuf[512];
+	char buf[512];
 	va_list args;
 	
 	va_start(args, dir);
 	vsnprintf(argBuf, ArrayCount(argBuf), dir, args);
 	va_end(args);
 	
-	Sys_MakeDir(Tmp_Printf("%s%s", ctx->curPath, argBuf));
+	snprintf(buf, 512, "%s%s", ctx->curPath, argBuf);
+	
+	Sys_MakeDir(buf);
 }
 
 void Dir_MakeCurrent(DirCtx* ctx) {
@@ -221,6 +224,7 @@ char* Dir_Current(DirCtx* ctx) {
 char* Dir_File(DirCtx* ctx, char* fmt, ...) {
 	char* buffer;
 	char argBuf[512];
+	char buf[512];
 	va_list args;
 	
 	va_start(args, fmt);
@@ -238,8 +242,11 @@ char* Dir_File(DirCtx* ctx, char* fmt, ...) {
 
 Time Dir_Stat(DirCtx* ctx, const char* item) {
 	struct stat st = { 0 };
+	char buf[512];
 	
-	if (stat(Tmp_Printf("%s%s", ctx->curPath, item), &st) == -1)
+	snprintf(buf, 512, "%s%s", ctx->curPath, item);
+	
+	if (stat(buf, &st) == -1)
 		return 0;
 	
 	if (st.st_mtime == 0)
@@ -306,7 +313,7 @@ void Dir_ItemList(DirCtx* ctx, ItemList* itemList, bool isPath) {
 	*itemList = (ItemList) { 0 };
 	
 	if (dir == NULL)
-		printf_error_align("Could not opendir()", "%s", ctx->curPath);
+		printf_error_align("Dir_ItemList", "Could not open: %s", ctx->curPath);
 	
 	while ((entry = readdir(dir)) != NULL) {
 		if (isPath) {
@@ -337,14 +344,15 @@ void Dir_ItemList(DirCtx* ctx, ItemList* itemList, bool isPath) {
 				if (__isDir(Dir_File(ctx, entry->d_name))) {
 					if (entry->d_name[0] == '.')
 						continue;
-					strcpy(&itemList->buffer[itemList->writePoint], Tmp_Printf("%s/", entry->d_name));
+					strcpy(&itemList->buffer[itemList->writePoint], entry->d_name);
+					strcat(&itemList->buffer[itemList->writePoint], "/");
 					itemList->item[i] = &itemList->buffer[itemList->writePoint];
 					itemList->writePoint += strlen(itemList->item[i]) + 1;
 					i++;
 				}
 			} else {
 				if (!__isDir(Dir_File(ctx, entry->d_name))) {
-					strcpy(&itemList->buffer[itemList->writePoint], Tmp_Printf("%s", entry->d_name));
+					strcpy(&itemList->buffer[itemList->writePoint], entry->d_name);
 					itemList->item[i] = &itemList->buffer[itemList->writePoint];
 					itemList->writePoint += strlen(itemList->item[i]) + 1;
 					i++;
@@ -466,8 +474,8 @@ void Dir_ItemList_Not(DirCtx* ctx, ItemList* itemList, bool isPath, char* not) {
 	if (itemList->num) {
 		u32 i = 0;
 		dir = opendir(ctx->curPath);
-		itemList->buffer = Tmp_Alloc(bufSize);
-		itemList->item = Tmp_Alloc(sizeof(char*) * itemList->num);
+		itemList->buffer = Calloc(0, bufSize);
+		itemList->item = Calloc(0, sizeof(char*) * itemList->num);
 		
 		while ((entry = readdir(dir)) != NULL) {
 			if (isPath) {
@@ -476,14 +484,15 @@ void Dir_ItemList_Not(DirCtx* ctx, ItemList* itemList, bool isPath, char* not) {
 						continue;
 					if (strcmp(entry->d_name, not) == 0)
 						continue;
-					strcpy(&itemList->buffer[itemList->writePoint], Tmp_Printf("%s/", entry->d_name));
+					strcpy(&itemList->buffer[itemList->writePoint], entry->d_name);
+					strcat(&itemList->buffer[itemList->writePoint], "/");
 					itemList->item[i] = &itemList->buffer[itemList->writePoint];
 					itemList->writePoint += strlen(itemList->item[i]) + 1;
 					i++;
 				}
 			} else {
 				if (!__isDir(Dir_File(ctx, entry->d_name))) {
-					strcpy(&itemList->buffer[itemList->writePoint], Tmp_Printf("%s", entry->d_name));
+					strcpy(&itemList->buffer[itemList->writePoint], entry->d_name);
 					itemList->item[i] = &itemList->buffer[itemList->writePoint];
 					itemList->writePoint += strlen(itemList->item[i]) + 1;
 					i++;
@@ -518,14 +527,14 @@ void Dir_ItemList_Keyword(DirCtx* ctx, ItemList* itemList, char* ext) {
 	if (itemList->num) {
 		u32 i = 0;
 		dir = opendir(ctx->curPath);
-		itemList->buffer = Tmp_Alloc(bufSize);
-		itemList->item = Tmp_Alloc(sizeof(char*) * itemList->num);
+		itemList->buffer = Calloc(0, bufSize);
+		itemList->item = Calloc(0, sizeof(char*) * itemList->num);
 		
 		while ((entry = readdir(dir)) != NULL) {
 			if (!__isDir(Dir_File(ctx, entry->d_name))) {
 				if (!StrStr(entry->d_name, ext))
 					continue;
-				strcpy(&itemList->buffer[itemList->writePoint], Tmp_Printf("%s", entry->d_name));
+				strcpy(&itemList->buffer[itemList->writePoint], entry->d_name);
 				itemList->item[i] = &itemList->buffer[itemList->writePoint];
 				itemList->writePoint += strlen(itemList->item[i]) + 1;
 				i++;
@@ -1781,12 +1790,17 @@ s32 String_GetInt(char* string) {
 }
 
 f32 String_GetFloat(char* string) {
+	f32 fl;
+	
 	if (StrStr(string, ",")) {
-		string = Tmp_String(string);
+		string = strdup(string);
 		String_Replace(string, ",", ".");
 	}
 	
-	return strtod(string, NULL);
+	fl = strtod(string, NULL);
+	Free(string);
+	
+	return fl;
 }
 
 s32 String_GetLineCount(char* str) {
