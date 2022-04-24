@@ -5,17 +5,12 @@
 #include <dirent.h>
 #include <unistd.h>
 
-// #include "openmp/stubs.c"
-
 #ifdef __IDE_FLAG__
 #ifdef _WIN32
 #undef _WIN32
 #endif
 #endif
 
-// ExtendedLibrary
-
-// Print
 PrintfSuppressLevel gPrintfSuppress = 0;
 char* sPrintfPrefix = "ExtLib";
 u8 sPrintfType = 1;
@@ -100,7 +95,6 @@ char* Tmp_Printf(char* fmt, ...) {
 }
 
 struct timeval sTimeStart, sTimeStop;
-void gettimeofday(struct timeval*, void*);
 
 void Time_Start(void) {
 	gettimeofday(&sTimeStart, NULL);
@@ -2379,8 +2373,6 @@ f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32
 	return (coeff[0] * *point0) + (coeff[1] * *point1) + (coeff[2] * *point2) + (coeff[3] * *point3);
 }
 
-#ifdef EXTLIB_SOUND
-#ifndef __IDE_FLAG__
 #include "miniaudio.h"
 
 static struct {
@@ -2396,7 +2388,7 @@ static void __Sound_Callback(ma_device* dev, void* output, const void* input, ma
 void Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx) {
 	sSoundCtx.deviceConfig = ma_device_config_init(ma_device_type_playback);
 	
-	sSoundCtx.deviceConfig.playback.format = fmt;
+	sSoundCtx.deviceConfig.playback.format = (ma_format)fmt;
 	sSoundCtx.deviceConfig.playback.channels = channelNum;
 	sSoundCtx.deviceConfig.sampleRate = sampleRate;
 	sSoundCtx.deviceConfig.dataCallback = __Sound_Callback;
@@ -2412,6 +2404,3 @@ void Sound_Free() {
 	ma_device_stop(&sSoundCtx.device);
 	ma_device_uninit(&sSoundCtx.device);
 }
-
-#endif
-#endif

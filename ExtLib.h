@@ -161,6 +161,15 @@ typedef enum {
 	DIR__MAKE_ON_ENTER = (1) << 0,
 } DirParam;
 
+typedef void (* SoundCallback)(void*, void*, u32);
+
+typedef enum {
+	SOUND_S16 = 2,
+	SOUND_S24,
+	SOUND_S32,
+	SOUND_F32,
+} SoundFormat;
+
 extern u8 gPrintfProgressing;
 
 void SetSegment(const u8 id, void* segment);
@@ -308,23 +317,9 @@ void Log(const char* func, u32 line, const char* txt, ...);
 f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep);
 f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32* point3);
 
-extern PrintfSuppressLevel gPrintfSuppress;
-
-#ifdef EXTLIB_SOUND
-
-typedef void (* SoundCallback)(void*, void*, u32);
-
-typedef enum {
-	SOUND_S16 = 2,
-	SOUND_S24,
-	SOUND_S32,
-	SOUND_F32,
-} SoundFormat;
-
 void Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx);
 void Sound_Free();
-
-#endif
+extern PrintfSuppressLevel gPrintfSuppress;
 
 #define PRNT_DGRY "\e[90;2m"
 #define PRNT_DRED "\e[91;2m"
