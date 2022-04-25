@@ -3,7 +3,7 @@
 #ifndef EXTLIB
 #warning ExtLib Version not defined
 #else
-#if EXTLIB < 103
+#if EXTLIB < 104
 #warning Your local ExtLib copy seems to be old, please update it!
 #endif
 #endif
@@ -15,6 +15,7 @@
 #endif
 void gettimeofday(void*, void*);
 void readlink(char*, char*, int);
+void chdir(const char*);
 #endif
 
 #include "ExtLib.h"
@@ -46,10 +47,22 @@ char* sPrintfPreType[][4] = {
 		">"
 	}
 };
-u8 sBuffer_Temp[MbToBin(64)];
+u8 sBuffer_Temp[MbToBin(16)];
 u32 sSeek_Temp = 0;
 time_t sTime;
 MemFile sLog;
+
+//
+
+void Thread_Create(Thread* thread, void* func, void* arg) {
+	pthread_create(thread, NULL, (void*)func, (void*)(arg));
+}
+
+void Thread_Join(Thread* thread) {
+	pthread_join(*thread, NULL);
+}
+
+//
 
 void SetSegment(const u8 id, void* segment) {
 	sSegment[id] = segment;
@@ -65,6 +78,8 @@ void* SegmentedToVirtual(const u8 id, void32 ptr) {
 void32 VirtualToSegmented(const u8 id, void* ptr) {
 	return (uPtr)ptr - (uPtr)sSegment[id];
 }
+
+//
 
 void* Tmp_Alloc(u32 size) {
 	u8* ret;
@@ -107,6 +122,8 @@ char* Tmp_Printf(char* fmt, ...) {
 	return Tmp_String(tempBuf);
 }
 
+//
+
 struct timeval sTimeStart, sTimeStop;
 
 void Time_Start(void) {
@@ -118,6 +135,8 @@ f32 Time_Get(void) {
 	
 	return (sTimeStop.tv_sec - sTimeStart.tv_sec) + (f32)(sTimeStop.tv_usec - sTimeStart.tv_usec) / 1000000;
 }
+
+//
 
 void Dir_SetParam(DirCtx* ctx, DirParam w) {
 	ctx->param |= w;
@@ -153,6 +172,7 @@ void Dir_Set(DirCtx* ctx, char* path, ...) {
 void Dir_Enter(DirCtx* ctx, char* fmt, ...) {
 	va_list args;
 	char buffer[512];
+	char spacing[512] = { 0 };
 	
 	va_start(args, fmt);
 	vsnprintf(buffer, ArrayCount(buffer), fmt, args);
@@ -160,12 +180,13 @@ void Dir_Enter(DirCtx* ctx, char* fmt, ...) {
 	
 	if (!(ctx->param & DIR__MAKE_ON_ENTER)) {
 		if (!Dir_Stat(ctx, buffer)) {
-			printf_error("Could not enter folder [%s%s]", ctx->curPath, buffer);
+			printf_error("Could not enter folder [%s]", ctx->curPath, buffer);
 		}
 	}
 	
 	ctx->pos++;
 	ctx->enterCount[ctx->pos] = 0;
+	
 	for (s32 i = 0;; i++) {
 		if (buffer[i] == '\0')
 			break;
@@ -173,7 +194,10 @@ void Dir_Enter(DirCtx* ctx, char* fmt, ...) {
 			ctx->enterCount[ctx->pos]++;
 	}
 	
-	Log(__FUNCTION__, __LINE__, PRNT_BLUE "--> ..%s", buffer);
+	for (s32 i = 0; i < ctx->pos; i++)
+		strcat(spacing, "  ");
+	Log("Dir_Enter/Leave", __LINE__, PRNT_BLUE "--> %s%s", spacing, buffer);
+	
 	strcat(ctx->curPath, buffer);
 	
 	if (ctx->param & DIR__MAKE_ON_ENTER) {
@@ -182,21 +206,23 @@ void Dir_Enter(DirCtx* ctx, char* fmt, ...) {
 }
 
 void Dir_Leave(DirCtx* ctx) {
+	char buf[512];
 	s32 count = ctx->enterCount[ctx->pos];
+	char spacing[512] = { 0 };
 	
 	for (s32 i = 0; i < count; i++) {
-#ifndef NDEBUG
-		char compBuffer[512];
-		strcpy(compBuffer, ctx->curPath);
-#endif
-		
 		ctx->curPath[strlen(ctx->curPath) - 1] = '\0';
-		Log(__FUNCTION__, __LINE__, PRNT_REDD "<-- ..%s/", String_GetFilename(ctx->curPath));
+		strcpy(buf, ctx->curPath);
 		strcpy(ctx->curPath, String_GetPath(ctx->curPath));
 	}
 	
 	ctx->enterCount[ctx->pos] = 0;
 	ctx->pos--;
+	
+	for (s32 i = 0; i < ctx->pos; i++)
+		strcat(spacing, "  ");
+	
+	Log("Dir_Enter/Leave", __LINE__, PRNT_REDD "<-- %s%s/", spacing, buf + strlen(ctx->curPath));
 }
 
 void Dir_Make(DirCtx* ctx, char* dir, ...) {
@@ -310,7 +336,7 @@ void Dir_ItemList(DirCtx* ctx, ItemList* itemList, bool isPath) {
 	u32 bufSize = 0;
 	struct dirent* entry;
 	
-	*itemList = (ItemList) { 0 };
+	*itemList = ItemList_Initialize();
 	
 	if (dir == NULL)
 		printf_error_align("Dir_ItemList", "Could not open: %s", ctx->curPath);
@@ -544,6 +570,102 @@ void Dir_ItemList_Keyword(DirCtx* ctx, ItemList* itemList, char* ext) {
 	}
 }
 
+static void ItemList_Recursive_ChildCount(DirCtx* ctx, ItemList* target, const char* oriPath, char* pathTo, char* keyword) {
+	ItemList* folder = Calloc(0, sizeof(ItemList));
+	ItemList* file = Calloc(0, sizeof(ItemList));
+	char* path;
+	
+	Dir_ItemList(ctx, folder, true);
+	Dir_ItemList(ctx, file, false);
+	
+	for (s32 i = 0; i < folder->num; i++) {
+		Dir_Enter(ctx, folder->item[i]); {
+			path = Calloc(path, 0x128);
+			sprintf(path, "%s%s", pathTo, folder->item[i]);
+			
+			ItemList_Recursive_ChildCount(ctx, target, oriPath, path, keyword);
+			Dir_Leave(ctx);
+			Free(path);
+		}
+	}
+	
+	for (s32 i = 0; i < file->num; i++) {
+		if (keyword && !StrStr(file->item[i], keyword) && !StrStr(pathTo, keyword))
+			continue;
+		target->num++;
+		target->writePoint += strlen(oriPath) + strlen(pathTo) + strlen(file->item[i]) + 1;
+	}
+	
+	ItemList_Free(folder);
+	ItemList_Free(file);
+	Free(folder);
+	Free(file);
+}
+
+static void ItemList_Recursive_ChildWrite(DirCtx* ctx, ItemList* target, const char* oriPath, char* pathTo, char* keyword) {
+	ItemList* folder = Calloc(0, sizeof(ItemList));
+	ItemList* file = Calloc(0, sizeof(ItemList));
+	char* path;
+	
+	Dir_ItemList(ctx, folder, true);
+	Dir_ItemList(ctx, file, false);
+	
+	for (s32 i = 0; i < folder->num; i++) {
+		Dir_Enter(ctx, folder->item[i]); {
+			path = Calloc(path, 0x128);
+			sprintf(path, "%s%s", pathTo, folder->item[i]);
+			
+			ItemList_Recursive_ChildWrite(ctx, target, oriPath, path, keyword);
+			Dir_Leave(ctx);
+			Free(path);
+		}
+	}
+	
+	for (s32 i = 0; i < file->num; i++) {
+		if (keyword && !StrStr(file->item[i], keyword) && !StrStr(pathTo, keyword))
+			continue;
+		target->item[target->num] = &target->buffer[target->writePoint];
+		sprintf(target->item[target->num], "%s%s%s", oriPath, pathTo, file->item[i]);
+		target->writePoint += strlen(target->item[target->num]) + 1;
+		target->num++;
+	}
+	
+	ItemList_Free(folder);
+	ItemList_Free(file);
+	Free(folder);
+	Free(file);
+}
+
+void ItemList_Recursive(ItemList* target, const char* path, char* keyword, PathType fullPath) {
+	DirCtx* dirCtx = Calloc(0, sizeof(DirCtx));
+	char* oriPath = Calloc(0, 512);
+	
+	Dir_Set(dirCtx, "%s%s", Sys_WorkDir(), path);
+	
+	Log(__FUNCTION__, __LINE__, "Path: [%s]", dirCtx->curPath);
+	
+	if (fullPath) strcpy(oriPath, dirCtx->curPath);
+	else strcpy(oriPath, path);
+	
+	ItemList_Recursive_ChildCount(dirCtx, target, oriPath, "", keyword);
+	if (target->num == 0) {
+		Log(__FUNCTION__, __LINE__, "target->num == 0");
+		memset(target, 0, sizeof(*target));
+		
+		goto free;
+	}
+	Log(__FUNCTION__, __LINE__, "target->num == %d", target->num);
+	target->item = Calloc(0, sizeof(char*) * target->num);
+	target->buffer = Calloc(0, target->writePoint);
+	target->writePoint = 0;
+	target->num = 0;
+	ItemList_Recursive_ChildWrite(dirCtx, target, oriPath, "", keyword);
+	
+free:
+	Free(dirCtx);
+	Free(oriPath);
+}
+
 void ItemList_NumericalSort(ItemList* list) {
 	ItemList sorted = ItemList_Initialize();
 	u32 highestNum = 0;
@@ -580,15 +702,17 @@ void ItemList_NumericalSort(ItemList* list) {
 	*list = sorted;
 }
 
+ItemList ItemList_Initialize(void) {
+	return (ItemList) { 0 };
+}
+
 void ItemList_Free(ItemList* itemList) {
 	Free(itemList->buffer);
 	Free(itemList->item);
 	itemList[0] = ItemList_Initialize();
 }
 
-ItemList ItemList_Initialize(void) {
-	return (ItemList) { 0 };
-}
+//
 
 Time Sys_Stat(const char* item) {
 	struct stat st = { 0 };
@@ -688,9 +812,8 @@ void Sys_SetWorkDir(const char* txt) {
 }
 
 bool Sys_Command(const char* cmd) {
+	Log(__FUNCTION__, __LINE__, PRNT_GREN "%s", cmd);
 	if (system(cmd)) {
-		Log(__FUNCTION__, __LINE__, "Failed Sysem CLI: %s", cmd);
-		
 		return 1;
 	}
 	
@@ -718,6 +841,8 @@ char* Sys_CommandGet(const char* cmd) {
 	
 	return out;
 }
+
+//
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
 	gPrintfSuppress = lvl;
@@ -916,6 +1041,10 @@ void printf_error(const char* fmt, ...) {
 		printf("\n");
 		va_end(args);
 	}
+	
+	Log_Print();
+	Log_Free();
+	
 	exit(EXIT_FAILURE);
 }
 
@@ -942,10 +1071,9 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 		va_end(args);
 	}
 	
-#ifdef _WIN32
-	printf(PRNT_RSET "Press any key to exit...");
-	getchar();
-#endif
+	Log_Print();
+	Log_Free();
+	
 	exit(EXIT_FAILURE);
 }
 
@@ -1049,7 +1177,8 @@ void printf_WinFix() {
 #endif
 }
 
-// Lib
+//
+
 void* MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize) {
 	if (haystack == NULL || needle == NULL)
 		return NULL;
@@ -1363,7 +1492,8 @@ u32 Crc32(u8* s, u32 n) {
 	return ~crc;
 }
 
-// Color
+//
+
 void Color_ToHSL(HSL8* dest, RGB8* src) {
 	f32 r, g, b;
 	f32 cmax, cmin, d;
@@ -1415,7 +1545,8 @@ void Color_ToRGB(RGB8* dest, HSL8* src) {
 	}
 }
 
-// File
+//
+
 void* File_Load(void* destSize, char* filepath) {
 	s32 size;
 	void* dest;
@@ -1473,7 +1604,8 @@ void File_Save_ReqExt(char* filepath, void* src, s32 size, const char* ext) {
 	printf_error("[%s] does not match extension [%s]", src, ext);
 }
 
-// MemFile
+//
+
 MemFile MemFile_Initialize() {
 	return (MemFile) { .param.initKey = 0xD0E0A0D0B0E0E0F0 };
 }
@@ -1776,7 +1908,8 @@ void MemFile_Clear(MemFile* memFile) {
 	MemFile_Reset(memFile);
 }
 
-// String
+//
+
 u32 String_GetHexInt(char* string) {
 	return strtoul(string, NULL, 16);
 }
@@ -2202,12 +2335,14 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 	strcat(dest, ext);
 }
 
+//
+
 s32 sConfigSuppression;
 
 void Config_SuppressNext(void) {
 	sConfigSuppression = 1;
 }
-// Config
+
 char* Config_Get(MemFile* memFile, char* name) {
 	u32 lineCount = String_GetLineCount(memFile->data);
 	
@@ -2326,10 +2461,12 @@ f32 Config_GetFloat(MemFile* memFile, char* floatName) {
 	return 0;
 }
 
+//
+
 #include <signal.h>
 
-#define FAULT_BUFFER_SIZE (256 * 2)
-#define FAULT_LOG_NUM     14
+#define FAULT_BUFFER_SIZE (1024)
+#define FAULT_LOG_NUM     512
 
 char* sLogMsg[FAULT_LOG_NUM];
 char* sLogFunc[FAULT_LOG_NUM];
@@ -2439,6 +2576,8 @@ void Log(const char* func, u32 line, const char* txt, ...) {
 	sLogLine[0] = line;
 }
 
+//
+
 f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep) {
 	if (*pValue != target) {
 		f32 stepSize = (target - *pValue) * fraction;
@@ -2491,6 +2630,8 @@ f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32
 	
 	return (coeff[0] * *point0) + (coeff[1] * *point1) + (coeff[2] * *point2) + (coeff[3] * *point3);
 }
+
+//
 
 #include "miniaudio.h"
 

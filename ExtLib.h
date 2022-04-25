@@ -30,8 +30,7 @@ typedef u32 void32;
 typedef time_t Time;
 typedef pthread_t Thread;
 
-#define Thread_Create(thread, func, arg) pthread_create(&(thread), NULL, (void*)func, (void*)(arg))
-#define Thread_Join(thread)              pthread_join(thread, NULL)
+extern pthread_mutex_t gMutexLock;
 
 typedef struct {
 	f32 h;
@@ -153,16 +152,11 @@ typedef struct MemFile {
 	} param;
 } MemFile;
 
-typedef enum {
-	ITEM_NO_FREE,
-} ItemFlag;
-
 typedef struct ItemList {
-	char*    buffer;
-	u32      writePoint;
-	char**   item;
-	u32      num;
-	ItemFlag flag;
+	char*  buffer;
+	u32    writePoint;
+	char** item;
+	u32    num;
 } ItemList;
 
 typedef enum {
@@ -187,6 +181,9 @@ typedef enum {
 
 extern u8 gPrintfProgressing;
 
+void Thread_Create(Thread* thread, void* func, void* arg);
+void Thread_Join(Thread* thread);
+
 void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
@@ -204,6 +201,11 @@ typedef enum {
 	IS_FILE        = 0,
 	IS_DIR         = 1,
 } DirEnum;
+
+typedef enum {
+	PATH_RELATIVE,
+	PATH_ABSOLUTE
+} PathType;
 
 void Dir_SetParam(DirCtx* ctx, DirParam w);
 void Dir_UnsetParam(DirCtx* ctx, DirParam w);
@@ -229,9 +231,10 @@ void Sys_SetWorkDir(const char* txt);
 bool Sys_Command(const char* cmd);
 char* Sys_CommandGet(const char* cmd);
 
+void ItemList_Recursive(ItemList* target, const char* path, char* keyword, PathType fullPath);
 void ItemList_NumericalSort(ItemList* list);
-void ItemList_Free(ItemList* itemList);
 ItemList ItemList_Initialize(void);
+void ItemList_Free(ItemList* itemList);
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_SetPrefix(char* fmt);
