@@ -3,7 +3,7 @@
 #ifndef EXTLIB
 #warning ExtLib Version not defined
 #else
-#if EXTLIB < 105
+#if EXTLIB > 105
 #warning Your local ExtLib copy seems to be old. Please update it!
 #endif
 #endif
