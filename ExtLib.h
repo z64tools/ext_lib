@@ -181,8 +181,24 @@ typedef enum {
 
 extern u8 gPrintfProgressing;
 
+void Thread_Init(void);
+void Thread_Free(void);
+void Thread_Lock(void);
+void Thread_Unlock(void);
 void Thread_Create(Thread* thread, void* func, void* arg);
-void Thread_Join(Thread* thread);
+u32 Thread_Join(Thread* thread);
+
+#ifndef __EXTLIB_C__
+
+#define Thread_Create(thread, func, arg) { \
+		Log("Thread Create   [ " PRNT_BLUE "%s " PRNT_RSET "]", #thread); \
+		Thread_Create(thread, func, arg); }
+
+#define Thread_Join(thread) { \
+		Log("Thread Close    [ " PRNT_BLUE "%s " PRNT_RSET "]", #thread); \
+		if (Thread_Join(thread)) Log("\aThread Failure! [ " PRNT_REDD " %s " PRNT_RSET " ]", #thread); }
+
+#endif
 
 void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
@@ -258,6 +274,7 @@ void* MemMemAlign(u32 val, const void* haystack, size_t haySize, const void* nee
 void* MemMemU16(void* haystack, size_t haySize, const void* needle, size_t needleSize);
 void* MemMemU32(void* haystack, size_t haySize, const void* needle, size_t needleSize);
 void* MemMemU64(void* haystack, size_t haySize, const void* needle, size_t needleSize);
+const char* StrEnd(const char* src, const char* ext);
 void* Malloc(void* data, s32 size);
 void* Calloc(void* data, s32 size);
 void* Realloc(void* data, s32 size);
@@ -553,11 +570,21 @@ extern PrintfSuppressLevel gPrintfSuppress;
 
 #ifndef __EXTLIB_C__
 
-#define Malloc(data, size) Malloc(data, size); \
-	printf_debugExt_align("Malloc", "0x%X", size);
+#define Malloc(data, size) \
+	Malloc(data, size); \
+	Log("Malloc(%s); %.2f Kb", #data, BinToKb(size));
 
-#define Calloc(data, size) Calloc(data, size); \
-	printf_debugExt_align("Calloc", "0x%X", size);
+#define Realloc(data, size) \
+	Malloc(data, size); \
+	Log("Malloc(%s); %.2f Kb", #data, BinToKb(size));
+
+#define Calloc(data, size) \
+	Calloc(data, size); \
+	Log("Calloc(%s); %.2f Kb", #data, BinToKb(size));
+
+#define Free(data) \
+	Free(data); \
+	Log("Free(%s);", #data );
 
 #endif
 #else

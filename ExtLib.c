@@ -3,8 +3,8 @@
 #ifndef EXTLIB
 #warning ExtLib Version not defined
 #else
-#if EXTLIB < 104
-#warning Your local ExtLib copy seems to be old, please update it!
+#if EXTLIB < 105
+#warning Your local ExtLib copy seems to be old. Please update it!
 #endif
 #endif
 
@@ -52,14 +52,42 @@ u32 sSeek_Temp = 0;
 time_t sTime;
 MemFile sLog;
 
+pthread_mutex_t sThreadLock;
+u32 sThreadInit;
+
 //
 
+void Thread_Init(void) {
+	pthread_mutex_init(&sThreadLock, NULL);
+	sThreadInit = true;
+}
+
+void Thread_Free(void) {
+	pthread_mutex_destroy(&sThreadLock);
+	sThreadInit = false;
+}
+
+void Thread_Lock(void) {
+	if (sThreadInit)
+		pthread_mutex_lock(&sThreadLock);
+}
+
+void Thread_Unlock(void) {
+	if (sThreadInit)
+		pthread_mutex_unlock(&sThreadLock);
+}
+
 void Thread_Create(Thread* thread, void* func, void* arg) {
+	if (sThreadInit == false) printf_error("Thread not Initialized");
 	pthread_create(thread, NULL, (void*)func, (void*)(arg));
 }
 
-void Thread_Join(Thread* thread) {
-	pthread_join(*thread, NULL);
+u32 Thread_Join(Thread* thread) {
+	u32 r = pthread_join(*thread, NULL);
+	
+	memset(thread, 0, sizeof(Thread));
+	
+	return r;
 }
 
 //
@@ -82,6 +110,7 @@ void32 VirtualToSegmented(const u8 id, void* ptr) {
 //
 
 void* Tmp_Alloc(u32 size) {
+	Thread_Lock();
 	u8* ret;
 	
 	if (size >= sizeof(sBuffer_Temp) / 2)
@@ -91,13 +120,15 @@ void* Tmp_Alloc(u32 size) {
 		return NULL;
 	
 	if (sSeek_Temp + size + 0x10 > sizeof(sBuffer_Temp)) {
-		Log(__FUNCTION__, __LINE__, "Tmp_Alloc: rewind\a");
+		Log(__FUNCTION__, __LINE__, "" PRNT_YELW "Tmp_Alloc: rewind\a");
 		sSeek_Temp = 0;
 	}
 	
 	ret = &sBuffer_Temp[sSeek_Temp];
 	memset(ret, 0, size + 1);
 	sSeek_Temp = sSeek_Temp + size + 1;
+	
+	Thread_Unlock();
 	
 	return ret;
 }
@@ -812,10 +843,13 @@ void Sys_SetWorkDir(const char* txt) {
 }
 
 bool Sys_Command(const char* cmd) {
-	Log(__FUNCTION__, __LINE__, PRNT_GREN "%s", cmd);
 	if (system(cmd)) {
+		printf_WinFix();
+		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", cmd);
+		
 		return 1;
 	}
+	printf_WinFix();
 	
 	return 0;
 }
@@ -825,6 +859,12 @@ char* Sys_CommandGet(const char* cmd) {
 	char result[128] = { 0x0 };
 	char* out;
 	MemFile mem = MemFile_Initialize();
+	
+	if (file == NULL) {
+		printf_WinFix();
+		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", cmd);
+		printf_error_align("Sys_CommandGet", "Failed");
+	}
 	
 	MemFile_Malloc(&mem, MbToBin(32.0));
 	while (fgets(result, sizeof(result), file) != NULL) {
@@ -910,13 +950,29 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 	va_end(args);
 }
 
-static void __printf_call(u32 type) {
+static void __printf_call(u32 type, char* dest) {
 	char* color[4] = {
 		PRNT_PRPL,
 		PRNT_YELW,
 		PRNT_REDD,
 		PRNT_CYAN
 	};
+	
+	if (dest) {
+		sprintf(
+			dest,
+			"\r%s"
+			PRNT_GRAY "["
+			"%s%s"
+			PRNT_GRAY "]: "
+			PRNT_RSET,
+			sPrintfPrefix,
+			color[type],
+			sPrintfPreType[sPrintfType][type]
+		);
+		
+		return;
+	}
 	
 	printf(
 		"%s"
@@ -942,7 +998,7 @@ void printf_debug(const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(0);
+	__printf_call(0, 0);
 	vprintf(
 		fmt,
 		args
@@ -963,7 +1019,7 @@ void printf_debug_align(const char* info, const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(0);
+	__printf_call(0, 0);
 	printf(
 		"%-16s " PRNT_RSET,
 		info
@@ -988,7 +1044,7 @@ void printf_warning(const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(1);
+	__printf_call(1, 0);
 	vprintf(
 		fmt,
 		args
@@ -1009,7 +1065,7 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(1);
+	__printf_call(1, 0);
 	printf(
 		"%-16s " PRNT_RSET,
 		info
@@ -1023,6 +1079,8 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
 }
 
 void printf_error(const char* fmt, ...) {
+	Log_Print();
+	Log_Free();
 	if (gPrintfSuppress < PSL_NO_ERROR) {
 		if (gPrintfProgressing) {
 			printf("\n");
@@ -1033,7 +1091,7 @@ void printf_error(const char* fmt, ...) {
 		
 		printf("\n");
 		va_start(args, fmt);
-		__printf_call(2);
+		__printf_call(2, 0);
 		vprintf(
 			fmt,
 			args
@@ -1042,13 +1100,12 @@ void printf_error(const char* fmt, ...) {
 		va_end(args);
 	}
 	
-	Log_Print();
-	Log_Free();
-	
 	exit(EXIT_FAILURE);
 }
 
 void printf_error_align(const char* info, const char* fmt, ...) {
+	Log_Print();
+	Log_Free();
 	if (gPrintfSuppress < PSL_NO_ERROR) {
 		if (gPrintfProgressing) {
 			printf("\n");
@@ -1058,7 +1115,7 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 		va_list args;
 		
 		va_start(args, fmt);
-		__printf_call(2);
+		__printf_call(2, 0);
 		printf(
 			"%-16s " PRNT_RSET,
 			info
@@ -1071,13 +1128,14 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 		va_end(args);
 	}
 	
-	Log_Print();
-	Log_Free();
-	
 	exit(EXIT_FAILURE);
 }
 
 void printf_info(const char* fmt, ...) {
+	Thread_Lock();
+	char printfBuf[512];
+	char buf[256];
+	
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
 	
@@ -1088,20 +1146,28 @@ void printf_info(const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(3);
-	vprintf(
+	__printf_call(3, printfBuf);
+	vsprintf(
+		buf,
 		fmt,
 		args
-	);
-	printf("\n");
+	); strcat(printfBuf, buf);
 	va_end(args);
+	
+	strcat(printfBuf, "" PRNT_RSET "\n");
+	printf("%s", printfBuf);
+	
+	Thread_Unlock();
 }
 
 void printf_info_align(const char* info, const char* fmt, ...) {
-	char printfBuf[256];
+	char printfBuf[512];
+	char buf[256];
 	
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
+	
+	Thread_Lock();
 	
 	if (gPrintfProgressing) {
 		printf("\n");
@@ -1110,17 +1176,23 @@ void printf_info_align(const char* info, const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(3);
-	printf(
+	__printf_call(3, printfBuf);
+	sprintf(
+		buf,
 		"%-16s " PRNT_RSET,
 		info
-	);
-	vprintf(
+	); strcat(printfBuf, buf);
+	vsprintf(
+		buf,
 		fmt,
 		args
-	);
-	printf(PRNT_RSET "\n");
+	); strcat(printfBuf, buf);
 	va_end(args);
+	
+	strcat(printfBuf, "" PRNT_RSET "\n");
+	printf("%s", printfBuf);
+	
+	Thread_Unlock();
 }
 
 void printf_progress(const char* info, u32 a, u32 b) {
@@ -1143,7 +1215,7 @@ void printf_progress(const char* info, u32 a, u32 b) {
 	}
 	
 	printf("\r");
-	__printf_call(3);
+	__printf_call(3, 0);
 	printf(
 		"%-16s " PRNT_RSET,
 		info
@@ -1383,6 +1455,15 @@ L_next:
 	}
 	
 	return 0;
+}
+
+const char* StrEnd(const char* src, const char* ext) {
+	const char* fP;
+	
+	if ((fP = StrStr(src, ext)) != NULL && strlen(fP) == strlen(ext))
+		return fP;
+	
+	return NULL;
 }
 
 void ByteSwap(void* src, s32 size) {
@@ -1894,7 +1975,7 @@ void MemFile_Free(MemFile* memFile) {
 	if (memFile->data) {
 		free(memFile->data);
 		
-		memset(memFile, 0, sizeof(struct MemFile));
+		*memFile = MemFile_Initialize();
 	}
 }
 
@@ -2466,7 +2547,7 @@ f32 Config_GetFloat(MemFile* memFile, char* floatName) {
 #include <signal.h>
 
 #define FAULT_BUFFER_SIZE (1024)
-#define FAULT_LOG_NUM     512
+#define FAULT_LOG_NUM     16
 
 char* sLogMsg[FAULT_LOG_NUM];
 char* sLogFunc[FAULT_LOG_NUM];
@@ -2502,6 +2583,8 @@ static void Log_Signal(int arg) {
 	};
 	u32 msgsNum = 0;
 	u32 repeat = 0;
+	
+	SleepF(1.0);
 	
 	printf("\n");
 	if (arg != 0xDEADBEEF)
@@ -2560,6 +2643,7 @@ void Log_Print() {
 }
 
 void Log(const char* func, u32 line, const char* txt, ...) {
+	Thread_Lock();
 	va_list args;
 	
 	for (s32 i = FAULT_LOG_NUM - 1; i > 0; i--) {
@@ -2574,6 +2658,7 @@ void Log(const char* func, u32 line, const char* txt, ...) {
 	
 	strcpy(sLogFunc[0], func);
 	sLogLine[0] = line;
+	Thread_Unlock();
 }
 
 //
