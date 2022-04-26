@@ -1,9 +1,11 @@
 #define __EXTLIB_C__
 
+#define THIS_EXTLIB_VERSION 106
+
 #ifndef EXTLIB
 #warning ExtLib Version not defined
 #else
-#if EXTLIB > 105
+#if EXTLIB > THIS_EXTLIB_VERSION
 #warning Your local ExtLib copy seems to be old. Please update it!
 #endif
 #endif
@@ -25,6 +27,7 @@ void chdir(const char*);
 #include <unistd.h>
 
 #ifdef _WIN32
+#include <windows.h>
 #include <libloaderapi.h>
 #endif
 
@@ -55,7 +58,9 @@ MemFile sLog;
 pthread_mutex_t sThreadLock;
 u32 sThreadInit;
 
-//
+// # # # # # # # # # # # # # # # # # # # #
+// # THREAD                              #
+// # # # # # # # # # # # # # # # # # # # #
 
 void Thread_Init(void) {
 	pthread_mutex_init(&sThreadLock, NULL);
@@ -90,7 +95,9 @@ u32 Thread_Join(Thread* thread) {
 	return r;
 }
 
-//
+// # # # # # # # # # # # # # # # # # # # #
+// # SEGMENT                             #
+// # # # # # # # # # # # # # # # # # # # #
 
 void SetSegment(const u8 id, void* segment) {
 	sSegment[id] = segment;
@@ -107,7 +114,9 @@ void32 VirtualToSegmented(const u8 id, void* ptr) {
 	return (uPtr)ptr - (uPtr)sSegment[id];
 }
 
-//
+// # # # # # # # # # # # # # # # # # # # #
+// # TMP                                 #
+// # # # # # # # # # # # # # # # # # # # #
 
 void* Tmp_Alloc(u32 size) {
 	Thread_Lock();
@@ -153,7 +162,9 @@ char* Tmp_Printf(char* fmt, ...) {
 	return Tmp_String(tempBuf);
 }
 
-//
+// # # # # # # # # # # # # # # # # # # # #
+// # TIME                                #
+// # # # # # # # # # # # # # # # # # # # #
 
 struct timeval sTimeStart, sTimeStop;
 
@@ -167,7 +178,9 @@ f32 Time_Get(void) {
 	return (sTimeStop.tv_sec - sTimeStart.tv_sec) + (f32)(sTimeStop.tv_usec - sTimeStart.tv_usec) / 1000000;
 }
 
-//
+// # # # # # # # # # # # # # # # # # # # #
+// # DIR                                 #
+// # # # # # # # # # # # # # # # # # # # #
 
 void Dir_SetParam(DirCtx* ctx, DirParam w) {
 	ctx->param |= w;
@@ -743,7 +756,9 @@ void ItemList_Free(ItemList* itemList) {
 	itemList[0] = ItemList_Initialize();
 }
 
-//
+// # # # # # # # # # # # # # # # # # # # #
+// # SYS                                 #
+// # # # # # # # # # # # # # # # # # # # #
 
 Time Sys_Stat(const char* item) {
 	struct stat st = { 0 };
@@ -863,7 +878,7 @@ char* Sys_CommandGet(const char* cmd) {
 	if (file == NULL) {
 		printf_WinFix();
 		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", cmd);
-		printf_error_align("Sys_CommandGet", "Failed");
+		printf_error_align("Sys_CommandGet", "popen Failed");
 	}
 	
 	MemFile_Malloc(&mem, MbToBin(32.0));
@@ -874,7 +889,11 @@ char* Sys_CommandGet(const char* cmd) {
 	out = Malloc(0, mem.dataSize);
 	memcpy(out, mem.data, mem.dataSize);
 	
-	pclose(file);
+	if (pclose(file)) {
+		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", mem.str);
+		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", cmd);
+		printf_error_align("Sys_CommandGet", "Exit Status Failed");
+	}
 	MemFile_Free(&mem);
 	
 	printf_WinFix();
@@ -882,7 +901,35 @@ char* Sys_CommandGet(const char* cmd) {
 	return out;
 }
 
-//
+void Sys_TerminalSize(s32* r) {
+	s32 x;
+	s32 y;
+	
+#ifdef _WIN32
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	
+	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+	x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+	y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+#else
+#ifndef __IDE_FLAG__
+#include <sys/ioctl.h>
+	struct winsize w;
+	
+	ioctl(0, TIOCGWINSZ, &w);
+	
+	x = w.ws_col;
+	y = w.ws_row;
+#endif
+#endif
+	
+	r[0] = x;
+	r[1] = y;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+// # PRINTF                              #
+// # # # # # # # # # # # # # # # # # # # #
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
 	gPrintfSuppress = lvl;
@@ -1190,6 +1237,7 @@ void printf_info_align(const char* info, const char* fmt, ...) {
 	va_end(args);
 	
 	strcat(printfBuf, "" PRNT_RSET "\n");
+	
 	printf("%s", printfBuf);
 	
 	Thread_Unlock();
@@ -1249,7 +1297,9 @@ void printf_WinFix() {
 #endif
 }
 
-//
+// # # # # # # # # # # # # # # # # # # # #
+// # VARIOUS                             #
+// # # # # # # # # # # # # # # # # # # # #
 
 void* MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize) {
 	if (haystack == NULL || needle == NULL)
@@ -1573,7 +1623,9 @@ u32 Crc32(u8* s, u32 n) {
 	return ~crc;
 }
 
-//
+// # # # # # # # # # # # # # # # # # # # #
+// # COLOR                               #
+// # # # # # # # # # # # # # # # # # # # #
 
 void Color_ToHSL(HSL8* dest, RGB8* src) {
 	f32 r, g, b;
@@ -1626,66 +1678,9 @@ void Color_ToRGB(RGB8* dest, HSL8* src) {
 	}
 }
 
-//
-
-void* File_Load(void* destSize, char* filepath) {
-	s32 size;
-	void* dest;
-	s32* ss = destSize;
-	
-	FILE* file = fopen(filepath, "rb");
-	
-	if (file == NULL) {
-		printf_error("Could not open file [%s]", filepath);
-	}
-	
-	fseek(file, 0, SEEK_END);
-	size = ftell(file);
-	dest = Malloc(0, size);
-	if (dest == NULL) {
-		printf_error("Failed to malloc [0x%X] bytes to store data from [%s].", size, filepath);
-	}
-	rewind(file);
-	if (fread(dest, sizeof(char), size, file)) {
-	}
-	fclose(file);
-	
-	ss[0] = size;
-	
-	return dest;
-}
-
-void File_Save(char* filepath, void* src, s32 size) {
-	FILE* file = fopen(filepath, "w");
-	
-	if (file == NULL) {
-		printf_error("Failed to fopen file [%s].", filepath);
-	}
-	
-	fwrite(src, sizeof(char), size, file);
-	fclose(file);
-}
-
-void* File_Load_ReqExt(void* size, char* filepath, const char* ext) {
-	if (MemMem(filepath, strlen(filepath), ext, strlen(ext))) {
-		return File_Load(size, filepath);
-	}
-	printf_error("[%s] does not match extension [%s]", filepath, ext);
-	
-	return 0;
-}
-
-void File_Save_ReqExt(char* filepath, void* src, s32 size, const char* ext) {
-	if (MemMem(filepath, strlen(filepath), ext, strlen(ext))) {
-		File_Save(filepath, src, size);
-		
-		return;
-	}
-	
-	printf_error("[%s] does not match extension [%s]", src, ext);
-}
-
-//
+// # # # # # # # # # # # # # # # # # # # #
+// # MEMFILE                             #
+// # # # # # # # # # # # # # # # # # # # #
 
 MemFile MemFile_Initialize() {
 	return (MemFile) { .param.initKey = 0xD0E0A0D0B0E0E0F0 };
@@ -1989,7 +1984,9 @@ void MemFile_Clear(MemFile* memFile) {
 	MemFile_Reset(memFile);
 }
 
-//
+// # # # # # # # # # # # # # # # # # # # #
+// # STRING                              #
+// # # # # # # # # # # # # # # # # # # # #
 
 u32 String_GetHexInt(char* string) {
 	return strtoul(string, NULL, 16);
@@ -2387,6 +2384,10 @@ s32 String_Replace(char* src, char* word, char* replacement) {
 	s32 diff = 0;
 	char* ptr;
 	
+	Log(__FUNCTION__, __LINE__, "Replace [%s] with [%s]", word, replacement);
+	
+	if (!StrStr(src, word)) return 0;
+	
 	if (strlen(word) == 1 && strlen(replacement) == 1) {
 		for (s32 i = 0; i < strlen(src); i++) {
 			if (src[i] == word[0]) {
@@ -2416,7 +2417,9 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 	strcat(dest, ext);
 }
 
-//
+// # # # # # # # # # # # # # # # # # # # #
+// # CONFIG                              #
+// # # # # # # # # # # # # # # # # # # # #
 
 s32 sConfigSuppression;
 
@@ -2542,7 +2545,9 @@ f32 Config_GetFloat(MemFile* memFile, char* floatName) {
 	return 0;
 }
 
-//
+// # # # # # # # # # # # # # # # # # # # #
+// # LOG                                 #
+// # # # # # # # # # # # # # # # # # # # #
 
 #include <signal.h>
 
@@ -2661,7 +2666,9 @@ void Log(const char* func, u32 line, const char* txt, ...) {
 	Thread_Unlock();
 }
 
-//
+// # # # # # # # # # # # # # # # # # # # #
+// # MATH                                #
+// # # # # # # # # # # # # # # # # # # # #
 
 f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep) {
 	if (*pValue != target) {
@@ -2716,9 +2723,12 @@ f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32
 	return (coeff[0] * *point0) + (coeff[1] * *point1) + (coeff[2] * *point2) + (coeff[3] * *point3);
 }
 
-//
+// # # # # # # # # # # # # # # # # # # # #
+// # SOUND                               #
+// # # # # # # # # # # # # # # # # # # # #
 
 #include "miniaudio.h"
+#include "xm.h"
 
 static struct {
 	SoundCallback    callback;
@@ -2748,4 +2758,23 @@ void Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback c
 void Sound_Free() {
 	ma_device_stop(&sSoundCtx.device);
 	ma_device_uninit(&sSoundCtx.device);
+}
+
+static void __Sound_Xm_Play(xm_context_t* xm, void* output, u32 frameCount) {
+	xm_generate_samples(xm, output, frameCount);
+}
+
+void Sound_Xm_Play(char* file) {
+	xm_context_t* xm;
+	MemFile dll = MemFile_Initialize();
+	
+	if (MemFile_LoadFile(&dll, file)) printf_error("Exit...");
+	if (xm_create_context_safe(&xm, dll.data, dll.dataSize, 48000)) printf_error("Could not initialize XmPlayer");
+	xm_set_max_loop_count(xm, 0);
+	
+	Sound_Init(SOUND_F32, 48000, 2, (void*)__Sound_Xm_Play, xm);
+}
+
+void Sound_Xm_Stop() {
+	Sound_Free();
 }

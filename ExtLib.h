@@ -246,6 +246,7 @@ const char* Sys_AppDir(void);
 void Sys_SetWorkDir(const char* txt);
 bool Sys_Command(const char* cmd);
 char* Sys_CommandGet(const char* cmd);
+void Sys_TerminalSize(s32* r);
 
 void ItemList_Recursive(ItemList* target, const char* path, char* keyword, PathType fullPath);
 void ItemList_NumericalSort(ItemList* list);
@@ -360,6 +361,9 @@ f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32
 
 void Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx);
 void Sound_Free();
+void Sound_Xm_Play(char* file);
+void Sound_Xm_Stop();
+
 extern PrintfSuppressLevel gPrintfSuppress;
 
 #define PRNT_DGRY "\e[90;2m"
@@ -605,6 +609,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define AttAligned(x) __attribute__((aligned(x)))
 
 #define SleepF(sec)            usleep((u32)((f32)(sec) * 1000 * 1000))
+#define SleepS(sec)             sleep(sec)
 #define ParseArg(xarg)         ParseArgs(argv, xarg, &parArg)
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>] " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
