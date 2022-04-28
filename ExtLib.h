@@ -239,14 +239,22 @@ void Dir_ItemList_Recursive(DirCtx* ctx, ItemList* target, char* keyword);
 void Dir_ItemList_Not(DirCtx* ctx, ItemList* itemList, bool isPath, char* not);
 void Dir_ItemList_Keyword(DirCtx* ctx, ItemList* itemList, char* ext);
 
+bool Sys_IsDir(const char* path);
 void Sys_MakeDir(const char* dir, ...);
 Time Sys_Stat(const char* item);
+Time Sys_StatSelf(void);
+Time Sys_Time(void);
+s32 Sys_Rename(const char* input, const char* output);
+s32 Sys_Delete(const char* item);
+s32 Sys_Delete_Recursive(const char* item);
 const char* Sys_WorkDir(void);
 const char* Sys_AppDir(void);
 void Sys_SetWorkDir(const char* txt);
 bool Sys_Command(const char* cmd);
-char* Sys_CommandGet(const char* cmd);
+char* Sys_CommandOut(const char* cmd);
+#define cliprintf(dest, tool, args, ...) sprintf(dest, "%s " args, tool, __VA_ARGS__)
 void Sys_TerminalSize(s32* r);
+s32 Sys_Touch(const char* file);
 
 void ItemList_Recursive(ItemList* target, const char* path, char* keyword, PathType fullPath);
 void ItemList_NumericalSort(ItemList* list);
@@ -280,7 +288,6 @@ void* Malloc(void* data, s32 size);
 void* Calloc(void* data, s32 size);
 void* Realloc(void* data, s32 size);
 void* Free(void* data);
-s32 Touch(char* file);
 void ByteSwap(void* src, s32 size);
 s32 ParseArgs(char* argv[], char* arg, u32* parArg);
 u32 Crc32(u8* s, u32 n);
@@ -304,12 +311,12 @@ void MemFile_Align(MemFile* src, u32 align);
 s32 MemFile_Printf(MemFile* dest, const char* fmt, ...);
 s32 MemFile_Read(MemFile* src, void* dest, u32 size);
 void* MemFile_Seek(MemFile* src, u32 seek);
-s32 MemFile_LoadFile(MemFile* memFile, char* filepath);
-s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath);
-s32 MemFile_SaveFile(MemFile* memFile, char* filepath);
-s32 MemFile_SaveFile_String(MemFile* memFile, char* filepath);
-s32 MemFile_LoadFile_ReqExt(MemFile* memFile, char* filepath, const char* ext);
-s32 MemFile_SaveFile_ReqExt(MemFile* memFile, char* filepath, s32 size, const char* ext);
+s32 MemFile_LoadFile(MemFile* memFile, const char* filepath);
+s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath);
+s32 MemFile_SaveFile(MemFile* memFile, const char* filepath);
+s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath);
+s32 MemFile_LoadFile_ReqExt(MemFile* memFile, const char* filepath, const char* ext);
+s32 MemFile_SaveFile_ReqExt(MemFile* memFile, const char* filepath, s32 size, const char* ext);
 void MemFile_Free(MemFile* memFile);
 void MemFile_Reset(MemFile* memFile);
 void MemFile_Clear(MemFile* memFile);
@@ -333,10 +340,10 @@ char* String_GetBasename(const char* src);
 char* String_GetFilename(const char* src);
 s32 String_GetPathNum(const char* src);
 char* String_GetFolder(const char* src, s32 num);
-void String_Insert(char* point, char* insert);
-void String_InsertExt(char* origin, char* insert, s32 pos, s32 size);
+void String_Insert(char* point, const char* insert);
+void String_InsertExt(char* origin, const char* insert, s32 pos, s32 size);
 void String_Remove(char* point, s32 amount);
-s32 String_Replace(char* src, char* word, char* replacement);
+s32 String_Replace(char* src, const char* word, const char* replacement);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 
@@ -361,7 +368,7 @@ f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32
 
 void Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx);
 void Sound_Free();
-void Sound_Xm_Play(char* file);
+void Sound_Xm_Play(const void* data, u32 size);
 void Sound_Xm_Stop();
 
 extern PrintfSuppressLevel gPrintfSuppress;
@@ -609,7 +616,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define AttAligned(x) __attribute__((aligned(x)))
 
 #define SleepF(sec)            usleep((u32)((f32)(sec) * 1000 * 1000))
-#define SleepS(sec)             sleep(sec)
+#define SleepS(sec)            sleep(sec)
 #define ParseArg(xarg)         ParseArgs(argv, xarg, &parArg)
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>] " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL

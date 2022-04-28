@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 106
+#define THIS_EXTLIB_VERSION 107
 
 #ifndef EXTLIB
 #warning ExtLib Version not defined
@@ -15,9 +15,13 @@
 #ifdef _WIN32
 #undef _WIN32
 #endif
-void gettimeofday(void*, void*);
 void readlink(char*, char*, int);
 void chdir(const char*);
+#endif
+
+#ifndef _WIN32
+#define _XOPEN_SOURCE 500
+#define _DEFAULT_SOURCE
 #endif
 
 #include "ExtLib.h"
@@ -25,6 +29,8 @@ void chdir(const char*);
 #include <sys/types.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <curl/curl.h>
+#include <ftw.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -363,18 +369,6 @@ char* Dir_GetWildcard(DirCtx* ctx, char* x) {
 	return NULL;
 }
 
-static bool __isDir(char* path) {
-	struct stat st = { 0 };
-	
-	stat(path, &st);
-	
-	if (S_ISDIR(st.st_mode)) {
-		return true;
-	}
-	
-	return false;
-}
-
 void Dir_ItemList(DirCtx* ctx, ItemList* itemList, bool isPath) {
 	DIR* dir = opendir(ctx->curPath);
 	u32 bufSize = 0;
@@ -387,14 +381,14 @@ void Dir_ItemList(DirCtx* ctx, ItemList* itemList, bool isPath) {
 	
 	while ((entry = readdir(dir)) != NULL) {
 		if (isPath) {
-			if (__isDir(Dir_File(ctx, entry->d_name))) {
+			if (Sys_IsDir(Dir_File(ctx, entry->d_name))) {
 				if (entry->d_name[0] == '.')
 					continue;
 				itemList->num++;
 				bufSize += strlen(entry->d_name) + 2;
 			}
 		} else {
-			if (!__isDir(Dir_File(ctx, entry->d_name))) {
+			if (!Sys_IsDir(Dir_File(ctx, entry->d_name))) {
 				itemList->num++;
 				bufSize += strlen(entry->d_name) + 2;
 			}
@@ -411,7 +405,7 @@ void Dir_ItemList(DirCtx* ctx, ItemList* itemList, bool isPath) {
 		
 		while ((entry = readdir(dir)) != NULL) {
 			if (isPath) {
-				if (__isDir(Dir_File(ctx, entry->d_name))) {
+				if (Sys_IsDir(Dir_File(ctx, entry->d_name))) {
 					if (entry->d_name[0] == '.')
 						continue;
 					strcpy(&itemList->buffer[itemList->writePoint], entry->d_name);
@@ -421,7 +415,7 @@ void Dir_ItemList(DirCtx* ctx, ItemList* itemList, bool isPath) {
 					i++;
 				}
 			} else {
-				if (!__isDir(Dir_File(ctx, entry->d_name))) {
+				if (!Sys_IsDir(Dir_File(ctx, entry->d_name))) {
 					strcpy(&itemList->buffer[itemList->writePoint], entry->d_name);
 					itemList->item[i] = &itemList->buffer[itemList->writePoint];
 					itemList->writePoint += strlen(itemList->item[i]) + 1;
@@ -523,7 +517,7 @@ void Dir_ItemList_Not(DirCtx* ctx, ItemList* itemList, bool isPath, char* not) {
 	
 	while ((entry = readdir(dir)) != NULL) {
 		if (isPath) {
-			if (__isDir(Dir_File(ctx, entry->d_name))) {
+			if (Sys_IsDir(Dir_File(ctx, entry->d_name))) {
 				if (entry->d_name[0] == '.')
 					continue;
 				if (strcmp(entry->d_name, not) == 0)
@@ -532,7 +526,7 @@ void Dir_ItemList_Not(DirCtx* ctx, ItemList* itemList, bool isPath, char* not) {
 				bufSize += strlen(entry->d_name) + 2;
 			}
 		} else {
-			if (!__isDir(Dir_File(ctx, entry->d_name))) {
+			if (!Sys_IsDir(Dir_File(ctx, entry->d_name))) {
 				itemList->num++;
 				bufSize += strlen(entry->d_name) + 2;
 			}
@@ -549,7 +543,7 @@ void Dir_ItemList_Not(DirCtx* ctx, ItemList* itemList, bool isPath, char* not) {
 		
 		while ((entry = readdir(dir)) != NULL) {
 			if (isPath) {
-				if (__isDir(Dir_File(ctx, entry->d_name))) {
+				if (Sys_IsDir(Dir_File(ctx, entry->d_name))) {
 					if (entry->d_name[0] == '.')
 						continue;
 					if (strcmp(entry->d_name, not) == 0)
@@ -561,7 +555,7 @@ void Dir_ItemList_Not(DirCtx* ctx, ItemList* itemList, bool isPath, char* not) {
 					i++;
 				}
 			} else {
-				if (!__isDir(Dir_File(ctx, entry->d_name))) {
+				if (!Sys_IsDir(Dir_File(ctx, entry->d_name))) {
 					strcpy(&itemList->buffer[itemList->writePoint], entry->d_name);
 					itemList->item[i] = &itemList->buffer[itemList->writePoint];
 					itemList->writePoint += strlen(itemList->item[i]) + 1;
@@ -584,7 +578,7 @@ void Dir_ItemList_Keyword(DirCtx* ctx, ItemList* itemList, char* ext) {
 		printf_error_align("Could not opendir()", "%s", ctx->curPath);
 	
 	while ((entry = readdir(dir)) != NULL) {
-		if (!__isDir(Dir_File(ctx, entry->d_name))) {
+		if (!Sys_IsDir(Dir_File(ctx, entry->d_name))) {
 			if (!StrStr(entry->d_name, ext))
 				continue;
 			itemList->num++;
@@ -601,7 +595,7 @@ void Dir_ItemList_Keyword(DirCtx* ctx, ItemList* itemList, char* ext) {
 		itemList->item = Calloc(0, sizeof(char*) * itemList->num);
 		
 		while ((entry = readdir(dir)) != NULL) {
-			if (!__isDir(Dir_File(ctx, entry->d_name))) {
+			if (!Sys_IsDir(Dir_File(ctx, entry->d_name))) {
 				if (!StrStr(entry->d_name, ext))
 					continue;
 				strcpy(&itemList->buffer[itemList->writePoint], entry->d_name);
@@ -760,6 +754,18 @@ void ItemList_Free(ItemList* itemList) {
 // # SYS                                 #
 // # # # # # # # # # # # # # # # # # # # #
 
+bool Sys_IsDir(const char* path) {
+	struct stat st = { 0 };
+	
+	stat(path, &st);
+	
+	if (S_ISDIR(st.st_mode)) {
+		return true;
+	}
+	
+	return false;
+}
+
 Time Sys_Stat(const char* item) {
 	struct stat st = { 0 };
 	
@@ -770,6 +776,26 @@ Time Sys_Stat(const char* item) {
 		printf_error("Sys_Stat: [%s] time is zero?!", item);
 	
 	return st.st_mtime;
+}
+
+Time Sys_StatSelf(void) {
+	static char buf[512];
+	
+#ifdef _WIN32
+	GetModuleFileName(NULL, buf, 512);
+#else
+	readlink("/proc/self/exe", buf, 512);
+#endif
+	
+	return Sys_Stat(buf);
+}
+
+Time Sys_Time(void) {
+	Time tme;
+	
+	time(&tme);
+	
+	return tme;
 }
 
 volatile bool sThreadOverlapFlag;
@@ -842,15 +868,50 @@ const char* Sys_WorkDir(void) {
 }
 
 const char* Sys_AppDir(void) {
-	static char buf[256];
+	static char buf[512];
 	
 #ifdef _WIN32
-	GetModuleFileName(NULL, buf, 256);
+	GetModuleFileName(NULL, buf, 512);
 #else
-	readlink("/proc/self/exe", buf, 256);
+	readlink("/proc/self/exe", buf, 512);
 #endif
 	
 	return String_GetPath(buf);
+}
+
+s32 Sys_Rename(const char* input, const char* output) {
+	s32 r = rename(input, output);
+	
+	return r;
+}
+
+static int __rm_func(const char* item, const struct stat* bug, int type, struct FTW* ftw) {
+	if (Sys_Delete(item))
+		printf_error_align("Delete", "%s", item);
+	
+	return 0;
+}
+
+s32 Sys_Delete(const char* item) {
+	if (Sys_IsDir(item))
+		return rmdir(item);
+	else
+		return remove(item);
+}
+
+s32 Sys_Delete_Recursive(const char* item) {
+	int flags;
+	
+#ifdef _WIN32
+	flags = (FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
+#else
+	flags = (FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
+#endif
+	
+	if (nftw(item, __rm_func, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
+		printf_error("nftw error");
+	
+	return 0;
 }
 
 void Sys_SetWorkDir(const char* txt) {
@@ -869,34 +930,32 @@ bool Sys_Command(const char* cmd) {
 	return 0;
 }
 
-char* Sys_CommandGet(const char* cmd) {
+char* Sys_CommandOut(const char* cmd) {
 	FILE* file = popen(cmd, "r");
-	char result[128] = { 0x0 };
+	char result[257] = { 0x0 };
 	char* out;
 	MemFile mem = MemFile_Initialize();
 	
 	if (file == NULL) {
-		printf_WinFix();
 		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", cmd);
-		printf_error_align("Sys_CommandGet", "popen Failed");
+		printf_error_align("Sys_CommandOut", "popen Failed");
 	}
 	
 	MemFile_Malloc(&mem, MbToBin(32.0));
-	while (fgets(result, sizeof(result), file) != NULL) {
-		MemFile_Printf(&mem, result);
-	}
+	while (fgets(result, 256, file) != NULL)
+		MemFile_Printf(&mem, "%s", result);
 	
-	out = Malloc(0, mem.dataSize);
-	memcpy(out, mem.data, mem.dataSize);
+	out = Calloc(0, mem.dataSize);
+	strcpy(out, mem.data);
+	
+	Log(__FUNCTION__, __LINE__, "Size: %.2f", BinToKb(mem.dataSize));
 	
 	if (pclose(file)) {
 		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", mem.str);
 		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", cmd);
-		printf_error_align("Sys_CommandGet", "Exit Status Failed");
+		printf_error_align("Sys_CommandOut", "Exit Status Failed");
 	}
 	MemFile_Free(&mem);
-	
-	printf_WinFix();
 	
 	return out;
 }
@@ -927,6 +986,25 @@ void Sys_TerminalSize(s32* r) {
 	r[1] = y;
 }
 
+s32 Sys_Touch(const char* file) {
+	MemFile mem = MemFile_Initialize();
+	
+	if (Sys_Stat(file)) {
+		if (MemFile_LoadFile(&mem, file))
+			return 1;
+	}
+	
+	if (MemFile_SaveFile(&mem, file)) {
+		MemFile_Free(&mem);
+		
+		return 1;
+	}
+	
+	MemFile_Free(&mem);
+	
+	return 0;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # PRINTF                              #
 // # # # # # # # # # # # # # # # # # # # #
@@ -948,8 +1026,13 @@ void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const ch
 }
 
 void printf_toolinfo(const char* toolname, const char* fmt, ...) {
+	static u32 printed = 0;
+	
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
+	
+	if (printed != 0) return;
+	printed++;
 	
 	u32 strln = strlen(toolname);
 	u32 rmv = 0;
@@ -1181,7 +1264,7 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 void printf_info(const char* fmt, ...) {
 	Thread_Lock();
 	char printfBuf[512];
-	char buf[256];
+	char buf[512];
 	
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
@@ -1209,7 +1292,7 @@ void printf_info(const char* fmt, ...) {
 
 void printf_info_align(const char* info, const char* fmt, ...) {
 	char printfBuf[512];
-	char buf[256];
+	char buf[512];
 	
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
@@ -1566,24 +1649,6 @@ void* Free(void* data) {
 	return NULL;
 }
 
-s32 Touch(char* file) {
-	MemFile mem = MemFile_Initialize();
-	
-	if (MemFile_LoadFile(&mem, file)) {
-		return 1;
-	}
-	
-	if (MemFile_SaveFile(&mem, file)) {
-		MemFile_Free(&mem);
-		
-		return 1;
-	}
-	
-	MemFile_Free(&mem);
-	
-	return 0;
-}
-
 s32 ParseArgs(char* argv[], char* arg, u32* parArg) {
 	char* s = Tmp_Printf("%s", arg);
 	char* ss = Tmp_Printf("-%s", arg);
@@ -1829,7 +1894,7 @@ void* MemFile_Seek(MemFile* src, u32 seek) {
 	return (void*)&src->cast.u8[seek];
 }
 
-s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
+s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
 	u32 tempSize;
 	FILE* file = fopen(filepath, "rb");
 	struct stat sta;
@@ -1872,7 +1937,7 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 	return 0;
 }
 
-s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath) {
+s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath) {
 	u32 tempSize;
 	FILE* file = fopen(filepath, "r");
 	struct stat sta;
@@ -1917,7 +1982,7 @@ s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath) {
 	return 0;
 }
 
-s32 MemFile_SaveFile(MemFile* memFile, char* filepath) {
+s32 MemFile_SaveFile(MemFile* memFile, const char* filepath) {
 	FILE* file = fopen(filepath, "wb");
 	
 	if (file == NULL) {
@@ -1932,7 +1997,7 @@ s32 MemFile_SaveFile(MemFile* memFile, char* filepath) {
 	return 0;
 }
 
-s32 MemFile_SaveFile_String(MemFile* memFile, char* filepath) {
+s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath) {
 	FILE* file = fopen(filepath, "w");
 	
 	if (file == NULL) {
@@ -1947,7 +2012,7 @@ s32 MemFile_SaveFile_String(MemFile* memFile, char* filepath) {
 	return 0;
 }
 
-s32 MemFile_LoadFile_ReqExt(MemFile* memFile, char* filepath, const char* ext) {
+s32 MemFile_LoadFile_ReqExt(MemFile* memFile, const char* filepath, const char* ext) {
 	if (MemMem(filepath, strlen(filepath), ext, strlen(ext))) {
 		return MemFile_LoadFile(memFile, filepath);
 	}
@@ -1956,7 +2021,7 @@ s32 MemFile_LoadFile_ReqExt(MemFile* memFile, char* filepath, const char* ext) {
 	return 1;
 }
 
-s32 MemFile_SaveFile_ReqExt(MemFile* memFile, char* filepath, s32 size, const char* ext) {
+s32 MemFile_SaveFile_ReqExt(MemFile* memFile, const char* filepath, s32 size, const char* ext) {
 	if (MemMem(filepath, strlen(filepath), ext, strlen(ext))) {
 		return MemFile_SaveFile(memFile, filepath);
 	}
@@ -2347,7 +2412,7 @@ void String_CaseToUp(char* s, s32 i) {
 	}
 }
 
-void String_Insert(char* point, char* insert) {
+void String_Insert(char* point, const char* insert) {
 	s32 insLen = strlen(insert);
 	char* insEnd = point + insLen;
 	s32 remLen = strlen(point);
@@ -2357,7 +2422,7 @@ void String_Insert(char* point, char* insert) {
 	memcpy(point, insert, insLen);
 }
 
-void String_InsertExt(char* origin, char* insert, s32 pos, s32 size) {
+void String_InsertExt(char* origin, const char* insert, s32 pos, s32 size) {
 	s32 inslen = strlen(insert);
 	
 	if (pos >= size)
@@ -2380,11 +2445,9 @@ void String_Remove(char* point, s32 amount) {
 	point[len] = 0;
 }
 
-s32 String_Replace(char* src, char* word, char* replacement) {
+s32 String_Replace(char* src, const char* word, const char* replacement) {
 	s32 diff = 0;
 	char* ptr;
-	
-	Log(__FUNCTION__, __LINE__, "Replace [%s] with [%s]", word, replacement);
 	
 	if (!StrStr(src, word)) return 0;
 	
@@ -2559,6 +2622,7 @@ char* sLogFunc[FAULT_LOG_NUM];
 u32 sLogLine[FAULT_LOG_NUM];
 
 static void Log_Signal(int arg) {
+	volatile static bool ran = 0;
 	const char* errorMsg[] = {
 		"\a0",
 		"\a1",
@@ -2589,7 +2653,14 @@ static void Log_Signal(int arg) {
 	u32 msgsNum = 0;
 	u32 repeat = 0;
 	
-	SleepF(1.0);
+	Thread_Lock();
+	
+	if (sThreadInit) {
+		SleepF(1.0);
+		ran = 1;
+	}
+	
+	if (ran) return;
 	
 	printf("\n");
 	if (arg != 0xDEADBEEF)
@@ -2623,11 +2694,13 @@ static void Log_Signal(int arg) {
 		);
 		exit(EXIT_FAILURE);
 	}
+	
+	Thread_Unlock();
 }
 
 void Log_Init() {
-	for (s32 i = 1; i < 1234; i++)
-		signal(i, Log_Signal);
+	signal(SIGINT, Log_Signal);
+	signal(SIGSEGV, Log_Signal);
 	
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
 		sLogMsg[i] = Calloc(0, FAULT_BUFFER_SIZE);
@@ -2764,12 +2837,10 @@ static void __Sound_Xm_Play(xm_context_t* xm, void* output, u32 frameCount) {
 	xm_generate_samples(xm, output, frameCount);
 }
 
-void Sound_Xm_Play(char* file) {
+void Sound_Xm_Play(const void* data, u32 size) {
 	xm_context_t* xm;
-	MemFile dll = MemFile_Initialize();
 	
-	if (MemFile_LoadFile(&dll, file)) printf_error("Exit...");
-	if (xm_create_context_safe(&xm, dll.data, dll.dataSize, 48000)) printf_error("Could not initialize XmPlayer");
+	if (xm_create_context_safe(&xm, data, size, 48000)) printf_error("Could not initialize XmPlayer");
 	xm_set_max_loop_count(xm, 0);
 	
 	Sound_Init(SOUND_F32, 48000, 2, (void*)__Sound_Xm_Play, xm);
@@ -2777,4 +2848,12 @@ void Sound_Xm_Play(char* file) {
 
 void Sound_Xm_Stop() {
 	Sound_Free();
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+// # WEB                                 #
+// # # # # # # # # # # # # # # # # # # # #
+
+void* Web_GetUrl(const char* url) {
+	return NULL;
 }
