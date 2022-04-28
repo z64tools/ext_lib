@@ -255,6 +255,7 @@ char* Sys_CommandOut(const char* cmd);
 #define cliprintf(dest, tool, args, ...) sprintf(dest, "%s " args, tool, __VA_ARGS__)
 void Sys_TerminalSize(s32* r);
 s32 Sys_Touch(const char* file);
+u8* Sys_Sha256(u8* data, u64 size);
 
 void ItemList_Recursive(ItemList* target, const char* path, char* keyword, PathType fullPath);
 void ItemList_NumericalSort(ItemList* list);
@@ -273,8 +274,10 @@ void printf_error(const char* fmt, ...);
 void printf_error_align(const char* info, const char* fmt, ...);
 void printf_info(const char* fmt, ...);
 void printf_info_align(const char* info, const char* fmt, ...);
+void printf_prog_align(const char* info, const char* fmt);
 void printf_progress(const char* info, u32 a, u32 b);
 s32 printf_get_answer(void);
+void printf_get_space(const char* txt);
 void printf_WinFix();
 
 void* MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
