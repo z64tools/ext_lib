@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 109
+#define THIS_EXTLIB_VERSION 110
 
 #ifndef EXTLIB
 #warning ExtLib Version not defined
@@ -2261,14 +2261,17 @@ s32 String_GetInt(char* string) {
 
 f32 String_GetFloat(char* string) {
 	f32 fl;
+	u32 mal = 0;
 	
 	if (StrStr(string, ",")) {
+		mal = true;
 		string = strdup(string);
 		String_Replace(string, ",", ".");
 	}
 	
 	fl = strtod(string, NULL);
-	Free(string);
+	if (mal)
+		Free(string);
 	
 	return fl;
 }
@@ -2714,8 +2717,8 @@ char* Config_Get(MemFile* memFile, char* name) {
 	u32 lineCount = String_GetLineCount(memFile->data);
 	
 	for (s32 i = 0; i < lineCount; i++) {
-		if (!strcmp(String_GetWord(String_GetLine(memFile->data, i), 0), name)) {
-			char* word = String_Word(String_Line(memFile->data, i), 2);
+		if (!strcmp(String_GetWord(String_GetLine(memFile->str, i), 0), name)) {
+			char* word = String_Word(String_Line(memFile->str, i), 2);
 			char* ret;
 			
 			if (word[0] == '"') {
@@ -2728,7 +2731,7 @@ char* Config_Get(MemFile* memFile, char* name) {
 				ret = Tmp_Alloc(j);
 				memcpy(ret, &word[1], j);
 			} else {
-				word = String_GetWord(String_Line(memFile->data, i), 2);
+				word = String_GetWord(String_Line(memFile->str, i), 2);
 				ret = Tmp_Alloc(strlen(word) + 1);
 				strcpy(ret, word);
 			}
