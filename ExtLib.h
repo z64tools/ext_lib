@@ -186,7 +186,8 @@ void Thread_Free(void);
 void Thread_Lock(void);
 void Thread_Unlock(void);
 void Thread_Create(Thread* thread, void* func, void* arg);
-u32 Thread_Join(Thread* thread);
+s32 Thread_Close(Thread* thread);
+s32 Thread_Join(Thread* thread);
 
 #ifndef __EXTLIB_C__
 
@@ -195,8 +196,12 @@ u32 Thread_Join(Thread* thread);
 		Thread_Create(thread, func, arg); }
 
 #define Thread_Join(thread) { \
-		Log("Thread Close    [ " PRNT_BLUE "%s " PRNT_RSET "]", #thread); \
+		Log("Thread Join    [ " PRNT_BLUE "%s " PRNT_RSET "]", #thread); \
 		if (Thread_Join(thread)) Log("\aThread Failure! [ " PRNT_REDD " %s " PRNT_RSET " ]", #thread); }
+
+#define Thread_Close(thread) { \
+		Log("Thread Close    [ " PRNT_BLUE "%s " PRNT_RSET "]", #thread); \
+		if (Thread_Close(thread)) Log("\aThread Failure! [ " PRNT_REDD " %s " PRNT_RSET " ]", #thread); }
 
 #endif
 
@@ -255,9 +260,20 @@ char* Sys_CommandOut(const char* cmd);
 #define cliprintf(dest, tool, args, ...) sprintf(dest, "%s " args, tool, __VA_ARGS__)
 void Sys_TerminalSize(s32* r);
 s32 Sys_Touch(const char* file);
+s32 Sys_Copy(const char* src, const char* dest, bool isStr);
 u8* Sys_Sha256(u8* data, u64 size);
 
+s32 Terminal_YesOrNo(void);
+void Terminal_ClearScreen(void);
+void Terminal_ClearLines(u32 i);
+void Terminal_Move_PrevLine(void);
+void Terminal_Move(s32 x, s32 y);
+const char* Terminal_GetStr(void);
+
 void ItemList_Recursive(ItemList* target, const char* path, char* keyword, PathType fullPath);
+void ItemList_List(ItemList* target, const char* path, s32 depth);
+void ItemList_Print(ItemList* target);
+s32 ItemList_SaveList(ItemList* target, const char* output);
 void ItemList_NumericalSort(ItemList* list);
 ItemList ItemList_Initialize(void);
 void ItemList_Free(ItemList* itemList);
@@ -274,11 +290,11 @@ void printf_error(const char* fmt, ...);
 void printf_error_align(const char* info, const char* fmt, ...);
 void printf_info(const char* fmt, ...);
 void printf_info_align(const char* info, const char* fmt, ...);
-void printf_prog_align(const char* info, const char* fmt);
+void printf_prog_align(const char* info, const char* fmt, const char* color);
 void printf_progress(const char* info, u32 a, u32 b);
-s32 printf_get_answer(void);
-void printf_get_space(const char* txt);
-void printf_WinFix();
+void printf_getchar(const char* txt);
+void printf_WinFix(void);
+void printf_clearMessages(void);
 
 void* MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
 void* MemMemCase(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
@@ -297,11 +313,6 @@ u32 Crc32(u8* s, u32 n);
 
 void Color_ToHSL(HSL8* hsl, RGB8* rgb);
 void Color_ToRGB(RGB8* rgb, HSL8* hsl);
-
-void* File_Load(void* destSize, char* filepath);
-void File_Save(char* filepath, void* src, s32 size);
-void* File_Load_ReqExt(void* size, char* filepath, const char* ext);
-void File_Save_ReqExt(char* filepath, void* src, s32 size, const char* ext);
 
 MemFile MemFile_Initialize();
 void MemFile_Params(MemFile* memFile, ...);
@@ -333,7 +344,9 @@ f32 String_GetFloat(char* string);
 s32 String_GetLineCount(char* str);
 s32 String_CaseComp(char* a, char* b, u32 compSize);
 char* String_Line(char* str, s32 line);
+char* String_LineHead(char* str);
 char* String_Word(char* str, s32 word);
+char* String_Extension(const char* str);
 char* String_GetLine(const char* str, s32 line);
 char* String_GetWord(const char* str, s32 word);
 void String_CaseToLow(char* s, s32 i);
@@ -622,7 +635,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define SleepS(sec)            sleep(sec)
 #define ParseArg(xarg)         ParseArgs(argv, xarg, &parArg)
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
-#define EXT_INFO(A, indent, B) PRNT_GRAY "[>] " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
+#define EXT_INFO(A, indent, B) PRNT_GRAY "[>]: " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
 
 #define renamer_remove(old, new) \
 	if (rename(old, new)) { \

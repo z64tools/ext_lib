@@ -63,6 +63,7 @@ MemFile sLog;
 
 pthread_mutex_t sThreadLock;
 u32 sThreadInit;
+s32 sThreadLvl;
 
 // # # # # # # # # # # # # # # # # # # # #
 // # THREAD                              #
@@ -71,6 +72,7 @@ u32 sThreadInit;
 void Thread_Init(void) {
 	pthread_mutex_init(&sThreadLock, NULL);
 	sThreadInit = true;
+	sThreadLvl = 0;
 }
 
 void Thread_Free(void) {
@@ -79,13 +81,21 @@ void Thread_Free(void) {
 }
 
 void Thread_Lock(void) {
-	if (sThreadInit)
+	if (sThreadInit) {
+		// printf_info("LOCK %d", sThreadLvl);
+		// if (sThreadLvl == 0)
 		pthread_mutex_lock(&sThreadLock);
+		// sThreadLvl++;
+	}
 }
 
 void Thread_Unlock(void) {
-	if (sThreadInit)
+	if (sThreadInit) {
+		// sThreadLvl--;
+		// printf_info("UNLOCK %d", sThreadLvl);
+		// if (sThreadLvl == 0)
 		pthread_mutex_unlock(&sThreadLock);
+	}
 }
 
 void Thread_Create(Thread* thread, void* func, void* arg) {
@@ -93,7 +103,11 @@ void Thread_Create(Thread* thread, void* func, void* arg) {
 	pthread_create(thread, NULL, (void*)func, (void*)(arg));
 }
 
-u32 Thread_Join(Thread* thread) {
+s32 Thread_Close(Thread* thread) {
+	return pthread_cancel(*thread);
+}
+
+s32 Thread_Join(Thread* thread) {
 	u32 r = pthread_join(*thread, NULL);
 	
 	memset(thread, 0, sizeof(Thread));
@@ -704,6 +718,91 @@ free:
 	Free(oriPath);
 }
 
+char** sItemList;
+u32 sItemBufLength;
+u32 sItemNum;
+s32 sMaxLvl;
+bool sIsWorkDir;
+
+static int __list_item(const char* item, const struct stat* bug, int type, struct FTW* ftw) {
+	if (type != FTW_F)
+		return 0;
+	
+	if (sMaxLvl > -1 && ftw->level > sMaxLvl)
+		return 0;
+	
+	sItemList[sItemNum++] = strdup(item);
+	sItemBufLength += strlen(item) + 1;
+	
+	return 0;
+}
+
+void ItemList_List(ItemList* target, const char* path, s32 depth) {
+	Thread_Lock();
+	s32 i;
+	
+	sItemList = Malloc(0, sizeof(char*) * 1024);
+	sItemBufLength = 0;
+	sItemNum = 0;
+	sIsWorkDir = 0;
+	sMaxLvl = depth;
+	
+	if (strlen(path) == 0) {
+		sIsWorkDir = true;
+		path = "./";
+	}
+	
+	if (sMaxLvl > -1)
+		for (i = 0; i <= strlen(path); i++) {
+			if (path[i] == '/' || path[i] == '\\')
+				sMaxLvl++;
+		}
+	
+	if (nftw(path, __list_item, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
+		printf_error("nftw error: %s %s", 10, __FUNCTION__);
+	
+	target->buffer = Malloc(0, sItemBufLength);
+	target->item = Malloc(0, sizeof(char*) * sItemNum);
+	target->num = sItemNum;
+	
+	for (s32 i = 0; i < sItemNum; i++) {
+		target->item[i] = &target->buffer[target->writePoint];
+		
+		if (sIsWorkDir)
+			strcpy(target->item[i], &sItemList[i][2]);
+		else
+			strcpy(target->item[i], sItemList[i]);
+		
+		target->writePoint += strlen(sItemList[i]) + 1;
+		
+		Free(sItemList[i]);
+	}
+	
+	sItemList = Free(sItemList);
+	
+	Thread_Unlock();
+}
+
+void ItemList_Print(ItemList* target) {
+	for (s32 i = 0; i < target->num; i++)
+		printf_info("%4d: %s", i, target->item[i]);
+}
+
+s32 ItemList_SaveList(ItemList* target, const char* output) {
+	MemFile mem = MemFile_Initialize();
+	
+	MemFile_Malloc(&mem, 512 * target->num);
+	
+	for (s32 i = 0; i < target->num; i++)
+		MemFile_Printf(&mem, "%s\n", target->item[i]);
+	if (MemFile_SaveFile_String(&mem, output))
+		return 1;
+	
+	MemFile_Free(&mem);
+	
+	return 0;
+}
+
 void ItemList_NumericalSort(ItemList* list) {
 	ItemList sorted = ItemList_Initialize();
 	u32 highestNum = 0;
@@ -900,16 +999,10 @@ s32 Sys_Delete(const char* item) {
 }
 
 s32 Sys_Delete_Recursive(const char* item) {
-	int flags;
-	
-#ifdef _WIN32
-	flags = (FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
-#else
-	flags = (FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
-#endif
-	
+	if (!Sys_IsDir(item))
+		return 1;
 	if (nftw(item, __rm_func, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
-		printf_error("nftw error");
+		printf_error("nftw error: %s %s", item, __FUNCTION__);
 	
 	return 0;
 }
@@ -920,12 +1013,10 @@ void Sys_SetWorkDir(const char* txt) {
 
 bool Sys_Command(const char* cmd) {
 	if (system(cmd)) {
-		printf_WinFix();
 		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", cmd);
 		
 		return 1;
 	}
-	printf_WinFix();
 	
 	return 0;
 }
@@ -955,7 +1046,6 @@ char* Sys_CommandOut(const char* cmd) {
 		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", cmd);
 		printf_error_align("Sys_CommandOut", "Exit Status Failed");
 	}
-	MemFile_Free(&mem);
 	
 	return out;
 }
@@ -1003,6 +1093,81 @@ s32 Sys_Touch(const char* file) {
 	MemFile_Free(&mem);
 	
 	return 0;
+}
+
+s32 Sys_Copy(const char* src, const char* dest, bool isStr) {
+	MemFile a = MemFile_Initialize();
+	
+	if (isStr) {
+		if (MemFile_LoadFile_String(&a, src))
+			return -1;
+		if (MemFile_SaveFile_String(&a, dest))
+			return 1;
+		MemFile_Free(&a);
+	} else {
+		if (MemFile_LoadFile(&a, src))
+			return -1;
+		if (MemFile_SaveFile(&a, dest))
+			return 1;
+		MemFile_Free(&a);
+	}
+	
+	return 0;
+}
+
+s32 Terminal_YesOrNo(void) {
+	char ans[512] = { 0 };
+	u32 clear = 0;
+	
+	while (strcmp(ans, "y\n") && strcmp(ans, "n\n") && strcmp(ans, "Y\n") && strcmp(ans, "N\n")) {
+		if (clear) {
+			Terminal_ClearLines(2);
+		}
+		printf("\r" PRNT_GRAY "[" PRNT_DGRY "<" PRNT_GRAY "]: " PRNT_BLUE);
+		fgets(ans, 511, stdin);
+		clear = 1;
+	}
+	
+	if (ans[0] == 'N' || ans[0] == 'n')
+		return false;
+	
+	return true;
+}
+
+void Terminal_ClearScreen(void) {
+	printf("\033[2J");
+}
+
+void Terminal_ClearLines(u32 i) {
+	printf("\x1b[2K");
+	for (s32 j = 1; j < i; j++) {
+		Terminal_Move_PrevLine();
+		printf("\x1b[2K");
+	}
+}
+
+void Terminal_Move_PrevLine(void) {
+	printf("\x1b[1F");
+}
+
+void Terminal_Move(s32 x, s32 y) {
+	if (y < 0)
+		printf("\033[%dA", -y);
+	else
+		printf("\033[%dB", y);
+	if (x < 0)
+		printf("\033[%dD", -x);
+	else
+		printf("\033[%dC", x);
+}
+
+const char* Terminal_GetStr(void) {
+	static char str[512] = { 0 };
+	
+	printf("\r" PRNT_GRAY "[" PRNT_DGRY "<" PRNT_GRAY "]: " PRNT_GRAY);
+	fgets(str, 511, stdin);
+	
+	return str;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1072,7 +1237,7 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 	for (s32 i = 0; i < strln; i++)
 		printf("-");
 	printf("------[>]\n" PRNT_RSET);
-	
+	printf("     ");
 	vprintf(
 		fmt,
 		args
@@ -1083,9 +1248,9 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 static void __printf_call(u32 type, char* dest) {
 	char* color[4] = {
 		PRNT_PRPL,
-		PRNT_YELW,
 		PRNT_REDD,
-		PRNT_CYAN
+		PRNT_REDD,
+		PRNT_BLUE
 	};
 	
 	if (dest) {
@@ -1299,6 +1464,9 @@ void printf_info_align(const char* info, const char* fmt, ...) {
 	
 	Thread_Lock();
 	
+	if (sThreadInit)
+		Terminal_ClearLines(0);
+	
 	if (gPrintfProgressing) {
 		printf("\n");
 		gPrintfProgressing = false;
@@ -1326,7 +1494,7 @@ void printf_info_align(const char* info, const char* fmt, ...) {
 	Thread_Unlock();
 }
 
-void printf_prog_align(const char* info, const char* fmt) {
+void printf_prog_align(const char* info, const char* fmt, const char* color) {
 	char printfBuf[512];
 	char buf[512];
 	s32 axis[2];
@@ -1348,13 +1516,11 @@ void printf_prog_align(const char* info, const char* fmt) {
 		info
 	);
 	strcat(printfBuf, buf);
+	if (color)
+		strcat(printfBuf, color);
 	strcat(printfBuf, fmt);
 	
-	Sys_TerminalSize(axis);
-	
-	for (s32 i = 22 + strlen(fmt); i < axis[0] - 2; i++)
-		strcat(printfBuf, " ");
-	
+	Terminal_ClearLines(1);
 	printf("%s", printfBuf);
 	
 	Thread_Unlock();
@@ -1394,22 +1560,7 @@ void printf_progress(const char* info, u32 a, u32 b) {
 	}
 }
 
-s32 printf_get_answer(void) {
-	char ans = 0;
-	
-	while (ans != 'n' && ans!= 'N' && ans != 'y' && ans != 'Y') {
-		printf("\r" PRNT_GRAY "[" PRNT_DGRY "<" PRNT_GRAY "]: " PRNT_RSET);
-		if (scanf("%c", &ans)) (void)0;
-	}
-	getchar();
-	
-	if (ans == 'N' || ans == 'n')
-		return 0;
-	
-	return 1;
-}
-
-void printf_get_space(const char* txt) {
+void printf_getchar(const char* txt) {
 	char ans[512] = { 0 };
 	
 	printf_info("%s", txt);
@@ -1417,7 +1568,7 @@ void printf_get_space(const char* txt) {
 	getchar();
 }
 
-void printf_WinFix() {
+void printf_WinFix(void) {
 #ifdef _WIN32
 	system("\0");
 #endif
@@ -2149,6 +2300,9 @@ s32 String_CaseComp(char* a, char* b, u32 compSize) {
 static void __GetSlashAndPoint(const char* src, s32* slash, s32* point) {
 	s32 strSize = strlen(src);
 	
+	*slash = 0;
+	*point = 0;
+	
 	for (s32 i = strSize; i > 0; i--) {
 		if (*point == 0 && src[i] == '.') {
 			*point = i;
@@ -2234,8 +2388,8 @@ char* String_GetWord(const char* str, s32 word) {
 
 char* String_GetPath(const char* src) {
 	char* buffer;
-	s32 point = 0;
-	s32 slash = 0;
+	s32 point;
+	s32 slash;
 	
 	if (src == NULL)
 		return NULL;
@@ -2255,8 +2409,8 @@ char* String_GetPath(const char* src) {
 
 char* String_GetBasename(const char* src) {
 	char* buffer;
-	s32 point = 0;
-	s32 slash = 0;
+	s32 point;
+	s32 slash;
 	
 	if (src == NULL)
 		return NULL;
@@ -2282,8 +2436,8 @@ char* String_GetBasename(const char* src) {
 
 char* String_GetFilename(const char* src) {
 	char* buffer;
-	s32 point = 0;
-	s32 slash = 0;
+	s32 point;
+	s32 slash;
 	s32 ext = 0;
 	
 	if (src == NULL)
@@ -2409,6 +2563,20 @@ char* String_Line(char* str, s32 line) {
 	return &str[i];
 }
 
+char* String_LineHead(char* str) {
+	s32 i = 1;
+	
+	if (str == NULL)
+		return NULL;
+	
+	for (;; i--) {
+		if (str[i - 1] == '\0')
+			return NULL;
+		if (str[i - 1] == '\n')
+			return &str[i];
+	}
+}
+
 char* String_Word(char* str, s32 word) {
 	s32 iWord = -1;
 	s32 i = 0;
@@ -2437,6 +2605,15 @@ char* String_Word(char* str, s32 word) {
 	}
 	
 	return &str[i];
+}
+
+char* String_Extension(const char* str) {
+	s32 slash;
+	s32 point;
+	
+	__GetSlashAndPoint(str, &slash, &point);
+	
+	return (void*)&str[point];
 }
 
 void String_CaseToLow(char* s, s32 i) {
