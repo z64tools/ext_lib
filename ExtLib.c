@@ -2203,7 +2203,7 @@ s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath) {
 }
 
 s32 MemFile_LoadFile_ReqExt(MemFile* memFile, const char* filepath, const char* ext) {
-	if (MemMem(filepath, strlen(filepath), ext, strlen(ext))) {
+	if (StrStrCase(filepath, ext)) {
 		return MemFile_LoadFile(memFile, filepath);
 	}
 	printf_warning("[%s] does not match extension [%s]", filepath, ext);
@@ -2212,7 +2212,7 @@ s32 MemFile_LoadFile_ReqExt(MemFile* memFile, const char* filepath, const char* 
 }
 
 s32 MemFile_SaveFile_ReqExt(MemFile* memFile, const char* filepath, s32 size, const char* ext) {
-	if (MemMem(filepath, strlen(filepath), ext, strlen(ext))) {
+	if (StrStrCase(filepath, ext)) {
 		return MemFile_SaveFile(memFile, filepath);
 	}
 	
