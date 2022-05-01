@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 110
+#define THIS_EXTLIB_VERSION 111
 
 #ifndef EXTLIB
 #warning ExtLib Version not defined
@@ -314,7 +314,6 @@ char* Dir_Current(DirCtx* ctx) {
 char* Dir_File(DirCtx* ctx, char* fmt, ...) {
 	char* buffer;
 	char argBuf[512];
-	char buf[512];
 	va_list args;
 	
 	va_start(args, fmt);
@@ -1497,7 +1496,6 @@ void printf_info_align(const char* info, const char* fmt, ...) {
 void printf_prog_align(const char* info, const char* fmt, const char* color) {
 	char printfBuf[512];
 	char buf[512];
-	s32 axis[2];
 	
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
@@ -1561,8 +1559,6 @@ void printf_progress(const char* info, u32 a, u32 b) {
 }
 
 void printf_getchar(const char* txt) {
-	char ans[512] = { 0 };
-	
 	printf_info("%s", txt);
 	printf("\r" PRNT_GRAY "[" PRNT_DGRY "<" PRNT_GRAY "]: " PRNT_RSET);
 	getchar();
@@ -3221,96 +3217,6 @@ outside1:
 		return 1;
 }
 
-static uint8_t create_schedule_array_file(FILE* File_fp, uint64_t DataSizeByte, uint32_t* W) {
-	//Checking for file/data size limit
-	if ((0xFFFFFFFFFFFFFFFF / 8) < DataSizeByte) {
-		printf("Error! File/Data exceeds size limit of 20097152 TiB");
-		exit(EXIT_FAILURE);
-	}
-	
-	//Starting with all data + 1 ending byte + 8 size byte
-	uint8_t TmpBlock[64];
-	uint8_t IsFinishedFlag = 0;
-	static uint8_t SetEndOnNextBlockFlag = 0;
-	static uint8_t RemainingDataFlag = 1;
-	
-	uint8_t BytesRead;
-	
-	//Clear schedule array before use
-	for (uint8_t i = 0; i < 64; i++) {
-		W[i] = 0x0;
-		TmpBlock[i] = 0x0; //Necessary for 0 padding on last block
-	}
-	
-	//Creating 512 bits (64 bytes, 16 uint32_t) block with ending byte, padding
-	// and data size
-	for (int8_t i = 0; i < 64; i++) {
-		if (RemainingDataFlag == 1) {
-			if ((BytesRead = fread(TmpBlock, sizeof(uint8_t), BLOCK_SIZE_BYTE, File_fp)) != BLOCK_SIZE_BYTE) {
-				RemainingDataFlag = 0;
-				i = BytesRead - 1;
-			} else
-				goto outside1;
-			
-			if (RemainingDataFlag == 0) { //Data ends before the end of the block
-				if (i < 63) {
-					i++;
-					TmpBlock[i] = 0x80;
-					if (i < 56) {
-						//64 bits data size in bits with big endian representation
-						uint64_t DataSizeBits = DataSizeByte * 8;
-						TmpBlock[56] = (DataSizeBits >> 56) & 0x00000000000000FF;
-						TmpBlock[57] = (DataSizeBits >> 48) & 0x00000000000000FF;
-						TmpBlock[58] = (DataSizeBits >> 40) & 0x00000000000000FF;
-						TmpBlock[59] = (DataSizeBits >> 32) & 0x00000000000000FF;
-						TmpBlock[60] = (DataSizeBits >> 24) & 0x00000000000000FF;
-						TmpBlock[61] = (DataSizeBits >> 16) & 0x00000000000000FF;
-						TmpBlock[62] = (DataSizeBits >> 8) & 0x00000000000000FF;
-						TmpBlock[63] = DataSizeBits & 0x00000000000000FF;
-						RemainingDataFlag = 1;
-						IsFinishedFlag = 1;
-						goto outside1;
-					} else //Block canot hold 64 bits data size value
-						goto outside1;
-				} else {       //Last element of data is the last element on block
-					SetEndOnNextBlockFlag = 1;
-				}
-			}
-		} else {
-			if ((SetEndOnNextBlockFlag == 1) && (i == 0)) {
-				TmpBlock[i] = 0x80;
-				SetEndOnNextBlockFlag = 0;
-			}
-			uint64_t DataSizeBits = DataSizeByte * 8;
-			TmpBlock[56] = (DataSizeBits >> 56) & 0x00000000000000FF;
-			TmpBlock[57] = (DataSizeBits >> 48) & 0x00000000000000FF;
-			TmpBlock[58] = (DataSizeBits >> 40) & 0x00000000000000FF;
-			TmpBlock[59] = (DataSizeBits >> 32) & 0x00000000000000FF;
-			TmpBlock[60] = (DataSizeBits >> 24) & 0x00000000000000FF;
-			TmpBlock[61] = (DataSizeBits >> 16) & 0x00000000000000FF;
-			TmpBlock[62] = (DataSizeBits >> 8) & 0x00000000000000FF;
-			TmpBlock[63] = DataSizeBits & 0x00000000000000FF;
-			RemainingDataFlag = 1;
-			IsFinishedFlag = 1;
-			goto outside1;
-		}
-	}
-outside1:
-	
-	//Filling the schedule array
-	for (uint8_t i = 0; i < 64; i += 4) {
-		W[i / 4] = (((uint32_t)TmpBlock[i]) << 24) |
-			(((uint32_t)TmpBlock[i + 1]) << 16) |
-			(((uint32_t)TmpBlock[i + 2]) << 8) |
-			((uint32_t)TmpBlock[i + 3]);
-	}
-	
-	if (IsFinishedFlag == 1)
-		return 0;
-	else
-		return 1;
-}
-
 static void complete_schedule_array(uint32_t* W) {
 	//add more 48 words of 32bit [w16 to w63]
 	for (uint8_t i = 16; i < 64; i++) {
@@ -3395,8 +3301,6 @@ static uint8_t*extract_digest(uint32_t* Hash) {
 }
 
 u8* Sys_Sha256(u8* data, u64 size) {
-	uint64_t CurrProgressState = 0;
-	
 	//schedule array
 	uint32_t W[64];
 	
