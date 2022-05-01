@@ -2871,8 +2871,10 @@ static void Log_Signal(int arg) {
 	};
 	u32 msgsNum = 0;
 	u32 repeat = 0;
+	s32 errorID = ClampMax(arg, 23);
 	
-	Thread_Lock();
+	if (errorID < 1)
+		errorID = 23;
 	
 	if (sThreadInit) {
 		SleepF(1.0);
@@ -2911,15 +2913,17 @@ static void Log_Signal(int arg) {
 		printf(
 			"\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_YELW " Provide this log to the developer." PRNT_RSET "\n"
 		);
+#ifdef _WIN32
+		Terminal_GetStr();
+#endif
 		exit(EXIT_FAILURE);
 	}
-	
-	Thread_Unlock();
 }
 
 void Log_Init() {
-	signal(SIGINT, Log_Signal);
-	signal(SIGSEGV, Log_Signal);
+	for (s32 i = -100; i < 100; i++)
+		if (i != 0)
+			signal(i, Log_Signal);
 	
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
 		sLogMsg[i] = Calloc(0, FAULT_BUFFER_SIZE);
