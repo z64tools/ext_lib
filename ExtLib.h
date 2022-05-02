@@ -14,6 +14,8 @@
 #include <pthread.h>
 #include <unistd.h>
 
+// __attribute__((scalar_storage_order("big-endian")))
+
 typedef signed char s8;
 typedef unsigned char u8;
 typedef signed short int s16;
@@ -157,6 +159,9 @@ typedef struct ItemList {
 	u32    writePoint;
 	char** item;
 	u32    num;
+	struct {
+		u64 initKey;
+	} __private;
 } ItemList;
 
 typedef enum {
@@ -186,7 +191,6 @@ void Thread_Free(void);
 void Thread_Lock(void);
 void Thread_Unlock(void);
 void Thread_Create(Thread* thread, void* func, void* arg);
-s32 Thread_Close(Thread* thread);
 s32 Thread_Join(Thread* thread);
 
 #ifndef __EXTLIB_C__
@@ -270,8 +274,13 @@ void Terminal_Move_PrevLine(void);
 void Terminal_Move(s32 x, s32 y);
 const char* Terminal_GetStr(void);
 
+typedef enum {
+	LIST_FILES   = 0x0,
+	LIST_FOLDERS = 0x1,
+} ListFlags;
+
 void ItemList_Recursive(ItemList* target, const char* path, char* keyword, PathType fullPath);
-void ItemList_List(ItemList* target, const char* path, s32 depth);
+void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags);
 void ItemList_Print(ItemList* target);
 s32 ItemList_SaveList(ItemList* target, const char* output);
 void ItemList_NumericalSort(ItemList* list);
@@ -303,6 +312,7 @@ void* MemMemU16(void* haystack, size_t haySize, const void* needle, size_t needl
 void* MemMemU32(void* haystack, size_t haySize, const void* needle, size_t needleSize);
 void* MemMemU64(void* haystack, size_t haySize, const void* needle, size_t needleSize);
 const char* StrEnd(const char* src, const char* ext);
+const char* StrEndCase(const char* src, const char* ext);
 void* Malloc(void* data, s32 size);
 void* Calloc(void* data, s32 size);
 void* Realloc(void* data, s32 size);

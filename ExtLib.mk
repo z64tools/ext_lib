@@ -23,9 +23,9 @@ extlib_win32: $(ExtLib_Win32_O)
 bin/win32/ExtLib.o: $(C_INCLUDE_PATH)/ExtLib.c $(C_INCLUDE_PATH)/ExtLib.h
 bin/win32/%.o: $(C_INCLUDE_PATH)/%.c
 	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
-	@i686-w64-mingw32.static-gcc -c -o $@ $< $(OPT_WIN32) $(CFLAGS) -Wno-format-truncation -Wno-strict-aliasing -Wno-implicit-function-declaration -DNDEBUG -D_WIN32
+	@i686-w64-mingw32.static-gcc -c -o $@ $< $(OPT_WIN32) $(CFLAGS) -Wno-stringop-overread -Wno-format-truncation -Wno-strict-aliasing -Wno-implicit-function-declaration -DNDEBUG -D_WIN32
 	
 bin/linux/ExtLib.o: $(C_INCLUDE_PATH)/ExtLib.c $(C_INCLUDE_PATH)/ExtLib.h
 bin/linux/%.o: $(C_INCLUDE_PATH)/%.c
 	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
-	@gcc -c -o $@ $< $(OPT_LINUX) $(CFLAGS) -Wno-format-truncation -Wno-strict-aliasing -Wno-implicit-function-declaration -DNDEBUG
+	@gcc -c -o $@ $< $(OPT_LINUX) $(CFLAGS) -Wno-stringop-overread -Wno-format-truncation -Wno-strict-aliasing -Wno-implicit-function-declaration -DNDEBUG

@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 111
+#define THIS_EXTLIB_VERSION 112
 
 #ifndef EXTLIB
 #warning ExtLib Version not defined
@@ -62,8 +62,8 @@ time_t sTime;
 MemFile sLog;
 
 pthread_mutex_t sThreadLock;
-u32 sThreadInit;
-s32 sThreadLvl;
+volatile u32 sThreadInit;
+volatile s32 sThreadLvl;
 
 // # # # # # # # # # # # # # # # # # # # #
 // # THREAD                              #
@@ -81,19 +81,15 @@ void Thread_Free(void) {
 }
 
 void Thread_Lock(void) {
-	if (sThreadInit) {
-		// printf_info("LOCK %d", sThreadLvl);
-		// if (sThreadLvl == 0)
+	if (sThreadInit == 2) {
+		sThreadInit = 3;
 		pthread_mutex_lock(&sThreadLock);
-		// sThreadLvl++;
 	}
 }
 
 void Thread_Unlock(void) {
-	if (sThreadInit) {
-		// sThreadLvl--;
-		// printf_info("UNLOCK %d", sThreadLvl);
-		// if (sThreadLvl == 0)
+	if (sThreadInit == 3) {
+		sThreadInit = 2;
 		pthread_mutex_unlock(&sThreadLock);
 	}
 }
@@ -101,10 +97,7 @@ void Thread_Unlock(void) {
 void Thread_Create(Thread* thread, void* func, void* arg) {
 	if (sThreadInit == false) printf_error("Thread not Initialized");
 	pthread_create(thread, NULL, (void*)func, (void*)(arg));
-}
-
-s32 Thread_Close(Thread* thread) {
-	return pthread_cancel(*thread);
+	sThreadInit = 2;
 }
 
 s32 Thread_Join(Thread* thread) {
@@ -352,6 +345,9 @@ char* Dir_GetWildcard(DirCtx* ctx, char* x) {
 	char* restorePath;
 	char* search = StrStr(x, "*");
 	char* posPath;
+	
+	if (search == NULL)
+		return NULL;
 	
 	sEnd = Tmp_String(&search[1]);
 	posPath = String_GetPath(Tmp_Printf("%s%s", ctx->curPath, x));
@@ -718,47 +714,81 @@ free:
 }
 
 char** sItemList;
-u32 sItemBufLength;
-u32 sItemNum;
-s32 sMaxLvl;
-bool sIsWorkDir;
+volatile u32 sItemBufLength;
+volatile u32 sItemNum;
+volatile s32 sMaxLvl;
+volatile ListFlags sFlags;
+
+static void ItemList_Validate(ItemList* itemList) {
+	if (itemList->__private.initKey != 0xDEFABEBACECAFAFF)
+		*itemList = ItemList_Initialize();
+}
 
 static int __list_item(const char* item, const struct stat* bug, int type, struct FTW* ftw) {
-	if (type != FTW_F)
-		return 0;
+	u32 typeFlag = sFlags & 0xF;
 	
-	if (sMaxLvl > -1 && ftw->level > sMaxLvl)
-		return 0;
+	if (typeFlag == LIST_FILES) {
+		if (type != FTW_F)
+			return 0;
+		
+		if (sMaxLvl > -1 && ftw->level > sMaxLvl + 1)
+			return 0;
+		
+		sItemList[sItemNum] = strdup(item);
+		
+		if (sItemList[sItemNum] == NULL) {
+			Log(__FUNCTION__, __LINE__, "strdup(item);");
+			
+			return 1;
+		}
+	} else if (typeFlag == LIST_FOLDERS) {
+		if (type != FTW_DP)
+			return 0;
+		
+		if (sMaxLvl > -1 && ftw->level != sMaxLvl + 1)
+			return 0;
+		
+		sItemList[sItemNum] = Calloc(0, strlen(item) + 3);
+		
+		if (sItemList[sItemNum] == NULL) {
+			Log(__FUNCTION__, __LINE__, "strdup(item);");
+			
+			return 1;
+		}
+		
+		strcpy(sItemList[sItemNum], item);
+		strcat(sItemList[sItemNum], "/");
+	} else return 0;
 	
-	sItemList[sItemNum++] = strdup(item);
-	sItemBufLength += strlen(item) + 1;
+	Log(__FUNCTION__, __LINE__, "%3d/%-3d base:%-3d type:%-3d - %s", ftw->level, sMaxLvl, ftw->base, type, item);
+	
+	sItemBufLength += strlen(sItemList[sItemNum]) + 1;
+	sItemNum++;
 	
 	return 0;
 }
 
-void ItemList_List(ItemList* target, const char* path, s32 depth) {
+void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags) {
 	Thread_Lock();
-	s32 i;
+	bool isWordDir = false;
+	u32 wplen;
 	
-	sItemList = Malloc(0, sizeof(char*) * 1024);
+	ItemList_Validate(target);
+	
+	sItemList = Malloc(0, sizeof(char*) * 1024 * 16);
 	sItemBufLength = 0;
 	sItemNum = 0;
-	sIsWorkDir = 0;
 	sMaxLvl = depth;
+	sFlags = flags;
 	
 	if (strlen(path) == 0) {
-		sIsWorkDir = true;
-		path = "./";
+		isWordDir = true;
+		path = Sys_WorkDir();
+		wplen = strlen(path);
 	}
 	
-	if (sMaxLvl > -1)
-		for (i = 0; i <= strlen(path); i++) {
-			if (path[i] == '/' || path[i] == '\\')
-				sMaxLvl++;
-		}
-	
-	if (nftw(path, __list_item, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
-		printf_error("nftw error: %s %s", 10, __FUNCTION__);
+	if (nftw(path, __list_item, 80, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
+		printf_error("nftw error: %s %d", __FUNCTION__, __LINE__);
 	
 	target->buffer = Malloc(0, sItemBufLength);
 	target->item = Malloc(0, sizeof(char*) * sItemNum);
@@ -767,24 +797,26 @@ void ItemList_List(ItemList* target, const char* path, s32 depth) {
 	for (s32 i = 0; i < sItemNum; i++) {
 		target->item[i] = &target->buffer[target->writePoint];
 		
-		if (sIsWorkDir)
-			strcpy(target->item[i], &sItemList[i][2]);
+		if (isWordDir)
+			strcpy(target->item[i], &sItemList[i][wplen]);
 		else
 			strcpy(target->item[i], sItemList[i]);
 		
-		target->writePoint += strlen(sItemList[i]) + 1;
+		target->writePoint += strlen(target->item[i]) + 1;
 		
 		Free(sItemList[i]);
 	}
 	
 	sItemList = Free(sItemList);
 	
+	Log(__FUNCTION__, __LINE__, "OK");
+	
 	Thread_Unlock();
 }
 
 void ItemList_Print(ItemList* target) {
 	for (s32 i = 0; i < target->num; i++)
-		printf_info("%4d: %s", i, target->item[i]);
+		printf("[#]: %4d: %s\n", i, target->item[i]);
 }
 
 s32 ItemList_SaveList(ItemList* target, const char* output) {
@@ -839,7 +871,7 @@ void ItemList_NumericalSort(ItemList* list) {
 }
 
 ItemList ItemList_Initialize(void) {
-	return (ItemList) { 0 };
+	return (ItemList) { .__private = { .initKey = 0xDEFABEBACECAFAFF } };
 }
 
 void ItemList_Free(ItemList* itemList) {
@@ -1784,6 +1816,15 @@ const char* StrEnd(const char* src, const char* ext) {
 	const char* fP;
 	
 	if ((fP = StrStr(src, ext)) != NULL && strlen(fP) == strlen(ext))
+		return fP;
+	
+	return NULL;
+}
+
+const char* StrEndCase(const char* src, const char* ext) {
+	const char* fP;
+	
+	if ((fP = StrStrCase(src, ext)) != NULL && strlen(fP) == strlen(ext))
 		return fP;
 	
 	return NULL;
@@ -2882,6 +2923,8 @@ static void Log_Signal(int arg) {
 	}
 	
 	if (ran) return;
+	
+	printf_WinFix();
 	
 	printf("\n");
 	if (arg != 0xDEADBEEF)
