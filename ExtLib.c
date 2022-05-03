@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 112
+#define THIS_EXTLIB_VERSION 113
 
 #ifndef EXTLIB
 #warning ExtLib Version not defined
@@ -61,43 +61,40 @@ u32 sSeek_Temp = 0;
 time_t sTime;
 MemFile sLog;
 
-pthread_mutex_t sThreadLock;
-volatile u32 sThreadInit;
-volatile s32 sThreadLvl;
+pthread_mutex_t ___gExt_ThreadLock;
+volatile bool ___gExt_ThreadInit;
 
 // # # # # # # # # # # # # # # # # # # # #
 // # THREAD                              #
 // # # # # # # # # # # # # # # # # # # # #
 
 void Thread_Init(void) {
-	pthread_mutex_init(&sThreadLock, NULL);
-	sThreadInit = true;
-	sThreadLvl = 0;
+	pthread_mutex_init(&___gExt_ThreadLock, NULL);
+	___gExt_ThreadInit = true;
 }
 
 void Thread_Free(void) {
-	pthread_mutex_destroy(&sThreadLock);
-	sThreadInit = false;
+	pthread_mutex_destroy(&___gExt_ThreadLock);
+	___gExt_ThreadInit = false;
 }
 
 void Thread_Lock(void) {
-	if (sThreadInit == 2) {
-		sThreadInit = 3;
-		pthread_mutex_lock(&sThreadLock);
+	if (___gExt_ThreadInit) {
+		pthread_mutex_lock(&___gExt_ThreadLock);
+		Log_Unlocked(__FUNCTION__, __LINE__, "LOCK");
 	}
 }
 
 void Thread_Unlock(void) {
-	if (sThreadInit == 3) {
-		sThreadInit = 2;
-		pthread_mutex_unlock(&sThreadLock);
+	if (___gExt_ThreadInit) {
+		Log_Unlocked(__FUNCTION__, __LINE__, "UNLOCK");
+		pthread_mutex_unlock(&___gExt_ThreadLock);
 	}
 }
 
 void Thread_Create(Thread* thread, void* func, void* arg) {
-	if (sThreadInit == false) printf_error("Thread not Initialized");
+	if (___gExt_ThreadInit == false) printf_error("Thread not Initialized");
 	pthread_create(thread, NULL, (void*)func, (void*)(arg));
-	sThreadInit = 2;
 }
 
 s32 Thread_Join(Thread* thread) {
@@ -713,73 +710,67 @@ free:
 	Free(oriPath);
 }
 
-char** sItemList;
-volatile u32 sItemBufLength;
-volatile u32 sItemNum;
-volatile s32 sMaxLvl;
-volatile ListFlags sFlags;
-
 static void ItemList_Validate(ItemList* itemList) {
 	if (itemList->__private.initKey != 0xDEFABEBACECAFAFF)
 		*itemList = ItemList_Initialize();
 }
 
-static int __list_item(const char* item, const struct stat* bug, int type, struct FTW* ftw) {
-	u32 typeFlag = sFlags & 0xF;
-	
-	if (typeFlag == LIST_FILES) {
-		if (type != FTW_F)
-			return 0;
-		
-		if (sMaxLvl > -1 && ftw->level > sMaxLvl + 1)
-			return 0;
-		
-		sItemList[sItemNum] = strdup(item);
-		
-		if (sItemList[sItemNum] == NULL) {
-			Log(__FUNCTION__, __LINE__, "strdup(item);");
-			
-			return 1;
-		}
-	} else if (typeFlag == LIST_FOLDERS) {
-		if (type != FTW_DP)
-			return 0;
-		
-		if (sMaxLvl > -1 && ftw->level != sMaxLvl + 1)
-			return 0;
-		
-		sItemList[sItemNum] = Calloc(0, strlen(item) + 3);
-		
-		if (sItemList[sItemNum] == NULL) {
-			Log(__FUNCTION__, __LINE__, "strdup(item);");
-			
-			return 1;
-		}
-		
-		strcpy(sItemList[sItemNum], item);
-		strcat(sItemList[sItemNum], "/");
-	} else return 0;
-	
-	Log(__FUNCTION__, __LINE__, "%3d/%-3d base:%-3d type:%-3d - %s", ftw->level, sMaxLvl, ftw->base, type, item);
-	
-	sItemBufLength += strlen(sItemList[sItemNum]) + 1;
-	sItemNum++;
-	
-	return 0;
-}
-
 void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags) {
-	Thread_Lock();
 	bool isWordDir = false;
 	u32 wplen;
+	char** nftwList;
+	u32 nftwBufLen;
+	u32 nftwNum;
 	
 	ItemList_Validate(target);
 	
-	sItemList = Malloc(0, sizeof(char*) * 1024 * 16);
-	sItemBufLength = 0;
-	sItemNum = 0;
-	sMaxLvl = depth;
-	sFlags = flags;
+	nftwList = Malloc(0, sizeof(char*) * 1024 * 16);
+	nftwBufLen = 0;
+	nftwNum = 0;
+	
+	int __list_item(const char* item, const struct stat* bug, int type, struct FTW* ftw) {
+		u32 typeFlag = flags & 0xF;
+		
+		if (typeFlag == LIST_FILES) {
+			if (type != FTW_F)
+				return 0;
+			
+			if (depth > -1 && ftw->level > depth + 1)
+				return 0;
+			
+			nftwList[nftwNum] = strdup(item);
+			
+			if (nftwList[nftwNum] == NULL) {
+				Log(__FUNCTION__, __LINE__, "strdup(item);");
+				
+				return 1;
+			}
+		} else if (typeFlag == LIST_FOLDERS) {
+			if (type != FTW_DP)
+				return 0;
+			
+			if (depth > -1 && ftw->level != depth + 1)
+				return 0;
+			
+			nftwList[nftwNum] = Calloc(0, strlen(item) + 3);
+			
+			if (nftwList[nftwNum] == NULL) {
+				Log(__FUNCTION__, __LINE__, "strdup(item);");
+				
+				return 1;
+			}
+			
+			strcpy(nftwList[nftwNum], item);
+			strcat(nftwList[nftwNum], "/");
+		} else return 0;
+		
+		Log(__FUNCTION__, __LINE__, "%3d/%-3d base:%-3d type:%-3d - %s", ftw->level, depth, ftw->base, type, item);
+		
+		nftwBufLen += strlen(nftwList[nftwNum]) + 1;
+		nftwNum++;
+		
+		return 0;
+	};
 	
 	if (strlen(path) == 0) {
 		isWordDir = true;
@@ -790,28 +781,26 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flag
 	if (nftw(path, __list_item, 80, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
 		printf_error("nftw error: %s %d", __FUNCTION__, __LINE__);
 	
-	target->buffer = Malloc(0, sItemBufLength);
-	target->item = Malloc(0, sizeof(char*) * sItemNum);
-	target->num = sItemNum;
+	target->buffer = Malloc(0, nftwBufLen);
+	target->item = Malloc(0, sizeof(char*) * nftwNum);
+	target->num = nftwNum;
 	
-	for (s32 i = 0; i < sItemNum; i++) {
+	for (s32 i = 0; i < nftwNum; i++) {
 		target->item[i] = &target->buffer[target->writePoint];
 		
 		if (isWordDir)
-			strcpy(target->item[i], &sItemList[i][wplen]);
+			strcpy(target->item[i], &nftwList[i][wplen]);
 		else
-			strcpy(target->item[i], sItemList[i]);
+			strcpy(target->item[i], nftwList[i]);
 		
 		target->writePoint += strlen(target->item[i]) + 1;
 		
-		Free(sItemList[i]);
+		Free(nftwList[i]);
 	}
 	
-	sItemList = Free(sItemList);
+	nftwList = Free(nftwList);
 	
 	Log(__FUNCTION__, __LINE__, "OK");
-	
-	Thread_Unlock();
 }
 
 void ItemList_Print(ItemList* target) {
@@ -894,6 +883,23 @@ bool Sys_IsDir(const char* path) {
 	}
 	
 	return false;
+}
+
+Time Sys_Stat_Ex(const char* item) {
+	struct stat st = { 0 };
+	Time t;
+	
+	if (stat(item, &st) == -1)
+		return 0;
+	
+	if (st.st_atime > t)
+		t = st.st_atime;
+	if (st.st_mtime > t)
+		t = st.st_mtime;
+	if (st.st_ctime > t)
+		t = st.st_ctime;
+	
+	return st.st_ctime;
 }
 
 Time Sys_Stat(const char* item) {
@@ -1458,7 +1464,6 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 }
 
 void printf_info(const char* fmt, ...) {
-	Thread_Lock();
 	char printfBuf[512];
 	char buf[512];
 	
@@ -1482,8 +1487,6 @@ void printf_info(const char* fmt, ...) {
 	
 	strcat(printfBuf, "" PRNT_RSET "\n");
 	printf("%s", printfBuf);
-	
-	Thread_Unlock();
 }
 
 void printf_info_align(const char* info, const char* fmt, ...) {
@@ -1492,11 +1495,6 @@ void printf_info_align(const char* info, const char* fmt, ...) {
 	
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
-	
-	Thread_Lock();
-	
-	if (sThreadInit)
-		Terminal_ClearLines(0);
 	
 	if (gPrintfProgressing) {
 		printf("\n");
@@ -1521,8 +1519,6 @@ void printf_info_align(const char* info, const char* fmt, ...) {
 	strcat(printfBuf, "" PRNT_RSET "\n");
 	
 	printf("%s", printfBuf);
-	
-	Thread_Unlock();
 }
 
 void printf_prog_align(const char* info, const char* fmt, const char* color) {
@@ -1531,8 +1527,6 @@ void printf_prog_align(const char* info, const char* fmt, const char* color) {
 	
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
-	
-	Thread_Lock();
 	
 	if (gPrintfProgressing) {
 		printf("\n");
@@ -1552,8 +1546,6 @@ void printf_prog_align(const char* info, const char* fmt, const char* color) {
 	
 	Terminal_ClearLines(1);
 	printf("%s", printfBuf);
-	
-	Thread_Unlock();
 }
 
 void printf_progress(const char* info, u32 a, u32 b) {
@@ -2917,12 +2909,8 @@ static void Log_Signal(int arg) {
 	if (errorID < 1)
 		errorID = 23;
 	
-	if (sThreadInit) {
-		SleepF(1.0);
-		ran = 1;
-	}
-	
 	if (ran) return;
+	ran = ___gExt_ThreadInit != 0;
 	
 	printf_WinFix();
 	
@@ -2952,7 +2940,7 @@ static void Log_Signal(int arg) {
 	}
 	printf("\n");
 	
-	if (arg != 0xDEADBEEF) {
+	if (arg != 0xDEADBEEF && arg != 21) {
 		printf(
 			"\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_YELW " Provide this log to the developer." PRNT_RSET "\n"
 		);
@@ -2984,6 +2972,23 @@ void Log_Free() {
 void Log_Print() {
 	if (sLogMsg[0][0] != 0)
 		Log_Signal(0xDEADBEEF);
+}
+
+void Log_Unlocked(const char* func, u32 line, const char* txt, ...) {
+	va_list args;
+	
+	for (s32 i = FAULT_LOG_NUM - 1; i > 0; i--) {
+		strcpy(sLogMsg[i], sLogMsg[i - 1]);
+		strcpy(sLogFunc[i], sLogFunc[i - 1]);
+		sLogLine[i] = sLogLine[i - 1];
+	}
+	
+	va_start(args, txt);
+	vsnprintf(sLogMsg[0], FAULT_BUFFER_SIZE, txt, args);
+	va_end(args);
+	
+	strcpy(sLogFunc[0], func);
+	sLogLine[0] = line;
 }
 
 void Log(const char* func, u32 line, const char* txt, ...) {

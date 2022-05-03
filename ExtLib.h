@@ -250,6 +250,7 @@ void Dir_ItemList_Keyword(DirCtx* ctx, ItemList* itemList, char* ext);
 
 bool Sys_IsDir(const char* path);
 void Sys_MakeDir(const char* dir, ...);
+Time Sys_Stat_Ex(const char* item);
 Time Sys_Stat(const char* item);
 Time Sys_StatSelf(void);
 Time Sys_Time(void);
@@ -384,6 +385,7 @@ f32 Config_GetFloat(MemFile* memFile, char* floatName);
 void Log_Init();
 void Log_Free();
 void Log_Print();
+void Log_Unlocked(const char* func, u32 line, const char* txt, ...);
 void Log(const char* func, u32 line, const char* txt, ...);
 #ifndef __EXTLIB_C__
 #define Log(...) Log(__FUNCTION__, __LINE__, __VA_ARGS__)
