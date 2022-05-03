@@ -29,7 +29,6 @@ void chdir(const char*);
 #include <sys/types.h>
 #include <dirent.h>
 #include <unistd.h>
-#include <curl/curl.h>
 #include <ftw.h>
 
 #ifdef _WIN32
