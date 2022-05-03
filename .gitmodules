@@ -7,3 +7,6 @@
 [submodule "miniaudio"]
 	path = miniaudio
 	url = https://github.com/mackron/miniaudio
+[submodule "minimp3"]
+	path = minimp3
+	url = https://github.com/lieff/minimp3

@@ -7,14 +7,31 @@ XM_C      = libxm/src/context.c \
 			libxm/src/xm.c
 ZIP_C     = zip/src/zip.c
 MINAUD_C  = miniaudio.c
+MP3_C     = mp3.c
 
-ExtLib_Linux_O  = $(foreach f,$(ExtLib_C:.c=.o) $(XM_C:.c=.o) $(MINAUD_C:.c=.o) $(ZIP_C:.c=.o), bin/linux/$f)
-ExtLib_Win32_O  = $(foreach f,$(ExtLib_C:.c=.o) $(XM_C:.c=.o) $(MINAUD_C:.c=.o) $(ZIP_C:.c=.o), bin/win32/$f)
+ExtLib_Linux_O  = $(foreach f,$(ExtLib_C:.c=.o), bin/linux/$f)
+ExtLib_Win32_O  = $(foreach f,$(ExtLib_C:.c=.o), bin/win32/$f)
+Zip_Linux_O     = $(foreach f,$(ZIP_C:.c=.o), bin/linux/$f)
+Zip_Win32_O     = $(foreach f,$(ZIP_C:.c=.o), bin/win32/$f)
+Audio_Linux_O   = $(foreach f,$(MINAUD_C:.c=.o), bin/linux/$f)
+Audio_Win32_O   = $(foreach f,$(MINAUD_C:.c=.o), bin/win32/$f)
+Mp3_Linux_O     = $(foreach f,$(MP3_C:.c=.o), bin/linux/$f)
+Mp3_Win32_O     = $(foreach f,$(MP3_C:.c=.o), bin/win32/$f)
+Xm_Linux_O      = $(foreach f,$(XM_C:.c=.o), bin/linux/$f)
+Xm_Win32_O      = $(foreach f,$(XM_C:.c=.o), bin/win32/$f)
 
 # Make build directories
 $(shell mkdir -p bin/ $(foreach dir, \
 	$(dir $(ExtLib_Linux_O)) \
 	$(dir $(ExtLib_Win32_O)) \
+	$(dir $(Zip_Linux_O)) \
+	$(dir $(Zip_Win32_O)) \
+	$(dir $(Audio_Linux_O)) \
+	$(dir $(Audio_Win32_O)) \
+	$(dir $(Mp3_Linux_O)) \
+	$(dir $(Mp3_Win32_O)) \
+	$(dir $(Xm_Linux_O)) \
+	$(dir $(Xm_Win32_O)) \
 	, $(dir)))
 	
 extlib_linux: $(ExtLib_Linux_O)
