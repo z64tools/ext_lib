@@ -712,6 +712,7 @@ static void ItemList_Validate(ItemList* itemList) {
 		*itemList = ItemList_Initialize();
 }
 
+#ifndef __IDE_FLAG__
 void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags) {
 	bool isWordDir = false;
 	u32 wplen;
@@ -799,6 +800,7 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flag
 	
 	Log(__FUNCTION__, __LINE__, "OK");
 }
+#endif
 
 void ItemList_Print(ItemList* target) {
 	for (s32 i = 0; i < target->num; i++)
@@ -2854,7 +2856,7 @@ f32 Config_GetFloat(MemFile* memFile, char* floatName) {
 		printf_warning("[%s] is missing float [%s]", memFile->info.name, floatName);
 	else sConfigSuppression++;
 	
-	return 0;
+	return 0.0f;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
