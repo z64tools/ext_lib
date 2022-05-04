@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 113
+#define THIS_EXTLIB_VERSION 114
 
 #ifndef EXTLIB
 #warning ExtLib Version not defined
@@ -80,13 +80,11 @@ void Thread_Free(void) {
 void Thread_Lock(void) {
 	if (___gExt_ThreadInit) {
 		pthread_mutex_lock(&___gExt_ThreadLock);
-		Log_Unlocked(__FUNCTION__, __LINE__, "LOCK");
 	}
 }
 
 void Thread_Unlock(void) {
 	if (___gExt_ThreadInit) {
-		Log_Unlocked(__FUNCTION__, __LINE__, "UNLOCK");
 		pthread_mutex_unlock(&___gExt_ThreadLock);
 	}
 }
@@ -2718,7 +2716,7 @@ s32 String_Replace(char* src, const char* word, const char* replacement) {
 	while (ptr != NULL) {
 		String_Remove(ptr, strlen(word));
 		String_Insert(ptr, replacement);
-		ptr = StrStr(src, word);
+		ptr = StrStr(ptr + 1, word);
 		diff = true;
 	}
 	

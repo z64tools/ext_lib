@@ -520,8 +520,13 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define Clamp(val, min, max) ((val) < (min) ? (min) : (val) > (max) ? (max) : (val))
 #define ClampMin(val, min)   ((val) < (min) ? (min) : (val))
 #define ClampMax(val, max)   ((val) > (max) ? (max) : (val))
-#define ArrayCount(arr)      (u32)(sizeof(arr) / sizeof(arr[0]))
-#define Lerp(x, min, max)    ((min) + ((max) - (min)) * (x))
+
+#define ClampS8(val)  (s8)Clamp(((f32)val), -__INT8_MAX__ - 1, __INT8_MAX__)
+#define ClampS16(val) (s16)Clamp(((f32)val), -__INT16_MAX__ - 1, __INT16_MAX__)
+#define ClampS32(val) (s32)Clamp(((f32)val), (-__INT32_MAX__ - 1), (f32)__INT32_MAX__)
+
+#define ArrayCount(arr)   (u32)(sizeof(arr) / sizeof(arr[0]))
+#define Lerp(x, min, max) ((min) + ((max) - (min)) * (x))
 
 #define BinToMb(x)        ((f32)(x) / (f32)0x100000)
 #define BinToKb(x)        ((f32)(x) / (f32)0x400)
@@ -637,7 +642,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #endif
 
 #define Main(y1, y2) main(y1, y2)
-#define XARG(arg)    ParseArgs(argv, arg, &parArg)
+#define Arg(arg)     ParseArgs(argv, arg, &parArg)
 #define SEG_FAULT ((u32*)0)[0] = 0
 
 #define AttPacked __attribute__ ((packed))
