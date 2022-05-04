@@ -712,7 +712,6 @@ static void ItemList_Validate(ItemList* itemList) {
 		*itemList = ItemList_Initialize();
 }
 
-#ifndef __IDE_FLAG__
 void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags) {
 	bool isWordDir = false;
 	u32 wplen;
@@ -726,7 +725,11 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flag
 	nftwBufLen = 0;
 	nftwNum = 0;
 	
-	int __list_item(const char* item, const struct stat* bug, int type, struct FTW* ftw) {
+	int Nested(__list_item, (const char* item, const struct stat* bug, int type, struct FTW* ftw) ) {
+		NestedVar(
+			u32 nftwBufLen;
+			u32 nftwNum;
+		);
 		u32 typeFlag = flags & 0xF;
 		
 		if (typeFlag == LIST_FILES) {
@@ -776,7 +779,7 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flag
 		wplen = strlen(path);
 	}
 	
-	if (nftw(path, __list_item, 80, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
+	if (nftw(path, (void*)__list_item, 80, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
 		printf_error("nftw error: %s %d", __FUNCTION__, __LINE__);
 	
 	target->buffer = Malloc(0, nftwBufLen);
@@ -800,7 +803,6 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flag
 	
 	Log(__FUNCTION__, __LINE__, "OK");
 }
-#endif
 
 void ItemList_Print(ItemList* target) {
 	for (s32 i = 0; i < target->num; i++)

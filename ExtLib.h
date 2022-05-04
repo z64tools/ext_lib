@@ -34,6 +34,15 @@ typedef pthread_t Thread;
 
 extern pthread_mutex_t gMutexLock;
 
+#ifdef __IDE_FLAG__
+#define Nested(name, args) (^name)args = ^ args
+#define NestedVar(vars) vars
+#else
+#define Nested(name, args) (name)args
+#define NestedVar(vars) (void)0;
+#endif
+	
+
 typedef struct {
 	f32 h;
 	f32 s;
