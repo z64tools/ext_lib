@@ -35,13 +35,12 @@ typedef pthread_t Thread;
 extern pthread_mutex_t gMutexLock;
 
 #ifdef __IDE_FLAG__
-#define Nested(name, args) (^name)args = ^ args
-#define NestedVar(vars) vars
+#define Nested(name, args) (^ name) args = ^ args
+#define NestedVar(vars)    vars
 #else
 #define Nested(name, args) (name)args
-#define NestedVar(vars) (void)0;
+#define NestedVar(vars)    (void)0;
 #endif
-	
 
 typedef struct {
 	f32 h;
@@ -524,6 +523,8 @@ extern PrintfSuppressLevel gPrintfSuppress;
 
 #define Decr(x) (x -= (x > 0) ? 1 : 0)
 #define Incr(x) (x += (x < 0) ? 1 : 0)
+
+#define Intersect(a, aend, b, bend) ((Max(a, b) < Min(aend, bend)))
 
 #define Max(a, b)            ((a) > (b) ? (a) : (b))
 #define Min(a, b)            ((a) < (b) ? (a) : (b))
