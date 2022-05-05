@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 115
+#define THIS_EXTLIB_VERSION 116
 
 #ifndef EXTLIB
 #warning ExtLib Version not defined
@@ -2306,7 +2306,7 @@ f32 String_GetFloat(char* string) {
 	return fl;
 }
 
-s32 String_GetLineCount(char* str) {
+s32 String_GetLineCount(const char* str) {
 	s32 line = 1;
 	s32 i = 0;
 	
@@ -2733,6 +2733,46 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 	strcat(dest, ext);
 }
 
+s32 String_Validate_Hex(const char* str) {
+	s32 isOk = false;
+	
+	for (s32 i = 0; i < strlen(str); i++) {
+		if (
+			(str[i] >= 'A' && str[i] <= 'F') ||
+			(str[i] >= 'a' && str[i] <= 'f') ||
+			(str[i] >= '0' && str[i] <= '9') ||
+			str[i] == 'x' || str[i] == 'X'
+		) {
+			isOk = true;
+			continue;
+		}
+		
+		return false;
+	}
+	
+	return isOk;
+}
+
+s32 String_Validate_Hex_Spaced(const char* str) {
+	s32 isOk = false;
+	
+	for (s32 i = 0; i < strlen(str); i++) {
+		if (
+			(str[i] >= 'A' && str[i] <= 'F') ||
+			(str[i] >= 'a' && str[i] <= 'f') ||
+			(str[i] >= '0' && str[i] <= '9') ||
+			str[i] == 'x' || str[i] == 'X' || str[i] == ' '
+		) {
+			isOk = true;
+			continue;
+		}
+		
+		return false;
+	}
+	
+	return isOk;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # CONFIG                              #
 // # # # # # # # # # # # # # # # # # # # #
@@ -2743,43 +2783,80 @@ void Config_SuppressNext(void) {
 	sConfigSuppression = 1;
 }
 
-char* Config_GetPtr(MemFile* memFile, const char* name) {
-	u32 lineCount = String_GetLineCount(memFile->data);
+char* Config_Variable(const char* str, const char* name) {
+	u32 lineCount = String_GetLineCount(str);
+	char* line = (char*)str;
 	
-	for (s32 i = 0; i < lineCount; i++) {
-		if (!strncmp(String_Word(String_Line(memFile->str, i), 0), name, strlen(name))) {
+	for (s32 i = 0; i < lineCount; i++, line = String_Line(line, 1)) {
+		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
+			continue;
+		if (!strncmp(line, name, strlen(name))) {
+			s32 isString = 0;
+			char* p = line + strlen(name);
+			u32 size = 0;
 			
-			return String_Word(String_Line(memFile->str, i), 2);
+			while (p[0] == ' ' || p[0] == '\t')
+				p++;
+			
+			if (p[0] != '=')
+				return NULL;
+			
+			while (p[0] == '=' || p[0] == ' ' || p[0] == '\t')
+				p++;
+			
+			while (p[size + 1] != ';' && p[size + 1] != '#' && p[size] != '\n' && (isString == false || p[size] != '\"') && p[size] != '\0') {
+				if (p[size] == '\"')
+					isString = 1;
+				size++;
+			}
+			
+			if (isString == false)
+				while (p[size - 1] == ' ')
+					size--;
+			
+			return p;
 		}
 	}
 	
 	return NULL;
 }
 
-char* Config_Get(MemFile* memFile, const char* name) {
-	u32 lineCount = String_GetLineCount(memFile->data);
+char* Config_GetVariable(const char* str, const char* name) {
+	u32 lineCount = String_GetLineCount(str);
+	char* line = (char*)str;
 	
-	for (s32 i = 0; i < lineCount; i++) {
-		if (!strcmp(String_GetWord(String_GetLine(memFile->str, i), 0), name)) {
-			char* word = String_Word(String_Line(memFile->str, i), 2);
-			char* ret;
+	for (s32 i = 0; i < lineCount; i++, line = String_Line(line, 1)) {
+		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
+			continue;
+		if (!strncmp(line, name, strlen(name))) {
+			s32 isString = 0;
+			char* buf;
+			char* p = line + strlen(name);
+			u32 size = 0;
 			
-			if (word[0] == '"') {
-				s32 j = 0;
-				for (;; j++) {
-					if (word[j + 1] == '"') {
-						break;
-					}
-				}
-				ret = Tmp_Alloc(j);
-				memcpy(ret, &word[1], j);
-			} else {
-				word = String_GetWord(String_Line(memFile->str, i), 2);
-				ret = Tmp_Alloc(strlen(word) + 1);
-				strcpy(ret, word);
+			while (p[0] == ' ' || p[0] == '\t')
+				p++;
+			
+			if (p[0] != '=')
+				return NULL;
+			
+			while (p[0] == '=' || p[0] == ' ' || p[0] == '\t')
+				p++;
+			
+			while (p[size + 1] != ';' && p[size + 1] != '#' && p[size] != '\n' && (isString == false || p[size] != '\"') && p[size] != '\0') {
+				if (p[size] == '\"')
+					isString = 1;
+				size++;
 			}
 			
-			return ret;
+			if (isString == false)
+				while (p[size - 1] == ' ')
+					size--;
+			
+			buf = Tmp_Alloc(size + 1);
+			memcpy(buf, p + isString, size - isString);
+			
+			return buf;
 		}
 	}
 	
@@ -2789,7 +2866,7 @@ char* Config_Get(MemFile* memFile, const char* name) {
 s32 Config_GetBool(MemFile* memFile, const char* boolName) {
 	char* ptr;
 	
-	ptr = Config_Get(memFile, boolName);
+	ptr = Config_GetVariable(memFile->str, boolName);
 	if (ptr) {
 		char* word = ptr;
 		if (!strcmp(word, "true")) {
@@ -2812,7 +2889,7 @@ s32 Config_GetOption(MemFile* memFile, const char* stringName, char* strList[]) 
 	char* word;
 	s32 i = 0;
 	
-	ptr = Config_Get(memFile, stringName);
+	ptr = Config_GetVariable(memFile->str, stringName);
 	if (ptr) {
 		word = ptr;
 		while (strList[i] != NULL && !StrStr(word, strList[i]))
@@ -2832,7 +2909,7 @@ s32 Config_GetOption(MemFile* memFile, const char* stringName, char* strList[]) 
 s32 Config_GetInt(MemFile* memFile, const char* intName) {
 	char* ptr;
 	
-	ptr = Config_Get(memFile, intName);
+	ptr = Config_GetVariable(memFile->str, intName);
 	if (ptr) {
 		return String_GetInt(ptr);
 	}
@@ -2847,7 +2924,7 @@ s32 Config_GetInt(MemFile* memFile, const char* intName) {
 char* Config_GetString(MemFile* memFile, const char* stringName) {
 	char* ptr;
 	
-	ptr = Config_Get(memFile, stringName);
+	ptr = Config_GetVariable(memFile->str, stringName);
 	if (ptr) {
 		return ptr;
 	}
@@ -2862,7 +2939,7 @@ char* Config_GetString(MemFile* memFile, const char* stringName) {
 f32 Config_GetFloat(MemFile* memFile, const char* floatName) {
 	char* ptr;
 	
-	ptr = Config_Get(memFile, floatName);
+	ptr = Config_GetVariable(memFile->str, floatName);
 	if (ptr) {
 		return String_GetFloat(ptr);
 	}
@@ -2883,12 +2960,12 @@ s32 Config_Replace(MemFile* mem, const char* variable, const char* fmt, ...) {
 	vsprintf(replacement, fmt, va);
 	va_end(va);
 	
-	p = Config_GetPtr(mem, variable);
+	p = Config_Variable(mem->str, variable);
 	
 	if (p) {
 		if (p[0] == '"')
 			p++;
-		String_Remove(p, strlen(Config_Get(mem, variable)));
+		String_Remove(p, strlen(Config_GetVariable(mem->str, variable)));
 		String_Insert(p, replacement);
 		
 		mem->dataSize = strlen(mem->str);
@@ -2909,7 +2986,7 @@ s32 Config_Replace(MemFile* mem, const char* variable, const char* fmt, ...) {
 #include <signal.h>
 
 #define FAULT_BUFFER_SIZE (1024)
-#define FAULT_LOG_NUM     16
+#define FAULT_LOG_NUM     64
 
 char* sLogMsg[FAULT_LOG_NUM];
 char* sLogFunc[FAULT_LOG_NUM];
