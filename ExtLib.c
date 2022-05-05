@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 114
+#define THIS_EXTLIB_VERSION 115
 
 #ifndef EXTLIB
 #warning ExtLib Version not defined
@@ -2743,7 +2743,20 @@ void Config_SuppressNext(void) {
 	sConfigSuppression = 1;
 }
 
-char* Config_Get(MemFile* memFile, char* name) {
+char* Config_GetPtr(MemFile* memFile, const char* name) {
+	u32 lineCount = String_GetLineCount(memFile->data);
+	
+	for (s32 i = 0; i < lineCount; i++) {
+		if (!strncmp(String_Word(String_Line(memFile->str, i), 0), name, strlen(name))) {
+			
+			return String_Word(String_Line(memFile->str, i), 2);
+		}
+	}
+	
+	return NULL;
+}
+
+char* Config_Get(MemFile* memFile, const char* name) {
 	u32 lineCount = String_GetLineCount(memFile->data);
 	
 	for (s32 i = 0; i < lineCount; i++) {
@@ -2773,7 +2786,7 @@ char* Config_Get(MemFile* memFile, char* name) {
 	return NULL;
 }
 
-s32 Config_GetBool(MemFile* memFile, char* boolName) {
+s32 Config_GetBool(MemFile* memFile, const char* boolName) {
 	char* ptr;
 	
 	ptr = Config_Get(memFile, boolName);
@@ -2794,7 +2807,7 @@ s32 Config_GetBool(MemFile* memFile, char* boolName) {
 	return 0;
 }
 
-s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]) {
+s32 Config_GetOption(MemFile* memFile, const char* stringName, char* strList[]) {
 	char* ptr;
 	char* word;
 	s32 i = 0;
@@ -2816,7 +2829,7 @@ s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]) {
 	return 0;
 }
 
-s32 Config_GetInt(MemFile* memFile, char* intName) {
+s32 Config_GetInt(MemFile* memFile, const char* intName) {
 	char* ptr;
 	
 	ptr = Config_Get(memFile, intName);
@@ -2831,7 +2844,7 @@ s32 Config_GetInt(MemFile* memFile, char* intName) {
 	return 0;
 }
 
-char* Config_GetString(MemFile* memFile, char* stringName) {
+char* Config_GetString(MemFile* memFile, const char* stringName) {
 	char* ptr;
 	
 	ptr = Config_Get(memFile, stringName);
@@ -2846,7 +2859,7 @@ char* Config_GetString(MemFile* memFile, char* stringName) {
 	return NULL;
 }
 
-f32 Config_GetFloat(MemFile* memFile, char* floatName) {
+f32 Config_GetFloat(MemFile* memFile, const char* floatName) {
 	char* ptr;
 	
 	ptr = Config_Get(memFile, floatName);
@@ -2859,6 +2872,34 @@ f32 Config_GetFloat(MemFile* memFile, char* floatName) {
 	else sConfigSuppression++;
 	
 	return 0.0f;
+}
+
+s32 Config_Replace(MemFile* mem, const char* variable, const char* fmt, ...) {
+	char* replacement = Malloc(0, 0x10000);
+	va_list va;
+	char* p;
+	
+	va_start(va, fmt);
+	vsprintf(replacement, fmt, va);
+	va_end(va);
+	
+	p = Config_GetPtr(mem, variable);
+	
+	if (p) {
+		if (p[0] == '"')
+			p++;
+		String_Remove(p, strlen(Config_Get(mem, variable)));
+		String_Insert(p, replacement);
+		
+		mem->dataSize = strlen(mem->str);
+		Free(replacement);
+		
+		return 0;
+	}
+	
+	Free(replacement);
+	
+	return 1;
 }
 
 // # # # # # # # # # # # # # # # # # # # #

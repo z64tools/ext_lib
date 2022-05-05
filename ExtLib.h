@@ -384,12 +384,13 @@ void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 
 void Config_SuppressNext(void);
-char* Config_Get(MemFile* memFile, char* name);
-s32 Config_GetBool(MemFile* memFile, char* boolName);
-s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]);
-s32 Config_GetInt(MemFile* memFile, char* intName);
-char* Config_GetString(MemFile* memFile, char* stringName);
-f32 Config_GetFloat(MemFile* memFile, char* floatName);
+char* Config_Get(MemFile* memFile, const char* name);
+s32 Config_GetBool(MemFile* memFile, const char* boolName);
+s32 Config_GetOption(MemFile* memFile, const char* stringName, char* strList[]);
+s32 Config_GetInt(MemFile* memFile, const char* intName);
+char* Config_GetString(MemFile* memFile, const char* stringName);
+f32 Config_GetFloat(MemFile* memFile, const char* floatName);
+s32 Config_Replace(MemFile* mem, const char* variable, const char* fmt, ...);
 
 void Log_Init();
 void Log_Free();
