@@ -494,8 +494,8 @@ extern PrintfSuppressLevel gPrintfSuppress;
 	})
 
 #define Wrap(x, min, max) ({ \
-		typeof(x) r = (x); \
-		typeof(x) range = (max) - (min) + 1; \
+		s64 r = (x); \
+		s64 range = (max) - (min) + 1; \
 		if (r < (min)) { \
 			r += range * (((min) - r) / range + 1); \
 		} \
