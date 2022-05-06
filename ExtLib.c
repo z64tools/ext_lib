@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 117
+#define THIS_EXTLIB_VERSION 118
 
 #ifndef EXTLIB
 #warning ExtLib Version not defined
@@ -30,6 +30,7 @@ void chdir(const char*);
 #include <dirent.h>
 #include <unistd.h>
 #include <ftw.h>
+#include <time.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -149,7 +150,7 @@ void* Tmp_Alloc(u32 size) {
 	return ret;
 }
 
-char* Tmp_String(char* str) {
+char* Tmp_String(const char* str) {
 	char* ret = Tmp_Alloc(strlen(str));
 	
 	strcpy(ret, str);
@@ -157,7 +158,7 @@ char* Tmp_String(char* str) {
 	return ret;
 }
 
-char* Tmp_Printf(char* fmt, ...) {
+char* Tmp_Printf(const char* fmt, ...) {
 	char tempBuf[512 * 2];
 	
 	va_list args;
@@ -886,33 +887,37 @@ bool Sys_IsDir(const char* path) {
 	return false;
 }
 
-Time Sys_Stat_Ex(const char* item) {
+Time Sys_Stat(const char* item) {
 	struct stat st = { 0 };
 	Time t;
 	
 	if (stat(item, &st) == -1)
 		return 0;
 	
-	if (st.st_atime > t)
-		t = st.st_atime;
-	if (st.st_mtime > t)
-		t = st.st_mtime;
-	if (st.st_ctime > t)
-		t = st.st_ctime;
+	t = Max(st.st_atime, t);
+	t = Max(st.st_mtime, t);
+	t = Max(st.st_ctime, t);
 	
-	return st.st_ctime;
+	return t;
 }
 
-Time Sys_Stat(const char* item) {
+Time Sys_StatF(const char* item, StatFlag flag) {
 	struct stat st = { 0 };
+	Time t;
 	
 	if (stat(item, &st) == -1)
 		return 0;
 	
-	if (st.st_mtime == 0)
-		printf_error("Sys_Stat: [%s] time is zero?!", item);
+	if (flag & STAT_ACCS)
+		t = Max(st.st_atime, t);
 	
-	return st.st_mtime;
+	if (flag & STAT_MODF)
+		t = Max(st.st_mtime, t);
+	
+	if (flag & STAT_CREA)
+		t = Max(st.st_ctime, t);
+	
+	return t;
 }
 
 Time Sys_StatSelf(void) {
@@ -933,6 +938,18 @@ Time Sys_Time(void) {
 	time(&tme);
 	
 	return tme;
+}
+
+void Sys_Sleep(f64 sec) {
+	struct timespec ts = { 0 };
+	
+	if (sec <= 0)
+		return;
+	
+	ts.tv_sec = floor(sec);
+	ts.tv_nsec = (sec - floor(sec)) * 1000000000;
+	
+	nanosleep(&ts, NULL);
 }
 
 volatile bool sThreadOverlapFlag;
@@ -1166,8 +1183,12 @@ s32 Terminal_YesOrNo(void) {
 		clear = 1;
 	}
 	
-	if (ans[0] == 'N' || ans[0] == 'n')
+	if (ans[0] == 'N' || ans[0] == 'n') {
+		Terminal_ClearLines(2);
+		
 		return false;
+	}
+	Terminal_ClearLines(2);
 	
 	return true;
 }
@@ -1281,6 +1302,10 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 		args
 	);
 	va_end(args);
+	printf("\n");
+	
+	if (strlen(fmt) > 1)
+		printf("\n");
 }
 
 static void __printf_call(u32 type, char* dest) {
@@ -1549,6 +1574,26 @@ void printf_prog_align(const char* info, const char* fmt, const char* color) {
 	printf("%s", printfBuf);
 }
 
+void printf_progressFst(const char* info, u32 a, u32 b) {
+	if (gPrintfSuppress >= PSL_NO_INFO) {
+		return;
+	}
+	
+	printf("\r");
+	__printf_call(3, 0);
+	printf(
+		"%-16s " PRNT_RSET,
+		info
+	);
+	printf("[%d / %d]", a, b);
+	gPrintfProgressing = true;
+	
+	if (a == b) {
+		gPrintfProgressing = false;
+		printf("\n");
+	}
+}
+
 void printf_progress(const char* info, u32 a, u32 b) {
 	if (gPrintfSuppress >= PSL_NO_INFO) {
 		return;
@@ -1598,6 +1643,22 @@ void printf_WinFix(void) {
 // # # # # # # # # # # # # # # # # # # # #
 // # VARIOUS                             #
 // # # # # # # # # # # # # # # # # # # # #
+
+s32 sRandInit;
+
+f32 RandF() {
+	if (sRandInit == 0) {
+		sRandInit++;
+		srand(time(NULL));
+	}
+	
+	for (s32 i = 0; i < 128; i++)
+		srand(rand());
+	
+	f64 r = rand() / (f32)__INT16_MAX__;
+	
+	return fmod(r, 1.0f);
+}
 
 void* MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize) {
 	if (haystack == NULL || needle == NULL)
@@ -2741,7 +2802,7 @@ s32 String_Validate_Hex(const char* str) {
 			(str[i] >= 'A' && str[i] <= 'F') ||
 			(str[i] >= 'a' && str[i] <= 'f') ||
 			(str[i] >= '0' && str[i] <= '9') ||
-			str[i] == 'x' || str[i] == 'X'
+			str[i] == 'x' || str[i] == 'X' || str[i] == ' ' || str[i] == '\t'
 		) {
 			isOk = true;
 			continue;
@@ -2753,24 +2814,12 @@ s32 String_Validate_Hex(const char* str) {
 	return isOk;
 }
 
-s32 String_Validate_Hex_Spaced(const char* str) {
-	s32 isOk = false;
+char* String_Unquote(const char* str) {
+	char* new = Tmp_String(str);
 	
-	for (s32 i = 0; i < strlen(str); i++) {
-		if (
-			(str[i] >= 'A' && str[i] <= 'F') ||
-			(str[i] >= 'a' && str[i] <= 'f') ||
-			(str[i] >= '0' && str[i] <= '9') ||
-			str[i] == 'x' || str[i] == 'X' || str[i] == ' '
-		) {
-			isOk = true;
-			continue;
-		}
-		
-		return false;
-	}
+	String_Replace(new, "\"", "");
 	
-	return isOk;
+	return new;
 }
 
 // # # # # # # # # # # # # # # # # # # # #

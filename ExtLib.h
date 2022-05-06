@@ -222,8 +222,8 @@ void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
 
 void* Tmp_Alloc(u32 size);
-char* Tmp_String(char* str);
-char* Tmp_Printf(char* fmt, ...);
+char* Tmp_String(const char* str);
+char* Tmp_Printf(const char* fmt, ...);
 
 void Time_Start(void);
 f32 Time_Get(void);
@@ -256,10 +256,16 @@ void Dir_ItemList_Recursive(DirCtx* ctx, ItemList* target, char* keyword);
 void Dir_ItemList_Not(DirCtx* ctx, ItemList* itemList, bool isPath, char* not);
 void Dir_ItemList_Keyword(DirCtx* ctx, ItemList* itemList, char* ext);
 
+typedef enum {
+	STAT_ACCS = (1) << 0,
+	STAT_MODF = (1) << 1,
+	STAT_CREA = (1) << 2,
+} StatFlag;
+
 bool Sys_IsDir(const char* path);
 void Sys_MakeDir(const char* dir, ...);
-Time Sys_Stat_Ex(const char* item);
 Time Sys_Stat(const char* item);
+Time Sys_StatF(const char* item, StatFlag flag);
 Time Sys_StatSelf(void);
 Time Sys_Time(void);
 s32 Sys_Rename(const char* input, const char* output);
@@ -275,6 +281,7 @@ void Sys_TerminalSize(s32* r);
 s32 Sys_Touch(const char* file);
 s32 Sys_Copy(const char* src, const char* dest, bool isStr);
 u8* Sys_Sha256(u8* data, u64 size);
+void Sys_Sleep(f64 sec);
 
 s32 Terminal_YesOrNo(void);
 void Terminal_ClearScreen(void);
@@ -309,11 +316,13 @@ void printf_error_align(const char* info, const char* fmt, ...);
 void printf_info(const char* fmt, ...);
 void printf_info_align(const char* info, const char* fmt, ...);
 void printf_prog_align(const char* info, const char* fmt, const char* color);
+void printf_progressFst(const char* info, u32 a, u32 b);
 void printf_progress(const char* info, u32 a, u32 b);
 void printf_getchar(const char* txt);
 void printf_WinFix(void);
 void printf_clearMessages(void);
 
+f32 RandF();
 void* MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
 void* MemMemCase(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
 void* MemMemAlign(u32 val, const void* haystack, size_t haySize, const void* needle, size_t needleSize);
@@ -357,6 +366,8 @@ void MemFile_Clear(MemFile* memFile);
 #define StrStr(src, comp)       MemMem(src, strlen(src), comp, strlen(comp))
 #define StrStrNum(src, comp, n) MemMem(src, n, comp, n)
 #define StrStrCase(src, comp)   MemMemCase(src, strlen(src), comp, strlen(comp))
+#define StrMtch(a, b)           (!strncmp(a, b, strlen(b)))
+
 u32 String_GetHexInt(char* string);
 s32 String_GetInt(char* string);
 f32 String_GetFloat(char* string);
@@ -382,7 +393,7 @@ s32 String_Replace(char* src, const char* word, const char* replacement);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 s32 String_Validate_Hex(const char* str);
-s32 String_Validate_Hex_Spaced(const char* str);
+char* String_Unquote(const char* str);
 
 void Config_SuppressNext(void);
 char* Config_Variable(const char* str, const char* name);
@@ -474,10 +485,10 @@ extern PrintfSuppressLevel gPrintfSuppress;
 }
 
 #define WrapF(x, min, max) ({ \
-		typeof(x) r = (x); \
-		typeof(x) range = (max) - (min) + 1; \
+		f64 r = (x); \
+		f64 range = (max - 1.0) - (min) + 1.0; \
 		if (r < (min)) { \
-			r += range * (((min) - r) / range + 1); \
+			r += range * (((min) - r) / range + 1.0); \
 		} \
 		(min) + fmod((r - (min)), range); \
 	})
