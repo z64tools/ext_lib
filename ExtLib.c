@@ -1222,6 +1222,7 @@ const char* Terminal_GetStr(void) {
 	
 	printf("\r" PRNT_GRAY "[" PRNT_DGRY "<" PRNT_GRAY "]: " PRNT_GRAY);
 	fgets(str, 511, stdin);
+	str[strlen(str) - 1] = '\0'; // remove newline
 	
 	return str;
 }
