@@ -3332,7 +3332,7 @@ void Sound_Xm_Stop() {
 #define DEBUG_FLAG      0
 #define BLOCK_SIZE_BYTE 64
 
-static uint32_t sigma1(uint32_t x) {
+static uint32_t Sha_Sgima1(uint32_t x) {
 	uint32_t RotateRight17, RotateRight19, ShiftRight10;
 	
 	RotateRight17 = (x >> 17) | (x << 15);
@@ -3342,7 +3342,7 @@ static uint32_t sigma1(uint32_t x) {
 	return RotateRight17 ^ RotateRight19 ^ ShiftRight10;
 }
 
-static uint32_t sigma0(uint32_t x) {
+static uint32_t Sha_Sgima0(uint32_t x) {
 	uint32_t RotateRight7, RotateRight18, ShiftRight3;
 	
 	RotateRight7 = (x >> 7) | (x << 25);
@@ -3352,11 +3352,11 @@ static uint32_t sigma0(uint32_t x) {
 	return RotateRight7 ^ RotateRight18 ^ ShiftRight3;
 }
 
-static uint32_t choice(uint32_t x, uint32_t y, uint32_t z) {
+static uint32_t Sha_Choice(uint32_t x, uint32_t y, uint32_t z) {
 	return (x & y) ^ ((~x) & z);
 }
 
-static uint32_t BigSigma1(uint32_t x) {
+static uint32_t Sha_BigSigma1(uint32_t x) {
 	uint32_t RotateRight6, RotateRight11, RotateRight25;
 	
 	RotateRight6 = (x >> 6) | (x << 26);
@@ -3366,7 +3366,7 @@ static uint32_t BigSigma1(uint32_t x) {
 	return RotateRight6 ^ RotateRight11 ^ RotateRight25;
 }
 
-static uint32_t BigSigma0(uint32_t x) {
+static uint32_t Sha_BigSigma0(uint32_t x) {
 	uint32_t RotateRight2, RotateRight13, RotateRight22;
 	
 	RotateRight2 = (x >> 2) | (x << 30);
@@ -3376,11 +3376,11 @@ static uint32_t BigSigma0(uint32_t x) {
 	return RotateRight2 ^ RotateRight13 ^ RotateRight22;
 }
 
-static uint32_t major(uint32_t x, uint32_t y, uint32_t z) {
+static uint32_t Sha_Major(uint32_t x, uint32_t y, uint32_t z) {
 	return (x & y) ^ (x & z) ^ (y & z);
 }
 
-static uint8_t create_schedule_array_data(uint8_t* Data, uint64_t DataSizeByte, uint64_t* RemainingDataSizeByte, uint32_t* W) {
+static uint8_t Sha_CreateCompleteScheduleArray(uint8_t* Data, uint64_t DataSizeByte, uint64_t* RemainingDataSizeByte, uint32_t* W) {
 	//Checking for file/data size limit
 	if ((0xFFFFFFFFFFFFFFFF / 8) < DataSizeByte) {
 		printf("Error! File/Data exceeds size limit of 20097152 TiB");
@@ -3462,14 +3462,14 @@ outside1:
 		return 1;
 }
 
-static void complete_schedule_array(uint32_t* W) {
+static void Sha_CompleteScheduleArray(uint32_t* W) {
 	//add more 48 words of 32bit [w16 to w63]
 	for (uint8_t i = 16; i < 64; i++) {
-		W[i] = sigma1(W[i - 2]) + W[i - 7] + sigma0(W[i - 15]) + W[i - 16];
+		W[i] = Sha_Sgima1(W[i - 2]) + W[i - 7] + Sha_Sgima0(W[i - 15]) + W[i - 16];
 	}
 }
 
-static void compression(uint32_t* Hash, uint32_t* W) {
+static void Sha_Compression(uint32_t* Hash, uint32_t* W) {
 	enum TmpH {a, b, c, d, e, f, g, h};
 	//create round constants (K)
 	const uint32_t K_const[64] = { 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
@@ -3504,9 +3504,9 @@ static void compression(uint32_t* Hash, uint32_t* W) {
 	
 	//Compression of the message schedule (W[0::63]) -----------------------
 	for (uint32_t i = 0; i < 64; i++) {
-		Temp1 = BigSigma1(TmpHash[e]) + choice(TmpHash[e], TmpHash[f], TmpHash[g]) +
+		Temp1 = Sha_BigSigma1(TmpHash[e]) + Sha_Choice(TmpHash[e], TmpHash[f], TmpHash[g]) +
 			K_const[i] + W[i] + TmpHash[h];
-		Temp2 = BigSigma0(TmpHash[a]) + major(TmpHash[a], TmpHash[b], TmpHash[c]);
+		Temp2 = Sha_BigSigma0(TmpHash[a]) + Sha_Major(TmpHash[a], TmpHash[b], TmpHash[c]);
 		
 		TmpHash[h] = TmpHash[g];
 		TmpHash[g] = TmpHash[f];
@@ -3528,7 +3528,7 @@ static void compression(uint32_t* Hash, uint32_t* W) {
 	Hash[7] += TmpHash[h];
 }
 
-static uint8_t*extract_digest(uint32_t* Hash) {
+static uint8_t* Sha_ExtractDigest(uint32_t* Hash) {
 	uint8_t* Digest;
 	
 	//Allocate memory for digest pointer
@@ -3549,7 +3549,7 @@ u8* Sys_Sha256(u8* data, u64 size) {
 	//schedule array
 	uint32_t W[64];
 	
-	//H -> Block hash ; TmpH -> temporary hash in compression loop
+	//H -> Block hash ; TmpH -> temporary hash in Sha_Compression loop
 	//Temp1 and Temp2 are auxiliar variable to calculate TmpH[]
 	uint32_t Hash[8] = { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
 			     0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 };
@@ -3559,14 +3559,14 @@ u8* Sys_Sha256(u8* data, u64 size) {
 	
 	uint64_t RemainingDataSizeByte = size;
 	
-	while (create_schedule_array_data(data, size, &RemainingDataSizeByte, W) == 1) {
-		complete_schedule_array(W);
-		compression(Hash, W);
+	while (Sha_CreateCompleteScheduleArray(data, size, &RemainingDataSizeByte, W) == 1) {
+		Sha_CompleteScheduleArray(W);
+		Sha_Compression(Hash, W);
 	}
-	complete_schedule_array(W);
-	compression(Hash, W);
+	Sha_CompleteScheduleArray(W);
+	Sha_Compression(Hash, W);
 	
-	Digest = extract_digest(Hash);
+	Digest = Sha_ExtractDigest(Hash);
 	
 	return Digest;
 }
