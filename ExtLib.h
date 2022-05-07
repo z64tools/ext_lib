@@ -417,7 +417,7 @@ void Log(const char* func, u32 line, const char* txt, ...);
 f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep);
 f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32* point3);
 s32 WrapS(s32 x, s32 min, s32 max);
-f64 WrapF(f64 x, f64 min, f64 max);
+f32 WrapF(f32 x, f32 min, f32 max);
 
 void Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx);
 void Sound_Free();

@@ -3245,13 +3245,13 @@ s32 WrapS(s32 x, s32 min, s32 max) {
 	return min + (x - min) % range;
 }
 
-f64 WrapF(f64 x, f64 min, f64 max) {
+f32 WrapF(f32 x, f32 min, f32 max) {
 	f64 range = max - min;
 	
-	while (x < min)
-		x += range;
+	if (x < min)
+		x += range * roundf((min - x) / range + 1);
 	
-	return min + fmod((x - min), range);
+	return min + fmodf((x - min), range);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
