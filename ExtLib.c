@@ -1068,8 +1068,12 @@ void Sys_SetWorkDir(const char* txt) {
 }
 
 bool Sys_Command(const char* cmd) {
+	s32 ret;
+	
 	Log(__FUNCTION__, __LINE__, PRNT_BLUE "%s", cmd);
-	if (system(cmd)) {
+	if ((ret = system(cmd))) {
+		Log(__FUNCTION__, __LINE__, "Return: %d", ret);
+		
 		return 1;
 	}
 	
