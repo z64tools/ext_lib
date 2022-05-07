@@ -2820,11 +2820,18 @@ s32 String_Validate_Hex(const char* str) {
 char* String_Unquote(const char* str) {
 	char* new = Tmp_String(str);
 	
-	String_Replace(new, "\"", "");
-	String_Replace(new, "'", "");
-	
-	while (StrEnd(new, " "))
-		StrEnd(new, " ")[0] = '\0';
+	if (StrStr(str, "\"") || StrStr(str, "'")) {
+		while (new[0] != '\"' && new[0] != '\'')
+			String_Remove(new, 1);
+		
+		while (new[strlen(new) - 1] != '\"' && new[strlen(new) - 1] != '\'')
+			new[strlen(new) - 1] = '\0';
+		
+		String_Replace(new, "\"", "");
+		String_Replace(new, "'", "");
+		
+		return new;
+	}
 	
 	return new;
 }
