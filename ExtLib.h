@@ -38,8 +38,8 @@ extern pthread_mutex_t gMutexLock;
 #define Nested(name, args) (^ name) args = ^ args
 #define NestedVar(vars)    vars
 #else
-#define Nested(name, args) (name)args
-#define NestedVar(vars)    (void)0;
+#define Nested(name, args) name args
+#define NestedVar(vars)  while (0) { (void)0; }
 #endif
 
 typedef struct {
@@ -641,6 +641,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 	Log("Free(%s);", #data );
 
 #endif
+
 #else
 #define printf_debugExt(...)       if (0) {}
 #define printf_debugExt_align(...) if (0) {}

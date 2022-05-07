@@ -3065,14 +3065,12 @@ static void Log_Signal(int arg) {
 		"\a13 - Pipe Death",
 		"\a14 - Alarm",
 		"\a15 - Killed",
-		"\a16 - Unused",
-		"\a17 - Child Process Died",
 		
 		"\aUNDEFINED",
 	};
 	u32 msgsNum = 0;
 	u32 repeat = 0;
-	s32 errorID = ClampMax(arg, 18);
+	s32 errorID = ClampMax(arg, 16);
 	
 	if (errorID < 1)
 		errorID = 18;
@@ -3120,8 +3118,9 @@ static void Log_Signal(int arg) {
 }
 
 void Log_Init() {
-	for (s32 i = 1; i < 18; i++)
+	for (s32 i = 1; i < 16; i++)
 		signal(i, Log_Signal);
+	signal(17, SIG_IGN);
 	
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
 		sLogMsg[i] = Calloc(0, FAULT_BUFFER_SIZE);
