@@ -330,8 +330,8 @@ void* MemMemAlign(u32 val, const void* haystack, size_t haySize, const void* nee
 void* MemMemU16(void* haystack, size_t haySize, const void* needle, size_t needleSize);
 void* MemMemU32(void* haystack, size_t haySize, const void* needle, size_t needleSize);
 void* MemMemU64(void* haystack, size_t haySize, const void* needle, size_t needleSize);
-const char* StrEnd(const char* src, const char* ext);
-const char* StrEndCase(const char* src, const char* ext);
+char* StrEnd(const char* src, const char* ext);
+char* StrEndCase(const char* src, const char* ext);
 void* Malloc(void* data, s32 size);
 void* Calloc(void* data, s32 size);
 void* Realloc(void* data, s32 size);

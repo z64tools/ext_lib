@@ -1872,20 +1872,20 @@ L_next:
 	return 0;
 }
 
-const char* StrEnd(const char* src, const char* ext) {
+char* StrEnd(const char* src, const char* ext) {
 	const char* fP;
 	
 	if ((fP = StrStr(src, ext)) != NULL && strlen(fP) == strlen(ext))
-		return fP;
+		return (char*)fP;
 	
 	return NULL;
 }
 
-const char* StrEndCase(const char* src, const char* ext) {
+char* StrEndCase(const char* src, const char* ext) {
 	const char* fP;
 	
 	if ((fP = StrStrCase(src, ext)) != NULL && strlen(fP) == strlen(ext))
-		return fP;
+		return (char*)fP;
 	
 	return NULL;
 }
