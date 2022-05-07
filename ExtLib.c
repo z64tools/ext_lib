@@ -2820,6 +2820,10 @@ char* String_Unquote(const char* str) {
 	char* new = Tmp_String(str);
 	
 	String_Replace(new, "\"", "");
+	String_Replace(new, "'", "");
+	
+	while (StrEnd(new, " "))
+		StrEnd(new, " ")[0] = '\0';
 	
 	return new;
 }
