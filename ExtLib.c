@@ -1091,12 +1091,12 @@ char* Sys_CommandOut(const char* cmd) {
 	out = Calloc(0, mem.dataSize);
 	strcpy(out, mem.data);
 	
+	Log(__FUNCTION__, __LINE__, PRNT_BLUE "%s", cmd);
 	Log(__FUNCTION__, __LINE__, "Size: %.2f", BinToKb(mem.dataSize));
 	
 	if (pclose(file)) {
-		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", mem.str);
-		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", cmd);
-		printf_error_align("Sys_CommandOut", "Exit Status Failed");
+		MemFile_SaveFile_String(&mem, "system_fault_out");
+		printf_error_align("Sys_CommandOut", "Exit Status Failed, dumped [system_fault_out]");
 	}
 	
 	return out;
