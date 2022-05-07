@@ -1068,9 +1068,8 @@ void Sys_SetWorkDir(const char* txt) {
 }
 
 bool Sys_Command(const char* cmd) {
+	Log(__FUNCTION__, __LINE__, PRNT_BLUE "%s", cmd);
 	if (system(cmd)) {
-		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", cmd);
-		
 		return 1;
 	}
 	
@@ -3041,7 +3040,7 @@ s32 Config_Replace(MemFile* mem, const char* variable, const char* fmt, ...) {
 #include <signal.h>
 
 #define FAULT_BUFFER_SIZE (1024)
-#define FAULT_LOG_NUM     64
+#define FAULT_LOG_NUM     32
 
 char* sLogMsg[FAULT_LOG_NUM];
 char* sLogFunc[FAULT_LOG_NUM];
@@ -3051,37 +3050,32 @@ static void Log_Signal(int arg) {
 	volatile static bool ran = 0;
 	const char* errorMsg[] = {
 		"\a0",
-		"\a1",
-		"\aForced Close", // SIGINT
-		"\a3",
-		"\aSIGILL",
-		"\a5",
-		"\aSIGABRT_COMPAT",
-		"\a7",
-		"\aSIGFPE",
-		"\a9",
-		"\a10",
-		"\aSegmentation Fault",
-		"\a12",
-		"\a13",
-		"\a14",
-		"\aSIGTERM",
-		"\a16",
-		"\a17",
-		"\a18",
-		"\a19",
-		"\a20",
-		"\aSIGBREAK",
-		"\aSIGABRT",
+		"\a1 - Hang Up",
+		"\a2 - Interrupted", // SIGINT
+		"\a3 - Quit",
+		"\a4 - Illegal Instruction",
+		"\a5 - Trap",
+		"\a6 - Abort()",
+		"\a7 - Illegal Memory Access",
+		"\a8 - Floating Point Exception",
+		"\a9 - Killed",
+		"\a10 - Programmer Error",
+		"\a11 - Segmentation Fault",
+		"\a12 - Programmer Error",
+		"\a13 - Pipe Death",
+		"\a14 - Alarm",
+		"\a15 - Killed",
+		"\a16 - Unused",
+		"\a17 - Child Process Died",
 		
 		"\aUNDEFINED",
 	};
 	u32 msgsNum = 0;
 	u32 repeat = 0;
-	s32 errorID = ClampMax(arg, 23);
+	s32 errorID = ClampMax(arg, 18);
 	
 	if (errorID < 1)
-		errorID = 23;
+		errorID = 18;
 	
 	if (ran) return;
 	ran = ___gExt_ThreadInit != 0;
@@ -3126,9 +3120,8 @@ static void Log_Signal(int arg) {
 }
 
 void Log_Init() {
-	for (s32 i = -100; i < 100; i++)
-		if (i != 0)
-			signal(i, Log_Signal);
+	for (s32 i = 1; i < 18; i++)
+		signal(i, Log_Signal);
 	
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
 		sLogMsg[i] = Calloc(0, FAULT_BUFFER_SIZE);
