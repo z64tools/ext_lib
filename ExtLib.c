@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 118
+#define THIS_EXTLIB_VERSION 119
 
 #ifndef EXTLIB
 #warning ExtLib Version not defined
@@ -17,6 +17,7 @@
 #endif
 void readlink(char*, char*, int);
 void chdir(const char*);
+void gettimeofday(void*, void*);
 #endif
 
 #ifndef _WIN32
@@ -3233,6 +3234,24 @@ f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32
 	}
 	
 	return (coeff[0] * *point0) + (coeff[1] * *point1) + (coeff[2] * *point2) + (coeff[3] * *point3);
+}
+
+s32 WrapS(s32 x, s32 min, s32 max) {
+	s32 range = max - min;
+	
+	if (x < min)
+		x += range * ((min - x) / range + 1);
+	
+	return min + (x - min) % range;
+}
+
+f64 WrapF(f64 x, f64 min, f64 max) {
+	f64 range = max - min;
+	
+	while (x < min)
+		x += range;
+	
+	return min + fmod((x - min), range);
 }
 
 // # # # # # # # # # # # # # # # # # # # #

@@ -416,6 +416,8 @@ void Log(const char* func, u32 line, const char* txt, ...);
 
 f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep);
 f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32* point3);
+s32 WrapS(s32 x, s32 min, s32 max);
+f64 WrapF(f64 x, f64 min, f64 max);
 
 void Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx);
 void Sound_Free();
@@ -483,24 +485,6 @@ extern PrintfSuppressLevel gPrintfSuppress;
 		a = b; \
 		b = y; \
 }
-
-#define WrapF(x, min, max) ({ \
-		f64 r = (x); \
-		f64 range = (max - 1.0) - (min) + 1.0; \
-		if (r < (min)) { \
-			r += range * (((min) - r) / range + 1.0); \
-		} \
-		(min) + fmod((r - (min)), range); \
-	})
-
-#define Wrap(x, min, max) ({ \
-		s64 r = (x); \
-		s64 range = (max) - (min) + 1; \
-		if (r < (min)) { \
-			r += range * (((min) - r) / range + 1); \
-		} \
-		(min) + (r - (min)) % range; \
-	})
 
 // Checks endianess with tst & tstP
 #define ReadBE(in) ({ \
