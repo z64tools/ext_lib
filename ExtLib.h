@@ -289,6 +289,7 @@ void Terminal_ClearLines(u32 i);
 void Terminal_Move_PrevLine(void);
 void Terminal_Move(s32 x, s32 y);
 const char* Terminal_GetStr(void);
+char Terminal_GetChar();
 
 typedef enum {
 	LIST_FILES   = 0x0,

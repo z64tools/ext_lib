@@ -1230,6 +1230,12 @@ const char* Terminal_GetStr(void) {
 	return str;
 }
 
+char Terminal_GetChar() {
+	printf("\r" PRNT_GRAY "[" PRNT_DGRY "<" PRNT_GRAY "]: " PRNT_RSET);
+	
+	return getchar();
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # PRINTF                              #
 // # # # # # # # # # # # # # # # # # # # #
@@ -1631,8 +1637,7 @@ void printf_progress(const char* info, u32 a, u32 b) {
 
 void printf_getchar(const char* txt) {
 	printf_info("%s", txt);
-	printf("\r" PRNT_GRAY "[" PRNT_DGRY "<" PRNT_GRAY "]: " PRNT_RSET);
-	getchar();
+	Terminal_GetChar();
 }
 
 void printf_WinFix(void) {
@@ -3114,7 +3119,7 @@ static void Log_Signal(int arg) {
 			"\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_YELW " Provide this log to the developer." PRNT_RSET "\n"
 		);
 #ifdef _WIN32
-		Terminal_GetStr();
+		Terminal_GetChar();
 #endif
 		exit(EXIT_FAILURE);
 	}
