@@ -274,14 +274,15 @@ s32 Sys_Delete_Recursive(const char* item);
 const char* Sys_WorkDir(void);
 const char* Sys_AppDir(void);
 void Sys_SetWorkDir(const char* txt);
-s32 Sys_Command(const char* cmd);
-char* Sys_CommandOut(const char* cmd);
 #define cliprintf(dest, tool, args, ...) sprintf(dest, "%s " args, tool, __VA_ARGS__)
 void Sys_TerminalSize(s32* r);
 s32 Sys_Touch(const char* file);
 s32 Sys_Copy(const char* src, const char* dest, bool isStr);
 u8* Sys_Sha256(u8* data, u64 size);
 void Sys_Sleep(f64 sec);
+
+s32 SysExe(const char* cmd);
+char* SysExeO(const char* cmd);
 
 s32 Terminal_YesOrNo(void);
 void Terminal_ClearScreen(void);
@@ -368,7 +369,7 @@ void MemFile_Clear(MemFile* memFile);
 #define StrStrNum(src, comp, n) MemMem(src, n, comp, n)
 #define StrStrCase(src, comp)   MemMemCase(src, strlen(src), comp, strlen(comp))
 #define StrMtch(a, b)           (!strncmp(a, b, strlen(b)))
-#define catprintf(dest, ...)   sprintf(dest + strlen(dest), __VA_ARGS__)
+#define catprintf(dest, ...)    sprintf(dest + strlen(dest), __VA_ARGS__)
 
 u32 String_GetHexInt(char* string);
 s32 String_GetInt(char* string);

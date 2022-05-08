@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 120
+#define THIS_EXTLIB_VERSION 121
 
 #ifndef EXTLIB
 #warning ExtLib Version not defined
@@ -991,16 +991,16 @@ void Sys_SetWorkDir(const char* txt) {
 	chdir(txt);
 }
 
-s32 Sys_Command(const char* cmd) {
+s32 SysExe(const char* cmd) {
 	s32 ret = system(cmd);
 	
 	if (ret != 0)
-		Log(__FUNCTION__, __LINE__, PRNT_BLUE "[%d] - %s", ret, cmd);
+		Log(__FUNCTION__, __LINE__, PRNT_REDD "[%d] " PRNT_GRAY "SysExe(" PRNT_REDD "%s" PRNT_GRAY ");", ret, cmd);
 	
 	return ret;
 }
 
-char* Sys_CommandOut(const char* cmd) {
+char* SysExeO(const char* cmd) {
 	char* out;
 	char result[257] = { 0x0 };
 	MemFile mem = MemFile_Initialize();
@@ -1008,7 +1008,7 @@ char* Sys_CommandOut(const char* cmd) {
 	u32 pr;
 	
 	if (file == NULL) {
-		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", cmd);
+		Log(__FUNCTION__, __LINE__, PRNT_REDD "SysExeO(%s);", cmd);
 		Log(__FUNCTION__, __LINE__, "popen failed...");
 		
 		return NULL;
@@ -1024,7 +1024,7 @@ char* Sys_CommandOut(const char* cmd) {
 	strcpy(out, mem.data);
 	
 	if ((pr = pclose(file)) != 0) {
-		Log(__FUNCTION__, __LINE__, PRNT_REDD "[%d] - %s", pr, cmd);
+		Log(__FUNCTION__, __LINE__, PRNT_REDD "[%d] " PRNT_GRAY "SysExeO(" PRNT_REDD "%s" PRNT_GRAY ");", pr, cmd);
 		
 		if (pr < 0) {
 			Log(__FUNCTION__, __LINE__, "Dumping output as [system_fault_out], return code [%d]", pr);
@@ -1537,6 +1537,7 @@ void printf_progressFst(const char* info, u32 a, u32 b) {
 		gPrintfProgressing = false;
 		printf("\n");
 	}
+	fflush(stdout);
 }
 
 void printf_progress(const char* info, u32 a, u32 b) {
@@ -1553,7 +1554,7 @@ void printf_progress(const char* info, u32 a, u32 b) {
 	if (prcnt - lstPrcnt > 0.125) {
 		lstPrcnt = prcnt;
 	} else {
-		if (a != b) {
+		if (a != b && a > 1) {
 			return;
 		}
 	}
@@ -1571,6 +1572,7 @@ void printf_progress(const char* info, u32 a, u32 b) {
 		gPrintfProgressing = false;
 		printf("\n");
 	}
+	fflush(stdout);
 }
 
 void printf_getchar(const char* txt) {
