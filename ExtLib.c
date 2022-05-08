@@ -1850,10 +1850,6 @@ void ByteSwap(void* src, s32 size) {
 void* Malloc(void* data, s32 size) {
 	data = malloc(size);
 	
-	if (data == NULL) {
-		printf_error("Could not allocate [0x%X] bytes.", size);
-	}
-	
 	return data;
 }
 
@@ -2021,8 +2017,7 @@ void MemFile_Params(MemFile* memFile, ...) {
 void MemFile_Malloc(MemFile* memFile, u32 size) {
 	if (memFile->param.initKey != 0xD0E0A0D0B0E0E0F0)
 		*memFile = MemFile_Initialize();
-	memFile->data = malloc(size);
-	memset(memFile->data, 0, size);
+	memFile->data = Calloc(memFile->data, size);
 	
 	if (memFile->data == NULL) {
 		printf_warning("Failed to malloc [0x%X] bytes.", size);
