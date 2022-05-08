@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 119
+#define THIS_EXTLIB_VERSION 120
 
 #ifndef EXTLIB
 #warning ExtLib Version not defined
@@ -128,8 +128,12 @@ void32 VirtualToSegmented(const u8 id, void* ptr) {
 // # # # # # # # # # # # # # # # # # # # #
 
 void* Tmp_Alloc(u32 size) {
-	Thread_Lock();
 	u8* ret;
+	
+	if (size < 1)
+		return NULL;
+	
+	Thread_Lock();
 	
 	if (size >= sizeof(sBuffer_Temp) / 2)
 		printf_error("Can't fit %fMb into the GraphBuffer", BinToMb(size));
@@ -154,6 +158,8 @@ void* Tmp_Alloc(u32 size) {
 char* Tmp_String(const char* str) {
 	char* ret = Tmp_Alloc(strlen(str));
 	
+	if (ret == NULL)
+		return NULL;
 	strcpy(ret, str);
 	
 	return ret;
@@ -613,195 +619,105 @@ void Dir_ItemList_Keyword(DirCtx* ctx, ItemList* itemList, char* ext) {
 	}
 }
 
-static void ItemList_Recursive_ChildCount(DirCtx* ctx, ItemList* target, const char* oriPath, char* pathTo, char* keyword) {
-	ItemList* folder = Calloc(0, sizeof(ItemList));
-	ItemList* file = Calloc(0, sizeof(ItemList));
-	char* path;
-	
-	Dir_ItemList(ctx, folder, true);
-	Dir_ItemList(ctx, file, false);
-	
-	for (s32 i = 0; i < folder->num; i++) {
-		Dir_Enter(ctx, folder->item[i]); {
-			path = Calloc(path, 0x128);
-			sprintf(path, "%s%s", pathTo, folder->item[i]);
-			
-			ItemList_Recursive_ChildCount(ctx, target, oriPath, path, keyword);
-			Dir_Leave(ctx);
-			Free(path);
-		}
-	}
-	
-	for (s32 i = 0; i < file->num; i++) {
-		if (keyword && !StrStr(file->item[i], keyword) && !StrStr(pathTo, keyword))
-			continue;
-		target->num++;
-		target->writePoint += strlen(oriPath) + strlen(pathTo) + strlen(file->item[i]) + 1;
-	}
-	
-	ItemList_Free(folder);
-	ItemList_Free(file);
-	Free(folder);
-	Free(file);
-}
-
-static void ItemList_Recursive_ChildWrite(DirCtx* ctx, ItemList* target, const char* oriPath, char* pathTo, char* keyword) {
-	ItemList* folder = Calloc(0, sizeof(ItemList));
-	ItemList* file = Calloc(0, sizeof(ItemList));
-	char* path;
-	
-	Dir_ItemList(ctx, folder, true);
-	Dir_ItemList(ctx, file, false);
-	
-	for (s32 i = 0; i < folder->num; i++) {
-		Dir_Enter(ctx, folder->item[i]); {
-			path = Calloc(path, 0x128);
-			sprintf(path, "%s%s", pathTo, folder->item[i]);
-			
-			ItemList_Recursive_ChildWrite(ctx, target, oriPath, path, keyword);
-			Dir_Leave(ctx);
-			Free(path);
-		}
-	}
-	
-	for (s32 i = 0; i < file->num; i++) {
-		if (keyword && !StrStr(file->item[i], keyword) && !StrStr(pathTo, keyword))
-			continue;
-		target->item[target->num] = &target->buffer[target->writePoint];
-		sprintf(target->item[target->num], "%s%s%s", oriPath, pathTo, file->item[i]);
-		target->writePoint += strlen(target->item[target->num]) + 1;
-		target->num++;
-	}
-	
-	ItemList_Free(folder);
-	ItemList_Free(file);
-	Free(folder);
-	Free(file);
-}
-
-void ItemList_Recursive(ItemList* target, const char* path, char* keyword, PathType fullPath) {
-	DirCtx* dirCtx = Calloc(0, sizeof(DirCtx));
-	char* oriPath = Calloc(0, 512);
-	
-	Dir_Set(dirCtx, "%s%s", Sys_WorkDir(), path);
-	
-	Log(__FUNCTION__, __LINE__, "Path: [%s]", dirCtx->curPath);
-	
-	if (fullPath) strcpy(oriPath, dirCtx->curPath);
-	else strcpy(oriPath, path);
-	
-	ItemList_Recursive_ChildCount(dirCtx, target, oriPath, "", keyword);
-	if (target->num == 0) {
-		Log(__FUNCTION__, __LINE__, "target->num == 0");
-		memset(target, 0, sizeof(*target));
-		
-		goto free;
-	}
-	Log(__FUNCTION__, __LINE__, "target->num == %d", target->num);
-	target->item = Calloc(0, sizeof(char*) * target->num);
-	target->buffer = Calloc(0, target->writePoint);
-	target->writePoint = 0;
-	target->num = 0;
-	ItemList_Recursive_ChildWrite(dirCtx, target, oriPath, "", keyword);
-	
-free:
-	Free(dirCtx);
-	Free(oriPath);
-}
+// # # # # # # # # # # # # # # # # # # # #
+// # ITEM LIST                           #
+// # # # # # # # # # # # # # # # # # # # #
 
 static void ItemList_Validate(ItemList* itemList) {
 	if (itemList->__private.initKey != 0xDEFABEBACECAFAFF)
 		*itemList = ItemList_Initialize();
 }
 
+typedef struct {
+	char**    list;
+	u32       len;
+	u32       num;
+	ListFlags flags;
+} WalkInfo;
+
+static void ItemList_Walk(const char* parent, const char* base, s32 level, s32 max, WalkInfo* info) {
+	DIR* dir;
+	const char* relpath = parent + strlen(base);
+	struct dirent* entry;
+	
+	dir = opendir(parent);
+	
+	if (dir) {
+		while ((entry = readdir(dir))) {
+			char* path;
+			
+			if (StrMtch(".", entry->d_name) || StrMtch("..", entry->d_name))
+				continue;
+			
+			path = Malloc(0, 128 + strlen(parent));
+			sprintf(path, "%s%s/", parent, entry->d_name);
+			
+			if (Sys_IsDir(path)) {
+				if (max == -1 || level < max) {
+					ItemList_Walk(path, base, level + 1, max, info);
+					
+					if (info->flags == LIST_FOLDERS) {
+						info->list[info->num] = Malloc(0, 128 + strlen(path));
+						
+						sprintf(info->list[info->num], "%s%s/", relpath, entry->d_name);
+						info->len += strlen(info->list[info->num]) + 1;
+						info->num++;
+					}
+				}
+			} else {
+				if (info->flags == LIST_FILES) {
+					info->list[info->num] = Malloc(0, 128 + strlen(path));
+					
+					sprintf(info->list[info->num], "%s%s", relpath, entry->d_name);
+					info->len += strlen(info->list[info->num]) + 1;
+					info->num++;
+				}
+			}
+			
+			Free(path);
+		}
+		
+		closedir(dir);
+	} else
+		printf_error("Could not open dir [%s]", dir);
+}
+
 void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags) {
-	bool isWordDir = false;
-	u32 wplen;
-	char** nftwList;
-	u32 nftwBufLen;
-	u32 nftwNum;
+	WalkInfo info;
+	const char* parent = "";
 	
 	ItemList_Validate(target);
 	
-	nftwList = Malloc(0, sizeof(char*) * 1024 * 16);
-	nftwBufLen = 0;
-	nftwNum = 0;
+	if (strlen(path) > 0 && !Sys_Stat(path))
+		printf_error("Can't walk path that does not exist! [%s]", path);
 	
-	int Nested(__list_item, (const char* item, const struct stat* bug, int type, struct FTW* ftw) ) {
-		NestedVar(
-			u32 nftwBufLen;
-			u32 nftwNum;
-		);
-		u32 typeFlag = flags & 0xF;
-		
-		if (typeFlag == LIST_FILES) {
-			if (type != FTW_F)
-				return 0;
-			
-			if (depth > -1 && ftw->level > depth + 1)
-				return 0;
-			
-			nftwList[nftwNum] = strdup(item);
-			
-			if (nftwList[nftwNum] == NULL) {
-				Log(__FUNCTION__, __LINE__, "strdup(item);");
-				
-				return 1;
-			}
-		} else if (typeFlag == LIST_FOLDERS) {
-			if (type != FTW_DP)
-				return 0;
-			
-			if (depth > -1 && ftw->level != depth + 1)
-				return 0;
-			
-			nftwList[nftwNum] = Calloc(0, strlen(item) + 3);
-			
-			if (nftwList[nftwNum] == NULL) {
-				Log(__FUNCTION__, __LINE__, "strdup(item);");
-				
-				return 1;
-			}
-			
-			strcpy(nftwList[nftwNum], item);
-			strcat(nftwList[nftwNum], "/");
-		} else return 0;
-		
-		Log(__FUNCTION__, __LINE__, "%3d/%-3d base:%-3d type:%-3d - %s", ftw->level, depth, ftw->base, type, item);
-		
-		nftwBufLen += strlen(nftwList[nftwNum]) + 1;
-		nftwNum++;
-		
-		return 0;
-	};
+	info.list = Malloc(0, sizeof(char*) * 1024 * 16);
+	info.len = 0;
+	info.num = 0;
+	info.flags = flags;
 	
 	if (strlen(path) == 0) {
-		isWordDir = true;
 		path = Sys_WorkDir();
-		wplen = strlen(path);
+		parent = path;
 	}
 	
-	if (nftw(path, (void*)__list_item, 80, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
-		printf_error("nftw error: %s %d", __FUNCTION__, __LINE__);
+	ItemList_Walk(path, parent, 0, depth, &info);
 	
-	target->buffer = Malloc(0, nftwBufLen);
-	target->item = Malloc(0, sizeof(char*) * nftwNum);
-	target->num = nftwNum;
+	target->buffer = Malloc(0, info.len);
+	target->item = Malloc(0, sizeof(char*) * info.num);
+	target->num = info.num;
 	
-	for (s32 i = 0; i < nftwNum; i++) {
+	for (s32 i = 0; i < info.num; i++) {
 		target->item[i] = &target->buffer[target->writePoint];
 		
-		if (isWordDir)
-			strcpy(target->item[i], &nftwList[i][wplen]);
-		else
-			strcpy(target->item[i], nftwList[i]);
+		strcpy(target->item[i], info.list[i]);
 		
 		target->writePoint += strlen(target->item[i]) + 1;
 		
-		Free(nftwList[i]);
+		Free(info.list[i]);
 	}
 	
-	nftwList = Free(nftwList);
+	Free(info.list);
 	
 	Log(__FUNCTION__, __LINE__, "OK");
 }
@@ -1167,6 +1083,10 @@ s32 Sys_Copy(const char* src, const char* dest, bool isStr) {
 	return 0;
 }
 
+// # # # # # # # # # # # # # # # # # # # #
+// # TERMINAL                            #
+// # # # # # # # # # # # # # # # # # # # #
+
 s32 Terminal_YesOrNo(void) {
 	char ans[512] = { 0 };
 	u32 clear = 0;
@@ -1223,6 +1143,8 @@ const char* Terminal_GetStr(void) {
 	printf("\r" PRNT_GRAY "[" PRNT_DGRY "<" PRNT_GRAY "]: " PRNT_GRAY);
 	fgets(str, 511, stdin);
 	str[strlen(str) - 1] = '\0'; // remove newline
+	
+	Log(__FUNCTION__, __LINE__, "[%s]", str);
 	
 	return str;
 }
@@ -1871,6 +1793,9 @@ L_next:
 
 char* StrEnd(const char* src, const char* ext) {
 	const char* fP;
+	
+	if (strlen(src) < strlen(ext))
+		return NULL;
 	
 	if ((fP = StrStr(src, ext)) != NULL && strlen(fP) == strlen(ext))
 		return (char*)fP;

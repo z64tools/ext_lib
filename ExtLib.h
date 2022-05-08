@@ -39,7 +39,7 @@ extern pthread_mutex_t gMutexLock;
 #define NestedVar(vars)    vars
 #else
 #define Nested(name, args) name args
-#define NestedVar(vars)  while (0) { (void)0; }
+#define NestedVar(vars)    while (0) { (void)0; }
 #endif
 
 typedef struct {
@@ -296,7 +296,6 @@ typedef enum {
 	LIST_FOLDERS = 0x1,
 } ListFlags;
 
-void ItemList_Recursive(ItemList* target, const char* path, char* keyword, PathType fullPath);
 void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags);
 void ItemList_Print(ItemList* target);
 s32 ItemList_SaveList(ItemList* target, const char* output);
