@@ -631,8 +631,8 @@ extern PrintfSuppressLevel gPrintfSuppress;
 	Log("Malloc(%s); %.2f Kb", #data, BinToKb(size));
 
 #define Realloc(data, size) \
-	Malloc(data, size); \
-	Log("Malloc(%s); %.2f Kb", #data, BinToKb(size));
+	Realloc(data, size); \
+	Log("Realloc(%s); %.2f Kb", #data, BinToKb(size));
 
 #define Calloc(data, size) \
 	Calloc(data, size); \
