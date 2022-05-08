@@ -994,8 +994,8 @@ void Sys_SetWorkDir(const char* txt) {
 bool Sys_Command(const char* cmd) {
 	s32 ret = system(cmd);
 	
-	if (ret)
-		Log(__FUNCTION__, __LINE__, PRNT_BLUE "%s", cmd);
+	if (ret != 0)
+		Log(__FUNCTION__, __LINE__, PRNT_BLUE "[%d] - %s", ret, cmd);
 	
 	return ret;
 }
@@ -1023,10 +1023,13 @@ char* Sys_CommandOut(const char* cmd) {
 	out = Calloc(0, mem.dataSize);
 	strcpy(out, mem.data);
 	
-	if ((pr = pclose(file))) {
-		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", cmd);
-		Log(__FUNCTION__, __LINE__, "Dumping output as [system_fault_out], return code [%d]", pr);
-		MemFile_SaveFile_String(&mem, "system_fault_out");
+	if ((pr = pclose(file)) != 0) {
+		Log(__FUNCTION__, __LINE__, PRNT_REDD "[%d] - %s", pr, cmd);
+		
+		if (pr < 0) {
+			Log(__FUNCTION__, __LINE__, "Dumping output as [system_fault_out], return code [%d]", pr);
+			MemFile_SaveFile_String(&mem, "system_fault_out");
+		}
 	}
 	
 	MemFile_Free(&mem);
