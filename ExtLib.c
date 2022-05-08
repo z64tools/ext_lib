@@ -727,6 +727,14 @@ void ItemList_Print(ItemList* target) {
 		printf("[#]: %4d: %s\n", i, target->item[i]);
 }
 
+s32 ItemList_Stat(ItemList* list) {
+	for (s32 i = 0; i < list->num; i++)
+		if (Sys_Stat(list->item[i]) == 0)
+			return i + 1;
+	
+	return 0;
+}
+
 s32 ItemList_SaveList(ItemList* target, const char* output) {
 	MemFile mem = MemFile_Initialize();
 	
@@ -993,28 +1001,35 @@ bool Sys_Command(const char* cmd) {
 }
 
 char* Sys_CommandOut(const char* cmd) {
-	FILE* file = popen(cmd, "r");
-	char result[257] = { 0x0 };
 	char* out;
+	char result[257] = { 0x0 };
 	MemFile mem = MemFile_Initialize();
+	FILE* file = popen(cmd, "r");
+	u32 pr;
 	
 	if (file == NULL) {
 		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", cmd);
-		printf_error_align("Sys_CommandOut", "popen Failed");
+		Log(__FUNCTION__, __LINE__, "popen failed...");
+		
+		return NULL;
 	}
 	
-	MemFile_Malloc(&mem, MbToBin(16.0));
-	while (fgets(result, 256, file) != NULL)
+	MemFile_Params(&mem, MEM_REALLOC, true, MEM_END);
+	MemFile_Malloc(&mem, MbToBin(2.0));
+	
+	while (fgets(result, 128, file))
 		MemFile_Printf(&mem, "%s", result);
 	
 	out = Calloc(0, mem.dataSize);
 	strcpy(out, mem.data);
 	
-	if (pclose(file)) {
-		Log(__FUNCTION__, __LINE__, PRNT_BLUE "%s", cmd);
+	if ((pr = pclose(file))) {
+		Log(__FUNCTION__, __LINE__, PRNT_REDD "%s", cmd);
+		Log(__FUNCTION__, __LINE__, "Dumping output as [system_fault_out], return code [%d]", pr);
 		MemFile_SaveFile_String(&mem, "system_fault_out");
-		printf_error_align("Sys_CommandOut", "Failure Exit Status, dumped [system_fault_out]");
 	}
+	
+	MemFile_Free(&mem);
 	
 	return out;
 }

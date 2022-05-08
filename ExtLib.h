@@ -201,7 +201,7 @@ void Thread_Unlock(void);
 void Thread_Create(Thread* thread, void* func, void* arg);
 s32 Thread_Join(Thread* thread);
 
-#ifndef __EXTLIB_C__
+#if 0
 
 #define Thread_Create(thread, func, arg) { \
 		Log("Thread Create   [ " PRNT_BLUE "%s " PRNT_RSET "]", #thread); \
@@ -298,6 +298,7 @@ typedef enum {
 
 void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags);
 void ItemList_Print(ItemList* target);
+s32 ItemList_Stat(ItemList* list);
 s32 ItemList_SaveList(ItemList* target, const char* output);
 void ItemList_NumericalSort(ItemList* list);
 ItemList ItemList_Initialize(void);
