@@ -341,7 +341,7 @@ Time Dir_Stat(DirCtx* ctx, const char* item) {
 
 // @bug: SegFaults on empty ctx->curPath
 char* Dir_GetWildcard(DirCtx* ctx, char* x) {
-	ItemList list;
+	ItemList list = ItemList_Initialize();
 	char* sEnd;
 	char* sStart = NULL;
 	char* restorePath;
@@ -439,8 +439,8 @@ void Dir_ItemList(DirCtx* ctx, ItemList* itemList, bool isPath) {
 }
 
 static void Dir_ItemList_Recursive_ChildCount(DirCtx* ctx, ItemList* target, char* pathTo, char* keyword) {
-	ItemList folder = { 0 };
-	ItemList file = { 0 };
+	ItemList folder = ItemList_Initialize();
+	ItemList file = ItemList_Initialize();
 	char* path;
 	
 	Dir_ItemList(ctx, &folder, true);
@@ -469,8 +469,8 @@ static void Dir_ItemList_Recursive_ChildCount(DirCtx* ctx, ItemList* target, cha
 }
 
 static void Dir_ItemList_Recursive_ChildWrite(DirCtx* ctx, ItemList* target, char* pathTo, char* keyword) {
-	ItemList folder = { 0 };
-	ItemList file = { 0 };
+	ItemList folder = ItemList_Initialize();
+	ItemList file = ItemList_Initialize();
 	char* path;
 	
 	Dir_ItemList(ctx, &folder, true);
@@ -984,9 +984,12 @@ void Sys_SetWorkDir(const char* txt) {
 }
 
 bool Sys_Command(const char* cmd) {
-	Log(__FUNCTION__, __LINE__, PRNT_BLUE "%s", cmd);
+	s32 ret = system(cmd);
 	
-	return system(cmd);
+	if (ret)
+		Log(__FUNCTION__, __LINE__, PRNT_BLUE "%s", cmd);
+	
+	return ret;
 }
 
 char* Sys_CommandOut(const char* cmd) {
@@ -1000,19 +1003,17 @@ char* Sys_CommandOut(const char* cmd) {
 		printf_error_align("Sys_CommandOut", "popen Failed");
 	}
 	
-	MemFile_Malloc(&mem, MbToBin(32.0));
+	MemFile_Malloc(&mem, MbToBin(16.0));
 	while (fgets(result, 256, file) != NULL)
 		MemFile_Printf(&mem, "%s", result);
 	
 	out = Calloc(0, mem.dataSize);
 	strcpy(out, mem.data);
 	
-	Log(__FUNCTION__, __LINE__, PRNT_BLUE "%s", cmd);
-	Log(__FUNCTION__, __LINE__, "Size: %.2f", BinToKb(mem.dataSize));
-	
 	if (pclose(file)) {
+		Log(__FUNCTION__, __LINE__, PRNT_BLUE "%s", cmd);
 		MemFile_SaveFile_String(&mem, "system_fault_out");
-		printf_error_align("Sys_CommandOut", "Exit Status Failed, dumped [system_fault_out]");
+		printf_error_align("Sys_CommandOut", "Failure Exit Status, dumped [system_fault_out]");
 	}
 	
 	return out;
@@ -2690,8 +2691,15 @@ void String_Remove(char* point, s32 amount) {
 s32 String_Replace(char* src, const char* word, const char* replacement) {
 	s32 diff = 0;
 	char* ptr;
+	bool dub = false;
 	
-	if (!StrStr(src, word)) return 0;
+	if ((uPtr)word >= (uPtr)src && (uPtr)word < (uPtr)src + strlen(src)) {
+		word = strdup(word);
+		dub = true;
+	}
+	
+	if (!StrStr(src, word))
+		return 0;
 	
 	if (strlen(word) == 1 && strlen(replacement) == 1) {
 		for (s32 i = 0; i < strlen(src); i++) {
@@ -2700,6 +2708,9 @@ s32 String_Replace(char* src, const char* word, const char* replacement) {
 				break;
 			}
 		}
+		
+		if (dub)
+			Free((void*)word);
 		
 		return true;
 	}
@@ -2712,6 +2723,9 @@ s32 String_Replace(char* src, const char* word, const char* replacement) {
 		ptr = StrStr(ptr + 1, word);
 		diff = true;
 	}
+	
+	if (dub)
+		Free((void*)word);
 	
 	return diff;
 }
@@ -2730,7 +2744,8 @@ s32 String_Validate_Hex(const char* str) {
 			(str[i] >= 'A' && str[i] <= 'F') ||
 			(str[i] >= 'a' && str[i] <= 'f') ||
 			(str[i] >= '0' && str[i] <= '9') ||
-			str[i] == 'x' || str[i] == 'X' || str[i] == ' ' || str[i] == '\t'
+			str[i] == 'x' || str[i] == 'X' ||
+			str[i] == ' ' || str[i] == '\t'
 		) {
 			isOk = true;
 			continue;
@@ -2838,7 +2853,7 @@ char* Config_GetVariable(const char* str, const char* name) {
 			}
 			
 			if (isString == false)
-				while (p[size - 1] == ' ')
+				while (p[size - 1] <= ' ')
 					size--;
 			
 			buf = Tmp_Alloc(size + 1);
