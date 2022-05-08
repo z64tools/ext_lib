@@ -274,7 +274,7 @@ s32 Sys_Delete_Recursive(const char* item);
 const char* Sys_WorkDir(void);
 const char* Sys_AppDir(void);
 void Sys_SetWorkDir(const char* txt);
-bool Sys_Command(const char* cmd);
+s32 Sys_Command(const char* cmd);
 char* Sys_CommandOut(const char* cmd);
 #define cliprintf(dest, tool, args, ...) sprintf(dest, "%s " args, tool, __VA_ARGS__)
 void Sys_TerminalSize(s32* r);

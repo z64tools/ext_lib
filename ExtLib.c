@@ -991,7 +991,7 @@ void Sys_SetWorkDir(const char* txt) {
 	chdir(txt);
 }
 
-bool Sys_Command(const char* cmd) {
+s32 Sys_Command(const char* cmd) {
 	s32 ret = system(cmd);
 	
 	if (ret != 0)
