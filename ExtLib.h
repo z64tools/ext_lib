@@ -368,6 +368,7 @@ void MemFile_Clear(MemFile* memFile);
 #define StrStrNum(src, comp, n) MemMem(src, n, comp, n)
 #define StrStrCase(src, comp)   MemMemCase(src, strlen(src), comp, strlen(comp))
 #define StrMtch(a, b)           (!strncmp(a, b, strlen(b)))
+#define catprintf(dest, ...)   sprintf(dest + strlen(dest), __VA_ARGS__)
 
 u32 String_GetHexInt(char* string);
 s32 String_GetInt(char* string);
