@@ -1,12 +1,12 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 121
+#define THIS_EXTLIB_VERSION 122
 
 #ifndef EXTLIB
-#warning ExtLib Version not defined
+#error ExtLib Version not defined
 #else
 #if EXTLIB > THIS_EXTLIB_VERSION
-#warning Your local ExtLib copy seems to be old. Please update it!
+#error Your local ExtLib copy seems to be old. Please update it!
 #endif
 #endif
 
@@ -901,32 +901,48 @@ static void __MakeDir(const char* buffer) {
 }
 
 void Sys_MakeDir(const char* dir, ...) {
-	char buffer[512];
+	char* buffer;
 	s32 pathNum;
 	va_list args;
 	
+	buffer = Malloc(0, strlen(dir) + 1024);
+	
 	va_start(args, dir);
-	vsnprintf(buffer, ArrayCount(buffer), dir, args);
+	vsprintf(buffer, dir, args);
 	va_end(args);
 	
 	pathNum = String_GetPathNum(buffer);
+	
+	if (!Sys_IsDir(dir)) {
+		for (s32 i = strlen(buffer) - 1; i >= 0; i--) {
+			if (buffer[i] == '/' || buffer[i] == '\\')
+				break;
+			buffer[i] = '\0';
+		}
+	}
+	
+	Log(__FUNCTION__, __LINE__, "[%s]", buffer);
 	
 	if (pathNum == 1) {
 		__MakeDir(buffer);
 	} else {
 		for (s32 i = 0; i < pathNum; i++) {
-			char tempBuff[512];
+			char* temp = Malloc(0, strlen(dir) + 1024);
 			char* folder = String_GetFolder(buffer, 0);
 			
-			strcpy(tempBuff, folder);
+			strcpy(temp, folder);
+			
 			for (s32 j = 1; j < i + 1; j++) {
 				folder = String_GetFolder(buffer, j);
-				strcat(tempBuff, folder);
+				strcat(temp, folder);
 			}
 			
-			__MakeDir(tempBuff);
+			__MakeDir(temp);
+			Free(temp);
 		}
 	}
+	
+	Free(buffer);
 }
 
 const char* Sys_WorkDir(void) {
@@ -992,7 +1008,9 @@ void Sys_SetWorkDir(const char* txt) {
 }
 
 s32 SysExe(const char* cmd) {
-	s32 ret = system(cmd);
+	s32 ret;
+	
+	ret = system(cmd);
 	
 	if (ret != 0)
 		Log(__FUNCTION__, __LINE__, PRNT_REDD "[%d] " PRNT_GRAY "SysExe(" PRNT_REDD "%s" PRNT_GRAY ");", ret, cmd);
@@ -1002,12 +1020,14 @@ s32 SysExe(const char* cmd) {
 
 char* SysExeO(const char* cmd) {
 	char* out;
-	char result[257] = { 0x0 };
+	char result[1024];
 	MemFile mem = MemFile_Initialize();
-	FILE* file = popen(cmd, "r");
-	u32 pr;
+	FILE* file;
+	s32 pr;
 	
-	if (file == NULL) {
+	fflush(NULL);
+	
+	if ((file = popen(cmd, "r")) == NULL) {
 		Log(__FUNCTION__, __LINE__, PRNT_REDD "SysExeO(%s);", cmd);
 		Log(__FUNCTION__, __LINE__, "popen failed...");
 		
@@ -1017,19 +1037,15 @@ char* SysExeO(const char* cmd) {
 	MemFile_Params(&mem, MEM_REALLOC, true, MEM_END);
 	MemFile_Malloc(&mem, MbToBin(2.0));
 	
-	while (fgets(result, 128, file))
-		MemFile_Printf(&mem, "%s", result);
+	while (fgets(result, 1024, file))
+		MemFile_Write(&mem, result, strlen(result));
 	
 	out = Calloc(0, mem.dataSize);
 	strcpy(out, mem.data);
 	
 	if ((pr = pclose(file)) != 0) {
 		Log(__FUNCTION__, __LINE__, PRNT_REDD "[%d] " PRNT_GRAY "SysExeO(" PRNT_REDD "%s" PRNT_GRAY ");", pr, cmd);
-		
-		if (pr < 0) {
-			Log(__FUNCTION__, __LINE__, "Dumping output as [system_fault_out], return code [%d]", pr);
-			MemFile_SaveFile_String(&mem, "system_fault_out");
-		}
+		printf_error("SysExeO");
 	}
 	
 	MemFile_Free(&mem);
@@ -1381,8 +1397,10 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
 	va_end(args);
 }
 
+static void Log_Signal(int arg);
+
 void printf_error(const char* fmt, ...) {
-	Log_Print();
+	Log_Signal(16);
 	Log_Free();
 	if (gPrintfSuppress < PSL_NO_ERROR) {
 		if (gPrintfProgressing) {
@@ -1407,7 +1425,7 @@ void printf_error(const char* fmt, ...) {
 }
 
 void printf_error_align(const char* info, const char* fmt, ...) {
-	Log_Print();
+	Log_Signal(16);
 	Log_Free();
 	if (gPrintfSuppress < PSL_NO_ERROR) {
 		if (gPrintfProgressing) {
@@ -3010,8 +3028,7 @@ char* sLogMsg[FAULT_LOG_NUM];
 char* sLogFunc[FAULT_LOG_NUM];
 u32 sLogLine[FAULT_LOG_NUM];
 
-static void Log_Signal(int arg) {
-	volatile static bool ran = 0;
+static void Log_Signal_PrintTitle(int arg) {
 	const char* errorMsg[] = {
 		"\a0",
 		"\a1 - Hang Up",
@@ -3030,17 +3047,8 @@ static void Log_Signal(int arg) {
 		"\a14 - Alarm",
 		"\a15 - Killed",
 		
-		"\aUNDEFINED",
+		"\aERROR",
 	};
-	u32 msgsNum = 0;
-	u32 repeat = 0;
-	s32 errorID = ClampMax(arg, 16);
-	
-	if (errorID < 1)
-		errorID = 18;
-	
-	if (ran) return;
-	ran = ___gExt_ThreadInit != 0;
 	
 	printf_WinFix();
 	
@@ -3049,24 +3057,42 @@ static void Log_Signal(int arg) {
 		printf("\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "%s " PRNT_DGRY "]", errorMsg[ClampMax(arg, 23)]);
 	else
 		printf("\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "LOG " PRNT_DGRY "]");
+}
+
+static void Log_Signal(int arg) {
+	volatile static bool ran = 0;
+	u32 msgsNum = 0;
+	u32 repeat = 0;
+	
+	if (ran) return;
+	ran = ___gExt_ThreadInit != 0;
+	
+	Log_Signal_PrintTitle(arg);
 	
 	for (s32 i = FAULT_LOG_NUM - 1; i >= 0; i--) {
-		if (strlen(sLogMsg[i]) > 0) {
-			if (msgsNum == 0 || strcmp(sLogFunc[i], sLogFunc[i + 1]))
-				printf("\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_YELW " %s" PRNT_DGRY "();" PRNT_RSET, sLogFunc[i]);
-			if (msgsNum == 0 || strcmp(sLogMsg[i], sLogMsg[i + 1])) {
-				printf(
-					"\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ %4d ]" PRNT_RSET " %s" PRNT_RSET,
-					sLogLine[i],
-					sLogMsg[i]
-				);
-				if (repeat) printf( PRNT_PRPL " x %d" PRNT_RSET, repeat + 1);
-				repeat = 0;
-			} else {
-				repeat++;
-			}
-			msgsNum++;
+		if (strlen(sLogMsg[i]) == 0)
+			continue;
+		
+		if ((msgsNum > 0 && strcmp(sLogMsg[i], sLogMsg[i + 1])) )
+			if (repeat)
+				printf( PRNT_PRPL " x %d" PRNT_RSET, repeat + 1);
+		
+		if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogFunc[i], sLogFunc[i + 1])) )
+			printf("\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_YELW " %s" PRNT_DGRY "();" PRNT_RSET, sLogFunc[i]);
+		
+		if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogMsg[i], sLogMsg[i + 1])) ) {
+			printf(
+				"\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ %4d ]" PRNT_RSET " %s" PRNT_RSET,
+				sLogLine[i],
+				sLogMsg[i]
+			);
+			
+			repeat = 0;
+		} else {
+			repeat++;
 		}
+		
+		msgsNum++;
 	}
 	printf("\n");
 	
@@ -3084,7 +3110,6 @@ static void Log_Signal(int arg) {
 void Log_Init() {
 	for (s32 i = 1; i < 16; i++)
 		signal(i, Log_Signal);
-	signal(17, SIG_IGN);
 	
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
 		sLogMsg[i] = Calloc(0, FAULT_BUFFER_SIZE);
