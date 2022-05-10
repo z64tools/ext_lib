@@ -3058,7 +3058,7 @@ static void Log_Signal_PrintTitle(int arg) {
 	
 	printf("\n");
 	if (arg != 0xDEADBEEF)
-		printf("\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "%s " PRNT_DGRY "]", errorMsg[ClampMax(arg, 23)]);
+		printf("\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "%s " PRNT_DGRY "]", errorMsg[ClampMax(arg, 16)]);
 	else
 		printf("\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "LOG " PRNT_DGRY "]");
 }
@@ -3100,7 +3100,7 @@ static void Log_Signal(int arg) {
 	}
 	printf("\n");
 	
-	if (arg != 0xDEADBEEF && arg != 21) {
+	if (arg != 0xDEADBEEF) {
 		printf(
 			"\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_YELW " Provide this log to the developer." PRNT_RSET "\n"
 		);
