@@ -719,7 +719,7 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flag
 	
 	Free(info.list);
 	
-	Log(__FUNCTION__, __LINE__, "OK");
+	Log(__FUNCTION__, __LINE__, "OK, %d [%s]", target->num, path);
 }
 
 void ItemList_Print(ItemList* target) {
@@ -2616,6 +2616,9 @@ char* String_Line(char* str, s32 line) {
 		}
 	}
 	
+	if (str[i] == '\0')
+		return NULL;
+	
 	return &str[i];
 }
 
@@ -2858,10 +2861,11 @@ char* Config_Variable(const char* str, const char* name) {
 }
 
 char* Config_GetVariable(const char* str, const char* name) {
-	u32 lineCount = String_GetLineCount(str);
 	char* line = (char*)str;
 	
-	for (s32 i = 0; i < lineCount; i++, line = String_Line(line, 1)) {
+	for (s32 i = 0;; i++, line = String_Line(line, 1)) {
+		if (line == NULL)
+			return NULL;
 		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
 			continue;
 		if (!strncmp(line, name, strlen(name))) {
