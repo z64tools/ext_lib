@@ -3104,10 +3104,12 @@ static void Log_Signal(int arg) {
 		printf(
 			"\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_YELW " Provide this log to the developer." PRNT_RSET "\n"
 		);
+		if (arg != 16) {
 #ifdef _WIN32
-		Terminal_GetChar();
+			Terminal_GetChar();
 #endif
-		exit(EXIT_FAILURE);
+			exit(EXIT_FAILURE);
+		}
 	}
 }
 
