@@ -780,6 +780,58 @@ void ItemList_SpacedStr(ItemList* list, const char* str) {
 	Log(__FUNCTION__, __LINE__, "OK, %d [%s]", list->num, str);
 }
 
+void ItemList_CommaStr(ItemList* list, const char* str) {
+	s32 a = 0;
+	s32 b;
+	StrNode* nodeHead = NULL;
+	
+	ItemList_Validate(list);
+	
+	while (true) {
+		StrNode* node = NULL;
+		
+		if (str[a] == '\"' || str[a] == '\'') {
+			b = a + 2;
+			while (str[b - 1] != '\"' && str[b - 1] != '\'' && str[b] != '\0') b++;
+		} else {
+			b = a;
+			while (str[b] != ' ' && str[b] != '\0') b++;
+		}
+		
+		node = Calloc(node, sizeof(StrNode));
+		node->txt = Calloc(node->txt, b - a + 1);
+		memcpy(node->txt, &str[a], b - a);
+		Log(__FUNCTION__, __LINE__, "%d, [%s]", b - a + 1, node->txt);
+		Node_Add(nodeHead, node);
+		
+		list->num++;
+		list->writePoint += strlen(node->txt) + 1;
+		
+		if (str[b] == '\0')
+			break;
+		a = b;
+		
+		while (str[a] == ' ' || str[a] == '\t' || str[a] == ',' || str[a] == '\n') a++;
+	}
+	
+	Log(__FUNCTION__, __LINE__, "Building List");
+	
+	list->buffer = Calloc(list->buffer, list->writePoint);
+	list->item = Calloc(list->item, sizeof(char*) * list->num);
+	list->writePoint = 0;
+	
+	for (s32 i = 0; i < list->num; i++) {
+		list->item[i] = &list->buffer[list->writePoint];
+		strcpy(list->item[i], nodeHead->txt);
+		list->writePoint += strlen(list->item[i]) + 1;
+		
+		Free(nodeHead->txt);
+		Node_Kill(nodeHead, nodeHead);
+	}
+	
+	Log(__FUNCTION__, __LINE__, "OK, %d [%s]", list->num, str);
+}
+
 void ItemList_Print(ItemList* target) {
 	for (s32 i = 0; i < target->num; i++)
 		printf("[#]: %4d: %s\n", i, target->item[i]);
@@ -2409,9 +2461,10 @@ s32 String_GetLineCount(const char* str) {
 	s32 line = 1;
 	s32 i = 0;
 	
-	while (str[i++] != '\0') {
-		if (str[i] == '\n' && str[i + 1] != '\0')
+	while (str[i] != '\0') {
+		if (str[i] == '\n')
 			line++;
+		i++;
 	}
 	
 	return line;
@@ -2666,36 +2719,24 @@ char* String_GetSpacedArg(char* argv[], s32 cur) {
 }
 
 char* String_Line(char* str, s32 line) {
-	s32 iLine = -1;
+	char* r = str;
+	s32 curline = 0;
 	s32 i = 0;
-	s32 j = 0;
 	
-	if (str == NULL)
-		return NULL;
-	
-	while (str[i] != '\0') {
-		j = 0;
-		if (str[i] != '\n') {
-			while (str[i + j] != '\n' && str[i + j] != '\0') {
-				j++;
-			}
-			
-			iLine++;
-			
-			if (iLine == line) {
-				break;
-			}
-			
-			i += j;
-		} else {
+	while (line > curline) {
+		while (str[i] != '\n') {
 			i++;
+			if (str[i] == '\0') {
+				return r;
+			}
 		}
+		i++;
+		curline++;
+		
+		r = &str[i];
 	}
 	
-	if (str[i] == '\0')
-		return NULL;
-	
-	return &str[i];
+	return r;
 }
 
 char* String_LineHead(char* str) {
@@ -2902,32 +2943,28 @@ char* Config_Variable(const char* str, const char* name) {
 	u32 lineCount = String_GetLineCount(str);
 	char* line = (char*)str;
 	
+	Log(__FUNCTION__, __LINE__, "Var [%s]", name);
 	for (s32 i = 0; i < lineCount; i++, line = String_Line(line, 1)) {
+		if (line == NULL) return NULL;
 		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
 			continue;
-		if (!strncmp(line, name, strlen(name))) {
-			s32 isString = 0;
+		if (StrMtch(line, name)) {
 			char* p = line + strlen(name);
-			u32 size = 0;
 			
-			while (p[0] == ' ' || p[0] == '\t')
+			while (p[0] == ' ' || p[0] == '\t') {
 				p++;
+				if (p[0] == '\0')
+					return NULL;
+			}
 			
 			if (p[0] != '=')
 				return NULL;
 			
-			while (p[0] == '=' || p[0] == ' ' || p[0] == '\t')
+			while (p[0] == '=' || p[0] == ' ' || p[0] == '\t') {
 				p++;
-			
-			while (p[size + 1] != ';' && p[size + 1] != '#' && p[size] != '\n' && (isString == false || p[size] != '\"') && p[size] != '\0') {
-				if (p[size] == '\"')
-					isString = 1;
-				size++;
+				if (p[0] == '\0')
+					return NULL;
 			}
-			
-			if (isString == false)
-				while (p[size - 1] == ' ')
-					size--;
 			
 			return p;
 		}
@@ -2937,27 +2974,36 @@ char* Config_Variable(const char* str, const char* name) {
 }
 
 char* Config_GetVariable(const char* str, const char* name) {
+	u32 lineCount = String_GetLineCount(str);
 	char* line = (char*)str;
 	
-	for (s32 i = 0;; i++, line = String_Line(line, 1)) {
-		if (line == NULL)
-			return NULL;
+	Log(__FUNCTION__, __LINE__, "Var [%s]", name);
+	for (s32 i = 0; i < lineCount; i++, line = String_Line(line, 1)) {
+		if (line == NULL) return NULL;
 		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
 			continue;
-		if (!strncmp(line, name, strlen(name))) {
+		if (StrMtch(line, name)) {
 			s32 isString = 0;
 			char* buf;
 			char* p = line + strlen(name);
 			u32 size = 0;
 			
-			while (p[0] == ' ' || p[0] == '\t')
+			while (p[0] == ' ' || p[0] == '\t') {
 				p++;
+				
+				if (p[0] == '\0')
+					return NULL;
+			}
 			
 			if (p[0] != '=')
 				return NULL;
 			
-			while (p[0] == '=' || p[0] == ' ' || p[0] == '\t')
+			while (p[0] == '=' || p[0] == ' ' || p[0] == '\t') {
 				p++;
+				
+				if (p[0] == '\0')
+					return NULL;
+			}
 			
 			while (p[size + 1] != ';' && p[size + 1] != '#' && p[size] != '\n' && (isString == false || p[size] != '\"') && p[size] != '\0') {
 				if (p[size] == '\"')
@@ -2977,6 +3023,32 @@ char* Config_GetVariable(const char* str, const char* name) {
 	}
 	
 	return NULL;
+}
+
+void Config_GetArray(ItemList* list, const char* str, const char* name) {
+	char* array;
+	char* tmp;
+	u32 size = 0;
+	
+	array = Config_Variable(str, name);
+	
+	if (array == NULL || array[0] != '[') {
+		*list = ItemList_Initialize();
+		
+		return;
+	}
+	
+	while (array[size] != ']') size++;
+	
+	tmp = array;
+	array = Calloc(array, size);
+	memcpy(array, tmp + 1, size - 2);
+	
+	ItemList_CommaStr(list, array);
+	Free(array);
+	
+	for (s32 i = 0; i < list->num; i++)
+		String_Replace(list->item[i], "\"", "");
 }
 
 s32 Config_GetBool(MemFile* memFile, const char* boolName) {

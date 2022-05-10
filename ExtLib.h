@@ -299,6 +299,7 @@ typedef enum {
 
 void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags);
 void ItemList_SpacedStr(ItemList* list, const char* str);
+void ItemList_CommaStr(ItemList* list, const char* str);
 void ItemList_Print(ItemList* target);
 Time ItemList_StatMax(ItemList* list);
 s32 ItemList_Stat(ItemList* list);
@@ -403,6 +404,7 @@ char* String_Unquote(const char* str);
 void Config_SuppressNext(void);
 char* Config_Variable(const char* str, const char* name);
 char* Config_GetVariable(const char* str, const char* name);
+void Config_GetArray(ItemList* list, const char* str, const char* name);
 s32 Config_GetBool(MemFile* memFile, const char* boolName);
 s32 Config_GetOption(MemFile* memFile, const char* stringName, char* strList[]);
 s32 Config_GetInt(MemFile* memFile, const char* intName);
