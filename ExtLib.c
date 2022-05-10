@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 122
+#define THIS_EXTLIB_VERSION 123
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -722,9 +722,77 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flag
 	Log(__FUNCTION__, __LINE__, "OK, %d [%s]", target->num, path);
 }
 
+typedef struct StrNode {
+	struct StrNode* prev;
+	struct StrNode* next;
+	char* txt;
+} StrNode;
+
+void ItemList_SpacedStr(ItemList* list, const char* str) {
+	s32 a = 0;
+	s32 b;
+	StrNode* nodeHead = NULL;
+	
+	ItemList_Validate(list);
+	
+	while (true) {
+		StrNode* node = NULL;
+		
+		if (str[a] == '\"' || str[a] == '\'') {
+			b = a + 2;
+			while (str[b - 1] != '\"' && str[b - 1] != '\'' && str[b] != '\0') b++;
+		} else {
+			b = a;
+			while (str[b] != ' ' && str[b] != '\0') b++;
+		}
+		
+		node = Calloc(node, sizeof(StrNode));
+		node->txt = Calloc(node->txt, b - a + 1);
+		memcpy(node->txt, &str[a], b - a);
+		Log(__FUNCTION__, __LINE__, "%d, [%s]", b - a + 1, node->txt);
+		Node_Add(nodeHead, node);
+		
+		list->num++;
+		list->writePoint += strlen(node->txt) + 1;
+		
+		if (str[b] == '\0')
+			break;
+		a = b;
+		
+		while (str[a] == ' ' || str[a] == '\t') a++;
+	}
+	
+	Log(__FUNCTION__, __LINE__, "Building List");
+	
+	list->buffer = Calloc(list->buffer, list->writePoint);
+	list->item = Calloc(list->item, sizeof(char*) * list->num);
+	list->writePoint = 0;
+	
+	for (s32 i = 0; i < list->num; i++) {
+		list->item[i] = &list->buffer[list->writePoint];
+		strcpy(list->item[i], nodeHead->txt);
+		list->writePoint += strlen(list->item[i]) + 1;
+		
+		Free(nodeHead->txt);
+		Node_Kill(nodeHead, nodeHead);
+	}
+	
+	Log(__FUNCTION__, __LINE__, "OK, %d [%s]", list->num, str);
+}
+
 void ItemList_Print(ItemList* target) {
 	for (s32 i = 0; i < target->num; i++)
 		printf("[#]: %4d: %s\n", i, target->item[i]);
+}
+
+Time ItemList_StatMax(ItemList* list) {
+	Time val = 0;
+	
+	for (s32 i = 0; i < list->num; i++) {
+		val = Max(val, Sys_Stat(list->item[i]));
+	}
+	
+	return val;
 }
 
 s32 ItemList_Stat(ItemList* list) {

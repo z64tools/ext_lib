@@ -298,7 +298,9 @@ typedef enum {
 } ListFlags;
 
 void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags);
+void ItemList_SpacedStr(ItemList* list, const char* str);
 void ItemList_Print(ItemList* target);
+Time ItemList_StatMax(ItemList* list);
 s32 ItemList_Stat(ItemList* list);
 s32 ItemList_SaveList(ItemList* target, const char* output);
 void ItemList_NumericalSort(ItemList* list);
@@ -459,6 +461,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 }
 
 #define Node_Kill(head, node) { \
+		typeof(node) kill = node; \
 		if (node->next) { \
 			node->next->prev = node->prev; \
 		} \
@@ -467,8 +470,8 @@ extern PrintfSuppressLevel gPrintfSuppress;
 		} else { \
 			head = node->next; \
 		} \
-		free(node); \
-		node = NULL; \
+		free(kill); \
+		kill = NULL; \
 }
 
 #define Node_Remove(head, node) { \
