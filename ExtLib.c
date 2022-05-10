@@ -1421,6 +1421,10 @@ void printf_error(const char* fmt, ...) {
 		va_end(args);
 	}
 	
+#ifdef _WIN32
+	Terminal_GetChar();
+#endif
+	
 	exit(EXIT_FAILURE);
 }
 
@@ -1448,6 +1452,10 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 		printf(PRNT_RSET "\n");
 		va_end(args);
 	}
+	
+#ifdef _WIN32
+	Terminal_GetChar();
+#endif
 	
 	exit(EXIT_FAILURE);
 }
