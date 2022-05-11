@@ -34,6 +34,12 @@ void gettimeofday(void*, void*);
 #include <time.h>
 
 #ifdef _WIN32
+#include <ncurses/curses.h>
+#else
+#include <curses.h>
+#endif
+
+#ifdef _WIN32
 #include <windows.h>
 #include <libloaderapi.h>
 #endif
@@ -1310,6 +1316,62 @@ char Terminal_GetChar() {
 	return getchar();
 }
 
+static void Window_SetBold(bool state) {
+	if (state)
+		attron(A_BOLD);
+	else
+		attroff(A_BOLD);
+}
+
+static void Window_SetColor(TerCol color) {
+	static s32 prev = 0;
+	
+	if (prev)
+		attroff(prev);
+	
+	attron(COLOR_PAIR(color));
+	prev = COLOR_PAIR(color);
+}
+
+void Terminal_Window(s32 (*func) (TerWin*, void*, void*, int), void* pass, void* pass2) {
+	TerWin win;
+	int c = 0;
+	
+	win.move = (void*)move;
+	win.print = (void*)printw;
+	win.clear = (void*)clear;
+	win.refresh = (void*)refresh;
+	win.bold = Window_SetBold;
+	win.color = Window_SetColor;
+	
+	initscr();
+	
+	cbreak();
+	noecho();
+	timeout(2);
+	
+	start_color();
+	
+	for (s32 bg = 0; bg < 8; bg++) {
+		init_pair(bg, bg, 0);
+	}
+	
+	while (c != '\n') {
+		c = getch();
+		
+		if (!func) {
+			endwin();
+			
+			printf_error("Terminal_Window: No callback...");
+		}
+		
+		if (func(&win, pass, pass2, c))
+			break;
+	}
+	
+	endwin();
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # PRINTF                              #
 // # # # # # # # # # # # # # # # # # # # #
@@ -2428,11 +2490,11 @@ void MemFile_Clear(MemFile* memFile) {
 // # STRING                              #
 // # # # # # # # # # # # # # # # # # # # #
 
-u32 String_GetHexInt(char* string) {
+u32 String_GetHexInt(const char* string) {
 	return strtoul(string, NULL, 16);
 }
 
-s32 String_GetInt(char* string) {
+s32 String_GetInt(const char* string) {
 	if (!memcmp(string, "0x", 2)) {
 		return strtoul(string, NULL, 16);
 	} else {
@@ -2440,19 +2502,19 @@ s32 String_GetInt(char* string) {
 	}
 }
 
-f32 String_GetFloat(char* string) {
+f32 String_GetFloat(const char* string) {
 	f32 fl;
 	u32 mal = 0;
 	
 	if (StrStr(string, ",")) {
 		mal = true;
 		string = strdup(string);
-		String_Replace(string, ",", ".");
+		String_Replace((void*)string, ",", ".");
 	}
 	
 	fl = strtod(string, NULL);
 	if (mal)
-		Free(string);
+		Free((void*)string);
 	
 	return fl;
 }
@@ -2899,6 +2961,40 @@ s32 String_Validate_Hex(const char* str) {
 			(str[i] >= '0' && str[i] <= '9') ||
 			str[i] == 'x' || str[i] == 'X' ||
 			str[i] == ' ' || str[i] == '\t'
+		) {
+			isOk = true;
+			continue;
+		}
+		
+		return false;
+	}
+	
+	return isOk;
+}
+
+s32 String_Validate_Dec(const char* str) {
+	s32 isOk = false;
+	
+	for (s32 i = 0; i < strlen(str); i++) {
+		if (
+			(str[i] >= '0' && str[i] <= '9')
+		) {
+			isOk = true;
+			continue;
+		}
+		
+		return false;
+	}
+	
+	return isOk;
+}
+
+s32 String_Validate_Float(const char* str) {
+	s32 isOk = false;
+	
+	for (s32 i = 0; i < strlen(str); i++) {
+		if (
+			(str[i] >= '0' && str[i] <= '9') || str[i] == '.'
 		) {
 			isOk = true;
 			continue;

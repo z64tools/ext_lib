@@ -284,6 +284,26 @@ void Sys_Sleep(f64 sec);
 s32 SysExe(const char* cmd);
 char* SysExeO(const char* cmd);
 
+typedef enum {
+	WHITE,
+	RED,
+	GREEN,
+	YELLOW,
+	BLUE,
+	MAGENTA,
+	CYAN,
+	BLACK,
+} TerCol;
+
+typedef struct {
+	void (* move)(int, int);
+	void (* print)(const char* fmt, ...);
+	void (* clear)(void);
+	void (* refresh)(void);
+	void (* bold)(bool);
+	void (* color)(TerCol);
+} TerWin;
+
 s32 Terminal_YesOrNo(void);
 void Terminal_ClearScreen(void);
 void Terminal_ClearLines(u32 i);
@@ -291,6 +311,7 @@ void Terminal_Move_PrevLine(void);
 void Terminal_Move(s32 x, s32 y);
 const char* Terminal_GetStr(void);
 char Terminal_GetChar();
+void Terminal_Window(s32 (*func) (TerWin*, void*, void*, int), void* pass, void* pass2);
 
 typedef enum {
 	LIST_FILES   = 0x0,
@@ -374,9 +395,9 @@ void MemFile_Clear(MemFile* memFile);
 #define StrMtch(a, b)           (!strncmp(a, b, strlen(b)))
 #define catprintf(dest, ...)    sprintf(dest + strlen(dest), __VA_ARGS__)
 
-u32 String_GetHexInt(char* string);
-s32 String_GetInt(char* string);
-f32 String_GetFloat(char* string);
+u32 String_GetHexInt(const char* string);
+s32 String_GetInt(const char* string);
+f32 String_GetFloat(const char* string);
 s32 String_GetLineCount(const char* str);
 s32 String_CaseComp(char* a, char* b, u32 compSize);
 char* String_Line(char* str, s32 line);
@@ -399,6 +420,8 @@ s32 String_Replace(char* src, const char* word, const char* replacement);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 s32 String_Validate_Hex(const char* str);
+s32 String_Validate_Dec(const char* str);
+s32 String_Validate_Float(const char* str);
 char* String_Unquote(const char* str);
 
 void Config_SuppressNext(void);
