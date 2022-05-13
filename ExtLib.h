@@ -678,7 +678,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #else
 #define printf_debugExt(...)       if (0) {}
 #define printf_debugExt_align(...) if (0) {}
-#define Assert(exp)                if (0) {}
+#define Assert(exp)                if (!(exp)) printf_error(PRNT_YELW "Assert(\a " PRNT_RSET # exp PRNT_YELW " );");
 #ifndef __EXTLIB_C__
 #define printf_debug(...)       if (0) {}
 #define printf_debug_align(...) if (0) {}

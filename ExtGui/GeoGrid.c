@@ -9,7 +9,7 @@ void GeoGrid_Update_SplitRect(Split* split);
 /* ───────────────────────────────────────────────────────────────────────── */
 
 SplitDir GeoGrid_GetDir_Opposite(SplitDir dir) {
-	return WrapS(dir + 2, DIR_L, DIR_B);
+	return WrapS(dir + 2, DIR_L, DIR_B + 1);
 }
 
 SplitDir GeoGrid_GerDir_MouseToPressPos(Split* split) {
@@ -529,7 +529,7 @@ void GeoGrid_Update_Edge_SetSlide(GeoGridContext* geoCtx) {
 		
 		if (isEditEdge && isCornerEdge == false) {
 			SplitEdge* temp = geoCtx->edgeHead;
-			s32 align = WrapS(edge->state & EDGE_ALIGN, 0, 1);
+			s32 align = WrapS(edge->state & EDGE_ALIGN, 0, 2);
 			
 			while (temp) {
 				for (s32 i = 0; i < 2; i++) {
@@ -660,10 +660,10 @@ void GeoGrid_Update_ActionSplit(GeoGridContext* geoCtx) {
 			}
 		}
 		if (split->stateFlag & SPLIT_SIDE_H) {
-			// Cursor_SetCursor(CURSOR_ARROW_H);
+			Cursor_SetCursor(CURSOR_ARROW_H);
 		}
 		if (split->stateFlag & SPLIT_SIDE_V) {
-			// Cursor_SetCursor(CURSOR_ARROW_V);
+			Cursor_SetCursor(CURSOR_ARROW_V);
 		}
 	}
 }
@@ -704,15 +704,15 @@ void GeoGrid_Update_Split(GeoGridContext* geoCtx) {
 		if (geoCtx->ctxMenu.num == 0) {
 			if (GeoGrid_GetState_CursorPos(split, SPLIT_GRAB_DIST * 3) & SPLIT_POINTS &&
 				split->mouseInSplit) {
-				// Cursor_SetCursor(CURSOR_CROSSHAIR);
+				Cursor_SetCursor(CURSOR_CROSSHAIR);
 				split->blockMouse = true;
 			} else if (GeoGrid_GetState_CursorPos(split, SPLIT_GRAB_DIST) & SPLIT_SIDE_H &&
 				split->mouseInSplit) {
-				// Cursor_SetCursor(CURSOR_ARROW_H);
+				Cursor_SetCursor(CURSOR_ARROW_H);
 				split->blockMouse = true;
 			} else if (GeoGrid_GetState_CursorPos(split, SPLIT_GRAB_DIST) & SPLIT_SIDE_V &&
 				split->mouseInSplit) {
-				// Cursor_SetCursor(CURSOR_ARROW_V);
+				Cursor_SetCursor(CURSOR_ARROW_V);
 				split->blockMouse = true;
 			}
 			
@@ -1221,24 +1221,6 @@ void GeoGrid_Init(GeoGridContext* geoCtx, Vec2s* winDim, InputContext* inputCtx,
 	GeoGrid_SetTopBarHeight(geoCtx, SPLIT_BAR_HEIGHT);
 	GeoGrid_SetBotBarHeight(geoCtx, SPLIT_BAR_HEIGHT);
 	
-	if (true) {
-		Rectf32 lHalf = {
-			geoCtx->workRect.x,
-			geoCtx->workRect.y,
-			(f64)geoCtx->workRect.w * 0.75,
-			geoCtx->workRect.h
-		};
-		Rectf32 rHalf = {
-			geoCtx->workRect.x + (f64)geoCtx->workRect.w * 0.75,
-			geoCtx->workRect.y,
-			(f64)geoCtx->workRect.w * 0.25,
-			geoCtx->workRect.h
-		};
-		
-		GeoGrid_AddSplit(geoCtx, &lHalf)->id = 2;
-		GeoGrid_AddSplit(geoCtx, &rHalf)->id = 3;
-	}
-	
 	geoCtx->prevWorkRect = geoCtx->workRect;
 	Element_Init(geoCtx);
 }
@@ -1277,36 +1259,9 @@ void GeoGrid_Draw(GeoGridContext* geoCtx) {
 			);
 			nvgFillColor(geoCtx->vg, Theme_GetColor(THEME_BASE_L1, 255, 1.0f));
 			nvgFill(geoCtx->vg);
-			
-			if (i == 1) {
-				nvgFontSize(geoCtx->vg, SPLIT_TEXT);
-				nvgFontFace(geoCtx->vg, "font-basic");
-				nvgTextAlign(geoCtx->vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-				
-				nvgFillColor(geoCtx->vg, Theme_GetColor(THEME_TEXT_OUTLINE, 255, 1.0f));
-				nvgFontBlur(geoCtx->vg, 1.0f);
-				nvgText(
-					geoCtx->vg,
-					SPLIT_ELEM_X_PADDING,
-					geoCtx->bar[i].rect.h * 0.5,
-					gBuild,
-					NULL
-				);
-				
-				nvgFillColor(geoCtx->vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
-				nvgFontBlur(geoCtx->vg, 0.0f);
-				nvgText(
-					geoCtx->vg,
-					SPLIT_ELEM_X_PADDING,
-					geoCtx->bar[i].rect.h * 0.5,
-					gBuild,
-					NULL
-				);
-			}
 		} nvgEndFrame(geoCtx->vg);
 	}
 	
 	GeoGrid_Draw_Splits(geoCtx);
-	// GeoGrid_Draw_Debug(geoCtx);
 	GeoGrid_Draw_ContextMenu(geoCtx);
 }

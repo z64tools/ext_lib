@@ -796,8 +796,8 @@ queue_element:
 	if (this->min || this->max)
 		this->value = Clamp(this->value, 0.0f, 1.0f);
 	
-	// if (this->isSliding)
-	// 	Cursor_SetCursor(CURSOR_EMPTY);
+	if (this->isSliding)
+		Cursor_SetCursor(CURSOR_EMPTY);
 	
 	Element_QueueElement(
 		geoCtx,

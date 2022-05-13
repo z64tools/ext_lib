@@ -11,7 +11,8 @@ ExtGui_C  = ExtGui/Cursor.c \
 			ExtGui/Vector.c \
 			ExtGui/View.c \
 			ExtGui/Global.c \
-			glad/glad.c
+			glad/glad.c \
+			nanovg/src/nanovg.c
 
 Xm_C      = libxm/src/context.c \
 			libxm/src/load.c \
@@ -61,11 +62,15 @@ $(shell mkdir -p bin/ $(foreach dir, \
 ExtLib_CFlags = -Wno-unused-result -Wno-format-truncation -Wno-strict-aliasing -Wno-implicit-function-declaration -DNDEBUG
 	
 bin/win32/ExtLib.o: $(C_INCLUDE_PATH)/ExtLib.c $(C_INCLUDE_PATH)/ExtLib.h
+bin/win32/ExtGui/%.o: $(C_INCLUDE_PATH)/ExtGui/%.c $(C_INCLUDE_PATH)/ExtGui/%.h $(C_INCLUDE_PATH)/ExtGui/Global.h
+bin/win32/ExtGui/%.o: $(C_INCLUDE_PATH)/ExtGui/%.c $(C_INCLUDE_PATH)/ExtGui/Global.h
 bin/win32/%.o: $(C_INCLUDE_PATH)/%.c
 	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
 	@i686-w64-mingw32.static-gcc -c -o $@ $< $(OPT_WIN32) $(CFLAGS) $(ExtLib_CFlags) -D_WIN32
 
 bin/linux/ExtLib.o: $(C_INCLUDE_PATH)/ExtLib.c $(C_INCLUDE_PATH)/ExtLib.h
+bin/linux/ExtGui/%.o: $(C_INCLUDE_PATH)/ExtGui/%.c $(C_INCLUDE_PATH)/ExtGui/%.h $(C_INCLUDE_PATH)/ExtGui/Global.h
+bin/linux/ExtGui/%.o: $(C_INCLUDE_PATH)/ExtGui/%.c $(C_INCLUDE_PATH)/ExtGui/Global.h
 bin/linux/%.o: $(C_INCLUDE_PATH)/%.c
 	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
 	@gcc -c -o $@ $< $(OPT_LINUX) $(CFLAGS) $(ExtLib_CFlags)

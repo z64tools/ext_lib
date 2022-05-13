@@ -10,6 +10,12 @@
 extern char* gBuild;
 extern f32 gPixelRatio;
 
+#define DefineTask(x) x ## _Init, \
+	x ## _Destroy, \
+	x ## _Update, \
+	x ## _Draw, \
+	sizeof(x)
+
 #define SPLIT_GRAB_DIST  4
 #define SPLIT_CTXM_DIST  32
 #define SPLIT_BAR_HEIGHT 28
@@ -181,14 +187,11 @@ typedef struct GeoGridContext {
 	void*  passArg;
 	SplitTask* taskTable;
 	s32    taskTableNum;
-#ifndef NDEBUG
-	bool   jsonSettings;
-#endif
 } GeoGridContext;
 
+Split* GeoGrid_AddSplit(GeoGridContext* geoCtx, Rectf32* rect);
+
 bool GeoGrid_Cursor_InRect(Split* split, Rect* rect);
-void GeoGrid_Layout_SaveJson(GeoGridContext* geoCtx);
-Vec2s GeoGrid_Layout_LoadJson(GeoGridContext* geoCtx, Vec2s* winDim);
 
 void GeoGrid_Init(GeoGridContext* geoCtx, Vec2s* winDim, InputContext* input, void* vg);
 void GeoGrid_Update(GeoGridContext* geoCtx);

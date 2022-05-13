@@ -13,6 +13,18 @@ typedef struct {
 typedef enum {
 	CURSOR_NONE    = -1,
 	CURSOR_DEFAULT = 0,
+	CURSOR_ARROW_L = 1,
+	CURSOR_ARROW_U,
+	CURSOR_ARROW_R,
+	CURSOR_ARROW_D,
+	
+	CURSOR_ARROW_H,
+	CURSOR_ARROW_V,
+	
+	CURSOR_CROSSHAIR,
+	
+	CURSOR_EMPTY,
+	CURSOR_MAX
 } CursorIndex;
 
 typedef struct {

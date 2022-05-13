@@ -38,7 +38,6 @@ void UI_Init(
 	DropCallback dropCallback,
 	u32 x,  u32 y, u32 samples
 );
-void UI_Draw();
 void UI_Main();
 
 #endif
