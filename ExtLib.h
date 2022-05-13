@@ -285,24 +285,27 @@ s32 SysExe(const char* cmd);
 char* SysExeO(const char* cmd);
 
 typedef enum {
-	WHITE,
-	RED,
-	GREEN,
-	YELLOW,
-	BLUE,
-	MAGENTA,
-	CYAN,
-	BLACK,
-} TerCol;
+	CLR_WHITE = 1,
+	CLR_RED,
+	CLR_GREEN,
+	CLR_YELLOW,
+	CLR_BLUE,
+	CLR_MAGENTA,
+	CLR_CYAN,
+	CLR_BLACK,
+	
+	ATTR_LGHT = (1) << 5,
+	ATTR_BOLD = (1) << 6,
+	ATTR_DIM  = (1) << 7,
+} TerminalAttribute;
 
 typedef struct {
 	void (* move)(int, int);
 	void (* print)(const char* fmt, ...);
 	void (* clear)(void);
 	void (* refresh)(void);
-	void (* bold)(bool);
-	void (* color)(TerCol);
-} TerWin;
+	void (* attribute)(TerminalAttribute);
+} Terminal;
 
 s32 Terminal_YesOrNo(void);
 void Terminal_ClearScreen(void);
@@ -311,7 +314,7 @@ void Terminal_Move_PrevLine(void);
 void Terminal_Move(s32 x, s32 y);
 const char* Terminal_GetStr(void);
 char Terminal_GetChar();
-void Terminal_Window(s32 (*func) (TerWin*, void*, void*, int), void* pass, void* pass2);
+void Terminal_Window(s32 (*func) (Terminal*, void*, void*, int), void* pass, void* pass2);
 
 typedef enum {
 	LIST_FILES   = 0x0,

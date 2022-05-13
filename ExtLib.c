@@ -1316,47 +1316,62 @@ char Terminal_GetChar() {
 	return getchar();
 }
 
-static void Window_SetBold(bool state) {
-	if (state)
-		attron(A_BOLD);
-	else
-		attroff(A_BOLD);
+#define ATT(FLAG, CURSES) if (patt & FLAG) { attroff(CURSES); } \
+	if (att & FLAG) { attron(CURSES); }
+
+static void Window_SetColor(TerminalAttribute att) {
+	static TerminalAttribute patt;
+	s32 color = att & 0x8;
+	s32 pcolor = patt & 0x8;
+	
+	ATT(ATTR_LGHT, A_STANDOUT);
+	ATT(ATTR_BOLD, A_BOLD);
+	ATT(ATTR_DIM, A_DIM);
+	
+	if (pcolor)
+		attroff(COLOR_PAIR((pcolor)));
+	if (color)
+		attron(COLOR_PAIR(color));
+	
+	patt = att;
 }
 
-static void Window_SetColor(TerCol color) {
-	static s32 prev = 0;
-	
-	if (prev)
-		attroff(prev);
-	
-	attron(COLOR_PAIR(color));
-	prev = COLOR_PAIR(color);
-}
-
-void Terminal_Window(s32 (*func) (TerWin*, void*, void*, int), void* pass, void* pass2) {
-	TerWin win;
-	int c = 0;
+void Terminal_Window(s32 (*func) (Terminal*, void*, void*, int), void* pass, void* pass2) {
+	Terminal win;
+	WINDOW* d;
+	s32 c = 0;
+	s32 x, y;
+	s32 rf = 0;
 	
 	win.move = (void*)move;
 	win.print = (void*)printw;
 	win.clear = (void*)clear;
 	win.refresh = (void*)refresh;
-	win.bold = Window_SetBold;
-	win.color = Window_SetColor;
+	win.attribute = Window_SetColor;
 	
-	initscr();
-	
+	d = initscr();
 	cbreak();
 	noecho();
 	timeout(2);
 	
 	start_color();
 	
-	for (s32 bg = 0; bg < 8; bg++) {
+	for (s32 bg = 1; bg <= 8; bg++) {
 		init_pair(bg, bg, 0);
 	}
 	
+	x = d->_curx;
+	y = d->_cury;
+	
 	while (c != '\n') {
+		if (x != d->_curx || y != d->_cury || rf == 0) {
+			refresh();
+			rf = true;
+			
+			x = d->_curx;
+			y = d->_cury;
+		}
+		
 		c = getch();
 		
 		if (!func) {
