@@ -10,10 +10,10 @@
 extern char* gBuild;
 extern f32 gPixelRatio;
 
-#define DefineTask(x) x ## _Init, \
-	x ## _Destroy, \
-	x ## _Update, \
-	x ## _Draw, \
+#define DefineTask(x) (void*)x ## _Init, \
+	(void*)x ## _Destroy, \
+	(void*)x ## _Update, \
+	(void*)x ## _Draw, \
 	sizeof(x)
 
 #define SPLIT_GRAB_DIST  4
@@ -275,6 +275,6 @@ f32 Element_Slider(GeoGridContext* geoCtx, Split* split, ElSlider* this);
 
 void Element_PushToPost();
 void Element_SetRect(Rect* rect, f32 x, f32 y, f32 w);
-void Element_SetRect_Two(Split* split, Rect* rectA, f32 separate, Rect* rectB, f32 y);
+void Element_SetRect_Multiple(Split* split, f32 y, s32 rectNum, ...);
 
 #endif

@@ -837,17 +837,20 @@ void Element_SetRect(Rect* rect, f32 x, f32 y, f32 w) {
 	rect->h = SPLIT_TEXT_H;
 }
 
-void Element_SetRect_Two(Split* split, Rect* rectA, f32 separate, Rect* rectB, f32 y) {
+void Element_SetRect_Multiple(Split* split, f32 y, s32 rectNum, ...) {
 	f32 x = SPLIT_ELEM_X_PADDING;
+	f32 width = (f32)(split->rect.w - (x * rectNum + SPLIT_ELEM_X_PADDING)) / rectNum;
+	va_list va;
 	
-	if (separate < 0) {
-		separate = (split->rect.w - x - SPLIT_ELEM_X_PADDING) * fabs(separate);
+	va_start(va, rectNum);
+	
+	for (s32 i = 0; i < rectNum; i++) {
+		Rect* rect = va_arg(va, Rect*);
+		Element_SetRect(rect, x, y, width);
+		x += width + SPLIT_ELEM_X_PADDING;
 	}
 	
-	Element_SetRect(rectA, x, y, separate);
-	x += separate + SPLIT_ELEM_X_PADDING;
-	separate = split->rect.w - separate;
-	Element_SetRect(rectB, x, y, separate);
+	va_end(va);
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */

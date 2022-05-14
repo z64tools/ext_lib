@@ -9,6 +9,11 @@ void Input_Init(InputContext* input) {
 
 void Input_Update(InputContext* input, AppInfo* app) {
 	MouseInput* mouse = &input->mouse;
+	f64 x, y;
+	
+	glfwGetCursorPos(app->mainWindow, &x, &y);
+	mouse->pos.x = x;
+	mouse->pos.y = y;
 	
 	__pAppInfo = app;
 	{
@@ -91,14 +96,6 @@ void Input_TextCallback(GLFWwindow* window, u32 scancode) {
 			strcat(input->buffer, Tmp_Printf("%c", (char)scancode));
 		}
 	}
-}
-
-void Input_CursorCallback(GLFWwindow* window, f64 xpos, f64 ypos) {
-	InputContext* input = __pInput;
-	MouseInput* mouse = &input->mouse;
-	
-	mouse->pos.x = xpos;
-	mouse->pos.y = ypos;
 }
 
 void Input_MouseClickCallback(GLFWwindow* window, s32 button, s32 action, s32 mods) {

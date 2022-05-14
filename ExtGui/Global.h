@@ -13,7 +13,7 @@ struct ViewerContext;
 struct Scene;
 
 typedef void (* CallbackFunc)(void*);
-typedef void (* DropCallback)(GLFWwindow*, s32, char* path[]);
+typedef void (* DropCallback)(GLFWwindow*, s32, char* item[]);
 
 typedef struct AppInfo {
 	GLFWwindow*  mainWindow;

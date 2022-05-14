@@ -1,4 +1,4 @@
-#include "Global.h"
+#include <ExtGui/Global.h>
 
 static CursorContext* __cursorCtx;
 

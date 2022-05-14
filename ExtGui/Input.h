@@ -170,7 +170,6 @@ typedef struct {
 struct AppInfo;
 
 void Input_KeyCallback(GLFWwindow* window, s32 key, s32 scancode, s32 action, s32 mods);
-void Input_CursorCallback(GLFWwindow* window, f64 xpos, f64 ypos);
 void Input_MouseClickCallback(GLFWwindow* window, s32 button, s32 action, s32 mods);
 void Input_ScrollCallback(GLFWwindow* window, f64 x, f64 y);
 void Input_TextCallback(GLFWwindow* window, u32 scancode);

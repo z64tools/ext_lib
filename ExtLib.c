@@ -3512,39 +3512,52 @@ f32 WrapF(f32 x, f32 min, f32 max) {
 #include "miniaudio.h"
 #include "xm.h"
 
-static struct {
+typedef struct {
 	SoundCallback    callback;
 	ma_device_config deviceConfig;
-	ma_device device;
-} sSoundCtx;
+	ma_device    device;
+	volatile u32 isPlaying;
+	void* uctx;
+} SoundCtx;
 
 static void __Sound_Callback(ma_device* dev, void* output, const void* input, ma_uint32 frameCount) {
-	sSoundCtx.callback(dev->pUserData, output, frameCount);
+	SoundCtx* sndCtx = dev->pUserData;
+	
+	sndCtx->callback(sndCtx->uctx, output, frameCount);
 }
 
-void Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx) {
-	sSoundCtx.deviceConfig = ma_device_config_init(ma_device_type_playback);
+void* Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx) {
+	SoundCtx* soundCtx = Calloc(0, sizeof(SoundCtx));
 	
-	sSoundCtx.deviceConfig.playback.format = (ma_format)fmt;
-	sSoundCtx.deviceConfig.playback.channels = channelNum;
-	sSoundCtx.deviceConfig.sampleRate = sampleRate;
-	sSoundCtx.deviceConfig.dataCallback = __Sound_Callback;
-	sSoundCtx.deviceConfig.pUserData = uCtx;
-	sSoundCtx.deviceConfig.periodSizeInFrames = 128;
-	sSoundCtx.callback = callback;
+	soundCtx->uctx = uCtx;
 	
-	ma_device_init(NULL, &sSoundCtx.deviceConfig, &sSoundCtx.device);
-	ma_device_start(&sSoundCtx.device);
+	soundCtx->deviceConfig = ma_device_config_init(ma_device_type_playback);
+	soundCtx->deviceConfig.playback.format = (ma_format)fmt;
+	soundCtx->deviceConfig.playback.channels = channelNum;
+	soundCtx->deviceConfig.sampleRate = sampleRate;
+	soundCtx->deviceConfig.dataCallback = __Sound_Callback;
+	soundCtx->deviceConfig.pUserData = soundCtx;
+	soundCtx->deviceConfig.periodSizeInFrames = 128;
+	soundCtx->callback = callback;
+	
+	ma_device_init(NULL, &soundCtx->deviceConfig, &soundCtx->device);
+	ma_device_start(&soundCtx->device);
+	
+	return soundCtx;
 }
 
-void Sound_Free() {
-	ma_device_stop(&sSoundCtx.device);
-	ma_device_uninit(&sSoundCtx.device);
+void Sound_Free(void* sound) {
+	SoundCtx* soundCtx = sound;
+	
+	ma_device_stop(&soundCtx->device);
+	ma_device_uninit(&soundCtx->device);
 }
 
 static void __Sound_Xm_Play(xm_context_t* xm, void* output, u32 frameCount) {
 	xm_generate_samples(xm, output, frameCount);
 }
+
+void* gXmlSound;
 
 void Sound_Xm_Play(const void* data, u32 size) {
 	xm_context_t* xm;
@@ -3552,11 +3565,11 @@ void Sound_Xm_Play(const void* data, u32 size) {
 	if (xm_create_context_safe(&xm, data, size, 48000)) printf_error("Could not initialize XmPlayer");
 	xm_set_max_loop_count(xm, 0);
 	
-	Sound_Init(SOUND_F32, 48000, 2, (void*)__Sound_Xm_Play, xm);
+	gXmlSound = Sound_Init(SOUND_F32, 48000, 2, (void*)__Sound_Xm_Play, xm);
 }
 
 void Sound_Xm_Stop() {
-	Sound_Free();
+	Sound_Free(gXmlSound);
 }
 
 // # # # # # # # # # # # # # # # # # # # #

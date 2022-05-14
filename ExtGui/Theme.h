@@ -17,6 +17,8 @@ typedef enum {
 	THEME_PRIM, // YELLOW
 	THEME_ACCENT, // BLUE
 	
+	THEME_RED,
+	
 	THEME_MAX
 } ThemeColor;
 

@@ -201,22 +201,6 @@ void Thread_Unlock(void);
 void Thread_Create(Thread* thread, void* func, void* arg);
 s32 Thread_Join(Thread* thread);
 
-#if 0
-
-#define Thread_Create(thread, func, arg) { \
-		Log("Thread Create   [ " PRNT_BLUE "%s " PRNT_RSET "]", #thread); \
-		Thread_Create(thread, func, arg); }
-
-#define Thread_Join(thread) { \
-		Log("Thread Join    [ " PRNT_BLUE "%s " PRNT_RSET "]", #thread); \
-		if (Thread_Join(thread)) Log("\aThread Failure! [ " PRNT_REDD " %s " PRNT_RSET " ]", #thread); }
-
-#define Thread_Close(thread) { \
-		Log("Thread Close    [ " PRNT_BLUE "%s " PRNT_RSET "]", #thread); \
-		if (Thread_Close(thread)) Log("\aThread Failure! [ " PRNT_REDD " %s " PRNT_RSET " ]", #thread); }
-
-#endif
-
 void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
@@ -452,8 +436,8 @@ f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32
 s32 WrapS(s32 x, s32 min, s32 max);
 f32 WrapF(f32 x, f32 min, f32 max);
 
-void Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx);
-void Sound_Free();
+void* Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx);
+void Sound_Free(void* sound);
 void Sound_Xm_Play(const void* data, u32 size);
 void Sound_Xm_Stop();
 
