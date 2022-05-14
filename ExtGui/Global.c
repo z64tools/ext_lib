@@ -1,5 +1,5 @@
-#include <ExtGui/Global.h>
 #include <glad/glad.h>
+#include <ExtGui/Global.h>
 
 #define NANOVG_GL3_IMPLEMENTATION
 #include <nanovg/src/nanovg_gl.h>
