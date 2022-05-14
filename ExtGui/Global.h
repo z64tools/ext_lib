@@ -28,7 +28,7 @@ typedef struct AppInfo {
 extern InputContext* __inputCtx;
 extern AppInfo* __appInfo;
 
-void UI_Init(
+void* UI_Init(
 	const char* title,
 	AppInfo* appInfo,
 	InputContext* inputCtx,

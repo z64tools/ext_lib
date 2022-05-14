@@ -1,6 +1,5 @@
 #ifndef __Z64GEOGUI_H__
 #define __Z64GEOGUI_H__
-#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <nanovg/src/nanovg.h>
 #include <ExtLib.h>

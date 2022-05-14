@@ -1,4 +1,8 @@
 #include <ExtGui/Global.h>
+#include <glad/glad.h>
+
+#define NANOVG_GL3_IMPLEMENTATION
+#include <nanovg/src/nanovg_gl.h>
 
 AppInfo* __appInfo;
 InputContext* __inputCtx;
@@ -45,7 +49,7 @@ static void UI_FramebufferCallback(GLFWwindow* window, s32 width, s32 height) {
 	UI_Draw();
 }
 
-void UI_Init(const char* title, AppInfo* appInfo, InputContext* inputCtx, void* context, CallbackFunc updateCall, CallbackFunc drawCall, DropCallback dropCallback, u32 x, u32 y, u32 samples) {
+void* UI_Init(const char* title, AppInfo* appInfo, InputContext* inputCtx, void* context, CallbackFunc updateCall, CallbackFunc drawCall, DropCallback dropCallback, u32 x, u32 y, u32 samples) {
 	__appInfo = appInfo;
 	__inputCtx = inputCtx;
 	
@@ -98,6 +102,8 @@ void UI_Init(const char* title, AppInfo* appInfo, InputContext* inputCtx, void* 
 	glfwSetTime(2);
 	
 	Log("Done!");
+	
+	return nvgCreateGL3(NVG_ANTIALIAS | NVG_STENCIL_STROKES);
 }
 
 void UI_Main() {
