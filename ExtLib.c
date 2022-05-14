@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 124
+#define THIS_EXTLIB_VERSION 125
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -3487,6 +3487,34 @@ f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32
 	return (coeff[0] * *point0) + (coeff[1] * *point1) + (coeff[2] * *point2) + (coeff[3] * *point3);
 }
 
+void Math_ApproachF(f32* pValue, f32 target, f32 fraction, f32 step) {
+	if (*pValue != target) {
+		f32 stepSize = (target - *pValue) * fraction;
+		
+		if (stepSize > step) {
+			stepSize = step;
+		} else if (stepSize < -step) {
+			stepSize = -step;
+		}
+		
+		*pValue += stepSize;
+	}
+}
+
+void Math_ApproachS(s32* pValue, s32 target, s32 scale, s32 step) {
+	s32 diff = target - *pValue;
+	
+	diff /= scale;
+	
+	if (diff > step) {
+		*pValue += step;
+	} else if (diff < -step) {
+		*pValue -= step;
+	} else {
+		*pValue += diff;
+	}
+}
+
 s32 WrapS(s32 x, s32 min, s32 max) {
 	s32 range = max - min;
 	
@@ -3549,8 +3577,10 @@ void* Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback 
 void Sound_Free(void* sound) {
 	SoundCtx* soundCtx = sound;
 	
-	ma_device_stop(&soundCtx->device);
-	ma_device_uninit(&soundCtx->device);
+	if (sound) {
+		ma_device_stop(&soundCtx->device);
+		ma_device_uninit(&soundCtx->device);
+	}
 }
 
 static void __Sound_Xm_Play(xm_context_t* xm, void* output, u32 frameCount) {

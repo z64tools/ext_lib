@@ -296,6 +296,45 @@ f32 Math_DelSmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 m
 	return fabsf(target - *pValue);
 }
 
+f64 Math_DelSmoothStepToD(f64* pValue, f64 target, f64 fraction, f64 step, f64 minStep) {
+	step = step * gDeltaTime;
+	minStep = minStep * gDeltaTime;
+	
+	if (*pValue != target) {
+		f64 stepSize = (target - *pValue) * fraction;
+		
+		if ((stepSize >= minStep) || (stepSize <= -minStep)) {
+			if (stepSize > step) {
+				stepSize = step;
+			}
+			
+			if (stepSize < -step) {
+				stepSize = -step;
+			}
+			
+			*pValue += stepSize;
+		} else {
+			if (stepSize < minStep) {
+				*pValue += minStep;
+				stepSize = minStep;
+				
+				if (target < *pValue) {
+					*pValue = target;
+				}
+			}
+			if (stepSize > -minStep) {
+				*pValue += -minStep;
+				
+				if (*pValue < target) {
+					*pValue = target;
+				}
+			}
+		}
+	}
+	
+	return fabs(target - *pValue);
+}
+
 s16 Math_DelSmoothStepToS(s16* pValue, s16 target, s16 scale, s16 step, s16 minStep) {
 	step = step * gDeltaTime;
 	minStep = minStep * gDeltaTime;

@@ -119,6 +119,7 @@ VecSph* Vec_Vec3fToVecSphGeo(VecSph* dest, Vec3f* vec);
 VecSph* Vec_Vec3fDiffToVecSphGeo(VecSph* dest, Vec3f* a, Vec3f* b);
 Vec3f* Vec_CalcUpFromPitchYawRoll(Vec3f* dest, s16 pitch, s16 yaw, s16 roll);
 f32 Math_DelSmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep);
+f64 Math_DelSmoothStepToD(f64* pValue, f64 target, f64 fraction, f64 step, f64 minStep);
 s16 Math_DelSmoothStepToS(s16* pValue, s16 target, s16 scale, s16 step, s16 minStep);
 
 // void Vec_Substract(Vec3f* dest, Vec3f* a, Vec3f* b);
