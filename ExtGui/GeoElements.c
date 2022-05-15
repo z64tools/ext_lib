@@ -438,12 +438,25 @@ static void Element_Draw_Text(ElementCallInfo* info) {
 	void* vg = info->geoCtx->vg;
 	// Split* split = info->split;
 	ElText* this = info->arg;
+	f32 bounds[4];
+	char tempText[512];
+	
+	strcpy(tempText, this->txt);
 	
 	nvgFontFace(vg, "font-basic");
 	nvgFontSize(vg, SPLIT_TEXT);
 	nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+	nvgTextLetterSpacing(vg, 0.1);
 	
-	Element_Draw_TextOutline(vg, this->rect.x, this->rect.y + this->rect.h * 0.5, this->txt);
+	nvgTextBounds(vg, 0, 0, this->txt, 0, bounds);
+	
+	while (bounds[2] > this->rect.w) {
+		strcpy(tempText + ClampMin(strlen(tempText) - 3, 0), "..");
+		
+		nvgTextBounds(vg, 0, 0, tempText, 0, bounds);
+	}
+	
+	Element_Draw_TextOutline(vg, this->rect.x, this->rect.y + this->rect.h * 0.5, tempText);
 	
 	nvgFontBlur(vg, 0.0);
 	nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
@@ -451,7 +464,7 @@ static void Element_Draw_Text(ElementCallInfo* info) {
 		vg,
 		this->rect.x,
 		this->rect.y + this->rect.h * 0.5,
-		this->txt,
+		tempText,
 		NULL
 	);
 }
@@ -793,8 +806,7 @@ f32 Element_Slider(GeoGridContext* geoCtx, Split* split, ElSlider* this) {
 	}
 	
 queue_element:
-	if (this->min || this->max)
-		this->value = Clamp(this->value, 0.0f, 1.0f);
+	this->value = Clamp(this->value, 0.0f, 1.0f);
 	
 	if (this->isSliding)
 		Cursor_SetCursor(CURSOR_EMPTY);
@@ -806,17 +818,15 @@ queue_element:
 		this
 	);
 	
-	this->pValue = this->value;
-	
 	return Lerp(this->value, this->min, this->max);
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
-void Element_Slider_SetValue(ElSlider* this, f32 val) {
+void Element_Slider_SetValue(ElSlider* this, f64 val) {
 	this->value = val;
 	this->value -= this->min;
-	this->value /= this->max - this->min;
+	this->value *= 1.0 / (this->max - this->min);
 	this->vValue = this->value = Clamp(this->value, 0.0f, 1.0f);
 }
 
@@ -839,13 +849,16 @@ void Element_SetRect(Rect* rect, f32 x, f32 y, f32 w) {
 
 void Element_SetRect_Multiple(Split* split, f32 y, s32 rectNum, ...) {
 	f32 x = SPLIT_ELEM_X_PADDING;
-	f32 width = (f32)(split->rect.w - (x * rectNum + SPLIT_ELEM_X_PADDING)) / rectNum;
+	f32 width;
 	va_list va;
 	
 	va_start(va, rectNum);
 	
 	for (s32 i = 0; i < rectNum; i++) {
 		Rect* rect = va_arg(va, Rect*);
+		f64 a = va_arg(va, f64);
+		
+		width = (f32)(split->rect.w - SPLIT_ELEM_X_PADDING * rectNum - SPLIT_ELEM_X_PADDING) * a;
 		Element_SetRect(rect, x, y, width);
 		x += width + SPLIT_ELEM_X_PADDING;
 	}
