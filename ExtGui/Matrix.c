@@ -673,7 +673,6 @@ void Matrix_LookAt(MtxF* mf, Vec3f eye, Vec3f at, s16 roll) {
 	f32 length;
 	Vec3f look;
 	Vec3f right;
-	Vec3f multUp = { 0.0f, 1.0f, 0.0f };
 	Vec3f up;
 	VecSph vecSph;
 	

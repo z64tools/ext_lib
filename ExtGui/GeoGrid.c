@@ -1108,7 +1108,6 @@ void GeoGrid_Update_ContextMenu(GeoGridContext* geoCtx) {
 
 void GeoGrid_Draw_ContextMenu(GeoGridContext* geoCtx) {
 	GeoCtxMenu* ctxMenu = &geoCtx->ctxMenu;
-	Rectf32 boundary;
 	void* vg = geoCtx->vg;
 	
 	CtxMenu_UpdateRect(geoCtx);

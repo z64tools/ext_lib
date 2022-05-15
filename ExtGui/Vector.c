@@ -206,7 +206,6 @@ Vec3f* Vec_CalcUpFromPitchYawRoll(Vec3f* dest, s16 pitch, s16 yaw, s16 roll) {
 	f32 sinNegRoll;
 	f32 cosNegRoll;
 	Vec3f spA4;
-	f32 pad;
 	f32 sp54;
 	f32 sp4C;
 	f32 cosPitchCosYawSinRoll;

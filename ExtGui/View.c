@@ -2,9 +2,6 @@
 
 void View_Camera_FlyMode(ViewContext* viewCtx, InputContext* inputCtx) {
 	Camera* cam = viewCtx->currentCamera;
-	Vec3f zro = { 0 };
-	Vec3f thisPos = { 0 };
-	Vec3f nextPos = { 0 };
 	
 	if (viewCtx->cameraControl) {
 		if (inputCtx->key[KEY_LEFT_SHIFT].hold) {

@@ -101,7 +101,6 @@ void Input_Update(InputContext* input, AppInfo* app) {
 void Input_KeyCallback(GLFWwindow* window, s32 key, s32 scancode, s32 action, s32 mods) {
 	InputContext* input = __pInput;
 	int hold = action != GLFW_RELEASE;
-	s32 pressed = action == GLFW_RELEASE;
 	
 	input->key[key].hold = hold;
 }
@@ -121,7 +120,6 @@ void Input_TextCallback(GLFWwindow* window, u32 scancode) {
 void Input_MouseClickCallback(GLFWwindow* window, s32 button, s32 action, s32 mods) {
 	InputContext* input = __pInput;
 	MouseInput* mouse = &input->mouse;
-	s32 pressed = action != GLFW_RELEASE;
 	s32 hold = action == GLFW_PRESS;
 	
 	switch (button) {
