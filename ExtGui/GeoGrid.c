@@ -701,6 +701,9 @@ void GeoGrid_Update_Split(GeoGridContext* geoCtx) {
 		split->center.y = (split->rect.h - SPLIT_BAR_HEIGHT) * 0.5f;
 		
 		split->blockMouse = false;
+		
+		if (mouse->click.press)
+			split->mousePressPos = split->mousePos;
 		if (geoCtx->ctxMenu.num == 0) {
 			if (GeoGrid_GetState_CursorPos(split, SPLIT_GRAB_DIST * 3) & SPLIT_POINTS &&
 				split->mouseInSplit) {
@@ -718,7 +721,6 @@ void GeoGrid_Update_Split(GeoGridContext* geoCtx) {
 			
 			if (geoCtx->actionSplit == NULL && split->mouseInSplit && mouse->cursorAction) {
 				if (mouse->click.press) {
-					split->mousePressPos = split->mousePos;
 					geoCtx->actionSplit = split;
 				}
 			}

@@ -134,6 +134,7 @@ typedef struct Split {
 	u32   id;
 	u32   prevId;
 	bool  blockMouse;
+	s32   elemBlockMouse;
 	void* instance;
 	struct {
 		bool useCustomBG;
@@ -257,6 +258,7 @@ typedef struct {
 	u8   isInt     : 1;
 	u8   hover     : 1;
 	u8   holdState : 1;
+	u8   locked    : 1;
 	NVGcolor color;
 	NVGcolor hovColor;
 	

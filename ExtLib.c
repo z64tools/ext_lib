@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 126
+#define THIS_EXTLIB_VERSION 127
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -853,12 +853,14 @@ Time ItemList_StatMax(ItemList* list) {
 	return val;
 }
 
-s32 ItemList_Stat(ItemList* list) {
-	for (s32 i = 0; i < list->num; i++)
-		if (Sys_Stat(list->item[i]) == 0)
-			return i + 1;
+Time ItemList_StatMin(ItemList* list) {
+	Time val = ItemList_StatMax(list);
 	
-	return 0;
+	for (s32 i = 1; i < list->num; i++) {
+		val = Min(val, Sys_Stat(list->item[i]));
+	}
+	
+	return val;
 }
 
 s32 ItemList_SaveList(ItemList* target, const char* output) {

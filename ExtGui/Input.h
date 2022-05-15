@@ -158,7 +158,9 @@ typedef struct {
 		};
 		InputType clickArray[4];
 	};
-	bool cursorAction;
+	s32   doubleClick;
+	Vec2s pressPos;
+	bool  cursorAction;
 } MouseInput;
 
 typedef struct {
@@ -185,6 +187,7 @@ InputType* Input_GetKey(KeyMap key);
 InputType* Input_GetMouse(MouseMap type);
 s32 Input_GetShortcut(KeyMap mod, KeyMap key);
 void Input_SetMousePos(s32 x, s32 y);
+f32 Input_GetPressPosDist();
 #define MOUSE_KEEP_AXIS 0xD0D0CAFE
 
 #endif

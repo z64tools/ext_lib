@@ -310,7 +310,7 @@ void ItemList_SpacedStr(ItemList* list, const char* str);
 void ItemList_CommaStr(ItemList* list, const char* str);
 void ItemList_Print(ItemList* target);
 Time ItemList_StatMax(ItemList* list);
-s32 ItemList_Stat(ItemList* list);
+Time ItemList_StatMin(ItemList* list);
 s32 ItemList_SaveList(ItemList* target, const char* output);
 void ItemList_NumericalSort(ItemList* list);
 ItemList ItemList_Initialize(void);
@@ -540,6 +540,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define Incr(x) (x += (x < 0) ? 1 : 0)
 
 #define Intersect(a, aend, b, bend) ((Max(a, b) < Min(aend, bend)))
+#define IsBetween(a, x, y) ((a) >= (x) && (a) <= (y))
 
 #define Max(a, b)            ((a) > (b) ? (a) : (b))
 #define Min(a, b)            ((a) < (b) ? (a) : (b))

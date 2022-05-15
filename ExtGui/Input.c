@@ -10,6 +10,7 @@ void Input_Init(InputContext* input) {
 void Input_Update(InputContext* input, AppInfo* app) {
 	MouseInput* mouse = &input->mouse;
 	f64 x, y;
+	static u32 timer;
 	
 	glfwGetCursorPos(app->mainWindow, &x, &y);
 	mouse->pos.x = x;
@@ -58,6 +59,25 @@ void Input_Update(InputContext* input, AppInfo* app) {
 		mouse->click.hold ||
 		mouse->scrollY
 	);
+	
+	if (mouse->click.press) {
+		mouse->pressPos.x = mouse->pos.x;
+		mouse->pressPos.y = mouse->pos.y;
+	}
+	
+	mouse->doubleClick = false;
+	if (Decr(timer) > 0) {
+		if (mouse->vel.x || mouse->vel.y) {
+			timer = 0;
+		} else if (mouse->clickL.press) {
+			mouse->doubleClick = true;
+			timer = 0;
+		}
+	}
+	
+	if (mouse->clickL.press) {
+		timer = 30;
+	}
 	
 	if (glfwGetKey(app->mainWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(app->mainWindow, true);
@@ -172,4 +192,8 @@ void Input_SetMousePos(s32 x, s32 y) {
 	glfwSetCursorPos(__pAppInfo->mainWindow, x, y);
 	__pInput->mouse.pos.x = x;
 	__pInput->mouse.pos.y = y;
+}
+
+f32 Input_GetPressPosDist() {
+	return Vec_Vec2s_DistXZ(&__pInput->mouse.pos, &__pInput->mouse.pressPos);
 }

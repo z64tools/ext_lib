@@ -82,6 +82,7 @@ static s32 Element_PressCondition(GeoGridContext* geoCtx, Split* split, Rect* re
 	return (geoCtx->ctxMenu.num == 0 &&
 	       split->mouseInSplit &&
 	       !split->blockMouse &&
+	       !split->elemBlockMouse &&
 	       GeoGrid_Cursor_InRect(split, rect));
 }
 
@@ -565,7 +566,7 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 		Theme_SmoothStepToCol(&this->hovColor, Theme_GetColor(THEME_BASE_L2, 255, 1.0f), 0.25f, 0.5f, 0.0f);
 	
 	Element_Draw_RoundedOutline(vg, &this->rect, this->hovColor);
-	Element_Draw_RoundedRect(vg, &this->rect, Theme_GetColor(THEME_BASE, 255, 0.75f));
+	Element_Draw_RoundedRect(vg, &this->rect, Theme_GetColor(THEME_BASE, 255, 0.75f + 0.75f * this->locked));
 	
 	if (this->vValue <= 0.02) {
 		this->color.a = Lerp(ClampMin((this->vValue - 0.01f) * 100.0f, 0.0f), 0.0, this->color.a);
@@ -609,7 +610,7 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 		this->rect.y + this->rect.h * 0.5,
 		this->txt
 	);
-	nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
+	nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f - 0.5f * this->locked));
 	nvgFontBlur(vg, 0.0);
 	nvgText(
 		vg,
@@ -743,9 +744,12 @@ f32 Element_Slider(GeoGridContext* geoCtx, Split* split, ElSlider* this) {
 		this->max = 1.0f;
 	
 	this->hover = false;
+	
+	if (this->locked)
+		goto queue_element;
+	
 	if (Element_PressCondition(geoCtx, split, &this->rect) || this->holdState) {
 		u32 pos = false;
-		this->holdState = false;
 		this->hover = true;
 		
 		if (this->isTextbox) {
@@ -766,7 +770,8 @@ f32 Element_Slider(GeoGridContext* geoCtx, Split* split, ElSlider* this) {
 		
 		if (Input_GetMouse(MOUSE_L)->press) {
 			this->holdState = true;
-		} else if (Input_GetMouse(MOUSE_L)->hold) {
+			split->elemBlockMouse++;
+		} else if (Input_GetMouse(MOUSE_L)->hold && this->holdState) {
 			if (geoCtx->input->mouse.vel.x) {
 				if (this->isSliding == false) {
 					Element_Slider_SetCursorToVal(split, this);
@@ -783,13 +788,15 @@ f32 Element_Slider(GeoGridContext* geoCtx, Split* split, ElSlider* this) {
 				
 				this->isSliding = true;
 			}
-			
-			this->holdState = true;
-		} else if (Input_GetMouse(MOUSE_L)->release) {
+		} else if (Input_GetMouse(MOUSE_L)->release && this->holdState) {
 			if (this->isSliding == false) {
 				Element_Slider_SetTextbox(split, this);
 			}
 			this->isSliding = false;
+		} else {
+			if (this->holdState)
+				split->elemBlockMouse--;
+			this->holdState = false;
 		}
 		
 		if (geoCtx->input->mouse.scrollY) {
@@ -848,7 +855,7 @@ void Element_SetRect(Rect* rect, f32 x, f32 y, f32 w) {
 }
 
 void Element_SetRect_Multiple(Split* split, f32 y, s32 rectNum, ...) {
-	f32 x = SPLIT_ELEM_X_PADDING;
+	f32 x = 0;
 	f32 width;
 	va_list va;
 	
@@ -858,9 +865,10 @@ void Element_SetRect_Multiple(Split* split, f32 y, s32 rectNum, ...) {
 		Rect* rect = va_arg(va, Rect*);
 		f64 a = va_arg(va, f64);
 		
-		width = (f32)(split->rect.w - SPLIT_ELEM_X_PADDING * rectNum - SPLIT_ELEM_X_PADDING) * a;
-		Element_SetRect(rect, x, y, width);
-		x += width + SPLIT_ELEM_X_PADDING;
+		width = (f32)(split->rect.w - SPLIT_ELEM_X_PADDING) * a;
+		if (rect)
+			Element_SetRect(rect, x + SPLIT_ELEM_X_PADDING, y, width - SPLIT_ELEM_X_PADDING);
+		x += width;
 	}
 	
 	va_end(va);
