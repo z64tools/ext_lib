@@ -266,6 +266,8 @@ typedef struct {
 	ElTextbox textBox;
 } ElSlider;
 
+s32 Split_Cursor(Split* split, s32 result);
+
 s32 Element_Button(GeoGridContext*, Split*, ElButton*);
 void Element_Textbox(GeoGridContext*, Split*, ElTextbox*);
 f32 Element_Text(GeoGridContext* geoCtx, Split* split, ElText* txt);

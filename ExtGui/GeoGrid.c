@@ -370,6 +370,18 @@ void GeoGrid_KillSplit(GeoGridContext* geoCtx, Split* split, SplitDir dir) {
 	GeoGrid_Update_SplitRect(split);
 }
 
+GeoGridContext* __geoCtx;
+
+s32 Split_Cursor(Split* split, s32 result) {
+	if (__geoCtx->ctxMenu.num != 0 ||
+		!split->mouseInSplit ||
+		split->blockMouse ||
+		split->elemBlockMouse)
+		return 0;
+	
+	return result;
+}
+
 /* ───────────────────────────────────────────────────────────────────────── */
 
 void GeoGrid_Update_Vtx_RemoveDublicates(GeoGridContext* geoCtx, SplitVtx* vtx) {
@@ -1216,6 +1228,7 @@ void GeoGrid_SetBotBarHeight(GeoGridContext* geoCtx, s32 h) {
 /* ───────────────────────────────────────────────────────────────────────── */
 
 void GeoGrid_Init(GeoGridContext* geoCtx, Vec2s* winDim, InputContext* inputCtx, void* vg) {
+	__geoCtx = geoCtx;
 	geoCtx->winDim = winDim;
 	geoCtx->input = inputCtx;
 	geoCtx->vg = vg;
