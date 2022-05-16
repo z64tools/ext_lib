@@ -1,3 +1,5 @@
+#define __GEO_ELEM_C__
+
 #include "GeoGrid.h"
 #include "Global.h"
 
@@ -140,6 +142,7 @@ static void Element_Slider_SetTextbox(Split* split, ElSlider* this) {
 static void Element_Draw_Button(ElementCallInfo* info) {
 	void* vg = info->geoCtx->vg;
 	ElButton* this = info->arg;
+	f32 dsbleMul = (this->isDisabled ? 0.5 : 1.0);
 	
 	if (this->rect.w < 16) {
 		return;
@@ -154,15 +157,15 @@ static void Element_Draw_Button(ElementCallInfo* info) {
 	
 	nvgBeginPath(vg);
 	if (this->toggle == 2) {
-		Theme_SmoothStepToCol(&this->colorIL, Theme_GetColor(THEME_PRIM, 255, 1.0f), 0.16, 0.1, 0.0);
+		Theme_SmoothStepToCol(&this->colorIL, Theme_GetColor(THEME_PRIM, 255, 1.0f * dsbleMul), 0.16, 0.1, 0.0);
 	} else {
 		if (this->state) {
 			if (this->toggle)
-				Theme_SmoothStepToCol(&this->colorIL, Theme_GetColor(THEME_BASE_L3, 255, 1.5f), 0.16, 0.1, 0.0);
+				Theme_SmoothStepToCol(&this->colorIL, Theme_GetColor(THEME_BASE_L3, 255, 1.5f * dsbleMul), 0.16, 0.1, 0.0);
 			else
-				Theme_SmoothStepToCol(&this->colorIL, Theme_GetColor(THEME_PRIM, 255, 1.0f), 0.66, 0.4, 0.0);
+				Theme_SmoothStepToCol(&this->colorIL, Theme_GetColor(THEME_PRIM, 255, 1.0f * dsbleMul), 0.66, 0.4, 0.0);
 		} else {
-			Theme_SmoothStepToCol(&this->colorIL, Theme_GetColor(THEME_BASE_L3, 255, 1.0f), 0.16, 0.1, 0.0);
+			Theme_SmoothStepToCol(&this->colorIL, Theme_GetColor(THEME_BASE_L3, 255, 1.0f * dsbleMul), 0.16, 0.1, 0.0);
 		}
 	}
 	
@@ -200,7 +203,7 @@ static void Element_Draw_Button(ElementCallInfo* info) {
 			txt
 		);
 		
-		nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
+		nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f - 0.25f * this->isDisabled));
 		nvgFontBlur(vg, 0.0);
 		nvgText(
 			vg,
@@ -642,7 +645,7 @@ s32 Element_Button(GeoGridContext* geoCtx, Split* split, ElButton* this) {
 		this->rect.w = bounds[2] + SPLIT_TEXT_PADDING * 2;
 	}
 	
-	if (Element_PressCondition(geoCtx, split, &this->rect)) {
+	if (Element_PressCondition(geoCtx, split, &this->rect) && this->isDisabled == false) {
 		if (Input_GetMouse(MOUSE_L)->press) {
 			this->state++;
 			
@@ -855,17 +858,19 @@ void Element_SetRect(Rect* rect, f32 x, f32 y, f32 w) {
 }
 
 void Element_SetRect_Multiple(Split* split, f32 y, s32 rectNum, ...) {
-	f32 x = 0;
+	f32 x = SPLIT_ELEM_X_PADDING;
 	f32 width;
 	va_list va;
 	
 	va_start(va, rectNum);
 	
+	Log("Setting [%d] Elements", rectNum);
+	
 	for (s32 i = 0; i < rectNum; i++) {
 		Rect* rect = va_arg(va, Rect*);
 		f64 a = va_arg(va, f64);
 		
-		width = (f32)(split->rect.w - SPLIT_ELEM_X_PADDING) * a;
+		width = (f32)(split->rect.w - SPLIT_ELEM_X_PADDING * 3) * a;
 		if (rect)
 			Element_SetRect(rect, x + SPLIT_ELEM_X_PADDING, y, width - SPLIT_ELEM_X_PADDING);
 		x += width;

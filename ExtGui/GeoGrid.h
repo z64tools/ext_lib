@@ -204,6 +204,7 @@ void Element_PostDraw(GeoGridContext* geoCtx, Split* split);
 
 typedef struct ElButton {
 	char*    txt;
+	u8       isDisabled;
 	u8       state;
 	u8       hover;
 	u8       toggle;
@@ -278,5 +279,9 @@ f32 Element_Slider(GeoGridContext* geoCtx, Split* split, ElSlider* this);
 void Element_PushToPost();
 void Element_SetRect(Rect* rect, f32 x, f32 y, f32 w);
 void Element_SetRect_Multiple(Split* split, f32 y, s32 rectNum, ...);
+
+#ifndef __GEO_ELEM_C__
+#define Element_SetRect_Multiple(split, y, ...) Element_SetRect_Multiple(split, y, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
+#endif
 
 #endif

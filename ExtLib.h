@@ -570,8 +570,9 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define KbToBin(x)        (u32)(0x400 * (x))
 #define Align(var, align) ((((var) % (align)) != 0) ? (var) + (align) - ((var) % (align)) : (var))
 
-// #define strcpy(dst, src)   strcpy(dst, src)
-// #define strcat(dst, src)  strcat(dst, src)
+#define NARGS_SEQ(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, N, ...) N
+#define NARGS(...)                                                                               NARGS_SEQ(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
+
 #define String_SMerge(dst, ...) sprintf(dst + strlen(dst), __VA_ARGS__);
 #define String_Generate(string) strdup(string)
 
