@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 127
+#define THIS_EXTLIB_VERSION 128
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -746,10 +746,12 @@ void ItemList_SpacedStr(ItemList* list, const char* str) {
 		
 		if (str[a] == '\"' || str[a] == '\'') {
 			b = a + 2;
-			while (str[b - 1] != '\"' && str[b - 1] != '\'' && str[b] != '\0') b++;
+			while (str[b - 1] != '\"' && str[b - 1] != '\'' && str[b] != '\0')
+				b++;
 		} else {
 			b = a;
-			while (str[b] != ' ' && str[b] != '\0') b++;
+			while (str[b] != ' ' && str[b] != '\0')
+				b++;
 		}
 		
 		node = Calloc(node, sizeof(StrNode));
@@ -761,11 +763,12 @@ void ItemList_SpacedStr(ItemList* list, const char* str) {
 		list->num++;
 		list->writePoint += strlen(node->txt) + 1;
 		
-		if (str[b] == '\0')
-			break;
 		a = b;
 		
 		while (str[a] == ' ' || str[a] == '\t') a++;
+		
+		if (str[a] == '\0')
+			break;
 	}
 	
 	Log(__FUNCTION__, __LINE__, "Building List");
@@ -846,9 +849,8 @@ void ItemList_Print(ItemList* target) {
 Time ItemList_StatMax(ItemList* list) {
 	Time val = 0;
 	
-	for (s32 i = 0; i < list->num; i++) {
+	for (s32 i = 0; i < list->num; i++)
 		val = Max(val, Sys_Stat(list->item[i]));
-	}
 	
 	return val;
 }
@@ -856,9 +858,8 @@ Time ItemList_StatMax(ItemList* list) {
 Time ItemList_StatMin(ItemList* list) {
 	Time val = ItemList_StatMax(list);
 	
-	for (s32 i = 1; i < list->num; i++) {
+	for (s32 i = 0; i < list->num; i++)
 		val = Min(val, Sys_Stat(list->item[i]));
-	}
 	
 	return val;
 }
@@ -3472,23 +3473,23 @@ f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minS
 	return fabsf(target - *pValue);
 }
 
-f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32* point3) {
+f32 Math_Spline_Audio(float k, float xm1, float x0, float x1, float x2) {
+	f32 a = (3.0f * (x0 - x1) - xm1 + x2) * 0.5f;
+	f32 b = 2.0f * x1 + xm1 - (5.0f * x0 + x2) * 0.5f;
+	f32 c = (x1 - xm1) * 0.5f;
+	
+	return (((((a * k) + b) * k) + c) * k) + x0;
+}
+
+f32 Math_Spline(f32 k, f32 xm1, f32 x0, f32 x1, f32 x2) {
 	f32 coeff[4];
-	f32 r;
 	
-	coeff[0] = (1.0f - u) * (1.0f - u) * (1.0f - u) / 6.0f;
-	coeff[1] = u * u * u / 2.0f - u * u + 2.0f / 3.0f;
-	coeff[2] = -u * u * u / 2.0f + u * u / 2.0f + u / 2.0f + 1.0f / 6.0f;
-	coeff[3] = u * u * u / 6.0f;
-	r = (coeff[0] * *point0) + (coeff[1] * *point1) + (coeff[2] * *point2) + (coeff[3] * *point3);
+	coeff[0] = (1.0f - k) * (1.0f - k) * (1.0f - k) / 6.0f;
+	coeff[1] = k * k * k / 2.0f - k * k + 2.0f / 3.0f;
+	coeff[2] = -k * k * k / 2.0f + k * k / 2.0f + k / 2.0f + 1.0f / 6.0f;
+	coeff[3] = k * k * k / 6.0f;
 	
-	if (res) {
-		*res = r;
-		
-		return *res;
-	}
-	
-	return r;
+	return (coeff[0] * xm1) + (coeff[1] * x0) + (coeff[2] * x1) + (coeff[3] * x2);
 }
 
 void Math_ApproachF(f32* pValue, f32 target, f32 fraction, f32 step) {

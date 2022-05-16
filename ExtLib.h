@@ -201,6 +201,11 @@ void Thread_Unlock(void);
 void Thread_Create(Thread* thread, void* func, void* arg);
 s32 Thread_Join(Thread* thread);
 
+#define Thread_Print(...) \
+	fflush(stdout); \
+	printf(__VA_ARGS__); \
+	fflush(stdout);
+
 void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
@@ -432,7 +437,8 @@ void Log(const char* func, u32 line, const char* txt, ...);
 #endif
 
 f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep);
-f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32* point3);
+f32 Math_Spline_Audio(float k, float xm1, float x0, float x1, float x2);
+f32 Math_Spline(f32 k, f32 xm1, f32 x0, f32 x1, f32 x2);
 void Math_ApproachF(f32* pValue, f32 target, f32 fraction, f32 step);
 void Math_ApproachS(s32* pValue, s32 target, s32 scale, s32 step);
 s32 WrapS(s32 x, s32 min, s32 max);
@@ -540,7 +546,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define Incr(x) (x += (x < 0) ? 1 : 0)
 
 #define Intersect(a, aend, b, bend) ((Max(a, b) < Min(aend, bend)))
-#define IsBetween(a, x, y) ((a) >= (x) && (a) <= (y))
+#define IsBetween(a, x, y)          ((a) >= (x) && (a) <= (y))
 
 #define Max(a, b)            ((a) > (b) ? (a) : (b))
 #define Min(a, b)            ((a) < (b) ? (a) : (b))
