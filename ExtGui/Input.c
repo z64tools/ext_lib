@@ -67,7 +67,7 @@ void Input_Update(InputContext* input, AppInfo* app) {
 	
 	mouse->doubleClick = false;
 	if (Decr(timer) > 0) {
-		if (mouse->vel.x || mouse->vel.y) {
+		if (Vec_Vec2s_DistXZ(&mouse->pos, &mouse->pressPos) > 4) {
 			timer = 0;
 		} else if (mouse->clickL.press) {
 			mouse->doubleClick = true;
