@@ -3474,19 +3474,21 @@ f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minS
 
 f32 Math_SplineFloat(f32 u, f32* res, f32* point0, f32* point1, f32* point2, f32* point3) {
 	f32 coeff[4];
+	f32 r;
 	
 	coeff[0] = (1.0f - u) * (1.0f - u) * (1.0f - u) / 6.0f;
 	coeff[1] = u * u * u / 2.0f - u * u + 2.0f / 3.0f;
 	coeff[2] = -u * u * u / 2.0f + u * u / 2.0f + u / 2.0f + 1.0f / 6.0f;
 	coeff[3] = u * u * u / 6.0f;
+	r = (coeff[0] * *point0) + (coeff[1] * *point1) + (coeff[2] * *point2) + (coeff[3] * *point3);
 	
 	if (res) {
-		*res = (coeff[0] * *point0) + (coeff[1] * *point1) + (coeff[2] * *point2) + (coeff[3] * *point3);
+		*res = r;
 		
 		return *res;
 	}
 	
-	return (coeff[0] * *point0) + (coeff[1] * *point1) + (coeff[2] * *point2) + (coeff[3] * *point3);
+	return r;
 }
 
 void Math_ApproachF(f32* pValue, f32 target, f32 fraction, f32 step) {
