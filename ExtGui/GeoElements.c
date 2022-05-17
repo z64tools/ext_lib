@@ -888,6 +888,7 @@ void Element_Init(GeoGridContext* geoCtx) {
 
 void Element_Update(GeoGridContext* geoCtx) {
 	static s32 timer = 0;
+	static s32 blocker;
 	
 	sCurrentElement = pElementStack;
 	sElemNum = 0;
@@ -902,6 +903,11 @@ void Element_Update(GeoGridContext* geoCtx) {
 		char* txt = geoCtx->input->buffer;
 		s32 prevTextPos = sTextPos;
 		s32 press = 0;
+		
+		if (blocker == 0) {
+			blocker++;
+			geoCtx->input->state.keyBlock++;
+		}
 		
 		if (Input_GetMouse(MOUSE_ANY)->press || Input_GetKey(KEY_ENTER)->press) {
 			sSelectPos = -1;
@@ -1067,6 +1073,11 @@ void Element_Update(GeoGridContext* geoCtx) {
 		}
 		
 		sTextPos = Clamp(sTextPos, 0, strlen(sCurTextbox->txt));
+	} else {
+		if (blocker) {
+			blocker--;
+			geoCtx->input->state.keyBlock--;
+		}
 	}
 }
 

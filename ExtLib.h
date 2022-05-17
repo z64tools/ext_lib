@@ -194,10 +194,13 @@ typedef enum {
 
 extern u8 gPrintfProgressing;
 
-void Thread_Init(void);
-void Thread_Free(void);
-void Thread_Lock(void);
-void Thread_Unlock(void);
+void ThreadLock_Init(void);
+void ThreadLock_Free(void);
+void ThreadLock_Lock(void);
+void ThreadLock_Unlock(void);
+void ThreadLock_Create(Thread* thread, void* func, void* arg);
+s32 ThreadLock_Join(Thread* thread);
+
 void Thread_Create(Thread* thread, void* func, void* arg);
 s32 Thread_Join(Thread* thread);
 

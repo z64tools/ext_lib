@@ -159,6 +159,11 @@ void Input_SetClipboardStr(char* str) {
 }
 
 InputType* Input_GetKey(KeyMap key) {
+	static InputType zero;
+	
+	if (__pInput->state.keyBlock)
+		return &zero;
+	
 	return &__pInput->key[key];
 }
 

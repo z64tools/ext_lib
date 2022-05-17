@@ -7,7 +7,7 @@
 AppInfo* __appInfo;
 InputContext* __inputCtx;
 
-static void UI_Draw() {
+static void Interface_Draw() {
 	Input_Update(__inputCtx, __appInfo);
 	
 	if (!glfwGetWindowAttrib(__appInfo->mainWindow, GLFW_ICONIFIED))
@@ -38,7 +38,7 @@ static void UI_Draw() {
 	glfwSwapBuffers(__appInfo->mainWindow);
 }
 
-static void UI_FramebufferCallback(GLFWwindow* window, s32 width, s32 height) {
+static void Interface_FramebufferCallback(GLFWwindow* window, s32 width, s32 height) {
 	glViewport(0, 0, width, height);
 	__appInfo->prevWinDim.x = __appInfo->winDim.x;
 	__appInfo->prevWinDim.y = __appInfo->winDim.y;
@@ -46,10 +46,10 @@ static void UI_FramebufferCallback(GLFWwindow* window, s32 width, s32 height) {
 	__appInfo->winDim.y = height;
 	__appInfo->isResizeCallback = true;
 	
-	UI_Draw();
+	Interface_Draw();
 }
 
-void* UI_Init(const char* title, AppInfo* appInfo, InputContext* inputCtx, void* context, CallbackFunc updateCall, CallbackFunc drawCall, DropCallback dropCallback, u32 x, u32 y, u32 samples) {
+void* Interface_Init(const char* title, AppInfo* appInfo, InputContext* inputCtx, void* context, CallbackFunc updateCall, CallbackFunc drawCall, DropCallback dropCallback, u32 x, u32 y, u32 samples) {
 	__appInfo = appInfo;
 	__inputCtx = inputCtx;
 	
@@ -84,7 +84,7 @@ void* UI_Init(const char* title, AppInfo* appInfo, InputContext* inputCtx, void*
 	Log("Set Callbacks");
 	glfwMakeContextCurrent(appInfo->mainWindow);
 	
-	glfwSetFramebufferSizeCallback(appInfo->mainWindow, UI_FramebufferCallback);
+	glfwSetFramebufferSizeCallback(appInfo->mainWindow, Interface_FramebufferCallback);
 	glfwSetMouseButtonCallback(appInfo->mainWindow, Input_MouseClickCallback);
 	glfwSetKeyCallback(appInfo->mainWindow, Input_KeyCallback);
 	glfwSetCharCallback(appInfo->mainWindow, Input_TextCallback);
@@ -106,9 +106,9 @@ void* UI_Init(const char* title, AppInfo* appInfo, InputContext* inputCtx, void*
 	return nvgCreateGL3(NVG_ANTIALIAS | NVG_STENCIL_STROKES);
 }
 
-void UI_Main() {
+void Interface_Main() {
 	while (!glfwWindowShouldClose(__appInfo->mainWindow)) {
 		glfwPollEvents();
-		UI_Draw();
+		Interface_Draw();
 	}
 }

@@ -166,6 +166,9 @@ typedef struct {
 typedef struct {
 	MouseInput mouse;
 	InputType  key[KEY_MAX];
+	struct {
+		s32 keyBlock;
+	} state;
 	char buffer[512];
 } InputContext;
 

@@ -75,30 +75,42 @@ volatile bool ___gExt_ThreadInit;
 // # THREAD                              #
 // # # # # # # # # # # # # # # # # # # # #
 
-void Thread_Init(void) {
+void ThreadLock_Init(void) {
 	pthread_mutex_init(&___gExt_ThreadLock, NULL);
 	___gExt_ThreadInit = true;
 }
 
-void Thread_Free(void) {
+void ThreadLock_Free(void) {
 	pthread_mutex_destroy(&___gExt_ThreadLock);
 	___gExt_ThreadInit = false;
 }
 
-void Thread_Lock(void) {
+void ThreadLock_Lock(void) {
 	if (___gExt_ThreadInit) {
 		pthread_mutex_lock(&___gExt_ThreadLock);
 	}
 }
 
-void Thread_Unlock(void) {
+void ThreadLock_Unlock(void) {
 	if (___gExt_ThreadInit) {
 		pthread_mutex_unlock(&___gExt_ThreadLock);
 	}
 }
 
-void Thread_Create(Thread* thread, void* func, void* arg) {
+void ThreadLock_Create(Thread* thread, void* func, void* arg) {
 	if (___gExt_ThreadInit == false) printf_error("Thread not Initialized");
+	pthread_create(thread, NULL, (void*)func, (void*)(arg));
+}
+
+s32 ThreadLock_Join(Thread* thread) {
+	u32 r = pthread_join(*thread, NULL);
+	
+	memset(thread, 0, sizeof(Thread));
+	
+	return r;
+}
+
+void Thread_Create(Thread* thread, void* func, void* arg) {
 	pthread_create(thread, NULL, (void*)func, (void*)(arg));
 }
 
@@ -139,7 +151,7 @@ void* Tmp_Alloc(u32 size) {
 	if (size < 1)
 		return NULL;
 	
-	Thread_Lock();
+	ThreadLock_Lock();
 	
 	if (size >= sizeof(sBuffer_Temp) / 2)
 		printf_error("Can't fit %fMb into the GraphBuffer", BinToMb(size));
@@ -156,7 +168,7 @@ void* Tmp_Alloc(u32 size) {
 	memset(ret, 0, size + 1);
 	sSeek_Temp = sSeek_Temp + size + 1;
 	
-	Thread_Unlock();
+	ThreadLock_Unlock();
 	
 	return ret;
 }
@@ -3415,7 +3427,7 @@ void Log_Unlocked(const char* func, u32 line, const char* txt, ...) {
 }
 
 void Log(const char* func, u32 line, const char* txt, ...) {
-	Thread_Lock();
+	ThreadLock_Lock();
 	va_list args;
 	
 	for (s32 i = FAULT_LOG_NUM - 1; i > 0; i--) {
@@ -3430,7 +3442,7 @@ void Log(const char* func, u32 line, const char* txt, ...) {
 	
 	strcpy(sLogFunc[0], func);
 	sLogLine[0] = line;
-	Thread_Unlock();
+	ThreadLock_Unlock();
 }
 
 // # # # # # # # # # # # # # # # # # # # #

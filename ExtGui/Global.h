@@ -28,7 +28,7 @@ typedef struct AppInfo {
 extern InputContext* __inputCtx;
 extern AppInfo* __appInfo;
 
-void* UI_Init(
+void* Interface_Init(
 	const char* title,
 	AppInfo* appInfo,
 	InputContext* inputCtx,
@@ -38,6 +38,6 @@ void* UI_Init(
 	DropCallback dropCallback,
 	u32 x,  u32 y, u32 samples
 );
-void UI_Main();
+void Interface_Main();
 
 #endif
