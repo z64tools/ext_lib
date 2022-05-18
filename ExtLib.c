@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 128
+#define THIS_EXTLIB_VERSION 129
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -960,7 +960,8 @@ Time Sys_Stat(const char* item) {
 	if (stat(item, &st) == -1)
 		return 0;
 	
-	t = Max(st.st_atime, t);
+	// No access time
+	// t = Max(st.st_atime, t);
 	t = Max(st.st_mtime, t);
 	t = Max(st.st_ctime, t);
 	

@@ -632,6 +632,26 @@ extern PrintfSuppressLevel gPrintfSuppress;
 		__VA_ARGS__ \
 )
 
+#ifndef __EXTLIB_C__
+
+#define Malloc(data, size) \
+	Malloc(0, size); \
+	Log("Malloc(%s); %.2f Kb", #data, BinToKb(size));
+
+#define Realloc(data, size) \
+	Realloc(data, size); \
+	Log("Realloc(%s); %.2f Kb", #data, BinToKb(size));
+
+#define Calloc(data, size) \
+	Calloc(0, size); \
+	Log("Calloc(%s); %.2f Kb", #data, BinToKb(size));
+
+#define Free(data) \
+	Free(data); \
+	Log("Free(%s);", #data );
+
+#endif
+
 #ifndef NDEBUG
 #define printf_debugExt(...) if (gPrintfSuppress <= PSL_DEBUG) { \
 		if (gPrintfProgressing) { printf("\n"); gPrintfProgressing = 0; } \
@@ -651,26 +671,6 @@ extern PrintfSuppressLevel gPrintfSuppress;
 		printf_debug(PRNT_YELW "Assert(\a " PRNT_RSET # exp PRNT_YELW " );"); \
 		exit(EXIT_FAILURE); \
 }
-
-#ifndef __EXTLIB_C__
-
-#define Malloc(data, size) \
-	Malloc(data, size); \
-	Log("Malloc(%s); %.2f Kb", #data, BinToKb(size));
-
-#define Realloc(data, size) \
-	Realloc(data, size); \
-	Log("Realloc(%s); %.2f Kb", #data, BinToKb(size));
-
-#define Calloc(data, size) \
-	Calloc(data, size); \
-	Log("Calloc(%s); %.2f Kb", #data, BinToKb(size));
-
-#define Free(data) \
-	Free(data); \
-	Log("Free(%s);", #data );
-
-#endif
 
 #else
 #define printf_debugExt(...)       if (0) {}
