@@ -176,13 +176,6 @@ typedef enum {
 	DIR__MAKE_ON_ENTER = (1) << 0,
 } DirParam;
 
-typedef struct {
-	char curPath[2048];
-	s32  enterCount[512];
-	s32  pos;
-	DirParam param;
-} DirCtx;
-
 typedef void (* SoundCallback)(void*, void*, u32);
 
 typedef enum {
@@ -232,21 +225,21 @@ typedef enum {
 	PATH_ABSOLUTE
 } PathType;
 
-void Dir_SetParam(DirCtx* ctx, DirParam w);
-void Dir_UnsetParam(DirCtx* ctx, DirParam w);
-void Dir_Set(DirCtx* ctx, char* path, ...);
-void Dir_Enter(DirCtx* ctx, char* fmt, ...);
-void Dir_Leave(DirCtx* ctx);
-void Dir_Make(DirCtx* ctx, char* dir, ...);
-void Dir_MakeCurrent(DirCtx* ctx);
-char* Dir_Current(DirCtx* ctx);
-char* Dir_File(DirCtx* ctx, char* fmt, ...);
-Time Dir_Stat(DirCtx* ctx, const char* item);
-char* Dir_GetWildcard(DirCtx* ctx, char* x);
-void Dir_ItemList(DirCtx* ctx, ItemList* itemList, bool isPath);
-void Dir_ItemList_Recursive(DirCtx* ctx, ItemList* target, char* keyword);
-void Dir_ItemList_Not(DirCtx* ctx, ItemList* itemList, bool isPath, char* not);
-void Dir_ItemList_Keyword(DirCtx* ctx, ItemList* itemList, char* ext);
+void Dir_SetParam(DirParam w);
+void Dir_UnsetParam(DirParam w);
+void Dir_Set(char* path, ...);
+void Dir_Enter(char* fmt, ...);
+void Dir_Leave(void);
+void Dir_Make(char* dir, ...);
+void Dir_MakeCurrent(void);
+char* Dir_Current(void);
+char* Dir_File(char* fmt, ...);
+Time Dir_Stat(const char* item);
+char* Dir_GetWildcard(char* x);
+void Dir_ItemList(ItemList* itemList, bool isPath);
+void Dir_ItemList_Recursive(ItemList* target, char* keyword);
+void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not);
+void Dir_ItemList_Keyword(ItemList* itemList, char* ext);
 
 typedef enum {
 	STAT_ACCS = (1) << 0,
@@ -309,11 +302,15 @@ char Terminal_GetChar();
 void Terminal_Window(s32 (*func) (Terminal*, void*, void*, int), void* pass, void* pass2);
 
 typedef enum {
-	LIST_FILES   = 0x0,
-	LIST_FOLDERS = 0x1,
+	LIST_FILES    = 0x0,
+	LIST_FOLDERS  = 0x1,
+	
+	LIST_RELATIVE = (1) << 4,
+	LIST_NO_DOT   = (1) << 5,
 } ListFlags;
 
 void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags);
+char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, ...);
 void ItemList_SpacedStr(ItemList* list, const char* str);
 void ItemList_CommaStr(ItemList* list, const char* str);
 void ItemList_Print(ItemList* target);
@@ -323,6 +320,12 @@ s32 ItemList_SaveList(ItemList* target, const char* output);
 void ItemList_NumericalSort(ItemList* list);
 ItemList ItemList_Initialize(void);
 void ItemList_Free(ItemList* itemList);
+
+#ifndef __EXTLIB_C__
+
+#define ItemList_GetWildItem(list, ...) ItemList_GetWildItem(list, __VA_ARGS__, NULL)
+
+#endif
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_SetPrefix(char* fmt);
