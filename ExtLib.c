@@ -1082,7 +1082,7 @@ void Sys_MakeDir(const char* dir, ...) {
 	vsprintf(buffer, dir, args);
 	va_end(args);
 	
-	pathNum = String_GetPathNum(buffer);
+	pathNum = String_PathNum(buffer);
 	
 	if (!Sys_IsDir(dir)) {
 		for (s32 i = strlen(buffer) - 1; i >= 0; i--) {
@@ -2579,7 +2579,7 @@ f32 String_GetFloat(const char* string) {
 	return fl;
 }
 
-s32 String_GetLineCount(const char* str) {
+s32 String_LineNum(const char* str) {
 	s32 line = 1;
 	s32 i = 0;
 	
@@ -2774,7 +2774,7 @@ char* String_GetFilename(const char* src) {
 	return buffer;
 }
 
-s32 String_GetPathNum(const char* src) {
+s32 String_PathNum(const char* src) {
 	s32 dir = -1;
 	
 	for (s32 i = 0; i < strlen(src); i++) {
@@ -2794,7 +2794,7 @@ char* String_GetFolder(const char* src, s32 num) {
 		return NULL;
 	
 	if (num < 0) {
-		num = String_GetPathNum(src) - 1;
+		num = String_PathNum(src) - 1;
 	}
 	
 	for (s32 temp = 0;;) {
@@ -2976,26 +2976,12 @@ s32 String_Replace(char* src, const char* word, const char* replacement) {
 	if (!StrStr(src, word))
 		return 0;
 	
-	if (strlen(word) == 1 && strlen(replacement) == 1) {
-		for (s32 i = 0; i < strlen(src); i++) {
-			if (src[i] == word[0]) {
-				src[i] = replacement[0];
-				break;
-			}
-		}
-		
-		if (dub)
-			Free((void*)word);
-		
-		return true;
-	}
-	
 	ptr = StrStr(src, word);
 	
 	while (ptr != NULL) {
 		String_Remove(ptr, strlen(word));
 		String_Insert(ptr, replacement);
-		ptr = StrStr(ptr + 1, word);
+		ptr = StrStr(ptr + strlen(replacement), word);
 		diff = true;
 	}
 	
@@ -3096,7 +3082,7 @@ void Config_SuppressNext(void) {
 }
 
 char* Config_Variable(const char* str, const char* name) {
-	u32 lineCount = String_GetLineCount(str);
+	u32 lineCount = String_LineNum(str);
 	char* line = (char*)str;
 	
 	Log(__FUNCTION__, __LINE__, "Var [%s]", name);
@@ -3130,7 +3116,7 @@ char* Config_Variable(const char* str, const char* name) {
 }
 
 char* Config_GetVariable(const char* str, const char* name) {
-	u32 lineCount = String_GetLineCount(str);
+	u32 lineCount = String_LineNum(str);
 	char* line = (char*)str;
 	
 	Log(__FUNCTION__, __LINE__, "Var [%s]", name);
