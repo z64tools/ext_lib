@@ -31,6 +31,7 @@ typedef intptr_t sPtr;
 typedef u32 void32;
 typedef time_t Time;
 typedef pthread_t Thread;
+typedef size_t Size;
 
 extern pthread_mutex_t gMutexLock;
 
@@ -130,13 +131,12 @@ typedef struct Node {
 } Node;
 
 typedef enum {
-	MEM_FILENAME = 1 << 16,
-	MEM_CRC32    = 1 << 17,
-	MEM_ALIGN    = 1 << 18,
-	MEM_REALLOC  = 1 << 19,
+	MEM_CRC32   = 1 << 17,
+	MEM_ALIGN   = 1 << 18,
+	MEM_REALLOC = 1 << 19,
 	
-	MEM_CLEAR    = 1 << 30,
-	MEM_END      = 1 << 31,
+	MEM_CLEAR   = 1 << 30,
+	MEM_END     = 1 << 31,
 } MemInit;
 
 typedef struct MemFile {
@@ -154,10 +154,9 @@ typedef struct MemFile {
 		u32  crc32;
 	} info;
 	struct {
-		u32 align   : 8;
+		u32 align;
 		u32 realloc : 1;
 		u32 getCrc  : 1;
-		u32 getName : 1;
 		u64 initKey;
 	} param;
 } MemFile;
@@ -169,6 +168,7 @@ typedef struct ItemList {
 	u32    num;
 	struct {
 		u64 initKey;
+		u32 alnum;
 	} __private;
 } ItemList;
 
@@ -320,6 +320,8 @@ s32 ItemList_SaveList(ItemList* target, const char* output);
 void ItemList_NumericalSort(ItemList* list);
 ItemList ItemList_Initialize(void);
 void ItemList_Free(ItemList* itemList);
+void ItemList_Alloc(ItemList* list, u32 num, Size size);
+void ItemList_AddItem(ItemList* list, const char* item);
 
 #ifndef __EXTLIB_C__
 
@@ -372,6 +374,7 @@ void MemFile_Malloc(MemFile* memFile, u32 size);
 void MemFile_Realloc(MemFile* memFile, u32 size);
 void MemFile_Rewind(MemFile* memFile);
 s32 MemFile_Write(MemFile* dest, void* src, u32 size);
+s32 MemFile_Insert(MemFile* mem, void* src, s32 size, s64 pos);
 s32 MemFile_Append(MemFile* dest, MemFile* src);
 void MemFile_Align(MemFile* src, u32 align);
 s32 MemFile_Printf(MemFile* dest, const char* fmt, ...);
@@ -381,8 +384,6 @@ s32 MemFile_LoadFile(MemFile* memFile, const char* filepath);
 s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath);
 s32 MemFile_SaveFile(MemFile* memFile, const char* filepath);
 s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath);
-s32 MemFile_LoadFile_ReqExt(MemFile* memFile, const char* filepath, const char* ext);
-s32 MemFile_SaveFile_ReqExt(MemFile* memFile, const char* filepath, s32 size, const char* ext);
 void MemFile_Free(MemFile* memFile);
 void MemFile_Reset(MemFile* memFile);
 void MemFile_Clear(MemFile* memFile);
@@ -432,6 +433,8 @@ s32 Config_GetInt(MemFile* memFile, const char* intName);
 char* Config_GetString(MemFile* memFile, const char* stringName);
 f32 Config_GetFloat(MemFile* memFile, const char* floatName);
 s32 Config_Replace(MemFile* mem, const char* variable, const char* fmt, ...);
+
+char* String_Tsv(char* str, s32 rowNum, s32 lineNum);
 
 void Log_Init();
 void Log_Free();
@@ -650,7 +653,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 	Log("Calloc(%s); %.2f Kb", #data, BinToKb(size));
 
 #define Free(data) \
-	Free(data); \
+	data = Free(data); \
 	Log("Free(%s);", #data );
 
 #endif

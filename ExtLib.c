@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 130
+#define THIS_EXTLIB_VERSION 131
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -844,8 +844,10 @@ void ItemList_CommaStr(ItemList* list, const char* str) {
 			b = a + 2;
 			while (str[b - 1] != '\"' && str[b - 1] != '\'' && str[b] != '\0') b++;
 		} else {
+			while (str[a] == ' ') a++;
+			
 			b = a;
-			while (str[b] != ' ' && str[b] != '\0') b++;
+			while (str[b] != ',' && str[b] != ' ' && str[b] != '\0') b++;
 		}
 		
 		node = Calloc(node, sizeof(StrNode));
@@ -924,9 +926,15 @@ void ItemList_NumericalSort(ItemList* list) {
 	ItemList sorted = ItemList_Initialize();
 	u32 highestNum = 0;
 	
-	for (s32 i = 0; i < list->num; i++) {
-		if (String_GetInt(list->item[i]) > highestNum)
-			highestNum = String_GetInt(list->item[i]);
+	for (s32 i = 0; i < list->num; i++)
+		highestNum = Max(highestNum, String_GetInt(list->item[i]));
+	
+	Log(__FUNCTION__, __LINE__, "Num Max %d From %d Items", highestNum, list->num);
+	
+	if (highestNum == 0) {
+		Log(__FUNCTION__, __LINE__, "Aborting Sorting");
+		
+		return;
 	}
 	
 	sorted.buffer = Calloc(0, list->writePoint * 4);
@@ -953,6 +961,7 @@ void ItemList_NumericalSort(ItemList* list) {
 	
 	ItemList_Free(list);
 	
+	Log(__FUNCTION__, __LINE__, "Sorted");
 	*list = sorted;
 }
 
@@ -964,6 +973,25 @@ void ItemList_Free(ItemList* itemList) {
 	Free(itemList->buffer);
 	Free(itemList->item);
 	itemList[0] = ItemList_Initialize();
+}
+
+void ItemList_Alloc(ItemList* list, u32 num, Size size) {
+	list->num = 0;
+	list->writePoint = 0;
+	list->item = Calloc(list->item, sizeof(char*) * num);
+	list->buffer = Calloc(list->buffer, size);
+	list->__private.alnum = num;
+}
+
+void ItemList_AddItem(ItemList* list, const char* item) {
+	list->item[list->num] = &list->buffer[list->writePoint];
+	strcpy(list->item[list->num], item);
+	list->writePoint += strlen(list->item[list->num]) + 1;
+	list->num++;
+}
+
+void ItemList_RemoveItem(ItemList* list, u32 itemID) {
+	u32 remid = sizeof(char*) * (list->num - itemID - 1);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1346,7 +1374,7 @@ void Terminal_Move(s32 x, s32 y) {
 const char* Terminal_GetStr(void) {
 	static char str[512] = { 0 };
 	
-	printf("\r" PRNT_GRAY "[" PRNT_DGRY "<" PRNT_GRAY "]: " PRNT_GRAY);
+	printf("\r" PRNT_GRAY "[" PRNT_DGRY "<" PRNT_GRAY "]: " PRNT_RSET);
 	fgets(str, 511, stdin);
 	str[strlen(str) - 1] = '\0'; // remove newline
 	
@@ -1381,6 +1409,10 @@ static void Window_SetColor(TerminalAttribute att) {
 	patt = att;
 }
 
+static void Window_Move(s32 x, s32 y) {
+	move(y, x);
+}
+
 void Terminal_Window(s32 (*func) (Terminal*, void*, void*, int), void* pass, void* pass2) {
 	Terminal win;
 	WINDOW* d;
@@ -1388,7 +1420,7 @@ void Terminal_Window(s32 (*func) (Terminal*, void*, void*, int), void* pass, voi
 	s32 x, y;
 	s32 rf = 0;
 	
-	win.move = (void*)move;
+	win.move = (void*)Window_Move;
 	win.print = (void*)printw;
 	win.clear = (void*)clear;
 	win.refresh = (void*)refresh;
@@ -2269,14 +2301,16 @@ void MemFile_Params(MemFile* memFile, ...) {
 			arg = 0;
 		}
 		
-		if (cmd == MEM_FILENAME) {
-			memFile->param.getName = arg > 0 ? true : false;
-		} else if (cmd == MEM_CRC32) {
-			memFile->param.getCrc = arg > 0 ? true : false;
-		} else if (cmd == MEM_ALIGN) {
-			memFile->param.align = arg;
-		} else if (cmd == MEM_REALLOC) {
-			memFile->param.realloc = arg > 0 ? true : false;
+		switch (cmd) {
+			case MEM_ALIGN:
+				memFile->param.align = arg;
+				break;
+			case MEM_CRC32:
+				memFile->param.getCrc = arg > 0 ? true : false;
+				break;
+			case MEM_REALLOC:
+				memFile->param.realloc = arg > 0 ? true : false;
+				break;
 		}
 	}
 	va_end(args);
@@ -2312,34 +2346,49 @@ void MemFile_Rewind(MemFile* memFile) {
 }
 
 s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
-	if (dest->seekPoint + size > dest->memSize) {
-		if (!dest->param.realloc) {
-			printf_warning_align(
-				"MemSize exceeded",
-				"%.2fkB / %.2fkB",
-				BinToKb(dest->dataSize),
-				BinToKb(dest->memSize)
-			);
-			
-			return 1;
-		}
+	u32 osize = size;
+	
+	size = ClampMax(size, ClampMin(dest->memSize - dest->seekPoint, 0));
+	
+	if (size != osize) {
+		if (!dest->param.realloc)
+			printf_warning("MemSize: Wrote %.2fkB instead of %.2fkB", BinToKb(size), BinToKb(osize));
 		
-		MemFile_Realloc(dest, dest->memSize * 2);
+		else
+			MemFile_Realloc(dest, dest->memSize * 2);
 	}
 	
-	if (dest->seekPoint + size > dest->dataSize) {
+	if (dest->seekPoint + size > dest->dataSize)
 		dest->dataSize = dest->seekPoint + size;
-	}
+	
 	memcpy(&dest->cast.u8[dest->seekPoint], src, size);
 	dest->seekPoint += size;
 	
-	if (dest->param.align) {
-		if ((dest->seekPoint % dest->param.align) != 0) {
+	if (dest->param.align)
+		if ((dest->seekPoint % dest->param.align) != 0)
 			MemFile_Align(dest, dest->param.align);
+	
+	return size;
+}
+
+/*
+ * If pos is 0 or bigger: override seekPoint
+ */
+s32 MemFile_Insert(MemFile* mem, void* src, s32 size, s64 pos) {
+	u32 p = pos < 0 ? mem->seekPoint : pos;
+	u32 remasize = mem->dataSize - p;
+	
+	if (p + size + remasize >= mem->memSize) {
+		if (mem->param.realloc) {
+			MemFile_Realloc(mem, mem->memSize * 2);
+		} else {
+			printf_error("MemFile ran out of space");
 		}
 	}
 	
-	return 0;
+	memmove(&mem->cast.u8[p + remasize], &mem->cast.u8[p], remasize);
+	
+	return MemFile_Write(mem, src, size);
 }
 
 s32 MemFile_Append(MemFile* dest, MemFile* src) {
@@ -2507,25 +2556,6 @@ s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath) {
 	fclose(file);
 	
 	return 0;
-}
-
-s32 MemFile_LoadFile_ReqExt(MemFile* memFile, const char* filepath, const char* ext) {
-	if (StrStrCase(filepath, ext)) {
-		return MemFile_LoadFile(memFile, filepath);
-	}
-	printf_warning("[%s] does not match extension [%s]", filepath, ext);
-	
-	return 1;
-}
-
-s32 MemFile_SaveFile_ReqExt(MemFile* memFile, const char* filepath, s32 size, const char* ext) {
-	if (StrStrCase(filepath, ext)) {
-		return MemFile_SaveFile(memFile, filepath);
-	}
-	
-	printf_warning("[%s] does not match extension [%s]", filepath, ext);
-	
-	return 1;
 }
 
 void MemFile_Free(MemFile* memFile) {
@@ -3307,6 +3337,38 @@ s32 Config_Replace(MemFile* mem, const char* variable, const char* fmt, ...) {
 	Free(replacement);
 	
 	return 1;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+// # TSV                                 #
+// # # # # # # # # # # # # # # # # # # # #
+
+char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
+	char* line = String_Line(str, lineNum);
+	u32 size = 0;
+	char* r;
+	
+	for (s32 i = 0; i < rowNum; i++) {
+		while (*line != '\t') {
+			line++;
+			
+			if (*line == '\0' || *line == '\n')
+				return NULL;
+		}
+		
+		line++;
+		
+		if (*line == '\0' || *line == '\n')
+			return NULL;
+	}
+	
+	if (*line == '\t') return NULL;
+	while (line[size] != '\t' && line[size] != '\0' && line[size] != '\n') size++;
+	
+	r = Tmp_Alloc(size + 1);
+	memcpy(r, line, size);
+	
+	return r;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
