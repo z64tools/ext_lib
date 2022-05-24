@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 131
+#define THIS_EXTLIB_VERSION 132
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -63,8 +63,8 @@ char* sPrintfPreType[][4] = {
 		">"
 	}
 };
-u8 sBuffer_Temp[MbToBin(16)];
-u32 sSeek_Temp = 0;
+_Thread_local u8 sBuffer_Temp[MbToBin(16)];
+_Thread_local u32 sSeek_Temp = 0;
 time_t sTime;
 MemFile sLog;
 
@@ -122,6 +122,19 @@ s32 Thread_Join(Thread* thread) {
 	return r;
 }
 
+void Thread_Print(const char* fmt, ...) {
+	va_list va;
+	
+	va_start(va, fmt);
+	
+	ThreadLock_Lock();
+	vprintf(fmt, va);
+	fflush(0);
+	ThreadLock_Unlock();
+	
+	va_end(va);
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # SEGMENT                             #
 // # # # # # # # # # # # # # # # # # # # #
@@ -151,8 +164,6 @@ void* Tmp_Alloc(u32 size) {
 	if (size < 1)
 		return NULL;
 	
-	ThreadLock_Lock();
-	
 	if (size >= sizeof(sBuffer_Temp) / 2)
 		printf_error("Can't fit %fMb into the GraphBuffer", BinToMb(size));
 	
@@ -167,8 +178,6 @@ void* Tmp_Alloc(u32 size) {
 	ret = &sBuffer_Temp[sSeek_Temp];
 	memset(ret, 0, size + 1);
 	sSeek_Temp = sSeek_Temp + size + 1;
-	
-	ThreadLock_Unlock();
 	
 	return ret;
 }
@@ -991,7 +1000,7 @@ void ItemList_AddItem(ItemList* list, const char* item) {
 }
 
 void ItemList_RemoveItem(ItemList* list, u32 itemID) {
-	u32 remid = sizeof(char*) * (list->num - itemID - 1);
+	// u32 remid = sizeof(char*) * (list->num - itemID - 1);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1218,13 +1227,11 @@ s32 SysExe(const char* cmd) {
 }
 
 char* SysExeO(const char* cmd) {
-	char* out;
+	char* out = NULL;
 	char result[1024];
 	MemFile mem = MemFile_Initialize();
 	FILE* file;
 	s32 pr;
-	
-	fflush(NULL);
 	
 	if ((file = popen(cmd, "r")) == NULL) {
 		Log(__FUNCTION__, __LINE__, PRNT_REDD "SysExeO(%s);", cmd);
@@ -1239,17 +1246,13 @@ char* SysExeO(const char* cmd) {
 	while (fgets(result, 1024, file))
 		MemFile_Write(&mem, result, strlen(result));
 	
-	out = Calloc(0, mem.dataSize);
-	strcpy(out, mem.data);
-	
 	if ((pr = pclose(file)) != 0) {
+		printf("%s\n", mem.str);
 		Log(__FUNCTION__, __LINE__, PRNT_REDD "[%d] " PRNT_GRAY "SysExeO(" PRNT_REDD "%s" PRNT_GRAY ");", pr, cmd);
 		printf_error("SysExeO");
 	}
 	
-	MemFile_Free(&mem);
-	
-	return out;
+	return mem.data;
 }
 
 void Sys_TerminalSize(s32* r) {

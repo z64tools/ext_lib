@@ -196,12 +196,7 @@ s32 ThreadLock_Join(Thread* thread);
 
 void Thread_Create(Thread* thread, void* func, void* arg);
 s32 Thread_Join(Thread* thread);
-
-#define Thread_Print(...) \
-	fflush(stdout); \
-	printf(__VA_ARGS__); \
-	fflush(stdout);
-
+void Thread_Print(const char* fmt, ...);
 void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
