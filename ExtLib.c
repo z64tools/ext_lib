@@ -129,7 +129,6 @@ void Thread_Print(const char* fmt, ...) {
 	
 	ThreadLock_Lock();
 	vprintf(fmt, va);
-	fflush(0);
 	ThreadLock_Unlock();
 	
 	va_end(va);
