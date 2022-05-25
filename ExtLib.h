@@ -141,6 +141,8 @@ char* StrEndCase(const char* src, const char* ext);
 void* Malloc(void* data, s32 size);
 void* Calloc(void* data, s32 size);
 void* Realloc(void* data, s32 size);
+void* DupMem(const void* src, Size size);
+char* DupStr(const char* src);
 void* Free(void* data);
 void ByteSwap(void* src, s32 size);
 s32 ParseArgs(char* argv[], char* arg, u32* parArg);

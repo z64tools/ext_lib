@@ -26,11 +26,13 @@ ExtGui_H  = $(C_INCLUDE_PATH)/ExtGui/Cursor.h \
 Xm_C      = libxm/src/context.c \
 			libxm/src/load.c \
 			libxm/src/play.c \
-			libxm/src/xm.c
+			libxm/src/xm.c \
+			ExtXm.c
 
 Zip_C     = zip/src/zip.c
 
-Audio_C   = miniaudio.c
+Audio_C   = miniaudio.c \
+			ExtAudio.c
 
 Mp3_C     = mp3.c
 
@@ -72,6 +74,7 @@ ExtLib_CFlags = -Wno-unused-result -Wno-format-truncation -Wno-strict-aliasing -
 
 bin/win32/nanovg/%.o: CFLAGS += -Wno-misleading-indentation
 bin/win32/ExtGui/%.o: CFLAGS += -Wno-missing-braces
+bin/win32/zip/%.o: CFLAGS += -Wno-stringop-truncation
 	
 bin/win32/ExtLib.o: $(C_INCLUDE_PATH)/ExtLib.c $(C_INCLUDE_PATH)/ExtLib.h
 bin/win32/ExtGui/%.o: $(C_INCLUDE_PATH)/ExtGui/%.c $(ExtGui_H)

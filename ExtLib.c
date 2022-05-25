@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 133
+#define THIS_EXTLIB_VERSION 135
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -1016,7 +1016,7 @@ bool Sys_IsDir(const char* path) {
 
 Time Sys_Stat(const char* item) {
 	struct stat st = { 0 };
-	Time t;
+	Time t = 0;
 	
 	if (stat(item, &st) == -1)
 		return 0;
@@ -1031,7 +1031,7 @@ Time Sys_Stat(const char* item) {
 
 Time Sys_StatF(const char* item, StatFlag flag) {
 	struct stat st = { 0 };
-	Time t;
+	Time t = 0;
 	
 	if (stat(item, &st) == -1)
 		return 0;
@@ -2059,6 +2059,18 @@ void* Realloc(void* data, s32 size) {
 	}
 	
 	return data;
+}
+
+void* DupMem(const void* src, Size size) {
+	void* new = Malloc(0, size);
+	
+	memcpy(new, src, size);
+	
+	return new;
+}
+
+char* DupStr(const char* src) {
+	return DupMem(src, strlen(src));
 }
 
 void* Free(void* data) {
@@ -3515,75 +3527,6 @@ f32 WrapF(f32 x, f32 min, f32 max) {
 		x += range * roundf((min - x) / range + 1);
 	
 	return min + fmodf((x - min), range);
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # SOUND                               #
-// # # # # # # # # # # # # # # # # # # # #
-
-#include "miniaudio.h"
-#include "xm.h"
-
-typedef struct {
-	SoundCallback    callback;
-	ma_device_config deviceConfig;
-	ma_device    device;
-	volatile u32 isPlaying;
-	void* uctx;
-} SoundCtx;
-
-static void __Sound_Callback(ma_device* dev, void* output, const void* input, ma_uint32 frameCount) {
-	SoundCtx* sndCtx = dev->pUserData;
-	
-	sndCtx->callback(sndCtx->uctx, output, frameCount);
-}
-
-void* Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx) {
-	SoundCtx* soundCtx = Calloc(0, sizeof(SoundCtx));
-	
-	soundCtx->uctx = uCtx;
-	
-	soundCtx->deviceConfig = ma_device_config_init(ma_device_type_playback);
-	soundCtx->deviceConfig.playback.format = (ma_format)fmt;
-	soundCtx->deviceConfig.playback.channels = channelNum;
-	soundCtx->deviceConfig.sampleRate = sampleRate;
-	soundCtx->deviceConfig.dataCallback = __Sound_Callback;
-	soundCtx->deviceConfig.pUserData = soundCtx;
-	soundCtx->deviceConfig.periodSizeInFrames = 128;
-	soundCtx->callback = callback;
-	
-	ma_device_init(NULL, &soundCtx->deviceConfig, &soundCtx->device);
-	ma_device_start(&soundCtx->device);
-	
-	return soundCtx;
-}
-
-void Sound_Free(void* sound) {
-	SoundCtx* soundCtx = sound;
-	
-	if (sound) {
-		ma_device_stop(&soundCtx->device);
-		ma_device_uninit(&soundCtx->device);
-	}
-}
-
-static void __Sound_Xm_Play(xm_context_t* xm, void* output, u32 frameCount) {
-	xm_generate_samples(xm, output, frameCount);
-}
-
-void* gXmlSound;
-
-void Sound_Xm_Play(const void* data, u32 size) {
-	xm_context_t* xm;
-	
-	if (xm_create_context_safe(&xm, data, size, 48000)) printf_error("Could not initialize XmPlayer");
-	xm_set_max_loop_count(xm, 0);
-	
-	gXmlSound = Sound_Init(SOUND_F32, 48000, 2, (void*)__Sound_Xm_Play, xm);
-}
-
-void Sound_Xm_Stop() {
-	Sound_Free(gXmlSound);
 }
 
 // # # # # # # # # # # # # # # # # # # # #

@@ -345,7 +345,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 				}
 			} else {
 				f32 dist = 400;
-				uPtr wow;
+				uPtr wow = 0;
 				for (char* tempB = txtA; tempB <= txtB; tempB++) {
 					Vec2s glyphPos;
 					f32 res;
