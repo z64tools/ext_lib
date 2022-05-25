@@ -934,7 +934,6 @@ void Element_Update(GeoGridContext* geoCtx) {
 			
 			if (Input_GetKey(KEY_V)->press) {
 				txt = (char*)Input_GetClipboardStr();
-				printf_debugExt("Paste [%s]", txt);
 			}
 			
 			if (Input_GetKey(KEY_C)->press) {
@@ -944,7 +943,6 @@ void Element_Update(GeoGridContext* geoCtx) {
 				
 				memcpy(copy, &sCurTextbox->txt[min], max - min);
 				Input_SetClipboardStr(copy);
-				printf_debugExt("Copy [%s]", copy);
 			}
 			
 			if (Input_GetKey(KEY_X)->press) {
@@ -954,7 +952,6 @@ void Element_Update(GeoGridContext* geoCtx) {
 				
 				memcpy(copy, &sCurTextbox->txt[min], max - min);
 				Input_SetClipboardStr(copy);
-				printf_debugExt("Copy [%s]", copy);
 			}
 			
 			if (Input_GetKey(KEY_LEFT)->press) {
