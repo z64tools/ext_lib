@@ -149,25 +149,12 @@ void32 VirtualToSegmented(const u8 id, void* ptr) {
 // # TMP                                 #
 // # # # # # # # # # # # # # # # # # # # #
 
-_Thread_local u8* sTempHeap = NULL;
+_Thread_local u8 sTempHeap[MbToBin(4)];
 _Thread_local u32 sPosTempHeap = 0;
 const u32 sSizeTempHeap = MbToBin(4);
 
-static void Tmp_Clean() {
-	Free(sTempHeap);
-	Log(__FUNCTION__, __LINE__, "" PRNT_PRPL "Tmp_Alloc: " PRNT_YELW "Freed\a");
-}
-
 void* Tmp_Alloc(u32 size) {
 	u8* ret;
-	
-	if (sTempHeap == NULL) {
-		atexit(Tmp_Clean);
-		sTempHeap = Malloc(0, sSizeTempHeap);
-		if (sTempHeap == NULL)
-			printf_error("TempHeap: Failed to malloc");
-		Log(__FUNCTION__, __LINE__, "" PRNT_PRPL "Tmp_Alloc: " PRNT_YELW "Allocated\a");
-	}
 	
 	if (size < 1)
 		return NULL;
