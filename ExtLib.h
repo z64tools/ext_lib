@@ -128,7 +128,7 @@ void printf_clearMessages(void);
 
 void __Assert(s32 expression, const char* msg, ...);
 #define Assert(expression) \
-	__Assert((s32)expression, "" PRNT_DGRY "[" PRNT_REDD "%s" PRNT_DGRY "]:[" PRNT_YELW "%s" PRNT_DGRY "]:[" PRNT_BLUE "%d" PRNT_DGRY "]", #expression, __FUNCTION__, __LINE__)
+	__Assert((s32)(expression), "" PRNT_DGRY "[" PRNT_REDD "%s" PRNT_DGRY "]:[" PRNT_YELW "%s" PRNT_DGRY "]:[" PRNT_BLUE "%d" PRNT_DGRY "]", #expression, __FUNCTION__, __LINE__)
 f32 RandF();
 void* MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
 void* MemMemCase(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
