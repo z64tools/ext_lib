@@ -31,7 +31,7 @@ s32 ThreadLock_Join(Thread* thread);
 
 void Thread_Create(Thread* thread, void* func, void* arg);
 s32 Thread_Join(Thread* thread);
-void Thread_Print(const char* fmt, ...);
+
 void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
@@ -123,6 +123,7 @@ void printf_prog_align(const char* info, const char* fmt, const char* color);
 void printf_progressFst(const char* info, u32 a, u32 b);
 void printf_progress(const char* info, u32 a, u32 b);
 void printf_getchar(const char* txt);
+void printf_lock(const char* fmt, ...);
 void printf_WinFix(void);
 void printf_clearMessages(void);
 
@@ -223,10 +224,8 @@ void Log_Init();
 void Log_Free();
 void Log_Print();
 void Log_Unlocked(const char* func, u32 line, const char* txt, ...);
-void Log(const char* func, u32 line, const char* txt, ...);
-#ifndef __EXTLIB_C__
-#define Log(...) Log(__FUNCTION__, __LINE__, __VA_ARGS__)
-#endif
+void __Log(const char* func, u32 line, const char* txt, ...);
+#define Log(...) __Log(__FUNCTION__, __LINE__, __VA_ARGS__)
 
 f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep);
 f32 Math_Spline_Audio(float k, float xm1, float x0, float x1, float x2);

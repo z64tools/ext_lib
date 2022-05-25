@@ -114,18 +114,6 @@ s32 Thread_Join(Thread* thread) {
 	return r;
 }
 
-void Thread_Print(const char* fmt, ...) {
-	va_list va;
-	
-	va_start(va, fmt);
-	
-	ThreadLock_Lock();
-	vprintf(fmt, va);
-	ThreadLock_Unlock();
-	
-	va_end(va);
-}
-
 // # # # # # # # # # # # # # # # # # # # #
 // # SEGMENT                             #
 // # # # # # # # # # # # # # # # # # # # #
@@ -166,7 +154,7 @@ void* Tmp_Alloc(u32 size) {
 		return NULL;
 	
 	if (sPosTempHeap + size + 0x10 > sSizeTempHeap) {
-		Log(__FUNCTION__, __LINE__, "" PRNT_PRPL "Tmp_Alloc: " PRNT_YELW "rewind\a");
+		Log("" PRNT_PRPL "Tmp_Alloc: " PRNT_YELW "rewind\a");
 		sPosTempHeap = 0;
 	}
 	
@@ -287,7 +275,7 @@ void Dir_Enter(char* fmt, ...) {
 	
 	for (s32 i = 0; i < dirCtx->pos; i++)
 		strcat(spacing, "  ");
-	Log("Dir_Enter/Leave", __LINE__, PRNT_BLUE "--> %s%s", spacing, buffer);
+	Log("" PRNT_BLUE "--> %s%s", spacing, buffer);
 	
 	strcat(dirCtx->curPath, buffer);
 	
@@ -313,7 +301,7 @@ void Dir_Leave(void) {
 	for (s32 i = 0; i < dirCtx->pos; i++)
 		strcat(spacing, "  ");
 	
-	Log("Dir_Enter/Leave", __LINE__, PRNT_REDD "<-- %s%s/", spacing, buf + strlen(dirCtx->curPath));
+	Log("" PRNT_REDD "<-- %s%s/", spacing, buf + strlen(dirCtx->curPath));
 }
 
 void Dir_Make(char* dir, ...) {
@@ -535,12 +523,12 @@ static void Dir_ItemList_Recursive_ChildWrite(ItemList* target, char* pathTo, ch
 void Dir_ItemList_Recursive(ItemList* target, char* keyword) {
 	Dir_ItemList_Recursive_ChildCount(target, "", keyword);
 	if (target->num == 0) {
-		Log(__FUNCTION__, __LINE__, "target->num == 0");
+		Log("target->num == 0");
 		memset(target, 0, sizeof(*target));
 		
 		return;
 	}
-	Log(__FUNCTION__, __LINE__, "target->num == %d", target->num);
+	Log("target->num == %d", target->num);
 	target->item = Calloc(0, sizeof(char*) * target->num);
 	target->buffer = Calloc(0, target->writePoint);
 	target->writePoint = 0;
@@ -753,7 +741,7 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flag
 	
 	Free(info.list);
 	
-	Log(__FUNCTION__, __LINE__, "OK, %d [%s]", target->num, path);
+	Log("OK, %d [%s]", target->num, path);
 }
 
 char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, ...) {
@@ -802,7 +790,7 @@ void ItemList_SpacedStr(ItemList* list, const char* str) {
 		node = Calloc(node, sizeof(StrNode));
 		node->txt = Calloc(node->txt, b - a + 1);
 		memcpy(node->txt, &str[a], b - a);
-		Log(__FUNCTION__, __LINE__, "%d, [%s]", b - a + 1, node->txt);
+		Log("%d, [%s]", b - a + 1, node->txt);
 		Node_Add(nodeHead, node);
 		
 		list->num++;
@@ -816,7 +804,7 @@ void ItemList_SpacedStr(ItemList* list, const char* str) {
 			break;
 	}
 	
-	Log(__FUNCTION__, __LINE__, "Building List");
+	Log("Building List");
 	
 	list->buffer = Calloc(list->buffer, list->writePoint);
 	list->item = Calloc(list->item, sizeof(char*) * list->num);
@@ -831,7 +819,7 @@ void ItemList_SpacedStr(ItemList* list, const char* str) {
 		Node_Kill(nodeHead, nodeHead);
 	}
 	
-	Log(__FUNCTION__, __LINE__, "OK, %d [%s]", list->num, str);
+	Log("OK, %d [%s]", list->num, str);
 }
 
 void ItemList_CommaStr(ItemList* list, const char* str) {
@@ -857,7 +845,7 @@ void ItemList_CommaStr(ItemList* list, const char* str) {
 		node = Calloc(node, sizeof(StrNode));
 		node->txt = Calloc(node->txt, b - a + 1);
 		memcpy(node->txt, &str[a], b - a);
-		Log(__FUNCTION__, __LINE__, "%d, [%s]", b - a + 1, node->txt);
+		Log("%d, [%s]", b - a + 1, node->txt);
 		Node_Add(nodeHead, node);
 		
 		list->num++;
@@ -870,7 +858,7 @@ void ItemList_CommaStr(ItemList* list, const char* str) {
 		while (str[a] == ' ' || str[a] == '\t' || str[a] == ',' || str[a] == '\n') a++;
 	}
 	
-	Log(__FUNCTION__, __LINE__, "Building List");
+	Log("Building List");
 	
 	list->buffer = Calloc(list->buffer, list->writePoint);
 	list->item = Calloc(list->item, sizeof(char*) * list->num);
@@ -885,7 +873,7 @@ void ItemList_CommaStr(ItemList* list, const char* str) {
 		Node_Kill(nodeHead, nodeHead);
 	}
 	
-	Log(__FUNCTION__, __LINE__, "OK, %d [%s]", list->num, str);
+	Log("OK, %d [%s]", list->num, str);
 }
 
 void ItemList_Print(ItemList* target) {
@@ -933,10 +921,10 @@ void ItemList_NumericalSort(ItemList* list) {
 	for (s32 i = 0; i < list->num; i++)
 		highestNum = Max(highestNum, String_GetInt(list->item[i]));
 	
-	Log(__FUNCTION__, __LINE__, "Num Max %d From %d Items", highestNum, list->num);
+	Log("Num Max %d From %d Items", highestNum, list->num);
 	
 	if (highestNum == 0) {
-		Log(__FUNCTION__, __LINE__, "Aborting Sorting");
+		Log("Aborting Sorting");
 		
 		return;
 	}
@@ -965,7 +953,7 @@ void ItemList_NumericalSort(ItemList* list) {
 	
 	ItemList_Free(list);
 	
-	Log(__FUNCTION__, __LINE__, "Sorted");
+	Log("Sorted");
 	*list = sorted;
 }
 
@@ -1092,12 +1080,12 @@ static void __MakeDir(const char* buffer) {
 #ifdef _WIN32
 		if (mkdir(buffer)) {
 			if (!Sys_Stat(buffer))
-				Log(__FUNCTION__, __LINE__, "mkdir error: [%s]", buffer);
+				Log("mkdir error: [%s]", buffer);
 		}
 #else
 		if (mkdir(buffer, 0700)) {
 			if (!Sys_Stat(buffer))
-				Log(__FUNCTION__, __LINE__, "mkdir error: [%s]", buffer);
+				Log("mkdir error: [%s]", buffer);
 		}
 #endif
 	}
@@ -1124,7 +1112,7 @@ void Sys_MakeDir(const char* dir, ...) {
 		}
 	}
 	
-	Log(__FUNCTION__, __LINE__, "[%s]", buffer);
+	Log("[%s]", buffer);
 	
 	if (pathNum == 1) {
 		__MakeDir(buffer);
@@ -1216,7 +1204,7 @@ s32 SysExe(const char* cmd) {
 	ret = system(cmd);
 	
 	if (ret != 0)
-		Log(__FUNCTION__, __LINE__, PRNT_REDD "[%d] " PRNT_GRAY "SysExe(" PRNT_REDD "%s" PRNT_GRAY ");", ret, cmd);
+		Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExe(" PRNT_REDD "%s" PRNT_GRAY ");", ret, cmd);
 	
 	return ret;
 }
@@ -1228,8 +1216,8 @@ char* SysExeO(const char* cmd) {
 	s32 pr;
 	
 	if ((file = popen(cmd, "r")) == NULL) {
-		Log(__FUNCTION__, __LINE__, PRNT_REDD "SysExeO(%s);", cmd);
-		Log(__FUNCTION__, __LINE__, "popen failed...");
+		Log(PRNT_REDD "SysExeO(%s);", cmd);
+		Log("popen failed...");
 		
 		return NULL;
 	}
@@ -1242,7 +1230,7 @@ char* SysExeO(const char* cmd) {
 	
 	if ((pr = pclose(file)) != 0) {
 		printf("%s\n", mem.str);
-		Log(__FUNCTION__, __LINE__, PRNT_REDD "[%d] " PRNT_GRAY "SysExeO(" PRNT_REDD "%s" PRNT_GRAY ");", pr, cmd);
+		Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExeO(" PRNT_REDD "%s" PRNT_GRAY ");", pr, cmd);
 		printf_error("SysExeO");
 	}
 	
@@ -1375,7 +1363,7 @@ const char* Terminal_GetStr(void) {
 	fgets(str, 511, stdin);
 	str[strlen(str) - 1] = '\0'; // remove newline
 	
-	Log(__FUNCTION__, __LINE__, "[%s]", str);
+	Log("[%s]", str);
 	
 	return str;
 }
@@ -1754,6 +1742,16 @@ void printf_progress(const char* info, u32 a, u32 b) {
 void printf_getchar(const char* txt) {
 	printf_info("%s", txt);
 	Terminal_GetChar();
+}
+
+void printf_lock(const char* fmt, ...) {
+	va_list va;
+	
+	va_start(va, fmt);
+	ThreadLock_Lock();
+	vprintf(fmt, va);
+	ThreadLock_Unlock();
+	va_end(va);
 }
 
 void printf_WinFix(void) {
@@ -2248,6 +2246,9 @@ void MemFile_Rewind(MemFile* memFile) {
 
 s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
 	u32 osize = size;
+	
+	if (src == NULL)
+		printf_error("MemFile_Write: " PRNT_YELW "src" PRNT_RSET " == " PRNT_REDD "NULL");
 	
 	size = ClampMax(size, ClampMin(dest->memSize - dest->seekPoint, 0));
 	
@@ -3016,7 +3017,7 @@ char* Config_Variable(const char* str, const char* name) {
 	u32 lineCount = String_LineNum(str);
 	char* line = (char*)str;
 	
-	Log(__FUNCTION__, __LINE__, "Var [%s]", name);
+	Log("Var [%s]", name);
 	for (s32 i = 0; i < lineCount; i++, line = String_Line(line, 1)) {
 		if (line == NULL) return NULL;
 		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
@@ -3050,7 +3051,7 @@ char* Config_GetVariable(const char* str, const char* name) {
 	u32 lineCount = String_LineNum(str);
 	char* line = (char*)str;
 	
-	Log(__FUNCTION__, __LINE__, "Var [%s]", name);
+	Log("Var [%s]", name);
 	for (s32 i = 0; i < lineCount; i++, line = String_Line(line, 1)) {
 		if (line == NULL) return NULL;
 		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
@@ -3405,7 +3406,7 @@ void Log_Unlocked(const char* func, u32 line, const char* txt, ...) {
 	sLogLine[0] = line;
 }
 
-void Log(const char* func, u32 line, const char* txt, ...) {
+void __Log(const char* func, u32 line, const char* txt, ...) {
 	ThreadLock_Lock();
 	va_list args;
 	
