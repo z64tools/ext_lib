@@ -1388,10 +1388,10 @@ void printf_SetPrefix(char* fmt) {
 
 void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i) {
 	sPrintfType = 0;
-	sPrintfPreType[sPrintfType][0] = String_Generate(d);
-	sPrintfPreType[sPrintfType][1] = String_Generate(w);
-	sPrintfPreType[sPrintfType][2] = String_Generate(e);
-	sPrintfPreType[sPrintfType][3] = String_Generate(i);
+	sPrintfPreType[sPrintfType][0] = DupStr(d);
+	sPrintfPreType[sPrintfType][1] = DupStr(w);
+	sPrintfPreType[sPrintfType][2] = DupStr(e);
+	sPrintfPreType[sPrintfType][3] = DupStr(i);
 }
 
 void printf_toolinfo(const char* toolname, const char* fmt, ...) {

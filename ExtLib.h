@@ -256,8 +256,6 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define PRNT_RNL  PRNT_RSET PRNT_NL
 #define PRNT_TODO "\e[91;2m" "TODO"
 
-#define str2cmp(a, b) strncmp(a, b, strlen(b))
-
 #define Node_Add(head, node) { \
 		typeof(node) lastNode = head; \
 		if (lastNode == NULL) { \
@@ -364,9 +362,6 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define NARGS_SEQ(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, N, ...) N
 #define NARGS(...)                                                                               NARGS_SEQ(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
 
-#define String_SMerge(dst, ...) sprintf(dst + strlen(dst), __VA_ARGS__);
-#define String_Generate(string) strdup(string)
-
 #define Config_WriteTitle(title) MemFile_Printf( \
 		config, \
 		title \
@@ -422,21 +417,25 @@ extern PrintfSuppressLevel gPrintfSuppress;
 
 #ifndef __EXTLIB_C__
 
-#define Malloc(data, size) \
-	Malloc(0, size); \
-	Log("Malloc(%s); %.2f Kb", #data, BinToKb(size));
+#define Malloc(data, size) ({ \
+		Log("Malloc(%s); %.2f Kb", #data, BinToKb(size)); \
+		Malloc(0, size); \
+	})
 
-#define Realloc(data, size) \
-	Realloc(data, size); \
-	Log("Realloc(%s); %.2f Kb", #data, BinToKb(size));
+#define Realloc(data, size) ({ \
+		Log("Realloc(%s); %.2f Kb", #data, BinToKb(size)); \
+		Realloc(data, size); \
+	})
 
-#define Calloc(data, size) \
-	Calloc(0, size); \
-	Log("Calloc(%s); %.2f Kb", #data, BinToKb(size));
+#define Calloc(data, size) ({ \
+		Log("Calloc(%s); %.2f Kb", #data, BinToKb(size)); \
+		Calloc(0, size); \
+	})
 
-#define Free(data) \
-	data = Free(data); \
-	Log("Free(%s);", #data );
+#define Free(data) ({ \
+		Log("Free(%s);", #data ); \
+		data = Free(data); \
+	})
 
 #endif
 
