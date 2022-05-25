@@ -63,7 +63,7 @@ char* sPrintfPreType[][4] = {
 		">"
 	}
 };
-_Thread_local u8 sBuffer_Temp[MbToBin(16)];
+_Thread_local u8 sBuffer_Temp[MbToBin(4)];
 _Thread_local u32 sSeek_Temp = 0;
 time_t sTime;
 MemFile sLog;
@@ -164,13 +164,13 @@ void* Tmp_Alloc(u32 size) {
 		return NULL;
 	
 	if (size >= sizeof(sBuffer_Temp) / 2)
-		printf_error("Can't fit %fMb into the GraphBuffer", BinToMb(size));
+		printf_error("Can't fit %fMb into the Tmp", BinToMb(size));
 	
 	if (size == 0)
 		return NULL;
 	
 	if (sSeek_Temp + size + 0x10 > sizeof(sBuffer_Temp)) {
-		Log(__FUNCTION__, __LINE__, "" PRNT_YELW "Tmp_Alloc: rewind\a");
+		Log(__FUNCTION__, __LINE__, "" PRNT_PRPL "Tmp_Alloc: rewind\a");
 		sSeek_Temp = 0;
 	}
 	
@@ -1226,7 +1226,6 @@ s32 SysExe(const char* cmd) {
 }
 
 char* SysExeO(const char* cmd) {
-	char* out = NULL;
 	char result[1024];
 	MemFile mem = MemFile_Initialize();
 	FILE* file;
@@ -3380,7 +3379,7 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 #include <signal.h>
 
 #define FAULT_BUFFER_SIZE (1024)
-#define FAULT_LOG_NUM     32
+#define FAULT_LOG_NUM     6
 
 char* sLogMsg[FAULT_LOG_NUM];
 char* sLogFunc[FAULT_LOG_NUM];
