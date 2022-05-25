@@ -1,37 +1,14 @@
 #ifndef __EXTLIB_H__
 #define __EXTLIB_H__
 
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include <ExtTypes.h>
+#include <math.h>
+#include <time.h>
+#include <unistd.h>
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <assert.h>
-#include <math.h>
-#include <ctype.h>
-#include <time.h>
-#include <pthread.h>
-#include <unistd.h>
-
-// __attribute__((scalar_storage_order("big-endian")))
-
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short int s16;
-typedef unsigned short int u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef signed long long int s64;
-typedef unsigned long long int u64;
-typedef float f32;
-typedef double f64;
-typedef uintptr_t uPtr;
-typedef intptr_t sPtr;
-typedef u32 void32;
-typedef time_t Time;
-typedef pthread_t Thread;
-typedef size_t Size;
+#include <string.h>
 
 extern pthread_mutex_t gMutexLock;
 
@@ -42,148 +19,6 @@ extern pthread_mutex_t gMutexLock;
 #define Nested(name, args) name args
 #define NestedVar(vars)    while (0) { (void)0; }
 #endif
-
-typedef struct {
-	f32 h;
-	f32 s;
-	f32 l;
-} HSL8;
-
-typedef struct {
-	f32 h;
-	f32 s;
-	f32 l;
-	union {
-		u8 alpha;
-		u8 a;
-	};
-} HSLA8;
-
-typedef struct {
-	union {
-		struct {
-			u8 r;
-			u8 g;
-			u8 b;
-		};
-		u8 c[3];
-	};
-} RGB8;
-
-typedef struct {
-	union {
-		struct {
-			u8 r;
-			u8 g;
-			u8 b;
-			u8 a;
-		};
-		u8 c[4];
-	};
-} RGBA8;
-
-typedef struct {
-	f32 r;
-	f32 g;
-	f32 b;
-} RGB32;
-
-typedef struct {
-	f32 r;
-	f32 g;
-	f32 b;
-	f32 a;
-} RGBA32;
-
-typedef enum {
-	PSL_DEBUG = -1,
-	PSL_NONE,
-	PSL_NO_INFO,
-	PSL_NO_WARNING,
-	PSL_NO_ERROR,
-} PrintfSuppressLevel;
-
-typedef enum {
-	SWAP_U8  = 1,
-	SWAP_U16 = 2,
-	SWAP_U32 = 4,
-	SWAP_U64 = 8,
-	SWAP_F80 = 10
-} SwapSize;
-
-typedef union {
-	void* p;
-	u8*   u8;
-	u16*  u16;
-	u32*  u32;
-	u64*  u64;
-	s8*   s8;
-	s16*  s16;
-	s32*  s32;
-	s64*  s64;
-	f32*  f32;
-	f64*  f64;
-} PointerCast;
-
-typedef struct Node {
-	struct Node* prev;
-	struct Node* next;
-} Node;
-
-typedef enum {
-	MEM_CRC32   = 1 << 17,
-	MEM_ALIGN   = 1 << 18,
-	MEM_REALLOC = 1 << 19,
-	
-	MEM_CLEAR   = 1 << 30,
-	MEM_END     = 1 << 31,
-} MemInit;
-
-typedef struct MemFile {
-	union {
-		void* data;
-		PointerCast cast;
-		char* str;
-	};
-	u32 memSize;
-	u32 dataSize;
-	u32 seekPoint;
-	struct {
-		Time age;
-		char name[512];
-		u32  crc32;
-	} info;
-	struct {
-		u32 align;
-		u32 realloc : 1;
-		u32 getCrc  : 1;
-		u64 initKey;
-	} param;
-} MemFile;
-
-typedef struct ItemList {
-	char*  buffer;
-	u32    writePoint;
-	char** item;
-	u32    num;
-	struct {
-		u64 initKey;
-		u32 alnum;
-	} __private;
-} ItemList;
-
-typedef enum {
-	DIR__MAKE_ON_ENTER = (1) << 0,
-} DirParam;
-
-typedef void (* SoundCallback)(void*, void*, u32);
-
-typedef enum {
-	SOUND_S16 = 2,
-	SOUND_S24,
-	SOUND_S32,
-	SOUND_F32,
-} SoundFormat;
 
 extern u8 gPrintfProgressing;
 
@@ -208,18 +43,6 @@ char* Tmp_Printf(const char* fmt, ...);
 void Time_Start(void);
 f32 Time_Get(void);
 
-typedef enum {
-	SORT_NO        = 0,
-	SORT_NUMERICAL = 1,
-	IS_FILE        = 0,
-	IS_DIR         = 1,
-} DirEnum;
-
-typedef enum {
-	PATH_RELATIVE,
-	PATH_ABSOLUTE
-} PathType;
-
 void Dir_SetParam(DirParam w);
 void Dir_UnsetParam(DirParam w);
 void Dir_Set(char* path, ...);
@@ -235,12 +58,6 @@ void Dir_ItemList(ItemList* itemList, bool isPath);
 void Dir_ItemList_Recursive(ItemList* target, char* keyword);
 void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not);
 void Dir_ItemList_Keyword(ItemList* itemList, char* ext);
-
-typedef enum {
-	STAT_ACCS = (1) << 0,
-	STAT_MODF = (1) << 1,
-	STAT_CREA = (1) << 2,
-} StatFlag;
 
 bool Sys_IsDir(const char* path);
 void Sys_MakeDir(const char* dir, ...);
@@ -264,29 +81,6 @@ void Sys_Sleep(f64 sec);
 s32 SysExe(const char* cmd);
 char* SysExeO(const char* cmd);
 
-typedef enum {
-	CLR_WHITE = 1,
-	CLR_RED,
-	CLR_GREEN,
-	CLR_YELLOW,
-	CLR_BLUE,
-	CLR_MAGENTA,
-	CLR_CYAN,
-	CLR_BLACK,
-	
-	ATTR_LGHT = (1) << 5,
-	ATTR_BOLD = (1) << 6,
-	ATTR_DIM  = (1) << 7,
-} TerminalAttribute;
-
-typedef struct {
-	void (* move)(int, int);
-	void (* print)(const char* fmt, ...);
-	void (* clear)(void);
-	void (* refresh)(void);
-	void (* attribute)(TerminalAttribute);
-} Terminal;
-
 s32 Terminal_YesOrNo(void);
 void Terminal_ClearScreen(void);
 void Terminal_ClearLines(u32 i);
@@ -294,15 +88,6 @@ void Terminal_Move_PrevLine(void);
 void Terminal_Move(s32 x, s32 y);
 const char* Terminal_GetStr(void);
 char Terminal_GetChar();
-void Terminal_Window(s32 (*func) (Terminal*, void*, void*, int), void* pass, void* pass2);
-
-typedef enum {
-	LIST_FILES    = 0x0,
-	LIST_FOLDERS  = 0x1,
-	
-	LIST_RELATIVE = (1) << 4,
-	LIST_NO_DOT   = (1) << 5,
-} ListFlags;
 
 void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags);
 char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, ...);
@@ -328,8 +113,6 @@ void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_SetPrefix(char* fmt);
 void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i);
 void printf_toolinfo(const char* toolname, const char* fmt, ...);
-void printf_debug(const char* fmt, ...);
-void printf_debug_align(const char* info, const char* fmt, ...);
 void printf_warning(const char* fmt, ...);
 void printf_warning_align(const char* info, const char* fmt, ...);
 void printf_error(const char* fmt, ...);
@@ -343,6 +126,9 @@ void printf_getchar(const char* txt);
 void printf_WinFix(void);
 void printf_clearMessages(void);
 
+void __Assert(s32 expression, const char* msg, ...);
+#define Assert(expression) \
+	__Assert(expression, "" PRNT_DGRY "[" PRNT_REDD "%s" PRNT_DGRY "]:[" PRNT_YELW "%s" PRNT_DGRY "]:[" PRNT_BLUE "%d" PRNT_DGRY "]", #expression, __FUNCTION__, __LINE__)
 f32 RandF();
 void* MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
 void* MemMemCase(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
@@ -651,36 +437,6 @@ extern PrintfSuppressLevel gPrintfSuppress;
 	data = Free(data); \
 	Log("Free(%s);", #data );
 
-#endif
-
-#ifndef NDEBUG
-#define printf_debugExt(...) if (gPrintfSuppress <= PSL_DEBUG) { \
-		if (gPrintfProgressing) { printf("\n"); gPrintfProgressing = 0; } \
-		printf(PRNT_PRPL "[X]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
-		printf_debug(__VA_ARGS__); \
-}
-
-#define printf_debugExt_align(title, ...) if (gPrintfSuppress <= PSL_DEBUG) { \
-		if (gPrintfProgressing) { printf("\n"); gPrintfProgressing = 0; } \
-		printf(PRNT_PRPL "[X]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
-		printf_debug_align(title, __VA_ARGS__); \
-}
-
-#define Assert(exp) if (!(exp)) { \
-		if (gPrintfProgressing) { printf("\n"); gPrintfProgressing = 0; } \
-		printf(PRNT_PRPL "[X]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
-		printf_debug(PRNT_YELW "Assert(\a " PRNT_RSET # exp PRNT_YELW " );"); \
-		exit(EXIT_FAILURE); \
-}
-
-#else
-#define printf_debugExt(...)       if (0) {}
-#define printf_debugExt_align(...) if (0) {}
-#define Assert(exp)                if (!(exp)) printf_error(PRNT_YELW "Assert(\a " PRNT_RSET # exp PRNT_YELW " );");
-#ifndef __EXTLIB_C__
-#define printf_debug(...)       if (0) {}
-#define printf_debug_align(...) if (0) {}
-#endif
 #endif
 
 #define Main(y1, y2) main(y1, y2)

@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 132
+#define THIS_EXTLIB_VERSION 133
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -34,12 +34,6 @@ void gettimeofday(void*, void*);
 #include <time.h>
 
 #ifdef _WIN32
-#include <ncurses/curses.h>
-#else
-#include <curses.h>
-#endif
-
-#ifdef _WIN32
 #include <windows.h>
 #include <libloaderapi.h>
 #endif
@@ -63,8 +57,6 @@ char* sPrintfPreType[][4] = {
 		">"
 	}
 };
-_Thread_local u8 sBuffer_Temp[MbToBin(4)];
-_Thread_local u32 sSeek_Temp = 0;
 time_t sTime;
 MemFile sLog;
 
@@ -157,26 +149,43 @@ void32 VirtualToSegmented(const u8 id, void* ptr) {
 // # TMP                                 #
 // # # # # # # # # # # # # # # # # # # # #
 
+_Thread_local u8* sTempHeap = NULL;
+_Thread_local u32 sPosTempHeap = 0;
+const u32 sSizeTempHeap = MbToBin(4);
+
+static void Tmp_Clean() {
+	Free(sTempHeap);
+	Log(__FUNCTION__, __LINE__, "" PRNT_PRPL "Tmp_Alloc: " PRNT_YELW "Freed\a");
+}
+
 void* Tmp_Alloc(u32 size) {
 	u8* ret;
+	
+	if (sTempHeap == NULL) {
+		atexit(Tmp_Clean);
+		sTempHeap = Malloc(0, sSizeTempHeap);
+		if (sTempHeap == NULL)
+			printf_error("TempHeap: Failed to malloc");
+		Log(__FUNCTION__, __LINE__, "" PRNT_PRPL "Tmp_Alloc: " PRNT_YELW "Allocated\a");
+	}
 	
 	if (size < 1)
 		return NULL;
 	
-	if (size >= sizeof(sBuffer_Temp) / 2)
+	if (size >= sSizeTempHeap / 2)
 		printf_error("Can't fit %fMb into the Tmp", BinToMb(size));
 	
 	if (size == 0)
 		return NULL;
 	
-	if (sSeek_Temp + size + 0x10 > sizeof(sBuffer_Temp)) {
-		Log(__FUNCTION__, __LINE__, "" PRNT_PRPL "Tmp_Alloc: rewind\a");
-		sSeek_Temp = 0;
+	if (sPosTempHeap + size + 0x10 > sSizeTempHeap) {
+		Log(__FUNCTION__, __LINE__, "" PRNT_PRPL "Tmp_Alloc: " PRNT_YELW "rewind\a");
+		sPosTempHeap = 0;
 	}
 	
-	ret = &sBuffer_Temp[sSeek_Temp];
+	ret = &sTempHeap[sPosTempHeap];
 	memset(ret, 0, size + 1);
-	sSeek_Temp = sSeek_Temp + size + 1;
+	sPosTempHeap = sPosTempHeap + size + 1;
 	
 	return ret;
 }
@@ -1390,81 +1399,6 @@ char Terminal_GetChar() {
 	return getchar();
 }
 
-#define ATT(FLAG, CURSES) if (patt & FLAG) { attroff(CURSES); } \
-	if (att & FLAG) { attron(CURSES); }
-
-static void Window_SetColor(TerminalAttribute att) {
-	static TerminalAttribute patt;
-	s32 color = att & 0x8;
-	s32 pcolor = patt & 0x8;
-	
-	ATT(ATTR_LGHT, A_STANDOUT);
-	ATT(ATTR_BOLD, A_BOLD);
-	ATT(ATTR_DIM, A_DIM);
-	
-	if (pcolor)
-		attroff(COLOR_PAIR((pcolor)));
-	if (color)
-		attron(COLOR_PAIR(color));
-	
-	patt = att;
-}
-
-static void Window_Move(s32 x, s32 y) {
-	move(y, x);
-}
-
-void Terminal_Window(s32 (*func) (Terminal*, void*, void*, int), void* pass, void* pass2) {
-	Terminal win;
-	WINDOW* d;
-	s32 c = 0;
-	s32 x, y;
-	s32 rf = 0;
-	
-	win.move = (void*)Window_Move;
-	win.print = (void*)printw;
-	win.clear = (void*)clear;
-	win.refresh = (void*)refresh;
-	win.attribute = Window_SetColor;
-	
-	d = initscr();
-	cbreak();
-	noecho();
-	timeout(2);
-	
-	start_color();
-	
-	for (s32 bg = 1; bg <= 8; bg++) {
-		init_pair(bg, bg, 0);
-	}
-	
-	x = d->_curx;
-	y = d->_cury;
-	
-	while (c != '\n') {
-		if (x != d->_curx || y != d->_cury || rf == 0) {
-			refresh();
-			rf = true;
-			
-			x = d->_curx;
-			y = d->_cury;
-		}
-		
-		c = getch();
-		
-		if (!func) {
-			endwin();
-			
-			printf_error("Terminal_Window: No callback...");
-		}
-		
-		if (func(&win, pass, pass2, c))
-			break;
-	}
-	
-	endwin();
-}
-
 // # # # # # # # # # # # # # # # # # # # #
 // # PRINTF                              #
 // # # # # # # # # # # # # # # # # # # # #
@@ -1578,52 +1512,6 @@ static void __printf_call(u32 type, char* dest) {
 		color[type],
 		sPrintfPreType[sPrintfType][type]
 	);
-}
-
-void printf_debug(const char* fmt, ...) {
-	if (gPrintfSuppress > PSL_DEBUG)
-		return;
-	
-	if (gPrintfProgressing) {
-		printf("\n");
-		gPrintfProgressing = false;
-	}
-	
-	va_list args;
-	
-	va_start(args, fmt);
-	__printf_call(0, 0);
-	vprintf(
-		fmt,
-		args
-	);
-	printf(PRNT_RSET "\n");
-	va_end(args);
-}
-
-void printf_debug_align(const char* info, const char* fmt, ...) {
-	if (gPrintfSuppress > PSL_DEBUG)
-		return;
-	
-	if (gPrintfProgressing) {
-		printf("\n");
-		gPrintfProgressing = false;
-	}
-	
-	va_list args;
-	
-	va_start(args, fmt);
-	__printf_call(0, 0);
-	printf(
-		"%-16s " PRNT_RSET,
-		info
-	);
-	vprintf(
-		fmt,
-		args
-	);
-	printf(PRNT_RSET "\n");
-	va_end(args);
 }
 
 void printf_warning(const char* fmt, ...) {
@@ -1891,6 +1779,19 @@ void printf_WinFix(void) {
 // # VARIOUS                             #
 // # # # # # # # # # # # # # # # # # # # #
 
+void __Assert(s32 expression, const char* msg, ...) {
+	if (!expression) {
+		char* buf = Tmp_Alloc(1024);
+		va_list va;
+		
+		va_start(va, msg);
+		vsprintf(buf, msg, va);
+		va_end(va);
+		
+		printf_error("%s", buf);
+	}
+}
+
 s32 sRandInit;
 
 f32 RandF() {
@@ -2000,10 +1901,10 @@ void* MemMemU16(void* haystack, size_t haySize, const void* needle, size_t needl
 	const u16* hayEnd = hay + ((haySize - needleSize) / sizeof(*hay));
 	
 	/* guarantee alignment */
-	assert((((uPtr)haystack) & 0x1) == 0);
-	assert((((uPtr)needle) & 0x1) == 0);
-	assert((haySize & 0x1) == 0);
-	assert((needleSize & 0x1) == 0);
+	Assert((((uPtr)haystack) & 0x1) == 0);
+	Assert((((uPtr)needle) & 0x1) == 0);
+	Assert((haySize & 0x1) == 0);
+	Assert((needleSize & 0x1) == 0);
 	
 	if (haySize == 0 || needleSize == 0)
 		return NULL;
@@ -2040,10 +1941,10 @@ void* MemMemU32(void* haystack, size_t haySize, const void* needle, size_t needl
 	const u32* hayEnd = hay + ((haySize - needleSize) / sizeof(*hay));
 	
 	/* guarantee alignment */
-	assert((((uPtr)haystack) & 0x3) == 0);
-	assert((((uPtr)needle) & 0x3) == 0);
-	assert((haySize & 0x3) == 0);
-	assert((needleSize & 0x3) == 0);
+	Assert((((uPtr)haystack) & 0x3) == 0);
+	Assert((((uPtr)needle) & 0x3) == 0);
+	Assert((haySize & 0x3) == 0);
+	Assert((needleSize & 0x3) == 0);
 	
 	if (haySize == 0 || needleSize == 0)
 		return NULL;
@@ -2080,10 +1981,10 @@ void* MemMemU64(void* haystack, size_t haySize, const void* needle, size_t needl
 	const u64* hayEnd = hay + ((haySize - needleSize) / sizeof(*hay));
 	
 	/* guarantee alignment */
-	assert((((uPtr)haystack) & 0xf) == 0);
-	assert((((uPtr)needle) & 0xf) == 0);
-	assert((haySize & 0xf) == 0);
-	assert((needleSize & 0xf) == 0);
+	Assert((((uPtr)haystack) & 0xf) == 0);
+	Assert((((uPtr)needle) & 0xf) == 0);
+	Assert((haySize & 0xf) == 0);
+	Assert((needleSize & 0xf) == 0);
 	
 	if (haySize == 0 || needleSize == 0)
 		return NULL;
