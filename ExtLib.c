@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 135
+#define THIS_EXTLIB_VERSION 136
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -919,7 +919,7 @@ void ItemList_NumericalSort(ItemList* list) {
 	u32 highestNum = 0;
 	
 	for (s32 i = 0; i < list->num; i++)
-		highestNum = Max(highestNum, String_GetInt(list->item[i]));
+		highestNum = Max(highestNum, Value_Int(list->item[i]));
 	
 	Log("Num Max %d From %d Items", highestNum, list->num);
 	
@@ -936,7 +936,7 @@ void ItemList_NumericalSort(ItemList* list) {
 		u32 null = true;
 		
 		for (s32 j = 0; j < list->num; j++) {
-			if (String_GetInt(list->item[j]) == i) {
+			if (Value_Int(list->item[j]) == i) {
 				sorted.item[sorted.num] = &sorted.buffer[sorted.writePoint];
 				strcpy(sorted.item[sorted.num], list->item[j]);
 				sorted.writePoint += strlen(sorted.item[sorted.num]) + 1;
@@ -1238,8 +1238,8 @@ char* SysExeO(const char* cmd) {
 }
 
 void Sys_TerminalSize(s32* r) {
-	s32 x;
-	s32 y;
+	s32 x = 0;
+	s32 y = 0;
 	
 #ifdef _WIN32
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -2068,7 +2068,7 @@ void* DupMem(const void* src, Size size) {
 }
 
 char* DupStr(const char* src) {
-	return DupMem(src, strlen(src));
+	return DupMem(src, strlen(src) + 1);
 }
 
 void* Free(void* data) {
@@ -2479,14 +2479,14 @@ void MemFile_Clear(MemFile* memFile) {
 }
 
 // # # # # # # # # # # # # # # # # # # # #
-// # STRING                              #
+// # VALUE                               #
 // # # # # # # # # # # # # # # # # # # # #
 
-u32 String_GetHexInt(const char* string) {
+u32 Value_Hex(const char* string) {
 	return strtoul(string, NULL, 16);
 }
 
-s32 String_GetInt(const char* string) {
+s32 Value_Int(const char* string) {
 	if (!memcmp(string, "0x", 2)) {
 		return strtoul(string, NULL, 16);
 	} else {
@@ -2494,7 +2494,7 @@ s32 String_GetInt(const char* string) {
 	}
 }
 
-f32 String_GetFloat(const char* string) {
+f32 Value_Float(const char* string) {
 	f32 fl;
 	u32 mal = 0;
 	
@@ -2511,6 +2511,65 @@ f32 String_GetFloat(const char* string) {
 	return fl;
 }
 
+s32 Value_ValidateHex(const char* str) {
+	s32 isOk = false;
+	
+	for (s32 i = 0; i < strlen(str); i++) {
+		if (
+			(str[i] >= 'A' && str[i] <= 'F') ||
+			(str[i] >= 'a' && str[i] <= 'f') ||
+			(str[i] >= '0' && str[i] <= '9') ||
+			str[i] == 'x' || str[i] == 'X' ||
+			str[i] == ' ' || str[i] == '\t'
+		) {
+			isOk = true;
+			continue;
+		}
+		
+		return false;
+	}
+	
+	return isOk;
+}
+
+s32 Value_ValidateInt(const char* str) {
+	s32 isOk = false;
+	
+	for (s32 i = 0; i < strlen(str); i++) {
+		if (
+			(str[i] >= '0' && str[i] <= '9')
+		) {
+			isOk = true;
+			continue;
+		}
+		
+		return false;
+	}
+	
+	return isOk;
+}
+
+s32 Value_ValidateFloat(const char* str) {
+	s32 isOk = false;
+	
+	for (s32 i = 0; i < strlen(str); i++) {
+		if (
+			(str[i] >= '0' && str[i] <= '9') || str[i] == '.'
+		) {
+			isOk = true;
+			continue;
+		}
+		
+		return false;
+	}
+	
+	return isOk;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+// # STRING                              #
+// # # # # # # # # # # # # # # # # # # # #
+
 s32 String_LineNum(const char* str) {
 	s32 line = 1;
 	s32 i = 0;
@@ -2522,6 +2581,17 @@ s32 String_LineNum(const char* str) {
 	}
 	
 	return line;
+}
+
+s32 String_PathNum(const char* src) {
+	s32 dir = -1;
+	
+	for (s32 i = 0; i < strlen(src); i++) {
+		if (src[i] == '/')
+			dir++;
+	}
+	
+	return dir + 1;
 }
 
 s32 String_CaseComp(char* a, char* b, u32 compSize) {
@@ -2706,17 +2776,6 @@ char* String_GetFilename(const char* src) {
 	return buffer;
 }
 
-s32 String_PathNum(const char* src) {
-	s32 dir = -1;
-	
-	for (s32 i = 0; i < strlen(src); i++) {
-		if (src[i] == '/')
-			dir++;
-	}
-	
-	return dir + 1;
-}
-
 char* String_GetFolder(const char* src, s32 num) {
 	char* buffer;
 	s32 start = -1;
@@ -2847,6 +2906,9 @@ char* String_Extension(const char* str) {
 }
 
 void String_CaseToLow(char* s, s32 i) {
+	if (i <= 0)
+		i = strlen(s);
+	
 	for (s32 k = 0; k < i; k++) {
 		if (s[k] >= 'A' && s[k] <= 'Z') {
 			s[k] = s[k] + 32;
@@ -2855,6 +2917,9 @@ void String_CaseToLow(char* s, s32 i) {
 }
 
 void String_CaseToUp(char* s, s32 i) {
+	if (i <= 0)
+		i = strlen(s);
+	
 	for (s32 k = 0; k < i; k++) {
 		if (s[k] >= 'a' && s[k] <= 'z') {
 			s[k] = s[k] - 32;
@@ -2927,61 +2992,6 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 	strcpy(dest, String_GetPath(src));
 	strcat(dest, String_GetBasename(src));
 	strcat(dest, ext);
-}
-
-s32 String_Validate_Hex(const char* str) {
-	s32 isOk = false;
-	
-	for (s32 i = 0; i < strlen(str); i++) {
-		if (
-			(str[i] >= 'A' && str[i] <= 'F') ||
-			(str[i] >= 'a' && str[i] <= 'f') ||
-			(str[i] >= '0' && str[i] <= '9') ||
-			str[i] == 'x' || str[i] == 'X' ||
-			str[i] == ' ' || str[i] == '\t'
-		) {
-			isOk = true;
-			continue;
-		}
-		
-		return false;
-	}
-	
-	return isOk;
-}
-
-s32 String_Validate_Dec(const char* str) {
-	s32 isOk = false;
-	
-	for (s32 i = 0; i < strlen(str); i++) {
-		if (
-			(str[i] >= '0' && str[i] <= '9')
-		) {
-			isOk = true;
-			continue;
-		}
-		
-		return false;
-	}
-	
-	return isOk;
-}
-
-s32 String_Validate_Float(const char* str) {
-	s32 isOk = false;
-	
-	for (s32 i = 0; i < strlen(str); i++) {
-		if (
-			(str[i] >= '0' && str[i] <= '9') || str[i] == '.'
-		) {
-			isOk = true;
-			continue;
-		}
-		
-		return false;
-	}
-	
-	return isOk;
 }
 
 char* String_Unquote(const char* str) {
@@ -3173,7 +3183,7 @@ s32 Config_GetInt(MemFile* memFile, const char* intName) {
 	
 	ptr = Config_GetVariable(memFile->str, intName);
 	if (ptr) {
-		return String_GetInt(ptr);
+		return Value_Int(ptr);
 	}
 	
 	if (sConfigSuppression == 0)
@@ -3203,7 +3213,7 @@ f32 Config_GetFloat(MemFile* memFile, const char* floatName) {
 	
 	ptr = Config_GetVariable(memFile->str, floatName);
 	if (ptr) {
-		return String_GetFloat(ptr);
+		return Value_Float(ptr);
 	}
 	
 	if (sConfigSuppression == 0)

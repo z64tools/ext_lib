@@ -236,14 +236,14 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 			this->nbx.updt = true;
 		} else {
 			if (this->nbx.updt) {
-				this->nbx.value = this->nbx.isInt ? String_GetInt(this->txt) : String_GetFloat(this->txt);
+				this->nbx.value = this->nbx.isInt ? Value_Int(this->txt) : Value_Float(this->txt);
 				if (this->nbx.min != 0 || this->nbx.max != 0)
 					this->nbx.value = Clamp(this->nbx.value, this->nbx.min, this->nbx.max);
 				snprintf(
 					this->txt,
 					31,
 					sFmt[this->nbx.isInt],
-					this->nbx.isInt ? String_GetInt(this->txt) : String_GetFloat(this->txt)
+					this->nbx.isInt ? Value_Int(this->txt) : Value_Float(this->txt)
 				);
 			}
 		}
@@ -765,7 +765,7 @@ f32 Element_Slider(GeoGridContext* geoCtx, Split* split, ElSlider* this) {
 				
 				return Lerp(this->value, this->min, this->max);
 			} else {
-				Element_Slider_SetValue(this, this->isInt ? String_GetInt(this->txt) : String_GetFloat(this->txt));
+				Element_Slider_SetValue(this, this->isInt ? Value_Int(this->txt) : Value_Float(this->txt));
 				
 				goto queue_element;
 			}

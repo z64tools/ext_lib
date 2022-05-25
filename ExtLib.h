@@ -10,16 +10,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+extern PrintfSuppressLevel gPrintfSuppress;
 extern pthread_mutex_t gMutexLock;
-
-#ifdef __IDE_FLAG__
-#define Nested(name, args) (^ name) args = ^ args
-#define NestedVar(vars)    vars
-#else
-#define Nested(name, args) name args
-#define NestedVar(vars)    while (0) { (void)0; }
-#endif
-
 extern u8 gPrintfProgressing;
 
 void ThreadLock_Init(void);
@@ -178,10 +170,15 @@ void MemFile_Clear(MemFile* memFile);
 #define StrMtch(a, b)           (!strncmp(a, b, strlen(b)))
 #define catprintf(dest, ...)    sprintf(dest + strlen(dest), __VA_ARGS__)
 
-u32 String_GetHexInt(const char* string);
-s32 String_GetInt(const char* string);
-f32 String_GetFloat(const char* string);
+u32 Value_Hex(const char* string);
+s32 Value_Int(const char* string);
+f32 Value_Float(const char* string);
+s32 Value_ValidateHex(const char* str);
+s32 Value_ValidateInt(const char* str);
+s32 Value_ValidateFloat(const char* str);
+
 s32 String_LineNum(const char* str);
+s32 String_PathNum(const char* src);
 s32 String_CaseComp(char* a, char* b, u32 compSize);
 char* String_Line(char* str, s32 line);
 char* String_LineHead(char* str);
@@ -194,7 +191,6 @@ void String_CaseToUp(char* s, s32 i);
 char* String_GetPath(const char* src);
 char* String_GetBasename(const char* src);
 char* String_GetFilename(const char* src);
-s32 String_PathNum(const char* src);
 char* String_GetFolder(const char* src, s32 num);
 void String_Insert(char* point, const char* insert);
 void String_InsertExt(char* origin, const char* insert, s32 pos, s32 size);
@@ -202,9 +198,6 @@ void String_Remove(char* point, s32 amount);
 s32 String_Replace(char* src, const char* word, const char* replacement);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
-s32 String_Validate_Hex(const char* str);
-s32 String_Validate_Dec(const char* str);
-s32 String_Validate_Float(const char* str);
 char* String_Unquote(const char* str);
 
 void Config_SuppressNext(void);
@@ -239,8 +232,6 @@ void* Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback 
 void Sound_Free(void* sound);
 void Sound_Xm_Play(const void* data, u32 size);
 void Sound_Xm_Stop();
-
-extern PrintfSuppressLevel gPrintfSuppress;
 
 #define PRNT_DGRY "\e[90;2m"
 #define PRNT_DRED "\e[91;2m"
