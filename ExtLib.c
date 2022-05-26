@@ -920,7 +920,7 @@ void ItemList_NumericalSort(ItemList* list) {
 		u32 null = true;
 		
 		for (s32 j = 0; j < list->num; j++) {
-			if (Value_Int(list->item[j]) == i) {
+			if (isdigit(list->item[j][0]) && Value_Int(list->item[j]) == i) {
 				sorted.item[sorted.num] = &sorted.buffer[sorted.writePoint];
 				strcpy(sorted.item[sorted.num], list->item[j]);
 				sorted.writePoint += strlen(sorted.item[sorted.num]) + 1;
@@ -1097,12 +1097,12 @@ void Sys_MakeDir(const char* dir, ...) {
 	} else {
 		for (s32 i = 0; i < pathNum; i++) {
 			char* temp = Malloc(0, strlen(dir) + 1024);
-			char* folder = String_GetFolder(buffer, 0);
+			char* folder = PathSlot(buffer, 0);
 			
 			strcpy(temp, folder);
 			
 			for (s32 j = 1; j < i + 1; j++) {
-				folder = String_GetFolder(buffer, j);
+				folder = PathSlot(buffer, j);
 				strcat(temp, folder);
 			}
 			
@@ -2152,6 +2152,43 @@ char* Path(const char* src) {
 	return buffer;
 }
 
+char* PathSlot(const char* src, s32 num) {
+	char* buffer;
+	s32 start = -1;
+	s32 end;
+	
+	if (src == NULL)
+		return NULL;
+	
+	if (num < 0) {
+		num = PathNum(src) - 1;
+	}
+	
+	for (s32 temp = 0;;) {
+		if (temp >= num)
+			break;
+		if (src[start + 1] == '/')
+			temp++;
+		start++;
+	}
+	start++;
+	end = start + 1;
+	
+	while (src[end] != '/') {
+		if (src[end] == '\0')
+			printf_error("Could not solve folder for [%s]", src);
+		end++;
+	}
+	end++;
+	
+	buffer = HeapMalloc(end - start + 1);
+	
+	memcpy(buffer, &src[start], end - start);
+	buffer[end - start] = '\0';
+	
+	return buffer;
+}
+
 char* Basename(const char* src) {
 	char* buffer;
 	s32 point;
@@ -2858,43 +2895,6 @@ s32 String_CaseComp(char* a, char* b, u32 compSize) {
 	}
 	
 	return 0;
-}
-
-char* String_GetFolder(const char* src, s32 num) {
-	char* buffer;
-	s32 start = -1;
-	s32 end;
-	
-	if (src == NULL)
-		return NULL;
-	
-	if (num < 0) {
-		num = PathNum(src) - 1;
-	}
-	
-	for (s32 temp = 0;;) {
-		if (temp >= num)
-			break;
-		if (src[start + 1] == '/')
-			temp++;
-		start++;
-	}
-	start++;
-	end = start + 1;
-	
-	while (src[end] != '/') {
-		if (src[end] == '\0')
-			printf_error("Could not solve folder for [%s]", src);
-		end++;
-	}
-	end++;
-	
-	buffer = HeapMalloc(end - start + 1);
-	
-	memcpy(buffer, &src[start], end - start);
-	buffer[end - start] = '\0';
-	
-	return buffer;
 }
 
 char* String_GetSpacedArg(char* argv[], s32 cur) {

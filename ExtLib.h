@@ -143,6 +143,7 @@ s32 ParseArgs(char* argv[], char* arg, u32* parArg);
 u32 Crc32(u8* s, u32 n);
 void SlashAndPoint(const char* src, s32* slash, s32* point);
 char* Path(const char* src);
+char* PathSlot(const char* src, s32 num);
 char* Basename(const char* src);
 char* Filename(const char* src);
 char* Line(char* str, s32 line);
@@ -193,7 +194,6 @@ s32 Value_ValidateFloat(const char* str);
 
 s32 String_CaseComp(char* a, char* b, u32 compSize);
 char* String_Extension(const char* str);
-char* String_GetFolder(const char* src, s32 num);
 void String_Insert(char* point, const char* insert);
 void String_InsertExt(char* origin, const char* insert, s32 pos, s32 size);
 void String_Remove(char* point, s32 amount);
