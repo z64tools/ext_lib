@@ -22,6 +22,7 @@ typedef u32 void32;
 typedef time_t Time;
 typedef pthread_t Thread;
 typedef size_t Size;
+typedef wchar_t wchar;
 
 typedef struct {
 	f32 h;

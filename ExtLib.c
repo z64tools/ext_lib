@@ -3013,6 +3013,22 @@ char* String_Unquote(const char* str) {
 	return new;
 }
 
+void* String_Unicodify(const char* str) {
+	char* out = NULL;
+	
+#ifdef _WIN32
+	u32 ln = MultiByteToWideChar(CP_UTF8, 0, str, strlen(str), 0, 0);
+	out = Tmp_Alloc(ln + 1);
+	if (!out)
+		printf_error("Failed to convert UTF8 to WCHAR");
+	MultiByteToWideChar(CP_UTF8, 0, str, strlen(str), (void*)out, ln);
+#else
+	out = (void*)str;
+#endif
+	
+	return out;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # CONFIG                              #
 // # # # # # # # # # # # # # # # # # # # #

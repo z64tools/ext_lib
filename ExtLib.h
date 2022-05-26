@@ -199,6 +199,7 @@ s32 String_Replace(char* src, const char* word, const char* replacement);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 char* String_Unquote(const char* str);
+void* String_Unicodify(const char* str);
 
 void Config_SuppressNext(void);
 char* Config_Variable(const char* str, const char* name);
