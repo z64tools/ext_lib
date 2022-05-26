@@ -939,7 +939,7 @@ void Element_Update(GeoGridContext* geoCtx) {
 			if (Input_GetKey(KEY_C)->press) {
 				s32 max = fmax(sSelectPos, sTextPos);
 				s32 min = fmin(sSelectPos, sTextPos);
-				char* copy = Tmp_Alloc(512);
+				char* copy = HeapMalloc(512);
 				
 				memcpy(copy, &sCurTextbox->txt[min], max - min);
 				Input_SetClipboardStr(copy);
@@ -948,7 +948,7 @@ void Element_Update(GeoGridContext* geoCtx) {
 			if (Input_GetKey(KEY_X)->press) {
 				s32 max = fmax(sSelectPos, sTextPos);
 				s32 min = fmin(sSelectPos, sTextPos);
-				char* copy = Tmp_Alloc(512);
+				char* copy = HeapMalloc(512);
 				
 				memcpy(copy, &sCurTextbox->txt[min], max - min);
 				Input_SetClipboardStr(copy);

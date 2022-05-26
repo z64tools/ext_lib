@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 136
+#define THIS_EXTLIB_VERSION 137
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -38,59 +38,37 @@ void gettimeofday(void*, void*);
 #include <libloaderapi.h>
 #endif
 
-PrintfSuppressLevel gPrintfSuppress = 0;
-char* sPrintfPrefix = "ExtLib";
-u8 sPrintfType = 1;
-u8 gPrintfProgressing;
-u8* sSegment[255];
-char* sPrintfPreType[][4] = {
-	{
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-	},
-	{
-		">",
-		">",
-		">",
-		">"
-	}
-};
-time_t sTime;
-MemFile sLog;
-
-pthread_mutex_t ___gExt_ThreadLock;
-volatile bool ___gExt_ThreadInit;
-
 // # # # # # # # # # # # # # # # # # # # #
 // # THREAD                              #
 // # # # # # # # # # # # # # # # # # # # #
 
+static pthread_mutex_t ___sExt_ThreadLock;
+static volatile bool ___sExt_ThreadInit;
+
 void ThreadLock_Init(void) {
-	pthread_mutex_init(&___gExt_ThreadLock, NULL);
-	___gExt_ThreadInit = true;
+	pthread_mutex_init(&___sExt_ThreadLock, NULL);
+	___sExt_ThreadInit = true;
 }
 
 void ThreadLock_Free(void) {
-	pthread_mutex_destroy(&___gExt_ThreadLock);
-	___gExt_ThreadInit = false;
+	pthread_mutex_destroy(&___sExt_ThreadLock);
+	___sExt_ThreadInit = false;
 }
 
 void ThreadLock_Lock(void) {
-	if (___gExt_ThreadInit) {
-		pthread_mutex_lock(&___gExt_ThreadLock);
+	if (___sExt_ThreadInit) {
+		pthread_mutex_lock(&___sExt_ThreadLock);
 	}
 }
 
 void ThreadLock_Unlock(void) {
-	if (___gExt_ThreadInit) {
-		pthread_mutex_unlock(&___gExt_ThreadLock);
+	if (___sExt_ThreadInit) {
+		pthread_mutex_unlock(&___sExt_ThreadLock);
 	}
 }
 
 void ThreadLock_Create(Thread* thread, void* func, void* arg) {
-	if (___gExt_ThreadInit == false) printf_error("Thread not Initialized");
+	if (___sExt_ThreadInit == false) printf_error("Thread not Initialized");
 	pthread_create(thread, NULL, (void*)func, (void*)(arg));
 }
 
@@ -118,6 +96,8 @@ s32 Thread_Join(Thread* thread) {
 // # SEGMENT                             #
 // # # # # # # # # # # # # # # # # # # # #
 
+static u8* sSegment[255];
+
 void SetSegment(const u8 id, void* segment) {
 	sSegment[id] = segment;
 }
@@ -137,11 +117,11 @@ void32 VirtualToSegmented(const u8 id, void* ptr) {
 // # TMP                                 #
 // # # # # # # # # # # # # # # # # # # # #
 
-_Thread_local u8 sTempHeap[MbToBin(4)];
-_Thread_local u32 sPosTempHeap = 0;
-const u32 sSizeTempHeap = MbToBin(4);
+static _Thread_local u8 sTempHeap[MbToBin(4)];
+static _Thread_local u32 sPosTempHeap = 0;
+static const u32 sSizeTempHeap = MbToBin(4);
 
-void* Tmp_Alloc(u32 size) {
+void* HeapMalloc(Size size) {
 	u8* ret;
 	
 	if (size < 1)
@@ -154,7 +134,7 @@ void* Tmp_Alloc(u32 size) {
 		return NULL;
 	
 	if (sPosTempHeap + size + 0x10 > sSizeTempHeap) {
-		Log("" PRNT_PRPL "Tmp_Alloc: " PRNT_YELW "rewind\a");
+		Log("" PRNT_PRPL "HeapMalloc: " PRNT_YELW "rewind\a");
 		sPosTempHeap = 0;
 	}
 	
@@ -165,17 +145,21 @@ void* Tmp_Alloc(u32 size) {
 	return ret;
 }
 
-char* Tmp_String(const char* str) {
-	char* ret = Tmp_Alloc(strlen(str));
+char* HeapDupStr(const char* str) {
+	return HeapDupMem(str, strlen(str) + 1);
+}
+
+char* HeapDupMem(const char* data, Size size) {
+	char* ret = HeapMalloc(size);
 	
 	if (ret == NULL)
 		return NULL;
-	strcpy(ret, str);
+	memcpy(ret, data, size);
 	
 	return ret;
 }
 
-char* Tmp_Printf(const char* fmt, ...) {
+char* HeapPrint(const char* fmt, ...) {
 	char tempBuf[512 * 2];
 	
 	va_list args;
@@ -184,14 +168,14 @@ char* Tmp_Printf(const char* fmt, ...) {
 	vsnprintf(tempBuf, ArrayCount(tempBuf), fmt, args);
 	va_end(args);
 	
-	return Tmp_String(tempBuf);
+	return HeapDupStr(tempBuf);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
 // # TIME                                #
 // # # # # # # # # # # # # # # # # # # # #
 
-struct timeval sTimeStart, sTimeStop;
+static struct timeval sTimeStart, sTimeStop;
 
 void Time_Start(void) {
 	gettimeofday(&sTimeStart, NULL);
@@ -214,8 +198,8 @@ typedef struct {
 	DirParam param;
 } DirCtx;
 
-DirCtx __dirCtx;
-DirCtx* dirCtx = &__dirCtx;
+static DirCtx __dirCtx;
+static DirCtx* dirCtx = &__dirCtx;
 
 void Dir_SetParam(DirParam w) {
 	dirCtx->param |= w;
@@ -292,7 +276,7 @@ void Dir_Leave(void) {
 	for (s32 i = 0; i < count; i++) {
 		dirCtx->curPath[strlen(dirCtx->curPath) - 1] = '\0';
 		strcpy(buf, dirCtx->curPath);
-		strcpy(dirCtx->curPath, String_GetPath(dirCtx->curPath));
+		strcpy(dirCtx->curPath, Path(dirCtx->curPath));
 	}
 	
 	dirCtx->enterCount[dirCtx->pos] = 0;
@@ -339,7 +323,7 @@ char* Dir_File(char* fmt, ...) {
 		return Dir_GetWildcard(argBuf);
 	}
 	
-	buffer = Tmp_Printf("%s%s", dirCtx->curPath, argBuf);
+	buffer = HeapPrint("%s%s", dirCtx->curPath, argBuf);
 	
 	return buffer;
 }
@@ -371,15 +355,15 @@ char* Dir_GetWildcard(char* x) {
 	if (search == NULL)
 		return NULL;
 	
-	sEnd = Tmp_String(&search[1]);
-	posPath = String_GetPath(Tmp_Printf("%s%s", dirCtx->curPath, x));
+	sEnd = HeapDupStr(&search[1]);
+	posPath = Path(HeapPrint("%s%s", dirCtx->curPath, x));
 	
 	if ((uPtr)search - (uPtr)x > 0) {
-		sStart = Tmp_Alloc((uPtr)search - (uPtr)x + 2);
+		sStart = HeapMalloc((uPtr)search - (uPtr)x + 2);
 		memcpy(sStart, x, (uPtr)search - (uPtr)x);
 	}
 	
-	restorePath = Tmp_String(dirCtx->curPath);
+	restorePath = HeapDupStr(dirCtx->curPath);
 	
 	if (strcmp(posPath, restorePath)) {
 		Dir_Set(posPath);
@@ -393,7 +377,7 @@ char* Dir_GetWildcard(char* x) {
 	
 	for (s32 i = 0; i < list.num; i++) {
 		if (StrStr(list.item[i], sEnd) && (sStart == NULL || StrStr(list.item[i], sStart))) {
-			return Tmp_Printf("%s%s", posPath, list.item[i]);
+			return HeapPrint("%s%s", posPath, list.item[i]);
 		}
 	}
 	
@@ -643,17 +627,23 @@ void Dir_ItemList_Keyword(ItemList* itemList, char* ext) {
 // # ITEM LIST                           #
 // # # # # # # # # # # # # # # # # # # # #
 
-static void ItemList_Validate(ItemList* itemList) {
-	if (itemList->__private.initKey != 0xDEFABEBACECAFAFF)
-		*itemList = ItemList_Initialize();
-}
-
 typedef struct {
 	char**    list;
 	u32       len;
 	u32       num;
 	ListFlags flags;
 } WalkInfo;
+
+typedef struct StrNode {
+	struct StrNode* prev;
+	struct StrNode* next;
+	char* txt;
+} StrNode;
+
+static void ItemList_Validate(ItemList* itemList) {
+	if (itemList->__private.initKey != 0xDEFABEBACECAFAFF)
+		*itemList = ItemList_Initialize();
+}
 
 static void ItemList_Walk(const char* base, const char* parent, s32 level, s32 max, WalkInfo* info) {
 	DIR* dir;
@@ -760,12 +750,6 @@ char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, .
 	
 	return NULL;
 }
-
-typedef struct StrNode {
-	struct StrNode* prev;
-	struct StrNode* next;
-	char* txt;
-} StrNode;
 
 void ItemList_SpacedStr(ItemList* list, const char* str) {
 	s32 a = 0;
@@ -982,10 +966,6 @@ void ItemList_AddItem(ItemList* list, const char* item) {
 	list->num++;
 }
 
-void ItemList_RemoveItem(ItemList* list, u32 itemID) {
-	// u32 remid = sizeof(char*) * (list->num - itemID - 1);
-}
-
 // # # # # # # # # # # # # # # # # # # # #
 // # SYS                                 #
 // # # # # # # # # # # # # # # # # # # # #
@@ -1068,8 +1048,6 @@ void Sys_Sleep(f64 sec) {
 	nanosleep(&ts, NULL);
 }
 
-volatile bool sThreadOverlapFlag;
-
 static void __MakeDir(const char* buffer) {
 	if (Sys_Stat(buffer))
 		return;
@@ -1102,7 +1080,7 @@ void Sys_MakeDir(const char* dir, ...) {
 	vsprintf(buffer, dir, args);
 	va_end(args);
 	
-	pathNum = String_PathNum(buffer);
+	pathNum = PathNum(buffer);
 	
 	if (!Sys_IsDir(dir)) {
 		for (s32 i = strlen(buffer) - 1; i >= 0; i--) {
@@ -1162,7 +1140,7 @@ const char* Sys_AppDir(void) {
 	readlink("/proc/self/exe", buf, 512);
 #endif
 	
-	return String_GetPath(buf);
+	return Path(buf);
 }
 
 s32 Sys_Rename(const char* input, const char* output) {
@@ -1377,6 +1355,25 @@ char Terminal_GetChar() {
 // # # # # # # # # # # # # # # # # # # # #
 // # PRINTF                              #
 // # # # # # # # # # # # # # # # # # # # #
+
+static char* sPrintfPrefix = "ExtLib";
+static u8 sPrintfType = 1;
+static char* sPrintfPreType[][4] = {
+	{
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+	},
+	{
+		">",
+		">",
+		">",
+		">"
+	}
+};
+PrintfSuppressLevel gPrintfSuppress = 0;
+u8 gPrintfProgressing;
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
 	gPrintfSuppress = lvl;
@@ -1764,9 +1761,11 @@ void printf_WinFix(void) {
 // # VARIOUS                             #
 // # # # # # # # # # # # # # # # # # # # #
 
+static s32 sRandInit;
+
 void __Assert(s32 expression, const char* msg, ...) {
 	if (!expression) {
-		char* buf = Tmp_Alloc(1024);
+		char* buf = HeapMalloc(1024);
 		va_list va;
 		
 		va_start(va, msg);
@@ -1776,8 +1775,6 @@ void __Assert(s32 expression, const char* msg, ...) {
 		printf_error("%s", buf);
 	}
 }
-
-s32 sRandInit;
 
 f32 RandF() {
 	if (sRandInit == 0) {
@@ -2079,9 +2076,9 @@ void* Free(void* data) {
 }
 
 s32 ParseArgs(char* argv[], char* arg, u32* parArg) {
-	char* s = Tmp_Printf("%s", arg);
-	char* ss = Tmp_Printf("-%s", arg);
-	char* sss = Tmp_Printf("--%s", arg);
+	char* s = HeapPrint("%s", arg);
+	char* ss = HeapPrint("-%s", arg);
+	char* sss = HeapPrint("--%s", arg);
 	char* tst[] = {
 		s, ss, sss
 	};
@@ -2115,6 +2112,287 @@ u32 Crc32(u8* s, u32 n) {
 	}
 	
 	return ~crc;
+}
+
+void SlashAndPoint(const char* src, s32* slash, s32* point) {
+	s32 strSize = strlen(src);
+	
+	*slash = 0;
+	*point = 0;
+	
+	for (s32 i = strSize; i > 0; i--) {
+		if (*point == 0 && src[i] == '.') {
+			*point = i;
+		}
+		if (src[i] == '/' || src[i] == '\\') {
+			*slash = i;
+			break;
+		}
+	}
+}
+
+char* Path(const char* src) {
+	char* buffer;
+	s32 point;
+	s32 slash;
+	
+	if (src == NULL)
+		return NULL;
+	
+	SlashAndPoint(src, &slash, &point);
+	
+	if (slash == 0)
+		slash = -1;
+	
+	buffer = HeapMalloc(slash + 1 + 1);
+	
+	memcpy(buffer, src, slash + 1);
+	buffer[slash + 1] = '\0';
+	
+	return buffer;
+}
+
+char* Basename(const char* src) {
+	char* buffer;
+	s32 point;
+	s32 slash;
+	
+	if (src == NULL)
+		return NULL;
+	
+	SlashAndPoint(src, &slash, &point);
+	
+	// Offset away from the slash
+	if (slash > 0)
+		slash++;
+	
+	if (point < slash || slash + point == 0) {
+		point = slash + 1;
+		while (src[point] > ' ') point++;
+	}
+	
+	buffer = HeapMalloc(point - slash + 1);
+	
+	memcpy(buffer, &src[slash], point - slash);
+	buffer[point - slash] = '\0';
+	
+	return buffer;
+}
+
+char* Filename(const char* src) {
+	char* buffer;
+	s32 point;
+	s32 slash;
+	s32 ext = 0;
+	
+	if (src == NULL)
+		return NULL;
+	
+	SlashAndPoint(src, &slash, &point);
+	
+	// Offset away from the slash
+	if (slash > 0)
+		slash++;
+	
+	if (src[point + ext] == '.') {
+		ext++;
+		while (isalnum(src[point + ext])) ext++;
+	}
+	
+	if (point < slash || slash + point == 0) {
+		point = slash + 1;
+		while (src[point] > ' ') point++;
+	}
+	
+	buffer = HeapMalloc(point - slash + ext + 1);
+	
+	memcpy(buffer, &src[slash], point - slash + ext);
+	buffer[point - slash + ext] = '\0';
+	
+	return buffer;
+}
+
+char* Line(char* str, s32 line) {
+	char* r = str;
+	s32 curline = 0;
+	s32 i = 0;
+	
+	while (line > curline) {
+		while (str[i] != '\n') {
+			i++;
+			if (str[i] == '\0') {
+				return r;
+			}
+		}
+		i++;
+		curline++;
+		
+		r = &str[i];
+	}
+	
+	return r;
+}
+
+char* LineHead(char* str) {
+	s32 i = 1;
+	
+	if (str == NULL)
+		return NULL;
+	
+	for (;; i--) {
+		if (str[i - 1] == '\0')
+			return NULL;
+		if (str[i - 1] == '\n')
+			return &str[i];
+	}
+}
+
+char* Word(char* str, s32 word) {
+	s32 iWord = -1;
+	s32 i = 0;
+	s32 j = 0;
+	
+	if (str == NULL)
+		return NULL;
+	
+	while (str[i] != '\0') {
+		j = 0;
+		if (str[i + j] > ' ') {
+			while (str[i + j] > ' ') {
+				j++;
+			}
+			
+			iWord++;
+			
+			if (iWord == word) {
+				break;
+			}
+			
+			i += j;
+		} else {
+			i++;
+		}
+	}
+	
+	return &str[i];
+}
+
+void CaseToLow(char* s, s32 i) {
+	if (i <= 0)
+		i = strlen(s);
+	
+	for (s32 k = 0; k < i; k++) {
+		if (s[k] >= 'A' && s[k] <= 'Z') {
+			s[k] = s[k] + 32;
+		}
+	}
+}
+
+void CaseToUp(char* s, s32 i) {
+	if (i <= 0)
+		i = strlen(s);
+	
+	for (s32 k = 0; k < i; k++) {
+		if (s[k] >= 'a' && s[k] <= 'z') {
+			s[k] = s[k] - 32;
+		}
+	}
+}
+
+s32 LineNum(const char* str) {
+	s32 line = 1;
+	s32 i = 0;
+	
+	while (str[i] != '\0') {
+		if (str[i] == '\n')
+			line++;
+		i++;
+	}
+	
+	return line;
+}
+
+s32 PathNum(const char* src) {
+	s32 dir = -1;
+	
+	for (s32 i = 0; i < strlen(src); i++) {
+		if (src[i] == '/')
+			dir++;
+	}
+	
+	return dir + 1;
+}
+
+char* CopyLine(const char* str, s32 line) {
+	char* buffer;
+	s32 iLine = -1;
+	s32 i = 0;
+	s32 j = 0;
+	
+	if (str == NULL)
+		return NULL;
+	
+	while (str[i] != '\0') {
+		j = 0;
+		if (str[i] != '\n') {
+			while (str[i + j] != '\n' && str[i + j] != '\0') {
+				j++;
+			}
+			
+			iLine++;
+			
+			if (iLine == line) {
+				break;
+			}
+			
+			i += j;
+		} else {
+			i++;
+		}
+	}
+	
+	buffer = HeapMalloc(j + 1);
+	
+	memcpy(buffer, &str[i], j);
+	buffer[j] = '\0';
+	
+	return buffer;
+}
+
+char* CopyWord(const char* str, s32 word) {
+	char* buffer;
+	s32 iWord = -1;
+	s32 i = 0;
+	s32 j = 0;
+	
+	if (str == NULL)
+		return NULL;
+	
+	while (str[i] != '\0') {
+		j = 0;
+		if (str[i + j] > ' ') {
+			while (str[i + j] > ' ') {
+				j++;
+			}
+			
+			iWord++;
+			
+			if (iWord == word) {
+				break;
+			}
+			
+			i += j;
+		} else {
+			i++;
+		}
+	}
+	
+	buffer = HeapMalloc(j + 1);
+	
+	memcpy(buffer, &str[i], j);
+	buffer[j] = '\0';
+	
+	return buffer;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -2570,30 +2848,6 @@ s32 Value_ValidateFloat(const char* str) {
 // # STRING                              #
 // # # # # # # # # # # # # # # # # # # # #
 
-s32 String_LineNum(const char* str) {
-	s32 line = 1;
-	s32 i = 0;
-	
-	while (str[i] != '\0') {
-		if (str[i] == '\n')
-			line++;
-		i++;
-	}
-	
-	return line;
-}
-
-s32 String_PathNum(const char* src) {
-	s32 dir = -1;
-	
-	for (s32 i = 0; i < strlen(src); i++) {
-		if (src[i] == '/')
-			dir++;
-	}
-	
-	return dir + 1;
-}
-
 s32 String_CaseComp(char* a, char* b, u32 compSize) {
 	u32 wow = 0;
 	
@@ -2606,176 +2860,6 @@ s32 String_CaseComp(char* a, char* b, u32 compSize) {
 	return 0;
 }
 
-static void __GetSlashAndPoint(const char* src, s32* slash, s32* point) {
-	s32 strSize = strlen(src);
-	
-	*slash = 0;
-	*point = 0;
-	
-	for (s32 i = strSize; i > 0; i--) {
-		if (*point == 0 && src[i] == '.') {
-			*point = i;
-		}
-		if (src[i] == '/' || src[i] == '\\') {
-			*slash = i;
-			break;
-		}
-	}
-}
-
-char* String_GetLine(const char* str, s32 line) {
-	char* buffer;
-	s32 iLine = -1;
-	s32 i = 0;
-	s32 j = 0;
-	
-	if (str == NULL)
-		return NULL;
-	
-	while (str[i] != '\0') {
-		j = 0;
-		if (str[i] != '\n') {
-			while (str[i + j] != '\n' && str[i + j] != '\0') {
-				j++;
-			}
-			
-			iLine++;
-			
-			if (iLine == line) {
-				break;
-			}
-			
-			i += j;
-		} else {
-			i++;
-		}
-	}
-	
-	buffer = Tmp_Alloc(j + 1);
-	
-	memcpy(buffer, &str[i], j);
-	buffer[j] = '\0';
-	
-	return buffer;
-}
-
-char* String_GetWord(const char* str, s32 word) {
-	char* buffer;
-	s32 iWord = -1;
-	s32 i = 0;
-	s32 j = 0;
-	
-	if (str == NULL)
-		return NULL;
-	
-	while (str[i] != '\0') {
-		j = 0;
-		if (str[i + j] > ' ') {
-			while (str[i + j] > ' ') {
-				j++;
-			}
-			
-			iWord++;
-			
-			if (iWord == word) {
-				break;
-			}
-			
-			i += j;
-		} else {
-			i++;
-		}
-	}
-	
-	buffer = Tmp_Alloc(j + 1);
-	
-	memcpy(buffer, &str[i], j);
-	buffer[j] = '\0';
-	
-	return buffer;
-}
-
-char* String_GetPath(const char* src) {
-	char* buffer;
-	s32 point;
-	s32 slash;
-	
-	if (src == NULL)
-		return NULL;
-	
-	__GetSlashAndPoint(src, &slash, &point);
-	
-	if (slash == 0)
-		slash = -1;
-	
-	buffer = Tmp_Alloc(slash + 1 + 1);
-	
-	memcpy(buffer, src, slash + 1);
-	buffer[slash + 1] = '\0';
-	
-	return buffer;
-}
-
-char* String_GetBasename(const char* src) {
-	char* buffer;
-	s32 point;
-	s32 slash;
-	
-	if (src == NULL)
-		return NULL;
-	
-	__GetSlashAndPoint(src, &slash, &point);
-	
-	// Offset away from the slash
-	if (slash > 0)
-		slash++;
-	
-	if (point < slash || slash + point == 0) {
-		point = slash + 1;
-		while (src[point] > ' ') point++;
-	}
-	
-	buffer = Tmp_Alloc(point - slash + 1);
-	
-	memcpy(buffer, &src[slash], point - slash);
-	buffer[point - slash] = '\0';
-	
-	return buffer;
-}
-
-char* String_GetFilename(const char* src) {
-	char* buffer;
-	s32 point;
-	s32 slash;
-	s32 ext = 0;
-	
-	if (src == NULL)
-		return NULL;
-	
-	__GetSlashAndPoint(src, &slash, &point);
-	
-	// Offset away from the slash
-	if (slash > 0)
-		slash++;
-	
-	if (src[point + ext] == '.') {
-		ext++;
-		while (isalnum(src[point + ext])) ext++;
-	}
-	
-	if (point < slash || slash + point == 0) {
-		point = slash + 1;
-		while (src[point] > ' ') point++;
-	}
-	
-	buffer = Tmp_Alloc(point - slash + ext + 1);
-	
-	memcpy(buffer, &src[slash], point - slash + ext);
-	buffer[point - slash + ext] = '\0';
-	
-	return buffer;
-}
-
 char* String_GetFolder(const char* src, s32 num) {
 	char* buffer;
 	s32 start = -1;
@@ -2785,7 +2869,7 @@ char* String_GetFolder(const char* src, s32 num) {
 		return NULL;
 	
 	if (num < 0) {
-		num = String_PathNum(src) - 1;
+		num = PathNum(src) - 1;
 	}
 	
 	for (s32 temp = 0;;) {
@@ -2805,7 +2889,7 @@ char* String_GetFolder(const char* src, s32 num) {
 	}
 	end++;
 	
-	buffer = Tmp_Alloc(end - start + 1);
+	buffer = HeapMalloc(end - start + 1);
 	
 	memcpy(buffer, &src[start], end - start);
 	buffer[end - start] = '\0';
@@ -2825,106 +2909,19 @@ char* String_GetSpacedArg(char* argv[], s32 cur) {
 			strcat(tempBuf, argv[i++]);
 		}
 		
-		return Tmp_String(tempBuf);
+		return HeapDupStr(tempBuf);
 	}
 	
 	return argv[cur];
-}
-
-char* String_Line(char* str, s32 line) {
-	char* r = str;
-	s32 curline = 0;
-	s32 i = 0;
-	
-	while (line > curline) {
-		while (str[i] != '\n') {
-			i++;
-			if (str[i] == '\0') {
-				return r;
-			}
-		}
-		i++;
-		curline++;
-		
-		r = &str[i];
-	}
-	
-	return r;
-}
-
-char* String_LineHead(char* str) {
-	s32 i = 1;
-	
-	if (str == NULL)
-		return NULL;
-	
-	for (;; i--) {
-		if (str[i - 1] == '\0')
-			return NULL;
-		if (str[i - 1] == '\n')
-			return &str[i];
-	}
-}
-
-char* String_Word(char* str, s32 word) {
-	s32 iWord = -1;
-	s32 i = 0;
-	s32 j = 0;
-	
-	if (str == NULL)
-		return NULL;
-	
-	while (str[i] != '\0') {
-		j = 0;
-		if (str[i + j] > ' ') {
-			while (str[i + j] > ' ') {
-				j++;
-			}
-			
-			iWord++;
-			
-			if (iWord == word) {
-				break;
-			}
-			
-			i += j;
-		} else {
-			i++;
-		}
-	}
-	
-	return &str[i];
 }
 
 char* String_Extension(const char* str) {
 	s32 slash;
 	s32 point;
 	
-	__GetSlashAndPoint(str, &slash, &point);
+	SlashAndPoint(str, &slash, &point);
 	
 	return (void*)&str[point];
-}
-
-void String_CaseToLow(char* s, s32 i) {
-	if (i <= 0)
-		i = strlen(s);
-	
-	for (s32 k = 0; k < i; k++) {
-		if (s[k] >= 'A' && s[k] <= 'Z') {
-			s[k] = s[k] + 32;
-		}
-	}
-}
-
-void String_CaseToUp(char* s, s32 i) {
-	if (i <= 0)
-		i = strlen(s);
-	
-	for (s32 k = 0; k < i; k++) {
-		if (s[k] >= 'a' && s[k] <= 'z') {
-			s[k] = s[k] - 32;
-		}
-	}
 }
 
 void String_Insert(char* point, const char* insert) {
@@ -2963,11 +2960,11 @@ void String_Remove(char* point, s32 amount) {
 s32 String_Replace(char* src, const char* word, const char* replacement) {
 	s32 diff = 0;
 	char* ptr;
-	bool dub = false;
+	bool dup = false;
 	
 	if ((uPtr)word >= (uPtr)src && (uPtr)word < (uPtr)src + strlen(src)) {
-		word = strdup(word);
-		dub = true;
+		word = DupStr(word);
+		dup = true;
 	}
 	
 	if (!StrStr(src, word))
@@ -2982,20 +2979,20 @@ s32 String_Replace(char* src, const char* word, const char* replacement) {
 		diff = true;
 	}
 	
-	if (dub)
+	if (dup)
 		Free((void*)word);
 	
 	return diff;
 }
 
 void String_SwapExtension(char* dest, char* src, const char* ext) {
-	strcpy(dest, String_GetPath(src));
-	strcat(dest, String_GetBasename(src));
+	strcpy(dest, Path(src));
+	strcat(dest, Basename(src));
 	strcat(dest, ext);
 }
 
 char* String_Unquote(const char* str) {
-	char* new = Tmp_String(str);
+	char* new = HeapDupStr(str);
 	
 	if (StrStr(str, "\"") || StrStr(str, "'")) {
 		while (new[0] != '\"' && new[0] != '\'')
@@ -3018,7 +3015,7 @@ void* String_Unicodify(const char* str) {
 	
 #ifdef _WIN32
 	u32 ln = MultiByteToWideChar(CP_UTF8, 0, str, strlen(str), 0, 0);
-	out = Tmp_Alloc(ln + 1);
+	out = HeapMalloc(ln + 1);
 	if (!out)
 		printf_error("Failed to convert UTF8 to WCHAR");
 	MultiByteToWideChar(CP_UTF8, 0, str, strlen(str), (void*)out, ln);
@@ -3033,18 +3030,18 @@ void* String_Unicodify(const char* str) {
 // # CONFIG                              #
 // # # # # # # # # # # # # # # # # # # # #
 
-s32 sConfigSuppression;
+static s32 sConfigSuppression;
 
 void Config_SuppressNext(void) {
 	sConfigSuppression = 1;
 }
 
 char* Config_Variable(const char* str, const char* name) {
-	u32 lineCount = String_LineNum(str);
+	u32 lineCount = LineNum(str);
 	char* line = (char*)str;
 	
 	Log("Var [%s]", name);
-	for (s32 i = 0; i < lineCount; i++, line = String_Line(line, 1)) {
+	for (s32 i = 0; i < lineCount; i++, line = Line(line, 1)) {
 		if (line == NULL) return NULL;
 		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
 			continue;
@@ -3074,11 +3071,11 @@ char* Config_Variable(const char* str, const char* name) {
 }
 
 char* Config_GetVariable(const char* str, const char* name) {
-	u32 lineCount = String_LineNum(str);
+	u32 lineCount = LineNum(str);
 	char* line = (char*)str;
 	
 	Log("Var [%s]", name);
-	for (s32 i = 0; i < lineCount; i++, line = String_Line(line, 1)) {
+	for (s32 i = 0; i < lineCount; i++, line = Line(line, 1)) {
 		if (line == NULL) return NULL;
 		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
 			continue;
@@ -3115,7 +3112,7 @@ char* Config_GetVariable(const char* str, const char* name) {
 				while (p[size - 1] <= ' ')
 					size--;
 			
-			buf = Tmp_Alloc(size + 1);
+			buf = HeapMalloc(size + 1);
 			memcpy(buf, p + isString, size - isString);
 			
 			return buf;
@@ -3272,7 +3269,7 @@ s32 Config_Replace(MemFile* mem, const char* variable, const char* fmt, ...) {
 // # # # # # # # # # # # # # # # # # # # #
 
 char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
-	char* line = String_Line(str, lineNum);
+	char* line = Line(str, lineNum);
 	u32 size = 0;
 	char* r;
 	
@@ -3293,7 +3290,7 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 	if (*line == '\t') return NULL;
 	while (line[size] != '\t' && line[size] != '\0' && line[size] != '\n') size++;
 	
-	r = Tmp_Alloc(size + 1);
+	r = HeapMalloc(size + 1);
 	memcpy(r, line, size);
 	
 	return r;
@@ -3308,9 +3305,9 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 #define FAULT_BUFFER_SIZE (1024)
 #define FAULT_LOG_NUM     6
 
-char* sLogMsg[FAULT_LOG_NUM];
-char* sLogFunc[FAULT_LOG_NUM];
-u32 sLogLine[FAULT_LOG_NUM];
+static char* sLogMsg[FAULT_LOG_NUM];
+static char* sLogFunc[FAULT_LOG_NUM];
+static u32 sLogLine[FAULT_LOG_NUM];
 
 static void Log_Signal_PrintTitle(int arg) {
 	const char* errorMsg[] = {
@@ -3344,12 +3341,12 @@ static void Log_Signal_PrintTitle(int arg) {
 }
 
 static void Log_Signal(int arg) {
-	volatile static bool ran = 0;
+	static volatile bool ran = 0;
 	u32 msgsNum = 0;
 	u32 repeat = 0;
 	
 	if (ran) return;
-	ran = ___gExt_ThreadInit != 0;
+	ran = ___sExt_ThreadInit != 0;
 	
 	Log_Signal_PrintTitle(arg);
 	
@@ -3787,8 +3784,10 @@ u8* Sys_Sha256(u8* data, u64 size) {
 	
 	//H -> Block hash ; TmpH -> temporary hash in Sha_Compression loop
 	//Temp1 and Temp2 are auxiliar variable to calculate TmpH[]
-	u32 Hash[8] = { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-			0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 };
+	u32 Hash[8] = {
+		0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+		0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+	};
 	
 	//Hashed data
 	u8* Digest;
