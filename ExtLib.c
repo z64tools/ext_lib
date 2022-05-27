@@ -145,11 +145,11 @@ void* HeapMalloc(Size size) {
 	return ret;
 }
 
-char* HeapDupStr(const char* str) {
-	return HeapDupMem(str, strlen(str) + 1);
+char* HeapStrDup(const char* str) {
+	return HeapMemDup(str, strlen(str) + 1);
 }
 
-char* HeapDupMem(const char* data, Size size) {
+char* HeapMemDup(const char* data, Size size) {
 	char* ret = HeapMalloc(size);
 	
 	if (ret == NULL)
@@ -168,7 +168,7 @@ char* HeapPrint(const char* fmt, ...) {
 	vsnprintf(tempBuf, ArrayCount(tempBuf), fmt, args);
 	va_end(args);
 	
-	return HeapDupStr(tempBuf);
+	return HeapStrDup(tempBuf);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -355,7 +355,7 @@ char* Dir_GetWildcard(char* x) {
 	if (search == NULL)
 		return NULL;
 	
-	sEnd = HeapDupStr(&search[1]);
+	sEnd = HeapStrDup(&search[1]);
 	posPath = Path(HeapPrint("%s%s", dirCtx->curPath, x));
 	
 	if ((uPtr)search - (uPtr)x > 0) {
@@ -363,7 +363,7 @@ char* Dir_GetWildcard(char* x) {
 		memcpy(sStart, x, (uPtr)search - (uPtr)x);
 	}
 	
-	restorePath = HeapDupStr(dirCtx->curPath);
+	restorePath = HeapStrDup(dirCtx->curPath);
 	
 	if (strcmp(posPath, restorePath)) {
 		Dir_Set(posPath);
@@ -452,8 +452,7 @@ static void Dir_ItemList_Recursive_ChildCount(ItemList* target, char* pathTo, ch
 	
 	for (s32 i = 0; i < folder.num; i++) {
 		Dir_Enter(folder.item[i]); {
-			path = Calloc(path, 0x128);
-			sprintf(path, "%s%s", pathTo, folder.item[i]);
+			asprintf(&path, "%s%s", pathTo, folder.item[i]);
 			
 			Dir_ItemList_Recursive_ChildCount(target, path, keyword);
 			Dir_Leave();
@@ -482,8 +481,7 @@ static void Dir_ItemList_Recursive_ChildWrite(ItemList* target, char* pathTo, ch
 	
 	for (s32 i = 0; i < folder.num; i++) {
 		Dir_Enter(folder.item[i]); {
-			path = Calloc(path, 0x128);
-			sprintf(path, "%s%s", pathTo, folder.item[i]);
+			asprintf(&path, "%s%s", pathTo, folder.item[i]);
 			
 			Dir_ItemList_Recursive_ChildWrite(target, path, keyword);
 			Dir_Leave();
@@ -662,31 +660,26 @@ static void ItemList_Walk(const char* base, const char* parent, s32 level, s32 m
 		while ((entry = readdir(dir))) {
 			char* path;
 			
-			if (StrMtch(".", entry->d_name) || StrMtch("..", entry->d_name))
+			if (!strcmp(".", entry->d_name) || !strcmp("..", entry->d_name))
 				continue;
 			
 			if ((info->flags & LIST_NO_DOT) && entry->d_name[0] == '.')
 				continue;
 			
-			path = Malloc(0, 128 + strlen(parent));
-			sprintf(path, "%s%s/", parent, entry->d_name);
+			asprintf(&path, "%s%s/", parent, entry->d_name);
 			
 			if (Sys_IsDir(path)) {
 				if (max == -1 || level < max)
 					ItemList_Walk(base, path, level + 1, max, info);
 				
 				if ((info->flags & 0xF) == LIST_FOLDERS) {
-					info->list[info->num] = Malloc(0, 128 + strlen(path));
-					
-					sprintf(info->list[info->num], "%s%s/", entryPath, entry->d_name);
+					asprintf(&info->list[info->num], "%s%s/", entryPath, entry->d_name);
 					info->len += strlen(info->list[info->num]) + 1;
 					info->num++;
 				}
 			} else {
 				if ((info->flags & 0xF) == LIST_FILES) {
-					info->list[info->num] = Malloc(0, 128 + strlen(path));
-					
-					sprintf(info->list[info->num], "%s%s", entryPath, entry->d_name);
+					asprintf(&info->list[info->num], "%s%s", entryPath, entry->d_name);
 					info->len += strlen(info->list[info->num]) + 1;
 					info->num++;
 				}
@@ -740,10 +733,11 @@ char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, .
 			return list->item[i];
 	
 	if (error) {
-		char* text = Calloc(0, 0x1024);
+		char* text;
 		va_list va;
 		va_start(va, error);
-		vsprintf(text, error, va);
+		vasprintf(&text, error, va);
+		va_end(va);
 		
 		printf_error("%s", error);
 	}
@@ -972,6 +966,9 @@ void ItemList_AddItem(ItemList* list, const char* item) {
 // # SYS                                 #
 // # # # # # # # # # # # # # # # # # # # #
 
+static s32 sSysIgnore;
+static s32 sSysReturn;
+
 bool Sys_IsDir(const char* path) {
 	struct stat st = { 0 };
 	
@@ -1050,39 +1047,54 @@ void Sys_Sleep(f64 sec) {
 	nanosleep(&ts, NULL);
 }
 
-static void __MakeDir(const char* buffer) {
+static void __recursive_mkdir(const char* dir) {
+	char tmp[256];
+	char* p = NULL;
+	size_t len;
+	
+	snprintf(tmp, sizeof(tmp), "%s", dir);
+	len = strlen(tmp);
+	if (tmp[len - 1] == '/')
+		tmp[len - 1] = 0;
+	for (p = tmp + 1; *p; p++)
+		if (*p == '/') {
+			*p = 0;
+			if (!Sys_Stat(tmp))
+				mkdir(
+					tmp
+#ifndef _WIN32
+					,
+					S_IRWXU
+#endif
+				);
+			*p = '/';
+		}
+	if (!Sys_Stat(tmp))
+		mkdir(
+			tmp
+#ifndef _WIN32
+			,
+			S_IRWXU
+#endif
+		);
+}
+
+void __MakeDir(const char* buffer) {
 	if (Sys_Stat(buffer))
 		return;
 	
-	struct stat st = { 0 };
-	
-	if (stat(buffer, &st) == -1) {
-#ifdef _WIN32
-		if (mkdir(buffer)) {
-			if (!Sys_Stat(buffer))
-				Log("mkdir error: [%s]", buffer);
-		}
-#else
-		if (mkdir(buffer, 0700)) {
-			if (!Sys_Stat(buffer))
-				Log("mkdir error: [%s]", buffer);
-		}
-#endif
-	}
+	__recursive_mkdir(buffer);
+	if (!Sys_Stat(buffer))
+		Log("mkdir error: [%s]", buffer);
 }
 
 void Sys_MakeDir(const char* dir, ...) {
 	char* buffer;
-	s32 pathNum;
 	va_list args;
 	
-	buffer = Malloc(0, strlen(dir) + 1024);
-	
 	va_start(args, dir);
-	vsprintf(buffer, dir, args);
+	vasprintf(&buffer, dir, args);
 	va_end(args);
-	
-	pathNum = PathNum(buffer);
 	
 	if (!Sys_IsDir(dir)) {
 		for (s32 i = strlen(buffer) - 1; i >= 0; i--) {
@@ -1094,24 +1106,7 @@ void Sys_MakeDir(const char* dir, ...) {
 	
 	Log("[%s]", buffer);
 	
-	if (pathNum == 1) {
-		__MakeDir(buffer);
-	} else {
-		for (s32 i = 0; i < pathNum; i++) {
-			char* temp = Malloc(0, strlen(dir) + 1024);
-			char* folder = PathSlot(buffer, 0);
-			
-			strcpy(temp, folder);
-			
-			for (s32 j = 1; j < i + 1; j++) {
-				folder = PathSlot(buffer, j);
-				strcat(temp, folder);
-			}
-			
-			__MakeDir(temp);
-			Free(temp);
-		}
-	}
+	__MakeDir(buffer);
 	
 	Free(buffer);
 }
@@ -1178,6 +1173,14 @@ void Sys_SetWorkDir(const char* txt) {
 	chdir(txt);
 }
 
+void SysExe_IgnoreError() {
+	sSysIgnore = true;
+}
+
+s32 SysExe_GetError() {
+	return sSysReturn;
+}
+
 s32 SysExe(const char* cmd) {
 	s32 ret;
 	
@@ -1193,7 +1196,6 @@ char* SysExeO(const char* cmd) {
 	char result[1024];
 	MemFile mem = MemFile_Initialize();
 	FILE* file;
-	s32 pr;
 	
 	if ((file = popen(cmd, "r")) == NULL) {
 		Log(PRNT_REDD "SysExeO(%s);", cmd);
@@ -1208,10 +1210,14 @@ char* SysExeO(const char* cmd) {
 	while (fgets(result, 1024, file))
 		MemFile_Write(&mem, result, strlen(result));
 	
-	if ((pr = pclose(file)) != 0) {
-		printf("%s\n", mem.str);
-		Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExeO(" PRNT_REDD "%s" PRNT_GRAY ");", pr, cmd);
-		printf_error("SysExeO");
+	if ((sSysReturn = pclose(file)) != 0) {
+		if (sSysIgnore == 0) {
+			printf("%s\n", mem.str);
+			Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExeO(" PRNT_REDD "%s" PRNT_GRAY ");", sSysReturn, cmd);
+			printf_error("SysExeO");
+		}
+		
+		sSysIgnore = 0;
 	}
 	
 	return mem.data;
@@ -1387,10 +1393,10 @@ void printf_SetPrefix(char* fmt) {
 
 void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i) {
 	sPrintfType = 0;
-	sPrintfPreType[sPrintfType][0] = DupStr(d);
-	sPrintfPreType[sPrintfType][1] = DupStr(w);
-	sPrintfPreType[sPrintfType][2] = DupStr(e);
-	sPrintfPreType[sPrintfType][3] = DupStr(i);
+	sPrintfPreType[sPrintfType][0] = StrDup(d);
+	sPrintfPreType[sPrintfType][1] = StrDup(w);
+	sPrintfPreType[sPrintfType][2] = StrDup(e);
+	sPrintfPreType[sPrintfType][3] = StrDup(i);
 }
 
 void printf_toolinfo(const char* toolname, const char* fmt, ...) {
@@ -1767,11 +1773,11 @@ static s32 sRandInit;
 
 void __Assert(s32 expression, const char* msg, ...) {
 	if (!expression) {
-		char* buf = HeapMalloc(1024);
+		char* buf;
 		va_list va;
 		
 		va_start(va, msg);
-		vsprintf(buf, msg, va);
+		vasprintf(&buf, msg, va);
 		va_end(va);
 		
 		printf_error("%s", buf);
@@ -2058,7 +2064,7 @@ void* Realloc(void* data, s32 size) {
 	return data;
 }
 
-void* DupMem(const void* src, Size size) {
+void* MemDup(const void* src, Size size) {
 	void* new = Malloc(0, size);
 	
 	memcpy(new, src, size);
@@ -2066,8 +2072,8 @@ void* DupMem(const void* src, Size size) {
 	return new;
 }
 
-char* DupStr(const char* src) {
-	return DupMem(src, strlen(src) + 1);
+char* StrDup(const char* src) {
+	return MemDup(src, strlen(src) + 1);
 }
 
 void* Free(void* data) {
@@ -2918,7 +2924,7 @@ char* String_GetSpacedArg(char* argv[], s32 cur) {
 			strcat(tempBuf, argv[i++]);
 		}
 		
-		return HeapDupStr(tempBuf);
+		return HeapStrDup(tempBuf);
 	}
 	
 	return argv[cur];
@@ -2972,7 +2978,7 @@ s32 String_Replace(char* src, const char* word, const char* replacement) {
 	bool dup = false;
 	
 	if ((uPtr)word >= (uPtr)src && (uPtr)word < (uPtr)src + strlen(src)) {
-		word = DupStr(word);
+		word = StrDup(word);
 		dup = true;
 	}
 	
@@ -3001,7 +3007,7 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 }
 
 char* String_Unquote(const char* str) {
-	char* new = HeapDupStr(str);
+	char* new = HeapStrDup(str);
 	
 	if (StrStr(str, "\"") || StrStr(str, "'")) {
 		while (new[0] != '\"' && new[0] != '\'')
@@ -3242,12 +3248,12 @@ static void Toml_FollowComment(MemFile* mem, const char* comment) {
 }
 
 s32 Toml_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ...) {
-	char* replacement = Malloc(0, 0x10000);
+	char* replacement;
 	va_list va;
 	char* p;
 	
 	va_start(va, fmt);
-	vsprintf(replacement, fmt, va);
+	vasprintf(&replacement, fmt, va);
 	va_end(va);
 	
 	p = Toml_Variable(mem->str, variable);

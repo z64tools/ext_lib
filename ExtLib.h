@@ -1,6 +1,9 @@
 #ifndef __EXTLIB_H__
 #define __EXTLIB_H__
 
+#define _GNU_SOURCE
+#define __CRT__NO_INLINE
+
 #include <ExtTypes.h>
 #include <math.h>
 #include <time.h>
@@ -29,8 +32,8 @@ void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
 
 void* HeapMalloc(Size size);
-char* HeapDupStr(const char* str);
-char* HeapDupMem(const char* data, Size size);
+char* HeapStrDup(const char* str);
+char* HeapMemDup(const char* data, Size size);
 char* HeapPrint(const char* fmt, ...);
 
 void Time_Start(void);
@@ -71,6 +74,8 @@ s32 Sys_Copy(const char* src, const char* dest, bool isStr);
 u8* Sys_Sha256(u8* data, u64 size);
 void Sys_Sleep(f64 sec);
 
+void SysExe_IgnoreError();
+s32 SysExe_GetError();
 s32 SysExe(const char* cmd);
 char* SysExeO(const char* cmd);
 
@@ -135,8 +140,8 @@ char* StrEndCase(const char* src, const char* ext);
 void* Malloc(void* data, s32 size);
 void* Calloc(void* data, s32 size);
 void* Realloc(void* data, s32 size);
-void* DupMem(const void* src, Size size);
-char* DupStr(const char* src);
+void* MemDup(const void* src, Size size);
+char* StrDup(const char* src);
 void* Free(void* data);
 void ByteSwap(void* src, s32 size);
 s32 ParseArgs(char* argv[], char* arg, u32* parArg);
