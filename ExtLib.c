@@ -2659,6 +2659,13 @@ void* MemFile_Seek(MemFile* src, u32 seek) {
 	return (void*)&src->cast.u8[seek];
 }
 
+void MemFile_LoadMem(MemFile* mem, void* data, Size size) {
+	if (mem->param.initKey != 0xD0E0A0D0B0E0E0F0)
+		*mem = MemFile_Initialize();
+	mem->dataSize = mem->memSize = size;
+	mem->data = data;
+}
+
 s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
 	u32 tempSize;
 	FILE* file = fopen(filepath, "rb");
@@ -3118,15 +3125,17 @@ char* Toml_GetVariable(const char* str, const char* name) {
 	return NULL;
 }
 
-void Toml_GetArray(const char* src, ItemList* list, const char* name) {
+void Toml_GetArray(MemFile* mem, ItemList* list, const char* variable) {
 	char* array;
 	char* tmp;
 	u32 size = 0;
 	
-	array = Toml_Variable(src, name);
+	array = Toml_Variable(mem->str, variable);
 	
 	if (array == NULL || array[0] != '[') {
 		*list = ItemList_Initialize();
+		
+		printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
 		
 		return;
 	}
@@ -3144,10 +3153,10 @@ void Toml_GetArray(const char* src, ItemList* list, const char* name) {
 		String_Replace(list->item[i], "\"", "");
 }
 
-s32 Toml_GetBool(const char* src, const char* boolName) {
+s32 Toml_GetBool(MemFile* mem, const char* variable) {
 	char* ptr;
 	
-	ptr = Toml_GetVariable(src, boolName);
+	ptr = Toml_GetVariable(mem->str, variable);
 	if (ptr) {
 		char* word = ptr;
 		if (!strcmp(word, "true")) {
@@ -3158,15 +3167,17 @@ s32 Toml_GetBool(const char* src, const char* boolName) {
 		}
 	}
 	
+	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+	
 	return 0;
 }
 
-s32 Toml_GetOption(const char* src, const char* stringName, char* strList[]) {
+s32 Toml_GetOption(MemFile* mem, const char* variable, char* strList[]) {
 	char* ptr;
 	char* word;
 	s32 i = 0;
 	
-	ptr = Toml_GetVariable(src, stringName);
+	ptr = Toml_GetVariable(mem->str, variable);
 	if (ptr) {
 		word = ptr;
 		while (strList[i] != NULL && !StrStr(word, strList[i]))
@@ -3176,38 +3187,46 @@ s32 Toml_GetOption(const char* src, const char* stringName, char* strList[]) {
 			return i;
 	}
 	
+	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+	
 	return 0;
 }
 
-s32 Toml_GetInt(const char* src, const char* intName) {
+s32 Toml_GetInt(MemFile* mem, const char* variable) {
 	char* ptr;
 	
-	ptr = Toml_GetVariable(src, intName);
+	ptr = Toml_GetVariable(mem->str, variable);
 	if (ptr) {
 		return Value_Int(ptr);
 	}
 	
+	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+	
 	return 0;
 }
 
-char* Toml_GetStr(const char* src, const char* stringName) {
+char* Toml_GetStr(MemFile* mem, const char* variable) {
 	char* ptr;
 	
-	ptr = Toml_GetVariable(src, stringName);
+	ptr = Toml_GetVariable(mem->str, variable);
 	if (ptr) {
 		return ptr;
 	}
 	
+	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+	
 	return NULL;
 }
 
-f32 Toml_GetFloat(const char* src, const char* floatName) {
+f32 Toml_GetFloat(MemFile* mem, const char* variable) {
 	char* ptr;
 	
-	ptr = Toml_GetVariable(src, floatName);
+	ptr = Toml_GetVariable(mem->str, variable);
 	if (ptr) {
 		return Value_Float(ptr);
 	}
+	
+	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
 	
 	return 0.0f;
 }

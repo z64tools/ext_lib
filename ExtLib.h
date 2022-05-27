@@ -171,6 +171,7 @@ void MemFile_Align(MemFile* src, u32 align);
 s32 MemFile_Printf(MemFile* dest, const char* fmt, ...);
 s32 MemFile_Read(MemFile* src, void* dest, u32 size);
 void* MemFile_Seek(MemFile* src, u32 seek);
+void MemFile_LoadMem(MemFile* mem, void* data, Size size);
 s32 MemFile_LoadFile(MemFile* memFile, const char* filepath);
 s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath);
 s32 MemFile_SaveFile(MemFile* memFile, const char* filepath);
@@ -205,12 +206,12 @@ void* String_Unicodify(const char* str);
 
 char* Toml_Variable(const char* str, const char* name);
 char* Toml_GetVariable(const char* str, const char* name);
-void Toml_GetArray(const char* src, ItemList* list, const char* name);
-s32 Toml_GetBool(const char* src, const char* boolName);
-s32 Toml_GetOption(const char* src, const char* stringName, char* strList[]);
-s32 Toml_GetInt(const char* src, const char* intName);
-char* Toml_GetStr(const char* src, const char* stringName);
-f32 Toml_GetFloat(const char* src, const char* floatName);
+void Toml_GetArray(MemFile* mem, ItemList* list, const char* name);
+s32 Toml_GetBool(MemFile* mem, const char* boolName);
+s32 Toml_GetOption(MemFile* mem, const char* stringName, char* strList[]);
+s32 Toml_GetInt(MemFile* mem, const char* intName);
+char* Toml_GetStr(MemFile* mem, const char* stringName);
+f32 Toml_GetFloat(MemFile* mem, const char* floatName);
 
 s32 Toml_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ...);
 void Toml_WriteComment(MemFile* mem, const char* comment);
