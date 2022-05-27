@@ -960,9 +960,11 @@ void ItemList_Alloc(ItemList* list, u32 num, Size size) {
 }
 
 void ItemList_AddItem(ItemList* list, const char* item) {
+	u32 len = strlen(item);
+	
 	list->item[list->num] = &list->buffer[list->writePoint];
 	strcpy(list->item[list->num], item);
-	list->writePoint += strlen(list->item[list->num]) + 1;
+	list->writePoint += len + 1;
 	list->num++;
 }
 
@@ -3030,13 +3032,7 @@ void* String_Unicodify(const char* str) {
 // # CONFIG                              #
 // # # # # # # # # # # # # # # # # # # # #
 
-static s32 sConfigSuppression;
-
-void Config_SuppressNext(void) {
-	sConfigSuppression = 1;
-}
-
-char* Config_Variable(const char* str, const char* name) {
+char* Toml_Variable(const char* str, const char* name) {
 	u32 lineCount = LineNum(str);
 	char* line = (char*)str;
 	
@@ -3070,7 +3066,7 @@ char* Config_Variable(const char* str, const char* name) {
 	return NULL;
 }
 
-char* Config_GetVariable(const char* str, const char* name) {
+char* Toml_GetVariable(const char* str, const char* name) {
 	u32 lineCount = LineNum(str);
 	char* line = (char*)str;
 	
@@ -3122,12 +3118,12 @@ char* Config_GetVariable(const char* str, const char* name) {
 	return NULL;
 }
 
-void Config_GetArray(ItemList* list, const char* str, const char* name) {
+void Toml_GetArray(const char* src, ItemList* list, const char* name) {
 	char* array;
 	char* tmp;
 	u32 size = 0;
 	
-	array = Config_Variable(str, name);
+	array = Toml_Variable(src, name);
 	
 	if (array == NULL || array[0] != '[') {
 		*list = ItemList_Initialize();
@@ -3148,10 +3144,10 @@ void Config_GetArray(ItemList* list, const char* str, const char* name) {
 		String_Replace(list->item[i], "\"", "");
 }
 
-s32 Config_GetBool(MemFile* memFile, const char* boolName) {
+s32 Toml_GetBool(const char* src, const char* boolName) {
 	char* ptr;
 	
-	ptr = Config_GetVariable(memFile->str, boolName);
+	ptr = Toml_GetVariable(src, boolName);
 	if (ptr) {
 		char* word = ptr;
 		if (!strcmp(word, "true")) {
@@ -3162,19 +3158,15 @@ s32 Config_GetBool(MemFile* memFile, const char* boolName) {
 		}
 	}
 	
-	if (sConfigSuppression == 0)
-		printf_warning("[%s] is missing bool [%s]", memFile->info.name, boolName);
-	else sConfigSuppression++;
-	
 	return 0;
 }
 
-s32 Config_GetOption(MemFile* memFile, const char* stringName, char* strList[]) {
+s32 Toml_GetOption(const char* src, const char* stringName, char* strList[]) {
 	char* ptr;
 	char* word;
 	s32 i = 0;
 	
-	ptr = Config_GetVariable(memFile->str, stringName);
+	ptr = Toml_GetVariable(src, stringName);
 	if (ptr) {
 		word = ptr;
 		while (strList[i] != NULL && !StrStr(word, strList[i]))
@@ -3184,59 +3176,53 @@ s32 Config_GetOption(MemFile* memFile, const char* stringName, char* strList[]) 
 			return i;
 	}
 	
-	if (sConfigSuppression == 0)
-		printf_warning("[%s] is missing option [%s]", memFile->info.name, stringName);
-	else sConfigSuppression++;
-	
 	return 0;
 }
 
-s32 Config_GetInt(MemFile* memFile, const char* intName) {
+s32 Toml_GetInt(const char* src, const char* intName) {
 	char* ptr;
 	
-	ptr = Config_GetVariable(memFile->str, intName);
+	ptr = Toml_GetVariable(src, intName);
 	if (ptr) {
 		return Value_Int(ptr);
 	}
 	
-	if (sConfigSuppression == 0)
-		printf_warning("[%s] is missing integer [%s]", memFile->info.name, intName);
-	else sConfigSuppression++;
-	
 	return 0;
 }
 
-char* Config_GetString(MemFile* memFile, const char* stringName) {
+char* Toml_GetStr(const char* src, const char* stringName) {
 	char* ptr;
 	
-	ptr = Config_GetVariable(memFile->str, stringName);
+	ptr = Toml_GetVariable(src, stringName);
 	if (ptr) {
 		return ptr;
 	}
 	
-	if (sConfigSuppression == 0)
-		printf_warning("[%s] is missing string [%s]", memFile->info.name, stringName);
-	else sConfigSuppression++;
-	
 	return NULL;
 }
 
-f32 Config_GetFloat(MemFile* memFile, const char* floatName) {
+f32 Toml_GetFloat(const char* src, const char* floatName) {
 	char* ptr;
 	
-	ptr = Config_GetVariable(memFile->str, floatName);
+	ptr = Toml_GetVariable(src, floatName);
 	if (ptr) {
 		return Value_Float(ptr);
 	}
 	
-	if (sConfigSuppression == 0)
-		printf_warning("[%s] is missing float [%s]", memFile->info.name, floatName);
-	else sConfigSuppression++;
-	
 	return 0.0f;
 }
 
-s32 Config_Replace(MemFile* mem, const char* variable, const char* fmt, ...) {
+// # # # # # # # # # # # # # # # # # # # #
+// # TOML                                #
+// # # # # # # # # # # # # # # # # # # # #
+
+static void Toml_FollowComment(MemFile* mem, const char* comment) {
+	if (comment)
+		MemFile_Printf(mem, HeapPrint(" # %s", comment));
+	MemFile_Printf(mem, "\n");
+}
+
+s32 Toml_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ...) {
 	char* replacement = Malloc(0, 0x10000);
 	va_list va;
 	char* p;
@@ -3245,12 +3231,12 @@ s32 Config_Replace(MemFile* mem, const char* variable, const char* fmt, ...) {
 	vsprintf(replacement, fmt, va);
 	va_end(va);
 	
-	p = Config_Variable(mem->str, variable);
+	p = Toml_Variable(mem->str, variable);
 	
 	if (p) {
 		if (p[0] == '"')
 			p++;
-		String_Remove(p, strlen(Config_GetVariable(mem->str, variable)));
+		String_Remove(p, strlen(Toml_GetVariable(mem->str, variable)));
 		String_Insert(p, replacement);
 		
 		mem->dataSize = strlen(mem->str);
@@ -3262,6 +3248,52 @@ s32 Config_Replace(MemFile* mem, const char* variable, const char* fmt, ...) {
 	Free(replacement);
 	
 	return 1;
+}
+
+void Toml_WriteComment(MemFile* mem, const char* comment) {
+	if (comment)
+		MemFile_Printf(mem, HeapPrint("# %s", comment));
+	MemFile_Printf(mem, "\n");
+}
+
+void Toml_WriteArray(MemFile* mem, const char* variable, ItemList* list, bool quote, const char* comment) {
+	const char* q[2] = {
+		"",
+		"\"",
+	};
+	
+	MemFile_Printf(mem, "%-15s = [ ", variable);
+	for (s32 i = 0; i < list->num; i++) {
+		MemFile_Printf(mem, "%s%s%s, ", q[quote], list->item[i], q[quote]);
+	}
+	mem->seekPoint -= 2;
+	MemFile_Printf(mem, " ]");
+	Toml_FollowComment(mem, comment);
+}
+
+void Toml_WriteInt(MemFile* mem, const char* variable, const s64 integer, const char* comment) {
+	MemFile_Printf(mem, "%-15s = %ld", variable, integer);
+	Toml_FollowComment(mem, comment);
+}
+
+void Toml_WriteHex(MemFile* mem, const char* variable, const s64 integer, const char* comment) {
+	MemFile_Printf(mem, "%-15s = 0x%lX", variable, integer);
+	Toml_FollowComment(mem, comment);
+}
+
+void Toml_WriteStr(MemFile* mem, const char* variable, const char* str, bool quote, const char* comment) {
+	const char* q[2] = {
+		"",
+		"\"",
+	};
+	
+	MemFile_Printf(mem, "%-15s = %s%s%s", variable, q[quote], str, q[quote]);
+	Toml_FollowComment(mem, comment);
+}
+
+void Toml_WriteFloat(MemFile* mem, const char* variable, const f64 flo, const char* comment) {
+	MemFile_Printf(mem, "%-15s = %lf", variable, flo);
+	Toml_FollowComment(mem, comment);
 }
 
 // # # # # # # # # # # # # # # # # # # # #

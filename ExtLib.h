@@ -203,16 +203,24 @@ char* String_GetSpacedArg(char* argv[], s32 cur);
 char* String_Unquote(const char* str);
 void* String_Unicodify(const char* str);
 
-void Config_SuppressNext(void);
-char* Config_Variable(const char* str, const char* name);
-char* Config_GetVariable(const char* str, const char* name);
-void Config_GetArray(ItemList* list, const char* str, const char* name);
-s32 Config_GetBool(MemFile* memFile, const char* boolName);
-s32 Config_GetOption(MemFile* memFile, const char* stringName, char* strList[]);
-s32 Config_GetInt(MemFile* memFile, const char* intName);
-char* Config_GetString(MemFile* memFile, const char* stringName);
-f32 Config_GetFloat(MemFile* memFile, const char* floatName);
-s32 Config_Replace(MemFile* mem, const char* variable, const char* fmt, ...);
+char* Toml_Variable(const char* str, const char* name);
+char* Toml_GetVariable(const char* str, const char* name);
+void Toml_GetArray(const char* src, ItemList* list, const char* name);
+s32 Toml_GetBool(const char* src, const char* boolName);
+s32 Toml_GetOption(const char* src, const char* stringName, char* strList[]);
+s32 Toml_GetInt(const char* src, const char* intName);
+char* Toml_GetStr(const char* src, const char* stringName);
+f32 Toml_GetFloat(const char* src, const char* floatName);
+
+s32 Toml_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ...);
+void Toml_WriteComment(MemFile* mem, const char* comment);
+void Toml_WriteArray(MemFile* mem, const char* variable, ItemList* list, bool quote, const char* comment);
+void Toml_WriteInt(MemFile* mem, const char* variable, const s64 integer, const char* comment);
+void Toml_WriteHex(MemFile* mem, const char* variable, const s64 integer, const char* comment);
+void Toml_WriteStr(MemFile* mem, const char* variable, const char* str, bool quote, const char* comment);
+void Toml_WriteFloat(MemFile* mem, const char* variable, const f64 flo, const char* comment);
+#define Toml_Print(mem, ...) MemFile_Printf(mem, __VA_ARGS__)
+#define NO_COMMENT NULL
 
 char* String_Tsv(char* str, s32 rowNum, s32 lineNum);
 
@@ -355,59 +363,6 @@ void Sound_Xm_Stop();
 
 #define NARGS_SEQ(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, N, ...) N
 #define NARGS(...)                                                                               NARGS_SEQ(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
-
-#define Config_WriteTitle(title) MemFile_Printf( \
-		config, \
-		title \
-)
-
-#define Config_WriteTitle_Str(title) MemFile_Printf( \
-		config, \
-		"# %s\n", \
-		title \
-)
-
-#define Config_WriteVar(com1, name, defval, com2) MemFile_Printf( \
-		config, \
-		com1 \
-		"%-15s = %-10s # %s\n\n", \
-		name, \
-		# defval, \
-		com2 \
-)
-
-#define Config_WriteVar_Hex(name, defval) MemFile_Printf( \
-		config, \
-		"%-15s = 0x%X\n", \
-		name, \
-		defval \
-)
-
-#define Config_WriteVar_Int(name, defval) MemFile_Printf( \
-		config, \
-		"%-15s = %d\n", \
-		name, \
-		defval \
-)
-
-#define Config_WriteVar_Flo(name, defval) MemFile_Printf( \
-		config, \
-		"%-15s = %f\n", \
-		name, \
-		defval \
-)
-
-#define Config_WriteVar_Str(name, defval) MemFile_Printf( \
-		config, \
-		"%-15s = %s\n", \
-		name, \
-		defval \
-)
-
-#define Config_SPrintf(...) MemFile_Printf( \
-		config, \
-		__VA_ARGS__ \
-)
 
 #ifndef __EXTLIB_C__
 
