@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <string.h>
+#include <float.h>
 
 extern PrintfSuppressLevel gPrintfSuppress;
 extern pthread_mutex_t gMutexLock;
@@ -152,9 +153,9 @@ char* Path(const char* src);
 char* PathSlot(const char* src, s32 num);
 char* Basename(const char* src);
 char* Filename(const char* src);
-char* Line(char* str, s32 line);
-char* LineHead(char* str);
-char* Word(char* str, s32 word);
+char* Line(const char* str, s32 line);
+char* LineHead(const char* str);
+char* Word(const char* str, s32 word);
 void CaseToLow(char* s, s32 i);
 void CaseToUp(char* s, s32 i);
 s32 LineNum(const char* str);
@@ -175,7 +176,7 @@ s32 MemFile_Insert(MemFile* mem, void* src, s32 size, s64 pos);
 s32 MemFile_Append(MemFile* dest, MemFile* src);
 void MemFile_Align(MemFile* src, u32 align);
 s32 MemFile_Printf(MemFile* dest, const char* fmt, ...);
-s32 MemFile_Read(MemFile* src, void* dest, u32 size);
+s32 MemFile_Read(MemFile* src, void* dest, Size size);
 void* MemFile_Seek(MemFile* src, u32 seek);
 void MemFile_LoadMem(MemFile* mem, void* data, Size size);
 s32 MemFile_LoadFile(MemFile* memFile, const char* filepath);
@@ -218,6 +219,7 @@ s32 Toml_GetOption(MemFile* mem, const char* stringName, char* strList[]);
 s32 Toml_GetInt(MemFile* mem, const char* intName);
 char* Toml_GetStr(MemFile* mem, const char* stringName);
 f32 Toml_GetFloat(MemFile* mem, const char* floatName);
+void Toml_GotoSection(const char* section);
 
 s32 Toml_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ...);
 void Toml_WriteComment(MemFile* mem, const char* comment);
@@ -226,8 +228,11 @@ void Toml_WriteInt(MemFile* mem, const char* variable, const s64 integer, const 
 void Toml_WriteHex(MemFile* mem, const char* variable, const s64 integer, const char* comment);
 void Toml_WriteStr(MemFile* mem, const char* variable, const char* str, bool quote, const char* comment);
 void Toml_WriteFloat(MemFile* mem, const char* variable, const f64 flo, const char* comment);
+void Toml_WriteSection(MemFile* mem, const char* variable);
 #define Toml_Print(mem, ...) MemFile_Printf(mem, __VA_ARGS__)
 #define NO_COMMENT NULL
+#define QUOTES     1
+#define NO_QUOTES  0
 
 char* String_Tsv(char* str, s32 rowNum, s32 lineNum);
 

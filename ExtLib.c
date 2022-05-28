@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 138
+#define THIS_EXTLIB_VERSION 139
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -1716,7 +1716,7 @@ void printf_progressFst(const char* info, u32 a, u32 b) {
 		"%-16s " PRNT_RSET,
 		info
 	);
-	printf("[%d / %d]", a, b);
+	printf("[%d / %d]        ", a, b);
 	gPrintfProgressing = true;
 	
 	if (a == b) {
@@ -2274,8 +2274,8 @@ char* Filename(const char* src) {
 	return buffer;
 }
 
-char* Line(char* str, s32 line) {
-	char* r = str;
+char* Line(const char* str, s32 line) {
+	const char* r = str;
 	s32 curline = 0;
 	s32 i = 0;
 	
@@ -2283,7 +2283,7 @@ char* Line(char* str, s32 line) {
 		while (str[i] != '\n') {
 			i++;
 			if (str[i] == '\0') {
-				return r;
+				return (char*)r;
 			}
 		}
 		i++;
@@ -2292,10 +2292,10 @@ char* Line(char* str, s32 line) {
 		r = &str[i];
 	}
 	
-	return r;
+	return (char*)r;
 }
 
-char* LineHead(char* str) {
+char* LineHead(const char* str) {
 	s32 i = 1;
 	
 	if (str == NULL)
@@ -2305,11 +2305,11 @@ char* LineHead(char* str) {
 		if (str[i - 1] == '\0')
 			return NULL;
 		if (str[i - 1] == '\n')
-			return &str[i];
+			return (char*)&str[i];
 	}
 }
 
-char* Word(char* str, s32 word) {
+char* Word(const char* str, s32 word) {
 	s32 iWord = -1;
 	s32 i = 0;
 	s32 j = 0;
@@ -2336,7 +2336,7 @@ char* Word(char* str, s32 word) {
 		}
 	}
 	
-	return &str[i];
+	return (char*)&str[i];
 }
 
 void CaseToLow(char* s, s32 i) {
@@ -2662,15 +2662,19 @@ s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
 	return MemFile_Write(dest, buffer, strlen(buffer));
 }
 
-s32 MemFile_Read(MemFile* src, void* dest, u32 size) {
-	if (src->seekPoint + size > src->dataSize) {
-		return 1;
-	}
+s32 MemFile_Read(MemFile* src, void* dest, Size size) {
+	Size nsize = ClampMax(size, ClampMin(src->dataSize - src->seekPoint, 0));
 	
-	memcpy(dest, &src->cast.u8[src->seekPoint], size);
-	src->seekPoint += size;
+	if (nsize != size)
+		Log("%d == src->seekPoint = %d / %d", nsize, src->seekPoint, src->seekPoint);
 	
-	return 0;
+	if (nsize < 1)
+		return 0;
+	
+	memcpy(dest, &src->cast.u8[src->seekPoint], nsize);
+	src->seekPoint += nsize;
+	
+	return nsize;
 }
 
 void* MemFile_Seek(MemFile* src, u32 seek) {
@@ -3062,15 +3066,45 @@ void* String_Unicodify(const char* str) {
 // # CONFIG                              #
 // # # # # # # # # # # # # # # # # # # # #
 
+static _Thread_local char* sTomlSection;
+
+static const char* __Toml_GotoSection(const char* str) {
+	if (sTomlSection == NULL)
+		return str;
+	
+	s32 lineNum = LineNum(str);
+	const char* line = str;
+	
+	Log("GoTo \"%s\"", sTomlSection);
+	
+	for (s32 i = 0; i < lineNum; i++) {
+		if (!strncmp(line, sTomlSection, strlen(sTomlSection) - 1))
+			return Line(line, 1);
+		line = Line(line, 1);
+	}
+	
+	return NULL;
+}
+
 char* Toml_Variable(const char* str, const char* name) {
-	u32 lineCount = LineNum(str);
-	char* line = (char*)str;
+	u32 lineCount;
+	char* line;
+	char* ret = NULL;
+	
+	str = __Toml_GotoSection(str);
+	
+	lineCount = LineNum(str);
+	line = (char*)str;
 	
 	Log("Var [%s]", name);
 	for (s32 i = 0; i < lineCount; i++, line = Line(line, 1)) {
-		if (line == NULL) return NULL;
+		if (line == NULL)
+			break;
+		while (line[0] == ' ' || line[0] == '\t') line++;
 		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
 			continue;
+		if (line[0] == '[')
+			break;
 		if (StrMtch(line, name)) {
 			char* p = line + strlen(name);
 			
@@ -3088,23 +3122,35 @@ char* Toml_Variable(const char* str, const char* name) {
 				if (p[0] == '\0')
 					return NULL;
 			}
-			
-			return p;
+			ret = p;
+			break;
 		}
 	}
 	
-	return NULL;
+	sTomlSection = Free(sTomlSection);
+	
+	return ret;
 }
 
 char* Toml_GetVariable(const char* str, const char* name) {
-	u32 lineCount = LineNum(str);
-	char* line = (char*)str;
+	u32 lineCount;
+	char* line;
+	char* ret = NULL;
+	
+	str = __Toml_GotoSection(str);
+	
+	lineCount = LineNum(str);
+	line = (char*)str;
 	
 	Log("Var [%s]", name);
 	for (s32 i = 0; i < lineCount; i++, line = Line(line, 1)) {
-		if (line == NULL) return NULL;
+		if (line == NULL)
+			break;
+		while (line[0] == ' ' || line[0] == '\t') line++;
 		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
 			continue;
+		if (line[0] == '[')
+			break;
 		if (StrMtch(line, name)) {
 			s32 isString = 0;
 			char* buf;
@@ -3141,11 +3187,14 @@ char* Toml_GetVariable(const char* str, const char* name) {
 			buf = HeapMalloc(size + 1);
 			memcpy(buf, p + isString, size - isString);
 			
-			return buf;
+			ret = buf;
+			break;
 		}
 	}
 	
-	return NULL;
+	sTomlSection = Free(sTomlSection);
+	
+	return ret;
 }
 
 void Toml_GetArray(MemFile* mem, ItemList* list, const char* variable) {
@@ -3155,7 +3204,7 @@ void Toml_GetArray(MemFile* mem, ItemList* list, const char* variable) {
 	
 	array = Toml_Variable(mem->str, variable);
 	
-	if (array == NULL || array[0] != '[') {
+	if (array == NULL || (array[0] != '[' && array[0] != '{')) {
 		*list = ItemList_Initialize();
 		
 		printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
@@ -3163,7 +3212,7 @@ void Toml_GetArray(MemFile* mem, ItemList* list, const char* variable) {
 		return;
 	}
 	
-	while (array[size] != ']') size++;
+	while (array[size] != ']' && array[size] != '}') size++;
 	
 	tmp = array;
 	array = Calloc(array, size);
@@ -3254,6 +3303,17 @@ f32 Toml_GetFloat(MemFile* mem, const char* variable) {
 	return 0.0f;
 }
 
+void Toml_GotoSection(const char* section) {
+	sTomlSection = Free(sTomlSection);
+	if (section) {
+		if (section[0] == '[')
+			sTomlSection = StrDup(section);
+		
+		else
+			asprintf(&sTomlSection, "[%s]", section);
+	}
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # TOML                                #
 // # # # # # # # # # # # # # # # # # # # #
@@ -3336,6 +3396,10 @@ void Toml_WriteStr(MemFile* mem, const char* variable, const char* str, bool quo
 void Toml_WriteFloat(MemFile* mem, const char* variable, const f64 flo, const char* comment) {
 	MemFile_Printf(mem, "%-15s = %lf", variable, flo);
 	Toml_FollowComment(mem, comment);
+}
+
+void Toml_WriteSection(MemFile* mem, const char* variable) {
+	MemFile_Printf(mem, "[%s]\n", variable);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -3482,12 +3546,17 @@ void Log_Free() {
 }
 
 void Log_Print() {
+	if (sLogMsg[0] == NULL)
+		return;
 	if (sLogMsg[0][0] != 0)
 		Log_Signal(0xDEADBEEF);
 }
 
 void Log_Unlocked(const char* func, u32 line, const char* txt, ...) {
 	va_list args;
+	
+	if (sLogMsg[0] == NULL)
+		return;
 	
 	for (s32 i = FAULT_LOG_NUM - 1; i > 0; i--) {
 		strcpy(sLogMsg[i], sLogMsg[i - 1]);
@@ -3506,6 +3575,9 @@ void Log_Unlocked(const char* func, u32 line, const char* txt, ...) {
 void __Log(const char* func, u32 line, const char* txt, ...) {
 	ThreadLock_Lock();
 	va_list args;
+	
+	if (sLogMsg[0] == NULL)
+		return;
 	
 	for (s32 i = FAULT_LOG_NUM - 1; i > 0; i--) {
 		strcpy(sLogMsg[i], sLogMsg[i - 1]);
