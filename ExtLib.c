@@ -1141,9 +1141,10 @@ const char* Sys_AppDir(void) {
 }
 
 s32 Sys_Rename(const char* input, const char* output) {
-	s32 r = rename(input, output);
+	if (Sys_Stat(output))
+		Sys_Delete(output);
 	
-	return r;
+	return rename(input, output);
 }
 
 static int __rm_func(const char* item, const struct stat* bug, int type, struct FTW* ftw) {
@@ -2918,6 +2919,52 @@ s32 Value_ValidateFloat(const char* str) {
 }
 
 // # # # # # # # # # # # # # # # # # # # #
+// # MUSIC                               #
+// # # # # # # # # # # # # # # # # # # # #
+
+const char* sNoteName[12] = {
+	"C", "C#",
+	"D", "D#",
+	"E",
+	"F", "F#",
+	"G", "G#",
+	"A", "A#",
+	"B",
+};
+
+s32 Music_NoteIndex(const char* note) {
+	s32 id;
+	u32 octave;
+	
+	foreach(i, sNoteName) {
+		if (sNoteName[i][1] == '#')
+			continue;
+		if (note[0] == sNoteName[i][0]) {
+			id = i;
+			
+			if (note[1] == '#')
+				id++;
+			
+			break;
+		}
+	}
+	
+	while (!isdigit(note[0]) && note[0] != '-') note++;
+	
+	octave = 12 * (Value_Int(note));
+	
+	return id + octave;
+}
+
+const char* Music_NoteWord(s32 note) {
+	f32 octave = (f32)note / 12;
+	
+	note %= 12;
+	
+	return HeapPrint("%s%d", sNoteName[note], (s32)floorf(octave));
+}
+
+// # # # # # # # # # # # # # # # # # # # #
 // # STRING                              #
 // # # # # # # # # # # # # # # # # # # # #
 
@@ -3174,7 +3221,7 @@ char* Toml_GetVariable(const char* str, const char* name) {
 					return NULL;
 			}
 			
-			while (p[size + 1] != ';' && p[size + 1] != '#' && p[size] != '\n' && (isString == false || p[size] != '\"') && p[size] != '\0') {
+			while (p[size + 1] != ';' && (p[size + 1] != '#' || isString == true) && p[size] != '\n' && (isString == false || p[size] != '\"') && p[size] != '\0') {
 				if (p[size] == '\"')
 					isString = 1;
 				size++;
@@ -3282,6 +3329,8 @@ char* Toml_GetStr(MemFile* mem, const char* variable) {
 	
 	ptr = Toml_GetVariable(mem->str, variable);
 	if (ptr) {
+		Log("\"%s\" [%s]", ptr, mem->info.name);
+		
 		return ptr;
 	}
 	

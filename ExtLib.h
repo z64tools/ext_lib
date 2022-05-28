@@ -200,6 +200,9 @@ s32 Value_ValidateHex(const char* str);
 s32 Value_ValidateInt(const char* str);
 s32 Value_ValidateFloat(const char* str);
 
+s32 Music_NoteIndex(const char* note);
+const char* Music_NoteWord(s32 note);
+
 s32 String_CaseComp(char* a, char* b, u32 compSize);
 char* String_Extension(const char* str);
 void String_Insert(char* point, const char* insert);
@@ -413,23 +416,6 @@ void Sound_Xm_Stop();
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>]: " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
 
-#define renamer_remove(old, new) \
-	if (rename(old, new)) { \
-		if (remove(new)) { \
-			printf_error_align( \
-				"Delete failed", \
-				"[%s]", \
-				new \
-			); \
-		} \
-		if (rename(old, new)) { \
-			printf_error_align( \
-				"Rename failed", \
-				"[%s] -> [%s]", \
-				old, \
-				new \
-			); \
-		} \
-	}
+#define foreach(var, arr) for (s32 var = 0; var < ArrayCount(arr); var++)
 
 #endif /* __EXTLIB_H__ */
