@@ -2933,7 +2933,7 @@ const char* sNoteName[12] = {
 };
 
 s32 Music_NoteIndex(const char* note) {
-	s32 id;
+	s32 id = 0;
 	u32 octave;
 	
 	foreach(i, sNoteName) {
