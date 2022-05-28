@@ -1288,6 +1288,23 @@ s32 Sys_Copy(const char* src, const char* dest, bool isStr) {
 	return 0;
 }
 
+Date Sys_Date(Time time) {
+	Date date = { 0 };
+	
+#ifndef __IDE_FLAG__
+	struct tm* tistr = localtime(&time);
+	
+	date.year = tistr->tm_year + 1900;
+	date.month = tistr->tm_mon + 1;
+	date.day = tistr->tm_mday;
+	date.hour = tistr->tm_hour;
+	date.minute = tistr->tm_min;
+	date.second = tistr->tm_sec;
+#endif
+	
+	return date;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # TERMINAL                            #
 // # # # # # # # # # # # # # # # # # # # #

@@ -73,6 +73,7 @@ s32 Sys_Touch(const char* file);
 s32 Sys_Copy(const char* src, const char* dest, bool isStr);
 u8* Sys_Sha256(u8* data, u64 size);
 void Sys_Sleep(f64 sec);
+Date Sys_Date(Time time);
 
 void SysExe_IgnoreError();
 s32 SysExe_GetError();

@@ -153,6 +153,15 @@ typedef struct ItemList {
 	} __private;
 } ItemList;
 
+typedef struct {
+	s32 year;
+	s32 month;
+	s32 day;
+	s32 hour;
+	s32 minute;
+	s32 second;
+} Date;
+
 typedef enum {
 	DIR__MAKE_ON_ENTER = (1) << 0,
 } DirParam;
