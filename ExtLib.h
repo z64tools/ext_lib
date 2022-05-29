@@ -55,6 +55,7 @@ void Dir_ItemList(ItemList* itemList, bool isPath);
 void Dir_ItemList_Recursive(ItemList* target, char* keyword);
 void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not);
 void Dir_ItemList_Keyword(ItemList* itemList, char* ext);
+char* Dir_FindFile(const char* str);
 
 bool Sys_IsDir(const char* path);
 void Sys_MakeDir(const char* dir, ...);
@@ -416,7 +417,7 @@ void Sound_Xm_Stop();
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>]: " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
 
-#define foreach(var, arr) for (s32 var = 0; var < ArrayCount(arr); var++)
+#define foreach(var, arr)  for (s32 var = 0; var < ArrayCount(arr); var++)
 #define forlist(var, list) for (s32 var = 0; var < (list).num; var++)
 
 #endif /* __EXTLIB_H__ */

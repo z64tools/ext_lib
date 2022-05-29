@@ -621,6 +621,30 @@ void Dir_ItemList_Keyword(ItemList* itemList, char* ext) {
 	}
 }
 
+char* Dir_FindFile(const char* str) {
+	ItemList list = ItemList_Initialize();
+	char* file = NULL;
+	Time stat = 0;
+	char* path = Dir_Current();
+	
+	if (str[0] == '*') str++;
+	
+	ItemList_List(&list, path, 0, LIST_FILES | LIST_NO_DOT);
+	for (s32 i = 0; i < list.num; i++) {
+		if (StrEndCase(list.item[i], str) && Sys_Stat(list.item[i]) > stat) {
+			file = list.item[i];
+			stat = Sys_Stat(file);
+		}
+	}
+	
+	if (file)
+		file = HeapStrDup(file);
+	
+	ItemList_Free(&list);
+	
+	return file;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # ITEM LIST                           #
 // # # # # # # # # # # # # # # # # # # # #
