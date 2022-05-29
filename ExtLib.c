@@ -1217,9 +1217,9 @@ char* SysExeO(const char* cmd) {
 			Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExeO(" PRNT_REDD "%s" PRNT_GRAY ");", sSysReturn, cmd);
 			printf_error("SysExeO");
 		}
-		
-		sSysIgnore = 0;
 	}
+	
+	sSysIgnore = 0;
 	
 	return mem.data;
 }

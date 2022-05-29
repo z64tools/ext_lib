@@ -417,5 +417,6 @@ void Sound_Xm_Stop();
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>]: " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
 
 #define foreach(var, arr) for (s32 var = 0; var < ArrayCount(arr); var++)
+#define forlist(var, list) for (s32 var = 0; var < (list).num; var++)
 
 #endif /* __EXTLIB_H__ */
