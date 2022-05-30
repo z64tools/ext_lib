@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 141
+#define THIS_EXTLIB_VERSION 142
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -663,8 +663,13 @@ typedef struct StrNode {
 } StrNode;
 
 static void ItemList_Validate(ItemList* itemList) {
-	if (itemList->__private.initKey != 0xDEFABEBACECAFAFF)
-		*itemList = ItemList_Initialize();
+	if (itemList->__private.initKey == 0xDEFABEBACECAFAFF) {
+		ItemList_Free(itemList);
+		
+		return;
+	}
+	
+	*itemList = ItemList_Initialize();
 }
 
 static void ItemList_Walk(const char* base, const char* parent, s32 level, s32 max, WalkInfo* info) {
@@ -769,7 +774,7 @@ char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, .
 	return NULL;
 }
 
-void ItemList_SpacedStr(ItemList* list, const char* str) {
+void ItemList_Separated(ItemList* list, const char* str, const char separator) {
 	s32 a = 0;
 	s32 b;
 	StrNode* nodeHead = NULL;
@@ -778,75 +783,31 @@ void ItemList_SpacedStr(ItemList* list, const char* str) {
 	
 	while (true) {
 		StrNode* node = NULL;
+		s32 isString = 0;
+		s32 offset = 0;
 		
+		while (str[a] == ' ') a++;
 		if (str[a] == '\"' || str[a] == '\'') {
-			b = a + 2;
-			while (str[b - 1] != '\"' && str[b - 1] != '\'' && str[b] != '\0')
-				b++;
-		} else {
-			b = a;
-			while (str[b] != ' ' && str[b] != '\0')
-				b++;
+			isString = 1;
+			a++;
 		}
 		
-		node = Calloc(node, sizeof(StrNode));
-		node->txt = Calloc(node->txt, b - a + 1);
-		memcpy(node->txt, &str[a], b - a);
-		Log("%d, [%s]", b - a + 1, node->txt);
-		Node_Add(nodeHead, node);
+		b = a;
 		
-		list->num++;
-		list->writePoint += strlen(node->txt) + 1;
-		
-		a = b;
-		
-		while (str[a] == ' ' || str[a] == '\t') a++;
-		
-		if (str[a] == '\0')
+		while (isString || (str[b] != separator && str[b] != '\0')) {
+			b++;
+			if (isString && (str[b] == '\"' || str[b] == '\'')) {
+				isString = 0;
+				offset = -1;
+			}
+		}
+		while (!isString && separator != ' ' && str[b - 1] == ' ') b--;
+		if (b == a)
 			break;
-	}
-	
-	Log("Building List");
-	
-	list->buffer = Calloc(list->buffer, list->writePoint);
-	list->item = Calloc(list->item, sizeof(char*) * list->num);
-	list->writePoint = 0;
-	
-	for (s32 i = 0; i < list->num; i++) {
-		list->item[i] = &list->buffer[list->writePoint];
-		strcpy(list->item[i], nodeHead->txt);
-		list->writePoint += strlen(list->item[i]) + 1;
-		
-		Free(nodeHead->txt);
-		Node_Kill(nodeHead, nodeHead);
-	}
-	
-	Log("OK, %d [%s]", list->num, str);
-}
-
-void ItemList_CommaStr(ItemList* list, const char* str) {
-	s32 a = 0;
-	s32 b;
-	StrNode* nodeHead = NULL;
-	
-	ItemList_Validate(list);
-	
-	while (true) {
-		StrNode* node = NULL;
-		
-		if (str[a] == '\"' || str[a] == '\'') {
-			b = a + 2;
-			while (str[b - 1] != '\"' && str[b - 1] != '\'' && str[b] != '\0') b++;
-		} else {
-			while (str[a] == ' ') a++;
-			
-			b = a;
-			while (str[b] != ',' && str[b] != ' ' && str[b] != '\0') b++;
-		}
 		
 		node = Calloc(node, sizeof(StrNode));
-		node->txt = Calloc(node->txt, b - a + 1);
-		memcpy(node->txt, &str[a], b - a);
+		node->txt = Calloc(node->txt, b - a + 1 + offset);
+		memcpy(node->txt, &str[a], b - a + offset);
 		Log("%d, [%s]", b - a + 1, node->txt);
 		Node_Add(nodeHead, node);
 		
@@ -857,7 +818,7 @@ void ItemList_CommaStr(ItemList* list, const char* str) {
 			break;
 		a = b;
 		
-		while (str[a] == ' ' || str[a] == '\t' || str[a] == ',' || str[a] == '\n') a++;
+		while (str[a] == ' ' || str[a] == '\t' || str[a] == separator || str[a] == '\n') a++;
 	}
 	
 	Log("Building List");
@@ -880,7 +841,7 @@ void ItemList_CommaStr(ItemList* list, const char* str) {
 
 void ItemList_Print(ItemList* target) {
 	for (s32 i = 0; i < target->num; i++)
-		printf("[#]: %4d: %s\n", i, target->item[i]);
+		printf("[#]: %4d: \"%s\"\n", i, target->item[i]);
 }
 
 Time ItemList_StatMax(ItemList* list) {
@@ -3432,7 +3393,7 @@ void Toml_GetArray(MemFile* mem, ItemList* list, const char* variable) {
 	array = Calloc(array, size);
 	memcpy(array, tmp + 1, size - 2);
 	
-	ItemList_CommaStr(list, array);
+	ItemList_Separated(list, array, ',');
 	Free(array);
 	
 	for (s32 i = 0; i < list->num; i++)

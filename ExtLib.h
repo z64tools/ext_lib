@@ -92,8 +92,7 @@ char Terminal_GetChar();
 
 void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags);
 char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, ...);
-void ItemList_SpacedStr(ItemList* list, const char* str);
-void ItemList_CommaStr(ItemList* list, const char* str);
+void ItemList_Separated(ItemList* list, const char* str, const char separator);
 void ItemList_Print(ItemList* target);
 Time ItemList_StatMax(ItemList* list);
 Time ItemList_StatMin(ItemList* list);
