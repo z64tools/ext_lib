@@ -61,7 +61,7 @@ bool Sys_IsDir(const char* path);
 void Sys_MakeDir(const char* dir, ...);
 Time Sys_Stat(const char* item);
 Time Sys_StatF(const char* item, StatFlag flag);
-Time Sys_StatSelf(void);
+char* Sys_ThisApp(void);
 Time Sys_Time(void);
 s32 Sys_Rename(const char* input, const char* output);
 s32 Sys_Delete(const char* item);
@@ -163,6 +163,12 @@ s32 LineNum(const char* str);
 s32 PathNum(const char* src);
 char* CopyLine(const char* str, s32 line);
 char* CopyWord(const char* str, s32 word);
+
+char* AllcPath(const char* src);
+char* AllcBasename(const char* src);
+char* AllcFilename(const char* src);
+char* AllcLine(const char* str, s32 line);
+char* AllcWord(const char* str, s32 word);
 
 void Color_ToHSL(HSL8* hsl, RGB8* rgb);
 void Color_ToRGB(RGB8* rgb, HSL8* hsl);

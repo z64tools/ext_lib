@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 140
+#define THIS_EXTLIB_VERSION 141
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -1039,7 +1039,7 @@ Time Sys_StatF(const char* item, StatFlag flag) {
 	return t;
 }
 
-Time Sys_StatSelf(void) {
+char* Sys_ThisApp(void) {
 	static char buf[512];
 	
 #ifdef _WIN32
@@ -1048,7 +1048,7 @@ Time Sys_StatSelf(void) {
 	readlink("/proc/self/exe", buf, 512);
 #endif
 	
-	return Sys_Stat(buf);
+	return buf;
 }
 
 Time Sys_Time(void) {
@@ -1153,15 +1153,7 @@ const char* Sys_WorkDir(void) {
 }
 
 const char* Sys_AppDir(void) {
-	static char buf[512];
-	
-#ifdef _WIN32
-	GetModuleFileName(NULL, buf, 512);
-#else
-	readlink("/proc/self/exe", buf, 512);
-#endif
-	
-	return Path(buf);
+	return Path(Sys_ThisApp());
 }
 
 s32 Sys_Rename(const char* input, const char* output) {
@@ -1406,7 +1398,7 @@ char Terminal_GetChar() {
 // # PRINTF                              #
 // # # # # # # # # # # # # # # # # # # # #
 
-static char* sPrintfPrefix = "ExtLib";
+static char* sPrintfPrefix = "";
 static u8 sPrintfType = 1;
 static char* sPrintfPreType[][4] = {
 	{
@@ -2195,7 +2187,6 @@ char* Path(const char* src) {
 		slash = -1;
 	
 	buffer = HeapMalloc(slash + 1 + 1);
-	
 	memcpy(buffer, src, slash + 1);
 	buffer[slash + 1] = '\0';
 	
@@ -2476,6 +2467,158 @@ char* CopyWord(const char* str, s32 word) {
 	
 	buffer = HeapMalloc(j + 1);
 	
+	memcpy(buffer, &str[i], j);
+	buffer[j] = '\0';
+	
+	return buffer;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+// # Allocated String functions          #
+// # # # # # # # # # # # # # # # # # # # #
+
+char* AllcPath(const char* src) {
+	char* buffer;
+	s32 point;
+	s32 slash;
+	
+	if (src == NULL)
+		return NULL;
+	
+	SlashAndPoint(src, &slash, &point);
+	
+	if (slash == 0)
+		slash = -1;
+	
+	buffer = Calloc(0, slash + 1 + 1);
+	memcpy(buffer, src, slash + 1);
+	buffer[slash + 1] = '\0';
+	
+	return buffer;
+}
+
+char* AllcBasename(const char* src) {
+	char* buffer;
+	s32 point;
+	s32 slash;
+	
+	if (src == NULL)
+		return NULL;
+	
+	SlashAndPoint(src, &slash, &point);
+	
+	// Offset away from the slash
+	if (slash > 0)
+		slash++;
+	
+	if (point < slash || slash + point == 0) {
+		point = slash + 1;
+		while (src[point] > ' ') point++;
+	}
+	
+	buffer = Calloc(0, point - slash + 1);
+	memcpy(buffer, &src[slash], point - slash);
+	buffer[point - slash] = '\0';
+	
+	return buffer;
+}
+
+char* AllcFilename(const char* src) {
+	char* buffer;
+	s32 point;
+	s32 slash;
+	s32 ext = 0;
+	
+	if (src == NULL)
+		return NULL;
+	
+	SlashAndPoint(src, &slash, &point);
+	
+	// Offset away from the slash
+	if (slash > 0)
+		slash++;
+	
+	if (src[point + ext] == '.') {
+		ext++;
+		while (isalnum(src[point + ext])) ext++;
+	}
+	
+	if (point < slash || slash + point == 0) {
+		point = slash + 1;
+		while (src[point] > ' ') point++;
+	}
+	
+	buffer = Calloc(0, point - slash + ext + 1);
+	memcpy(buffer, &src[slash], point - slash + ext);
+	buffer[point - slash + ext] = '\0';
+	
+	return buffer;
+}
+
+char* AllcLine(const char* str, s32 line) {
+	char* buffer;
+	s32 iLine = -1;
+	s32 i = 0;
+	s32 j = 0;
+	
+	if (str == NULL)
+		return NULL;
+	
+	while (str[i] != '\0') {
+		j = 0;
+		if (str[i] != '\n') {
+			while (str[i + j] != '\n' && str[i + j] != '\0') {
+				j++;
+			}
+			
+			iLine++;
+			
+			if (iLine == line) {
+				break;
+			}
+			
+			i += j;
+		} else {
+			i++;
+		}
+	}
+	
+	buffer = Calloc(0, j + 1);
+	memcpy(buffer, &str[i], j);
+	buffer[j] = '\0';
+	
+	return buffer;
+}
+
+char* AllcWord(const char* str, s32 word) {
+	char* buffer;
+	s32 iWord = -1;
+	s32 i = 0;
+	s32 j = 0;
+	
+	if (str == NULL)
+		return NULL;
+	
+	while (str[i] != '\0') {
+		j = 0;
+		if (str[i + j] > ' ') {
+			while (str[i + j] > ' ') {
+				j++;
+			}
+			
+			iWord++;
+			
+			if (iWord == word) {
+				break;
+			}
+			
+			i += j;
+		} else {
+			i++;
+		}
+	}
+	
+	buffer = Calloc(0, j + 1);
 	memcpy(buffer, &str[i], j);
 	buffer[j] = '\0';
 	
@@ -2946,7 +3089,7 @@ s32 Value_ValidateFloat(const char* str) {
 // # MUSIC                               #
 // # # # # # # # # # # # # # # # # # # # #
 
-const char* sNoteName[12] = {
+static const char* sNoteName[12] = {
 	"C", "C#",
 	"D", "D#",
 	"E",
@@ -3391,7 +3534,7 @@ void Toml_GotoSection(const char* section) {
 // # TOML                                #
 // # # # # # # # # # # # # # # # # # # # #
 
-static void Toml_FollowComment(MemFile* mem, const char* comment) {
+static void Toml_FollowUpComment(MemFile* mem, const char* comment) {
 	if (comment)
 		MemFile_Printf(mem, HeapPrint(" # %s", comment));
 	MemFile_Printf(mem, "\n");
@@ -3443,17 +3586,17 @@ void Toml_WriteArray(MemFile* mem, const char* variable, ItemList* list, bool qu
 	}
 	mem->seekPoint -= 2;
 	MemFile_Printf(mem, " ]");
-	Toml_FollowComment(mem, comment);
+	Toml_FollowUpComment(mem, comment);
 }
 
 void Toml_WriteInt(MemFile* mem, const char* variable, const s64 integer, const char* comment) {
 	MemFile_Printf(mem, "%-15s = %ld", variable, integer);
-	Toml_FollowComment(mem, comment);
+	Toml_FollowUpComment(mem, comment);
 }
 
 void Toml_WriteHex(MemFile* mem, const char* variable, const s64 integer, const char* comment) {
 	MemFile_Printf(mem, "%-15s = 0x%lX", variable, integer);
-	Toml_FollowComment(mem, comment);
+	Toml_FollowUpComment(mem, comment);
 }
 
 void Toml_WriteStr(MemFile* mem, const char* variable, const char* str, bool quote, const char* comment) {
@@ -3463,12 +3606,12 @@ void Toml_WriteStr(MemFile* mem, const char* variable, const char* str, bool quo
 	};
 	
 	MemFile_Printf(mem, "%-15s = %s%s%s", variable, q[quote], str, q[quote]);
-	Toml_FollowComment(mem, comment);
+	Toml_FollowUpComment(mem, comment);
 }
 
 void Toml_WriteFloat(MemFile* mem, const char* variable, const f64 flo, const char* comment) {
 	MemFile_Printf(mem, "%-15s = %lf", variable, flo);
-	Toml_FollowComment(mem, comment);
+	Toml_FollowUpComment(mem, comment);
 }
 
 void Toml_WriteSection(MemFile* mem, const char* variable) {
