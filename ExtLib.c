@@ -2825,7 +2825,6 @@ void MemFile_LoadMem(MemFile* mem, void* data, Size size) {
 s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
 	u32 tempSize;
 	FILE* file = fopen(filepath, "rb");
-	struct stat sta;
 	
 	if (file == NULL) {
 		printf_warning("Failed to open file [%s]", filepath);
@@ -2854,8 +2853,8 @@ s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
 	if (fread(memFile->data, 1, memFile->dataSize, file)) {
 	}
 	fclose(file);
-	stat(filepath, &sta);
-	memFile->info.age = sta.st_mtime;
+	
+	memFile->info.age = Sys_Stat(filepath);
 	strcpy(memFile->info.name, filepath);
 	
 	if (memFile->param.getCrc) {
@@ -2868,7 +2867,6 @@ s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
 s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath) {
 	u32 tempSize;
 	FILE* file = fopen(filepath, "r");
-	struct stat sta;
 	
 	if (file == NULL) {
 		printf_warning("Failed to open file [%s]", filepath);
@@ -2899,8 +2897,7 @@ s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath) {
 	fclose(file);
 	memFile->cast.u8[memFile->dataSize] = '\0';
 	
-	stat(filepath, &sta);
-	memFile->info.age = sta.st_mtime;
+	memFile->info.age = Sys_Stat(filepath);
 	strcpy(memFile->info.name, filepath);
 	
 	if (memFile->param.getCrc) {
