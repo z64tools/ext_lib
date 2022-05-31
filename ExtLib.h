@@ -386,25 +386,25 @@ void Sound_Xm_Stop();
 #define NARGS(...) \
 	NARGS_SEQ(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
 
-#define Malloc(data, size) ({ \
+#define Malloc(data, size) { \
 		Log("Malloc(%s); %.2f Kb", #data, BinToKb(size)); \
 		data = ____Malloc(0, size); \
-	})
+	}
 
-#define Realloc(data, size) ({ \
+#define Realloc(data, size) { \
 		Log("Realloc(%s); %.2f Kb", #data, BinToKb(size)); \
 		data = ____Realloc(data, size); \
-	})
+	}
 
-#define Calloc(data, size) ({ \
+#define Calloc(data, size) { \
 		Log("Calloc(%s); %.2f Kb", #data, BinToKb(size)); \
 		data = ____Calloc(0, size); \
-	})
+	}
 
-#define Free(data) ({ \
+#define Free(data) { \
 		Log("Free(%s);", #data ); \
 		data = ____Free(data); \
-	})
+	}
 
 #define Main(y1, y2) main(y1, y2)
 #define Arg(arg)     ParseArgs(argv, arg, &parArg)

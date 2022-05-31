@@ -2041,7 +2041,7 @@ void* ____Malloc(void* data, s32 size) {
 }
 
 void* ____Calloc(void* data, s32 size) {
-	data = ____Malloc(0, size);
+	data = malloc(size);
 	if (data != NULL) {
 		memset(data, 0, size);
 	}
@@ -3706,15 +3706,15 @@ void Log_Init() {
 		signal(i, Log_Signal);
 	
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-		Calloc(sLogMsg[i], FAULT_BUFFER_SIZE);
-		Calloc(sLogFunc[i], FAULT_BUFFER_SIZE * 0.25);
+		sLogMsg[i] = ____Calloc(0, FAULT_BUFFER_SIZE);
+		sLogFunc[i] = ____Calloc(0, FAULT_BUFFER_SIZE * 0.25);
 	}
 }
 
 void Log_Free() {
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-		Free(sLogMsg[i]);
-		Free(sLogFunc[i]);
+		____Free(sLogMsg[i]);
+		____Free(sLogFunc[i]);
 	}
 }
 
