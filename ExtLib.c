@@ -3619,6 +3619,7 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 static char* sLogMsg[FAULT_LOG_NUM];
 static char* sLogFunc[FAULT_LOG_NUM];
 static u32 sLogLine[FAULT_LOG_NUM];
+static s32 sLogInit;
 
 static void Log_Signal_PrintTitle(int arg) {
 	const char* errorMsg[] = {
@@ -3702,6 +3703,8 @@ static void Log_Signal(int arg) {
 }
 
 void Log_Init() {
+	if (sLogInit)
+		return;
 	for (s32 i = 1; i < 16; i++)
 		signal(i, Log_Signal);
 	
@@ -3709,9 +3712,13 @@ void Log_Init() {
 		sLogMsg[i] = ____Calloc(0, FAULT_BUFFER_SIZE);
 		sLogFunc[i] = ____Calloc(0, FAULT_BUFFER_SIZE * 0.25);
 	}
+	
+	sLogInit = true;
 }
 
 void Log_Free() {
+	if (!sLogInit)
+		return;
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
 		____Free(sLogMsg[i]);
 		____Free(sLogFunc[i]);
@@ -3719,6 +3726,8 @@ void Log_Free() {
 }
 
 void Log_Print() {
+	if (!sLogInit)
+		return;
 	if (sLogMsg[0] == NULL)
 		return;
 	if (sLogMsg[0][0] != 0)
@@ -3726,6 +3735,9 @@ void Log_Print() {
 }
 
 void Log_Unlocked(const char* func, u32 line, const char* txt, ...) {
+	if (!sLogInit)
+		return;
+	
 	va_list args;
 	
 	if (sLogMsg[0] == NULL)
@@ -3746,6 +3758,9 @@ void Log_Unlocked(const char* func, u32 line, const char* txt, ...) {
 }
 
 void __Log(const char* func, u32 line, const char* txt, ...) {
+	if (!sLogInit)
+		return;
+	
 	ThreadLock_Lock();
 	va_list args;
 	

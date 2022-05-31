@@ -389,22 +389,22 @@ void Sound_Xm_Stop();
 #define Malloc(data, size) { \
 		Log("Malloc(%s); %.2f Kb", #data, BinToKb(size)); \
 		data = ____Malloc(0, size); \
-	}
+}
 
 #define Realloc(data, size) { \
 		Log("Realloc(%s); %.2f Kb", #data, BinToKb(size)); \
 		data = ____Realloc(data, size); \
-	}
+}
 
 #define Calloc(data, size) { \
 		Log("Calloc(%s); %.2f Kb", #data, BinToKb(size)); \
 		data = ____Calloc(0, size); \
-	}
+}
 
 #define Free(data) { \
 		Log("Free(%s);", #data ); \
 		data = ____Free(data); \
-	}
+}
 
 #define Main(y1, y2) main(y1, y2)
 #define Arg(arg)     ParseArgs(argv, arg, &parArg)
