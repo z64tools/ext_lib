@@ -5,7 +5,7 @@ static CursorContext* __cursorCtx;
 void Cursor_CreateCursor(CursorContext* cursorCtx, CursorIndex id,  const u8* data, s32 size, s32 xcent, s32 ycent) {
 	CursorBitmap* dest = &cursorCtx->cursor[id];
 	
-	cursorCtx->cursor[id].bitmap = Malloc(0, sizeof(RGBA8) * size * size);;
+	Malloc(cursorCtx->cursor[id].bitmap, sizeof(RGBA8) * size * size);
 	
 	for (s32 i = 0, j = 0; i < size * size; i++, j += 2) {
 		dest->bitmap[i].r = data[j];

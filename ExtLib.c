@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 142
+#define THIS_EXTLIB_VERSION 143
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -415,8 +415,8 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 	if (itemList->num) {
 		u32 i = 0;
 		dir = opendir(dirCtx->curPath);
-		itemList->buffer = Calloc(0, bufSize);
-		itemList->item = Calloc(0, sizeof(char*) * itemList->num);
+		Calloc(itemList->buffer, bufSize);
+		Calloc(itemList->item, sizeof(char*) * itemList->num);
 		
 		while ((entry = readdir(dir)) != NULL) {
 			if (isPath) {
@@ -511,8 +511,8 @@ void Dir_ItemList_Recursive(ItemList* target, char* keyword) {
 		return;
 	}
 	Log("target->num == %d", target->num);
-	target->item = Calloc(0, sizeof(char*) * target->num);
-	target->buffer = Calloc(0, target->writePoint);
+	Calloc(target->item, sizeof(char*) * target->num);
+	Calloc(target->buffer, target->writePoint);
 	target->writePoint = 0;
 	target->num = 0;
 	Dir_ItemList_Recursive_ChildWrite(target, "", keyword);
@@ -551,8 +551,8 @@ void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not) {
 	if (itemList->num) {
 		u32 i = 0;
 		dir = opendir(dirCtx->curPath);
-		itemList->buffer = Calloc(0, bufSize);
-		itemList->item = Calloc(0, sizeof(char*) * itemList->num);
+		Calloc(itemList->buffer, bufSize);
+		Calloc(itemList->item, sizeof(char*) * itemList->num);
 		
 		while ((entry = readdir(dir)) != NULL) {
 			if (isPath) {
@@ -604,8 +604,8 @@ void Dir_ItemList_Keyword(ItemList* itemList, char* ext) {
 	if (itemList->num) {
 		u32 i = 0;
 		dir = opendir(dirCtx->curPath);
-		itemList->buffer = Calloc(0, bufSize);
-		itemList->item = Calloc(0, sizeof(char*) * itemList->num);
+		Calloc(itemList->buffer, bufSize);
+		Calloc(itemList->item, sizeof(char*) * itemList->num);
 		
 		while ((entry = readdir(dir)) != NULL) {
 			if (!Sys_IsDir(Dir_File(entry->d_name))) {
@@ -730,15 +730,15 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flag
 	if (strlen(path) > 0 && !Sys_Stat(path))
 		printf_error("Can't walk path that does not exist! [%s]", path);
 	
-	info.list = Malloc(0, sizeof(char*) * 1024 * 16);
+	Malloc(info.list, sizeof(char*) * 1024 * 16);
 	info.len = 0;
 	info.num = 0;
 	info.flags = flags;
 	
 	ItemList_Walk(path, path, 0, depth, &info);
 	
-	target->buffer = Malloc(0, info.len);
-	target->item = Malloc(0, sizeof(char*) * info.num);
+	Malloc(target->buffer, info.len);
+	Malloc(target->item, sizeof(char*) * info.num);
 	target->num = info.num;
 	
 	for (s32 i = 0; i < info.num; i++) {
@@ -805,8 +805,8 @@ void ItemList_Separated(ItemList* list, const char* str, const char separator) {
 		if (b == a)
 			break;
 		
-		node = Calloc(node, sizeof(StrNode));
-		node->txt = Calloc(node->txt, b - a + 1 + offset);
+		Calloc(node, sizeof(StrNode));
+		Calloc(node->txt, b - a + 1 + offset);
 		memcpy(node->txt, &str[a], b - a + offset);
 		Log("%d, [%s]", b - a + 1, node->txt);
 		Node_Add(nodeHead, node);
@@ -823,8 +823,8 @@ void ItemList_Separated(ItemList* list, const char* str, const char separator) {
 	
 	Log("Building List");
 	
-	list->buffer = Calloc(list->buffer, list->writePoint);
-	list->item = Calloc(list->item, sizeof(char*) * list->num);
+	Calloc(list->buffer, list->writePoint);
+	Calloc(list->item, sizeof(char*) * list->num);
 	list->writePoint = 0;
 	
 	for (s32 i = 0; i < list->num; i++) {
@@ -892,8 +892,8 @@ void ItemList_NumericalSort(ItemList* list) {
 		return;
 	}
 	
-	sorted.buffer = Calloc(0, list->writePoint * 4);
-	sorted.item = Calloc(0, sizeof(char*) * (highestNum + 1));
+	Calloc(sorted.buffer, list->writePoint * 4);
+	Calloc(sorted.item, sizeof(char*) * (highestNum + 1));
 	
 	for (s32 i = 0; i <= highestNum; i++) {
 		u32 null = true;
@@ -933,8 +933,8 @@ void ItemList_Free(ItemList* itemList) {
 void ItemList_Alloc(ItemList* list, u32 num, Size size) {
 	list->num = 0;
 	list->writePoint = 0;
-	list->item = Calloc(list->item, sizeof(char*) * num);
-	list->buffer = Calloc(list->buffer, size);
+	Calloc(list->item, sizeof(char*) * num);
+	Calloc(list->buffer, size);
 	list->__private.alnum = num;
 }
 
@@ -2034,14 +2034,14 @@ void ByteSwap(void* src, s32 size) {
 	}
 }
 
-void* Malloc(void* data, s32 size) {
+void* ____Malloc(void* data, s32 size) {
 	data = malloc(size);
 	
 	return data;
 }
 
-void* Calloc(void* data, s32 size) {
-	data = Malloc(data, size);
+void* ____Calloc(void* data, s32 size) {
+	data = ____Malloc(0, size);
 	if (data != NULL) {
 		memset(data, 0, size);
 	}
@@ -2049,7 +2049,7 @@ void* Calloc(void* data, s32 size) {
 	return data;
 }
 
-void* Realloc(void* data, s32 size) {
+void* ____Realloc(void* data, s32 size) {
 	data = realloc(data, size);
 	
 	if (data == NULL) {
@@ -2060,8 +2060,9 @@ void* Realloc(void* data, s32 size) {
 }
 
 void* MemDup(const void* src, Size size) {
-	void* new = Malloc(0, size);
+	void* new;
 	
+	Malloc(new, size);
 	memcpy(new, src, size);
 	
 	return new;
@@ -2071,7 +2072,7 @@ char* StrDup(const char* src) {
 	return MemDup(src, strlen(src) + 1);
 }
 
-void* Free(void* data) {
+void* ____Free(void* data) {
 	if (data)
 		free(data);
 	
@@ -2451,7 +2452,7 @@ char* AllcPath(const char* src) {
 	if (slash == 0)
 		slash = -1;
 	
-	buffer = Calloc(0, slash + 1 + 1);
+	Calloc(buffer, slash + 1 + 1);
 	memcpy(buffer, src, slash + 1);
 	buffer[slash + 1] = '\0';
 	
@@ -2477,7 +2478,7 @@ char* AllcBasename(const char* src) {
 		while (src[point] > ' ') point++;
 	}
 	
-	buffer = Calloc(0, point - slash + 1);
+	Calloc(buffer, point - slash + 1);
 	memcpy(buffer, &src[slash], point - slash);
 	buffer[point - slash] = '\0';
 	
@@ -2509,7 +2510,7 @@ char* AllcFilename(const char* src) {
 		while (src[point] > ' ') point++;
 	}
 	
-	buffer = Calloc(0, point - slash + ext + 1);
+	Calloc(buffer, point - slash + ext + 1);
 	memcpy(buffer, &src[slash], point - slash + ext);
 	buffer[point - slash + ext] = '\0';
 	
@@ -2544,7 +2545,7 @@ char* AllcLine(const char* str, s32 line) {
 		}
 	}
 	
-	buffer = Calloc(0, j + 1);
+	Calloc(buffer, j + 1);
 	memcpy(buffer, &str[i], j);
 	buffer[j] = '\0';
 	
@@ -2579,7 +2580,7 @@ char* AllcWord(const char* str, s32 word) {
 		}
 	}
 	
-	buffer = Calloc(0, j + 1);
+	Calloc(buffer, j + 1);
 	memcpy(buffer, &str[i], j);
 	buffer[j] = '\0';
 	
@@ -2687,7 +2688,7 @@ void MemFile_Params(MemFile* memFile, ...) {
 void MemFile_Malloc(MemFile* memFile, u32 size) {
 	if (memFile->param.initKey != 0xD0E0A0D0B0E0E0F0)
 		*memFile = MemFile_Initialize();
-	memFile->data = Calloc(memFile->data, size);
+	Calloc(memFile->data, size);
 	
 	if (memFile->data == NULL) {
 		printf_warning("Failed to malloc [0x%X] bytes.", size);
@@ -2973,17 +2974,16 @@ s32 Value_Int(const char* string) {
 
 f32 Value_Float(const char* string) {
 	f32 fl;
-	u32 mal = 0;
+	void* str = NULL;
 	
 	if (StrStr(string, ",")) {
-		mal = true;
 		string = strdup(string);
+		str = (void*)string;
 		String_Replace((void*)string, ",", ".");
 	}
 	
 	fl = strtod(string, NULL);
-	if (mal)
-		Free((void*)string);
+	Free(str);
 	
 	return fl;
 }
@@ -3168,11 +3168,11 @@ void String_Remove(char* point, s32 amount) {
 s32 String_Replace(char* src, const char* word, const char* replacement) {
 	s32 diff = 0;
 	char* ptr;
-	bool dup = false;
+	void* dup = NULL;
 	
 	if ((uPtr)word >= (uPtr)src && (uPtr)word < (uPtr)src + strlen(src)) {
 		word = StrDup(word);
-		dup = true;
+		dup = (void*)word;
 	}
 	
 	if (!StrStr(src, word))
@@ -3187,8 +3187,7 @@ s32 String_Replace(char* src, const char* word, const char* replacement) {
 		diff = true;
 	}
 	
-	if (dup)
-		Free((void*)word);
+	Free(dup);
 	
 	return diff;
 }
@@ -3299,7 +3298,7 @@ char* Toml_Variable(const char* str, const char* name) {
 		}
 	}
 	
-	sTomlSection = Free(sTomlSection);
+	Free(sTomlSection);
 	
 	return ret;
 }
@@ -3364,7 +3363,7 @@ char* Toml_GetVariable(const char* str, const char* name) {
 		}
 	}
 	
-	sTomlSection = Free(sTomlSection);
+	Free(sTomlSection);
 	
 	return ret;
 }
@@ -3387,7 +3386,7 @@ void Toml_GetArray(MemFile* mem, ItemList* list, const char* variable) {
 	while (array[size] != ']' && array[size] != '}') size++;
 	
 	tmp = array;
-	array = Calloc(array, size);
+	Calloc(array, size);
 	memcpy(array, tmp + 1, size - 2);
 	
 	ItemList_Separated(list, array, ',');
@@ -3478,7 +3477,7 @@ f32 Toml_GetFloat(MemFile* mem, const char* variable) {
 }
 
 void Toml_GotoSection(const char* section) {
-	sTomlSection = Free(sTomlSection);
+	Free(sTomlSection);
 	if (section) {
 		if (section[0] == '[')
 			sTomlSection = StrDup(section);
@@ -3707,8 +3706,8 @@ void Log_Init() {
 		signal(i, Log_Signal);
 	
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-		sLogMsg[i] = Calloc(0, FAULT_BUFFER_SIZE);
-		sLogFunc[i] = Calloc(0, FAULT_BUFFER_SIZE * 0.25);
+		Calloc(sLogMsg[i], FAULT_BUFFER_SIZE);
+		Calloc(sLogFunc[i], FAULT_BUFFER_SIZE * 0.25);
 	}
 }
 

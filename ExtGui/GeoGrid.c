@@ -34,6 +34,7 @@ SplitDir GeoGrid_GerDir_MouseToPressPos(Split* split) {
 
 SplitVtx* GeoGrid_AddVtx(GeoGridContext* geoCtx, f64 x, f64 y) {
 	SplitVtx* head = geoCtx->vtxHead;
+	SplitVtx* vtx;
 	
 	while (head) {
 		if (fabs(head->pos.x - x) < 0.25 && fabs(head->pos.y - y) < 0.25)
@@ -41,7 +42,7 @@ SplitVtx* GeoGrid_AddVtx(GeoGridContext* geoCtx, f64 x, f64 y) {
 		head = head->next;
 	}
 	
-	SplitVtx* vtx = Calloc(0, sizeof(SplitVtx));
+	Calloc(vtx, sizeof(SplitVtx));
 	
 	vtx->pos.x = x;
 	vtx->pos.y = y;
@@ -75,7 +76,7 @@ SplitEdge* GeoGrid_AddEdge(GeoGridContext* geoCtx, SplitVtx* v1, SplitVtx* v2) {
 	}
 	
 	if (edge == NULL) {
-		edge = Calloc(0, sizeof(SplitEdge));
+		Calloc(edge, sizeof(SplitEdge));
 		
 		edge->vtx[0] = v1;
 		edge->vtx[1] = v2;
@@ -162,7 +163,9 @@ bool GeoGrid_Cursor_InSplit(Split* split) {
 }
 
 Split* GeoGrid_AddSplit(GeoGridContext* geoCtx, Rectf32* rect) {
-	Split* split = Calloc(0, sizeof(Split));
+	Split* split;
+	
+	Calloc(split, sizeof(Split));
 	
 	split->vtx[VTX_BOT_L] = GeoGrid_AddVtx(geoCtx, rect->x, rect->y + rect->h);
 	split->vtx[VTX_TOP_L] = GeoGrid_AddVtx(geoCtx, rect->x, rect->y);
@@ -254,8 +257,7 @@ void GeoGrid_Split(GeoGridContext* geoCtx, Split* split, SplitDir dir) {
 	Split* newSplit;
 	f64 splitPos = (dir == DIR_L || dir == DIR_R) ? geoCtx->input->mouse.pos.x : geoCtx->input->mouse.pos.y;
 	
-	newSplit = Calloc(0, sizeof(Split));
-	
+	Calloc(newSplit, sizeof(Split));
 	Node_Add(geoCtx->splitHead, newSplit);
 	
 	if (dir == DIR_L) {
@@ -755,7 +757,7 @@ void GeoGrid_Update_Split(GeoGridContext* geoCtx) {
 					free(split->instance);
 				}
 				
-				split->instance = Calloc(0, table[id].size);
+				Calloc(split->instance, table[id].size);
 				table[id].init(geoCtx->passArg, split->instance, split);
 				split->prevId = split->id;
 			}

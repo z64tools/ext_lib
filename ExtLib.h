@@ -139,12 +139,12 @@ void* MemMemU32(void* haystack, size_t haySize, const void* needle, size_t needl
 void* MemMemU64(void* haystack, size_t haySize, const void* needle, size_t needleSize);
 char* StrEnd(const char* src, const char* ext);
 char* StrEndCase(const char* src, const char* ext);
-void* Malloc(void* data, s32 size);
-void* Calloc(void* data, s32 size);
-void* Realloc(void* data, s32 size);
+void* ____Malloc(void* data, s32 size);
+void* ____Calloc(void* data, s32 size);
+void* ____Realloc(void* data, s32 size);
 void* MemDup(const void* src, Size size);
 char* StrDup(const char* src);
-void* Free(void* data);
+void* ____Free(void* data);
 void ByteSwap(void* src, s32 size);
 s32 ParseArgs(char* argv[], char* arg, u32* parArg);
 u32 Crc32(u8* s, u32 n);
@@ -383,31 +383,28 @@ void Sound_Xm_Stop();
 #define Align(var, align) ((((var) % (align)) != 0) ? (var) + (align) - ((var) % (align)) : (var))
 
 #define NARGS_SEQ(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, N, ...) N
-#define NARGS(...)                                                                               NARGS_SEQ(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
-
-#ifndef __EXTLIB_C__
+#define NARGS(...) \
+	NARGS_SEQ(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
 
 #define Malloc(data, size) ({ \
 		Log("Malloc(%s); %.2f Kb", #data, BinToKb(size)); \
-		Malloc(0, size); \
+		data = ____Malloc(0, size); \
 	})
 
 #define Realloc(data, size) ({ \
 		Log("Realloc(%s); %.2f Kb", #data, BinToKb(size)); \
-		Realloc(data, size); \
+		data = ____Realloc(data, size); \
 	})
 
 #define Calloc(data, size) ({ \
 		Log("Calloc(%s); %.2f Kb", #data, BinToKb(size)); \
-		Calloc(0, size); \
+		data = ____Calloc(0, size); \
 	})
 
 #define Free(data) ({ \
 		Log("Free(%s);", #data ); \
-		data = Free(data); \
+		data = ____Free(data); \
 	})
-
-#endif
 
 #define Main(y1, y2) main(y1, y2)
 #define Arg(arg)     ParseArgs(argv, arg, &parArg)
