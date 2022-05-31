@@ -662,7 +662,7 @@ typedef struct StrNode {
 	char* txt;
 } StrNode;
 
-static void ItemList_Validate(ItemList* itemList) {
+void ItemList_Validate(ItemList* itemList) {
 	if (itemList->__private.initKey == 0xDEFABEBACECAFAFF) {
 		ItemList_Free(itemList);
 		

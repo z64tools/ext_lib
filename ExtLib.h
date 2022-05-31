@@ -90,6 +90,7 @@ void Terminal_Move(s32 x, s32 y);
 const char* Terminal_GetStr(void);
 char Terminal_GetChar();
 
+void ItemList_Validate(ItemList* itemList);
 void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags);
 char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, ...);
 void ItemList_Separated(ItemList* list, const char* str, const char separator);
