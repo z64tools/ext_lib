@@ -2726,8 +2726,10 @@ s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
 		if (!dest->param.realloc)
 			printf_warning("MemSize: Wrote %.2fkB instead of %.2fkB", BinToKb(size), BinToKb(osize));
 		
-		else
+		else {
 			MemFile_Realloc(dest, dest->memSize * 2);
+			size = osize;
+		}
 	}
 	
 	if (dest->seekPoint + size > dest->dataSize)
