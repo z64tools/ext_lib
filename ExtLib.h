@@ -133,11 +133,9 @@ void __Assert(s32 expression, const char* msg, ...);
 	__Assert((s32)(expression), "" PRNT_DGRY "[" PRNT_REDD "%s" PRNT_DGRY "]:[" PRNT_YELW "%s" PRNT_DGRY "]:[" PRNT_BLUE "%d" PRNT_DGRY "]", #expression, __FUNCTION__, __LINE__)
 f32 RandF();
 void* MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
-void* MemMemCase(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
+void* StrStr(const char* haystack, const char* needle);
+void* StrStrCase(const char* strA, const char* strB);
 void* MemMemAlign(u32 val, const void* haystack, size_t haySize, const void* needle, size_t needleSize);
-void* MemMemU16(void* haystack, size_t haySize, const void* needle, size_t needleSize);
-void* MemMemU32(void* haystack, size_t haySize, const void* needle, size_t needleSize);
-void* MemMemU64(void* haystack, size_t haySize, const void* needle, size_t needleSize);
 char* StrEnd(const char* src, const char* ext);
 char* StrEndCase(const char* src, const char* ext);
 void* ____Malloc(void* data, s32 size);
@@ -194,9 +192,7 @@ void MemFile_Free(MemFile* memFile);
 void MemFile_Reset(MemFile* memFile);
 void MemFile_Clear(MemFile* memFile);
 
-#define StrStr(src, comp)       MemMem(src, strlen(src), comp, strlen(comp))
 #define StrStrNum(src, comp, n) MemMem(src, n, comp, n)
-#define StrStrCase(src, comp)   MemMemCase(src, strlen(src), comp, strlen(comp))
 #define StrMtch(a, b)           (!strncmp(a, b, strlen(b)))
 #define catprintf(dest, ...)    sprintf(dest + strlen(dest), __VA_ARGS__)
 
@@ -210,7 +206,6 @@ s32 Value_ValidateFloat(const char* str);
 s32 Music_NoteIndex(const char* note);
 const char* Music_NoteWord(s32 note);
 
-s32 String_CaseComp(char* a, char* b, u32 compSize);
 char* String_Extension(const char* str);
 void String_Insert(char* point, const char* insert);
 void String_InsertExt(char* origin, const char* insert, s32 pos, s32 size);
@@ -424,9 +419,12 @@ void Sound_Xm_Stop();
 #define forlist(var, list) for (s32 var = 0; var < (list).num; var++)
 
 #ifndef _WIN32
-#define stricmp(a, b) strcasecmp(a, b)
+#define stricmp(a, b)        strcasecmp(a, b)
+#define strnicmp(a, b, size) strncasecmp(a, b, size)
 #endif
 
+
 int stricmp(const char* a, const char* b);
+int strnicmp(const char* a, const char* b, Size size);
 
 #endif /* __EXTLIB_H__ */

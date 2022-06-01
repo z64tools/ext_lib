@@ -1032,7 +1032,7 @@ void Sys_Sleep(f64 sec) {
 static void __recursive_mkdir(const char* dir) {
 	char tmp[256];
 	char* p = NULL;
-	size_t len;
+	Size len;
 	
 	snprintf(tmp, sizeof(tmp), "%s", dir);
 	len = strlen(tmp);
@@ -1790,210 +1790,69 @@ f32 RandF() {
 	return fmod(r, 1.0f);
 }
 
-void* MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize) {
-	if (haystack == NULL || needle == NULL)
-		return NULL;
-	register char* cur, * last;
-	const char* cl = (const char*)haystack;
-	const char* cs = (const char*)needle;
+void* MemMem(const void* haystack, Size haystacklen, const void* needle, Size needlelen) {
+	char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
 	
-	/* we need something to compare */
-	if (haystackSize == 0 || needleSize == 0)
-		return NULL;
-	
-	/* "s" must be smaller or equal to "l" */
-	if (haystackSize < needleSize)
-		return NULL;
-	
-	/* special case where s_len == 1 */
-	if (needleSize == 1)
-		return memchr(haystack, (int)*cs, haystackSize);
-	
-	/* the last position where its possible to find "s" in "l" */
-	last = (char*)cl + haystackSize - needleSize;
-	
-	for (cur = (char*)cl; cur <= last; cur++) {
-		if (*cur == *cs && memcmp(cur, cs, needleSize) == 0)
-			return cur;
+	while ((haystacklen - (p - bf)) >= needlelen) {
+		if (NULL != (p = memchr(p, (int)(*pt), haystacklen - (p - bf)))) {
+			if (0 == memcmp(p, needle, needlelen))
+				return p;
+			else
+				++p;
+		} else
+			break;
 	}
 	
 	return NULL;
 }
 
-void* MemMemCase(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize) {
-	if (haystack == NULL || needle == NULL)
-		return NULL;
-	register char* cur, * last;
-	char* cl = (char*)haystack;
-	char* cs = (char*)needle;
+void* StrStr(const char* haystack, const char* needle) {
+	return MemMem(haystack, strlen(haystack), needle, strlen(needle));
+}
+
+void* StrStrCase(const char* haystack, const char* needle) {
+	Size haystacklen = strlen(haystack);
+	Size needlelen = strlen(needle);
+	char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
 	
-	/* we need something to compare */
-	if (haystackSize == 0 || needleSize == 0)
-		return NULL;
-	
-	/* "s" must be smaller or equal to "l" */
-	if (haystackSize < needleSize)
-		return NULL;
-	
-	/* special case where s_len == 1 */
-	if (needleSize == 1)
-		return memchr(haystack, (int)*cs, haystackSize);
-	
-	/* the last position where its possible to find "s" in "l" */
-	last = (char*)cl + haystackSize - needleSize;
-	
-	for (cur = (char*)cl; cur <= last; cur++) {
-		if (tolower(*cur) == tolower(*cs) && String_CaseComp(cur, cs, needleSize) == 0)
-			return cur;
+	while (needlelen <= (haystacklen - (p - bf))) {
+		char* a, * b;
+		
+		a = memchr(p, tolower((int)(*pt)), haystacklen - (p - bf));
+		b = memchr(p, toupper((int)(*pt)), haystacklen - (p - bf));
+		
+		if (a == NULL)
+			p = b;
+		else if (b == NULL)
+			p = a;
+		else
+			p = Min(a, b);
+		
+		if (p) {
+			if (0 == strnicmp(p, needle, needlelen))
+				return p;
+			else
+				++p;
+		} else
+			break;
 	}
 	
 	return NULL;
 }
 
-void* MemMemAlign(u32 val, const void* haystack, size_t haySize, const void* needle, size_t needleSize) {
-	const u8* hay = haystack;
-	const u8* nee = needle;
+void* MemMemAlign(u32 val, const void* haystack, Size haystacklen, const void* needle, Size needlelen) {
+	char* s = (char*)needle;
+	char* bf = (char*)haystack;
+	char* p = (char*)haystack;
 	
-	if (haySize == 0 || needleSize == 0)
-		return NULL;
-	
-	if (haystack == NULL || needle == NULL)
-		return NULL;
-	
-	if (haySize < needleSize) {
-		return NULL;
+	while (haystacklen - (p - bf) >= needlelen) {
+		if (p[0] == s[0] && !memcmp(p, needle, needlelen))
+			return p;
+		else
+			p += val;
 	}
 	
-	for (s32 i = 0;; i++) {
-		if (i * val > haySize - needleSize)
-			return NULL;
-		
-		if (hay[i * val] == nee[0]) {
-			if (memcmp(&hay[i * val], nee, needleSize) == 0) {
-				return (void*)&hay[i * val];
-			}
-		}
-	}
-}
-
-void* MemMemU16(void* haystack, size_t haySize, const void* needle, size_t needleSize) {
-	u16* hay = haystack;
-	const u16* nee = needle;
-	const u16* neeEnd = nee + needleSize / sizeof(*nee);
-	const u16* hayEnd = hay + ((haySize - needleSize) / sizeof(*hay));
-	
-	/* guarantee alignment */
-	Assert((((uPtr)haystack) & 0x1) == 0);
-	Assert((((uPtr)needle) & 0x1) == 0);
-	Assert((haySize & 0x1) == 0);
-	Assert((needleSize & 0x1) == 0);
-	
-	if (haySize == 0 || needleSize == 0)
-		return NULL;
-	
-	if (haystack == NULL || needle == NULL)
-		return NULL;
-	
-	if (haySize < needleSize)
-		return NULL;
-	
-	while (hay <= hayEnd) {
-		const u16* neeNow = nee;
-		const u16* hayNow = hay;
-		
-		while (neeNow != neeEnd) {
-			if (*neeNow != *hayNow)
-				goto L_next;
-			++neeNow;
-			++hayNow;
-		}
-		
-		return hay;
-L_next:
-		++hay;
-	}
-	
-	return 0;
-}
-
-void* MemMemU32(void* haystack, size_t haySize, const void* needle, size_t needleSize) {
-	u32* hay = haystack;
-	const u32* nee = needle;
-	const u32* neeEnd = nee + needleSize / sizeof(*nee);
-	const u32* hayEnd = hay + ((haySize - needleSize) / sizeof(*hay));
-	
-	/* guarantee alignment */
-	Assert((((uPtr)haystack) & 0x3) == 0);
-	Assert((((uPtr)needle) & 0x3) == 0);
-	Assert((haySize & 0x3) == 0);
-	Assert((needleSize & 0x3) == 0);
-	
-	if (haySize == 0 || needleSize == 0)
-		return NULL;
-	
-	if (haystack == NULL || needle == NULL)
-		return NULL;
-	
-	if (haySize < needleSize)
-		return NULL;
-	
-	while (hay <= hayEnd) {
-		const u32* neeNow = nee;
-		const u32* hayNow = hay;
-		
-		while (neeNow != neeEnd) {
-			if (*neeNow != *hayNow)
-				goto L_next;
-			++neeNow;
-			++hayNow;
-		}
-		
-		return hay;
-L_next:
-		++hay;
-	}
-	
-	return 0;
-}
-
-void* MemMemU64(void* haystack, size_t haySize, const void* needle, size_t needleSize) {
-	u64* hay = haystack;
-	const u64* nee = needle;
-	const u64* neeEnd = nee + needleSize / sizeof(*nee);
-	const u64* hayEnd = hay + ((haySize - needleSize) / sizeof(*hay));
-	
-	/* guarantee alignment */
-	Assert((((uPtr)haystack) & 0xf) == 0);
-	Assert((((uPtr)needle) & 0xf) == 0);
-	Assert((haySize & 0xf) == 0);
-	Assert((needleSize & 0xf) == 0);
-	
-	if (haySize == 0 || needleSize == 0)
-		return NULL;
-	
-	if (haystack == NULL || needle == NULL)
-		return NULL;
-	
-	if (haySize < needleSize)
-		return NULL;
-	
-	while (hay <= hayEnd) {
-		const u64* neeNow = nee;
-		const u64* hayNow = hay;
-		
-		while (neeNow != neeEnd) {
-			if (*neeNow != *hayNow)
-				goto L_next;
-			++neeNow;
-			++hayNow;
-		}
-		
-		return hay;
-L_next:
-		++hay;
-	}
-	
-	return 0;
+	return NULL;
 }
 
 char* StrEnd(const char* src, const char* ext) {
@@ -2864,10 +2723,6 @@ s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
 	memFile->info.age = Sys_Stat(filepath);
 	strcpy(memFile->info.name, filepath);
 	
-	if (memFile->param.getCrc) {
-		memFile->info.crc32 = Crc32(memFile->data, memFile->dataSize);
-	}
-	
 	return 0;
 }
 
@@ -2906,10 +2761,6 @@ s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath) {
 	
 	memFile->info.age = Sys_Stat(filepath);
 	strcpy(memFile->info.name, filepath);
-	
-	if (memFile->param.getCrc) {
-		memFile->info.crc32 = Crc32(memFile->data, memFile->dataSize);
-	}
 	
 	return 0;
 }
@@ -3098,18 +2949,6 @@ const char* Music_NoteWord(s32 note) {
 // # # # # # # # # # # # # # # # # # # # #
 // # STRING                              #
 // # # # # # # # # # # # # # # # # # # # #
-
-s32 String_CaseComp(char* a, char* b, u32 compSize) {
-	u32 wow = 0;
-	
-	for (s32 i = 0; i < compSize; i++) {
-		wow = tolower(a[i]) - tolower(b[i]);
-		if (wow)
-			return 1;
-	}
-	
-	return 0;
-}
 
 char* String_GetSpacedArg(char* argv[], s32 cur) {
 	char tempBuf[512];
