@@ -37,8 +37,8 @@ char* HeapStrDup(const char* str);
 char* HeapMemDup(const char* data, Size size);
 char* HeapPrint(const char* fmt, ...);
 
-void Time_Start(void);
-f32 Time_Get(void);
+void Time_Start(u32 slot);
+f64 Time_Get(u32 slot);
 
 void Dir_SetParam(DirParam w);
 void Dir_UnsetParam(DirParam w);
@@ -422,5 +422,11 @@ void Sound_Xm_Stop();
 
 #define foreach(var, arr)  for (s32 var = 0; var < ArrayCount(arr); var++)
 #define forlist(var, list) for (s32 var = 0; var < (list).num; var++)
+
+#ifndef _WIN32
+#define stricmp(a, b) strcasecmp(a, b)
+#endif
+
+int stricmp(const char* a, const char* b);
 
 #endif /* __EXTLIB_H__ */

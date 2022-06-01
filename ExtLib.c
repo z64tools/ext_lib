@@ -175,16 +175,16 @@ char* HeapPrint(const char* fmt, ...) {
 // # TIME                                #
 // # # # # # # # # # # # # # # # # # # # #
 
-static struct timeval sTimeStart, sTimeStop;
+static struct timeval sTimeStart[255], sTimeStop[255];
 
-void Time_Start(void) {
-	gettimeofday(&sTimeStart, NULL);
+void Time_Start(u32 slot) {
+	gettimeofday(&sTimeStart[slot], NULL);
 }
 
-f32 Time_Get(void) {
-	gettimeofday(&sTimeStop, NULL);
+f64 Time_Get(u32 slot) {
+	gettimeofday(&sTimeStop[slot], NULL);
 	
-	return (sTimeStop.tv_sec - sTimeStart.tv_sec) + (f32)(sTimeStop.tv_usec - sTimeStart.tv_usec) / 1000000;
+	return (sTimeStop[slot].tv_sec - sTimeStart[slot].tv_sec) + (f32)(sTimeStop[slot].tv_usec - sTimeStart[slot].tv_usec) / 1000000;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -241,11 +241,9 @@ void Dir_Enter(char* fmt, ...) {
 	vsnprintf(buffer, ArrayCount(buffer), fmt, args);
 	va_end(args);
 	
-	if (!(dirCtx->param & DIR__MAKE_ON_ENTER)) {
-		if (!Dir_Stat(buffer)) {
+	if (!(dirCtx->param & DIR__MAKE_ON_ENTER))
+		if (!Dir_Stat(buffer))
 			printf_error("Could not enter folder [%s]", dirCtx->curPath, buffer);
-		}
-	}
 	
 	dirCtx->pos++;
 	dirCtx->enterCount[dirCtx->pos] = 0;
@@ -263,9 +261,8 @@ void Dir_Enter(char* fmt, ...) {
 	
 	strcat(dirCtx->curPath, buffer);
 	
-	if (dirCtx->param & DIR__MAKE_ON_ENTER) {
+	if (dirCtx->param & DIR__MAKE_ON_ENTER)
 		Dir_MakeCurrent();
-	}
 }
 
 void Dir_Leave(void) {
@@ -2000,22 +1997,29 @@ L_next:
 }
 
 char* StrEnd(const char* src, const char* ext) {
-	const char* fP;
+	char* fP;
 	
 	if (strlen(src) < strlen(ext))
 		return NULL;
 	
-	if ((fP = StrStr(src, ext)) != NULL && strlen(fP) == strlen(ext))
-		return (char*)fP;
+	fP = (char*)(src + strlen(src) - strlen(ext));
+	
+	if (!strcmp(fP, ext))
+		return fP;
 	
 	return NULL;
 }
 
 char* StrEndCase(const char* src, const char* ext) {
-	const char* fP;
+	char* fP;
 	
-	if ((fP = StrStrCase(src, ext)) != NULL && strlen(fP) == strlen(ext))
-		return (char*)fP;
+	if (strlen(src) < strlen(ext))
+		return NULL;
+	
+	fP = (char*)(src + strlen(src) - strlen(ext));
+	
+	if (!stricmp(fP, ext))
+		return fP;
 	
 	return NULL;
 }
