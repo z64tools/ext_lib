@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 145
+#define THIS_EXTLIB_VERSION 146
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -647,29 +647,58 @@ char* Dir_FindFile(const char* str) {
 // # # # # # # # # # # # # # # # # # # # #
 
 typedef struct {
-	char**    list;
-	u32       len;
-	u32       num;
-	ListFlags flags;
+	StrNode* node;
+	u32 len;
+	u32 num;
+	ListFlag flags;
 } WalkInfo;
 
-typedef struct StrNode {
-	struct StrNode* prev;
-	struct StrNode* next;
-	char* txt;
-} StrNode;
-
 void ItemList_Validate(ItemList* itemList) {
-	if (itemList->__private.initKey == 0xDEFABEBACECAFAFF) {
-		ItemList_Free(itemList);
-		
+	if (itemList->private.initKey == 0xDEFABEBACECAFAFF)
 		return;
-	}
 	
 	*itemList = ItemList_Initialize();
 }
 
-static void ItemList_Walk(const char* base, const char* parent, s32 level, s32 max, WalkInfo* info) {
+ItemList ItemList_Initialize(void) {
+	return (ItemList) { .private = { .initKey = 0xDEFABEBACECAFAFF } };
+}
+
+void ItemList_SetFilter(ItemList* list, u32 filterNum, ...) {
+	va_list va;
+	
+	ItemList_Validate(list);
+	ItemList_FreeFilters(list);
+	
+	if (filterNum % 2 == 1)
+		printf_warning("Odd filterNum! [%d]", --filterNum);
+	
+	va_start(va, filterNum);
+	
+	for (s32 i = 0; i < filterNum * 0.5; i++) {
+		FilterNode* node;
+		
+		Calloc(node, sizeof(FilterNode));
+		node->type = va_arg(va, ListFilter);
+		node->txt = StrDup(va_arg(va, char*));
+		
+		Node_Add(list->private.filterNode, node);
+	}
+	
+	va_end(va);
+}
+
+void ItemList_FreeFilters(ItemList* list) {
+	FilterNode* node = list->private.filterNode;
+	
+	while (node) {
+		Free(node->txt);
+		Node_Kill(list->private.filterNode, node);
+		node = list->private.filterNode;
+	}
+}
+
+static void ItemList_Walk(ItemList* list, const char* base, const char* parent, s32 level, s32 max, WalkInfo* info) {
 	DIR* dir;
 	const char* entryPath = parent;
 	struct dirent* entry;
@@ -684,30 +713,64 @@ static void ItemList_Walk(const char* base, const char* parent, s32 level, s32 m
 	
 	if (dir) {
 		while ((entry = readdir(dir))) {
+			StrNode* node;
 			char* path;
+			u32 cont = 0;
 			
 			if (!strcmp(".", entry->d_name) || !strcmp("..", entry->d_name))
 				continue;
 			
-			if ((info->flags & LIST_NO_DOT) && entry->d_name[0] == '.')
+			fornode(FilterNode, filterNode, list->private.filterNode) {
+				switch (filterNode->type) {
+					case FILTER_SEARCH:
+						if (StrStr(entry->d_name, filterNode->txt))
+							cont = true;
+						break;
+					case FILTER_START:
+						if (!memcmp(entry->d_name, filterNode->txt, strlen(filterNode->txt)))
+							cont = true;
+						break;
+					case FILTER_END:
+						if (StrEnd(entry->d_name, filterNode->txt))
+							cont = true;
+						break;
+					case FILTER_WORD:
+						if (!strcmp(entry->d_name, filterNode->txt))
+							cont = true;
+						break;
+				}
+				
+				if (cont)
+					break;
+			}
+			
+			if (((info->flags & LIST_NO_DOT) && entry->d_name[0] == '.') || cont)
 				continue;
 			
 			asprintf(&path, "%s%s/", parent, entry->d_name);
 			
 			if (Sys_IsDir(path)) {
 				if (max == -1 || level < max)
-					ItemList_Walk(base, path, level + 1, max, info);
+					ItemList_Walk(list, base, path, level + 1, max, info);
 				
 				if ((info->flags & 0xF) == LIST_FOLDERS) {
-					asprintf(&info->list[info->num], "%s%s/", entryPath, entry->d_name);
-					info->len += strlen(info->list[info->num]) + 1;
+					Calloc(node, sizeof(StrNode));
+					asprintf(&node->txt, "%s%s/", entryPath, entry->d_name);
+					info->len += strlen(node->txt) + 1;
 					info->num++;
+					
+					Node_Add(info->node, node);
 				}
 			} else {
 				if ((info->flags & 0xF) == LIST_FILES) {
-					asprintf(&info->list[info->num], "%s%s", entryPath, entry->d_name);
-					info->len += strlen(info->list[info->num]) + 1;
+					StrNode* node;
+					
+					Calloc(node, sizeof(StrNode));
+					asprintf(&node->txt, "%s%s", entryPath, entry->d_name);
+					info->len += strlen(node->txt) + 1;
 					info->num++;
+					
+					Node_Add(info->node, node);
 				}
 			}
 			
@@ -719,36 +782,34 @@ static void ItemList_Walk(const char* base, const char* parent, s32 level, s32 m
 		printf_error("Could not open dir [%s]", dir);
 }
 
-void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags) {
-	WalkInfo info;
+void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags) {
+	WalkInfo info = { 0 };
 	
 	ItemList_Validate(target);
 	
 	if (strlen(path) > 0 && !Sys_Stat(path))
 		printf_error("Can't walk path that does not exist! [%s]", path);
 	
-	Malloc(info.list, sizeof(char*) * 1024 * 16);
 	info.len = 0;
 	info.num = 0;
 	info.flags = flags;
 	
-	ItemList_Walk(path, path, 0, depth, &info);
+	ItemList_Walk(target, path, path, 0, depth, &info);
 	
 	Malloc(target->buffer, info.len);
 	Malloc(target->item, sizeof(char*) * info.num);
 	target->num = info.num;
 	
 	for (s32 i = 0; i < info.num; i++) {
+		StrNode* node = info.node;
+		
 		target->item[i] = &target->buffer[target->writePoint];
-		
-		strcpy(target->item[i], info.list[i]);
-		
+		strcpy(target->item[i], node->txt);
 		target->writePoint += strlen(target->item[i]) + 1;
 		
-		Free(info.list[i]);
+		Free(node->txt);
+		Node_Kill(info.node, node);
 	}
-	
-	Free(info.list);
 	
 	Log("OK, %d [%s]", target->num, path);
 }
@@ -911,28 +972,33 @@ void ItemList_NumericalSort(ItemList* list) {
 		}
 	}
 	
+	sorted.private.filterNode = list->private.filterNode;
 	ItemList_Free(list);
 	
 	Log("Sorted");
 	*list = sorted;
 }
 
-ItemList ItemList_Initialize(void) {
-	return (ItemList) { .__private = { .initKey = 0xDEFABEBACECAFAFF } };
-}
-
 void ItemList_Free(ItemList* itemList) {
-	Free(itemList->buffer);
-	Free(itemList->item);
+	if (itemList->private.initKey == 0xDEFABEBACECAFAFF) {
+		Free(itemList->buffer);
+		Free(itemList->item);
+		ItemList_FreeFilters(itemList);
+	}
 	itemList[0] = ItemList_Initialize();
 }
 
 void ItemList_Alloc(ItemList* list, u32 num, Size size) {
+	ItemList_Validate(list);
 	list->num = 0;
 	list->writePoint = 0;
+	
+	if (num == 0 || size == 0)
+		return;
+	
 	Calloc(list->item, sizeof(char*) * num);
 	Calloc(list->buffer, size);
-	list->__private.alnum = num;
+	list->private.alnum = num;
 }
 
 void ItemList_AddItem(ItemList* list, const char* item) {
@@ -2856,7 +2922,7 @@ f32 Value_Float(const char* string) {
 	if (StrStr(string, ",")) {
 		string = strdup(string);
 		str = (void*)string;
-		strrep((void*)string, ",", ".");
+		StrRep((void*)string, ",", ".");
 	}
 	
 	fl = strtod(string, NULL);
@@ -2971,7 +3037,7 @@ const char* Music_NoteWord(s32 note) {
 // # # # # # # # # # # # # # # # # # # # #
 
 // Insert
-void strins(char* point, const char* insert) {
+void StrIns(char* point, const char* insert) {
 	s32 insLen = strlen(insert);
 	char* insEnd = point + insLen;
 	s32 remLen = strlen(point);
@@ -2981,7 +3047,7 @@ void strins(char* point, const char* insert) {
 	memcpy(point, insert, insLen);
 }
 // Insert
-void strins2(char* origin, const char* insert, s32 pos, s32 size) {
+void StrIns2(char* origin, const char* insert, s32 pos, s32 size) {
 	s32 inslen = strlen(insert);
 	
 	if (pos >= size)
@@ -2995,7 +3061,7 @@ void strins2(char* origin, const char* insert, s32 pos, s32 size) {
 	}
 }
 // Remove
-void strrem(char* point, s32 amount) {
+void StrRem(char* point, s32 amount) {
 	char* get = point + amount;
 	s32 len = strlen(get);
 	
@@ -3004,7 +3070,7 @@ void strrem(char* point, s32 amount) {
 	point[len] = 0;
 }
 // Replace
-s32 strrep(char* src, const char* word, const char* replacement) {
+s32 StrRep(char* src, const char* word, const char* replacement) {
 	s32 diff = 0;
 	char* ptr;
 	void* dup = NULL;
@@ -3020,8 +3086,8 @@ s32 strrep(char* src, const char* word, const char* replacement) {
 	ptr = StrStr(src, word);
 	
 	while (ptr != NULL) {
-		strrem(ptr, strlen(word));
-		strins(ptr, replacement);
+		StrRem(ptr, strlen(word));
+		StrIns(ptr, replacement);
 		ptr = StrStr(ptr + strlen(replacement), word);
 		diff = true;
 	}
@@ -3031,7 +3097,7 @@ s32 strrep(char* src, const char* word, const char* replacement) {
 	return diff;
 }
 // utf8
-void* stru8(const char* str) {
+void* StrU8(const char* str) {
 	char* out = NULL;
 	
 #ifdef _WIN32
@@ -3047,18 +3113,18 @@ void* stru8(const char* str) {
 	return out;
 }
 // Unquote
-char* strunq(const char* str) {
+char* StrUnq(const char* str) {
 	char* new = HeapStrDup(str);
 	
 	if (StrStr(str, "\"") || StrStr(str, "'")) {
 		while (new[0] != '\"' && new[0] != '\'')
-			strrem(new, 1);
+			StrRem(new, 1);
 		
 		while (new[strlen(new) - 1] != '\"' && new[strlen(new) - 1] != '\'')
 			new[strlen(new) - 1] = '\0';
 		
-		strrep(new, "\"", "");
-		strrep(new, "'", "");
+		StrRep(new, "\"", "");
+		StrRep(new, "'", "");
 		
 		return new;
 	}
@@ -3250,7 +3316,7 @@ void Toml_GetArray(MemFile* mem, ItemList* list, const char* variable) {
 	Free(array);
 	
 	for (s32 i = 0; i < list->num; i++)
-		strrep(list->item[i], "\"", "");
+		StrRep(list->item[i], "\"", "");
 }
 
 s32 Toml_GetBool(MemFile* mem, const char* variable) {
@@ -3368,8 +3434,8 @@ s32 Toml_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ..
 	if (p) {
 		if (p[0] == '"')
 			p++;
-		strrem(p, strlen(Toml_GetVariable(mem->str, variable)));
-		strins(p, replacement);
+		StrRem(p, strlen(Toml_GetVariable(mem->str, variable)));
+		StrIns(p, replacement);
 		
 		mem->dataSize = strlen(mem->str);
 		Free(replacement);

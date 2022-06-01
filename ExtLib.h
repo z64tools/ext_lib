@@ -91,7 +91,10 @@ const char* Terminal_GetStr(void);
 char Terminal_GetChar();
 
 void ItemList_Validate(ItemList* itemList);
-void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlags flags);
+ItemList ItemList_Initialize(void);
+void ItemList_SetFilter(ItemList* list, u32 filterNum, ...);
+void ItemList_FreeFilters(ItemList* list);
+void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags);
 char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, ...);
 void ItemList_Separated(ItemList* list, const char* str, const char separator);
 void ItemList_Print(ItemList* target);
@@ -99,7 +102,6 @@ Time ItemList_StatMax(ItemList* list);
 Time ItemList_StatMin(ItemList* list);
 s32 ItemList_SaveList(ItemList* target, const char* output);
 void ItemList_NumericalSort(ItemList* list);
-ItemList ItemList_Initialize(void);
 void ItemList_Free(ItemList* itemList);
 void ItemList_Alloc(ItemList* list, u32 num, Size size);
 void ItemList_AddItem(ItemList* list, const char* item);
@@ -107,6 +109,7 @@ void ItemList_AddItem(ItemList* list, const char* item);
 #ifndef __EXTLIB_C__
 
 #define ItemList_GetWildItem(list, ...) ItemList_GetWildItem(list, __VA_ARGS__, NULL)
+#define ItemList_SetFilter(list, ...)   ItemList_SetFilter(list, NARGS(__VA_ARGS__), __VA_ARGS__)
 
 #endif
 
@@ -208,12 +211,12 @@ s32 Value_ValidateFloat(const char* str);
 s32 Music_NoteIndex(const char* note);
 const char* Music_NoteWord(s32 note);
 
-void strins(char* point, const char* insert);
-void strins2(char* origin, const char* insert, s32 pos, s32 size);
-void strrem(char* point, s32 amount);
-s32 strrep(char* src, const char* word, const char* replacement);
-void* stru8(const char* str);
-char* strunq(const char* str);
+void StrIns(char* point, const char* insert);
+void StrIns2(char* origin, const char* insert, s32 pos, s32 size);
+void StrRem(char* point, s32 amount);
+s32 StrRep(char* src, const char* word, const char* replacement);
+void* StrU8(const char* str);
+char* StrUnq(const char* str);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 
@@ -416,8 +419,9 @@ void Sound_Xm_Stop();
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>]: " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
 
-#define foreach(var, arr)  for (s32 var = 0; var < ArrayCount(arr); var++)
-#define forlist(var, list) for (s32 var = 0; var < (list).num; var++)
+#define foreach(var, arr)        for (s32 var = 0; var < ArrayCount(arr); var++)
+#define forlist(var, list)       for (s32 var = 0; var < (list).num; var++)
+#define fornode(type, var, head) for (type* var = head; var != NULL; var = var->next)
 
 #ifndef _WIN32
 #define stricmp(a, b)        strcasecmp(a, b)

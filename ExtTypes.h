@@ -142,15 +142,38 @@ typedef struct MemFile {
 	} param;
 } MemFile;
 
+typedef enum {
+	LIST_FILES    = 0x0,
+	LIST_FOLDERS  = 0x1,
+	
+	LIST_RELATIVE = (1) << 4,
+	LIST_NO_DOT   = (1) << 5,
+} ListFlag;
+
+typedef enum {
+	FILTER_SEARCH = 0,
+	FILTER_START,
+	FILTER_END,
+	FILTER_WORD,
+} ListFilter;
+
+typedef struct FilterNode {
+	struct FilterNode* prev;
+	struct FilterNode* next;
+	ListFilter type;
+	char* txt;
+} FilterNode;
+
 typedef struct ItemList {
 	char*  buffer;
 	u32    writePoint;
 	char** item;
 	u32    num;
 	struct {
+		FilterNode* filterNode;
 		u64 initKey;
 		u32 alnum;
-	} __private;
+	} private;
 } ItemList;
 
 typedef struct {
@@ -193,12 +216,10 @@ typedef enum {
 	STAT_CREA = (1) << 2,
 } StatFlag;
 
-typedef enum {
-	LIST_FILES    = 0x0,
-	LIST_FOLDERS  = 0x1,
-	
-	LIST_RELATIVE = (1) << 4,
-	LIST_NO_DOT   = (1) << 5,
-} ListFlags;
+typedef struct StrNode {
+	struct StrNode* prev;
+	struct StrNode* next;
+	char* txt;
+} StrNode;
 
 #endif
