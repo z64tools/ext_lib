@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 144
+#define THIS_EXTLIB_VERSION 145
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -2180,6 +2180,15 @@ char* Word(const char* str, s32 word) {
 	return (char*)&str[i];
 }
 
+char* FileExtension(const char* str) {
+	s32 slash;
+	s32 point;
+	
+	SlashAndPoint(str, &slash, &point);
+	
+	return (void*)&str[point];
+}
+
 void CaseToLow(char* s, s32 i) {
 	if (i <= 0)
 		i = strlen(s);
@@ -2847,7 +2856,7 @@ f32 Value_Float(const char* string) {
 	if (StrStr(string, ",")) {
 		string = strdup(string);
 		str = (void*)string;
-		String_Replace((void*)string, ",", ".");
+		strrep((void*)string, ",", ".");
 	}
 	
 	fl = strtod(string, NULL);
@@ -2961,6 +2970,102 @@ const char* Music_NoteWord(s32 note) {
 // # STRING                              #
 // # # # # # # # # # # # # # # # # # # # #
 
+// Insert
+void strins(char* point, const char* insert) {
+	s32 insLen = strlen(insert);
+	char* insEnd = point + insLen;
+	s32 remLen = strlen(point);
+	
+	memmove(insEnd, point, remLen + 1);
+	insEnd[remLen] = 0;
+	memcpy(point, insert, insLen);
+}
+// Insert
+void strins2(char* origin, const char* insert, s32 pos, s32 size) {
+	s32 inslen = strlen(insert);
+	
+	if (pos >= size)
+		return;
+	
+	if (size - pos - inslen > 0)
+		memmove(&origin[pos + inslen], &origin[pos], size - pos - inslen);
+	
+	for (s32 j = 0; j < inslen; pos++, j++) {
+		origin[pos] = insert[j];
+	}
+}
+// Remove
+void strrem(char* point, s32 amount) {
+	char* get = point + amount;
+	s32 len = strlen(get);
+	
+	if (len)
+		memcpy(point, get, strlen(get));
+	point[len] = 0;
+}
+// Replace
+s32 strrep(char* src, const char* word, const char* replacement) {
+	s32 diff = 0;
+	char* ptr;
+	void* dup = NULL;
+	
+	if ((uPtr)word >= (uPtr)src && (uPtr)word < (uPtr)src + strlen(src)) {
+		word = StrDup(word);
+		dup = (void*)word;
+	}
+	
+	if (!StrStr(src, word))
+		return 0;
+	
+	ptr = StrStr(src, word);
+	
+	while (ptr != NULL) {
+		strrem(ptr, strlen(word));
+		strins(ptr, replacement);
+		ptr = StrStr(ptr + strlen(replacement), word);
+		diff = true;
+	}
+	
+	Free(dup);
+	
+	return diff;
+}
+// utf8
+void* stru8(const char* str) {
+	char* out = NULL;
+	
+#ifdef _WIN32
+	u32 ln = MultiByteToWideChar(CP_UTF8, 0, str, strlen(str), 0, 0);
+	out = HeapMalloc(ln + 1);
+	if (!out)
+		printf_error("Failed to convert UTF8 to WCHAR");
+	MultiByteToWideChar(CP_UTF8, 0, str, strlen(str), (void*)out, ln);
+#else
+	out = (void*)str;
+#endif
+	
+	return out;
+}
+// Unquote
+char* strunq(const char* str) {
+	char* new = HeapStrDup(str);
+	
+	if (StrStr(str, "\"") || StrStr(str, "'")) {
+		while (new[0] != '\"' && new[0] != '\'')
+			strrem(new, 1);
+		
+		while (new[strlen(new) - 1] != '\"' && new[strlen(new) - 1] != '\'')
+			new[strlen(new) - 1] = '\0';
+		
+		strrep(new, "\"", "");
+		strrep(new, "'", "");
+		
+		return new;
+	}
+	
+	return new;
+}
+
 char* String_GetSpacedArg(char* argv[], s32 cur) {
 	char tempBuf[512];
 	s32 i = cur + 1;
@@ -2979,114 +3084,10 @@ char* String_GetSpacedArg(char* argv[], s32 cur) {
 	return argv[cur];
 }
 
-char* String_Extension(const char* str) {
-	s32 slash;
-	s32 point;
-	
-	SlashAndPoint(str, &slash, &point);
-	
-	return (void*)&str[point];
-}
-
-void String_Insert(char* point, const char* insert) {
-	s32 insLen = strlen(insert);
-	char* insEnd = point + insLen;
-	s32 remLen = strlen(point);
-	
-	memmove(insEnd, point, remLen + 1);
-	insEnd[remLen] = 0;
-	memcpy(point, insert, insLen);
-}
-
-void String_InsertExt(char* origin, const char* insert, s32 pos, s32 size) {
-	s32 inslen = strlen(insert);
-	
-	if (pos >= size)
-		return;
-	
-	if (size - pos - inslen > 0)
-		memmove(&origin[pos + inslen], &origin[pos], size - pos - inslen);
-	
-	for (s32 j = 0; j < inslen; pos++, j++) {
-		origin[pos] = insert[j];
-	}
-}
-
-void String_Remove(char* point, s32 amount) {
-	char* get = point + amount;
-	s32 len = strlen(get);
-	
-	if (len)
-		memcpy(point, get, strlen(get));
-	point[len] = 0;
-}
-
-s32 String_Replace(char* src, const char* word, const char* replacement) {
-	s32 diff = 0;
-	char* ptr;
-	void* dup = NULL;
-	
-	if ((uPtr)word >= (uPtr)src && (uPtr)word < (uPtr)src + strlen(src)) {
-		word = StrDup(word);
-		dup = (void*)word;
-	}
-	
-	if (!StrStr(src, word))
-		return 0;
-	
-	ptr = StrStr(src, word);
-	
-	while (ptr != NULL) {
-		String_Remove(ptr, strlen(word));
-		String_Insert(ptr, replacement);
-		ptr = StrStr(ptr + strlen(replacement), word);
-		diff = true;
-	}
-	
-	Free(dup);
-	
-	return diff;
-}
-
 void String_SwapExtension(char* dest, char* src, const char* ext) {
 	strcpy(dest, Path(src));
 	strcat(dest, Basename(src));
 	strcat(dest, ext);
-}
-
-char* String_Unquote(const char* str) {
-	char* new = HeapStrDup(str);
-	
-	if (StrStr(str, "\"") || StrStr(str, "'")) {
-		while (new[0] != '\"' && new[0] != '\'')
-			String_Remove(new, 1);
-		
-		while (new[strlen(new) - 1] != '\"' && new[strlen(new) - 1] != '\'')
-			new[strlen(new) - 1] = '\0';
-		
-		String_Replace(new, "\"", "");
-		String_Replace(new, "'", "");
-		
-		return new;
-	}
-	
-	return new;
-}
-
-void* String_Unicodify(const char* str) {
-	char* out = NULL;
-	
-#ifdef _WIN32
-	u32 ln = MultiByteToWideChar(CP_UTF8, 0, str, strlen(str), 0, 0);
-	out = HeapMalloc(ln + 1);
-	if (!out)
-		printf_error("Failed to convert UTF8 to WCHAR");
-	MultiByteToWideChar(CP_UTF8, 0, str, strlen(str), (void*)out, ln);
-#else
-	out = (void*)str;
-#endif
-	
-	return out;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -3249,7 +3250,7 @@ void Toml_GetArray(MemFile* mem, ItemList* list, const char* variable) {
 	Free(array);
 	
 	for (s32 i = 0; i < list->num; i++)
-		String_Replace(list->item[i], "\"", "");
+		strrep(list->item[i], "\"", "");
 }
 
 s32 Toml_GetBool(MemFile* mem, const char* variable) {
@@ -3367,8 +3368,8 @@ s32 Toml_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ..
 	if (p) {
 		if (p[0] == '"')
 			p++;
-		String_Remove(p, strlen(Toml_GetVariable(mem->str, variable)));
-		String_Insert(p, replacement);
+		strrem(p, strlen(Toml_GetVariable(mem->str, variable)));
+		strins(p, replacement);
 		
 		mem->dataSize = strlen(mem->str);
 		Free(replacement);

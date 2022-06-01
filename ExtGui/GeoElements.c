@@ -1041,11 +1041,11 @@ void Element_Update(GeoGridContext* geoCtx) {
 				s32 max = fmax(sTextPos, sSelectPos);
 				s32 min = fmin(sTextPos, sSelectPos);
 				
-				String_Remove(&sCurTextbox->txt[min], max - min);
+				strrem(&sCurTextbox->txt[min], max - min);
 				sTextPos = min;
 				sSelectPos = -1;
 			} else if (sTextPos != 0) {
-				String_Remove(&sCurTextbox->txt[sTextPos - 1], 1);
+				strrem(&sCurTextbox->txt[sTextPos - 1], 1);
 				sTextPos--;
 			}
 		}
@@ -1055,7 +1055,7 @@ void Element_Update(GeoGridContext* geoCtx) {
 				s32 max = fmax(sTextPos, sSelectPos);
 				s32 min = fmin(sTextPos, sSelectPos);
 				
-				String_Remove(&sCurTextbox->txt[min], max - min);
+				strrem(&sCurTextbox->txt[min], max - min);
 				sTextPos = min;
 				sSelectPos = -1;
 			}
@@ -1063,7 +1063,7 @@ void Element_Update(GeoGridContext* geoCtx) {
 			if (strlen(sCurTextbox->txt) == 0)
 				snprintf(sCurTextbox->txt, sCurTextbox->size, "%s", txt);
 			else {
-				String_InsertExt(sCurTextbox->txt, txt, sTextPos, sCurTextbox->size);
+				strins2(sCurTextbox->txt, txt, sTextPos, sCurTextbox->size);
 			}
 			
 			sTextPos += strlen(txt);
