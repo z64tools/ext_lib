@@ -2509,6 +2509,16 @@ void Color_ToRGB(RGB8* dest, HSL8* src) {
 // # MEMFILE                             #
 // # # # # # # # # # # # # # # # # # # # #
 
+void MemFile_Validate(MemFile* mem) {
+	if (mem->param.initKey == 0xD0E0A0D0B0E0E0F0) {
+		MemFile_Reset(mem);
+		
+		return;
+	}
+	
+	*mem = MemFile_Initialize();
+}
+
 MemFile MemFile_Initialize() {
 	return (MemFile) { .param.initKey = 0xD0E0A0D0B0E0E0F0 };
 }
@@ -2674,7 +2684,7 @@ s32 MemFile_Read(MemFile* src, void* dest, Size size) {
 
 void* MemFile_Seek(MemFile* src, u32 seek) {
 	if (seek > src->memSize) {
-		printf_error("!");
+		return NULL;
 	}
 	src->seekPoint = seek;
 	
@@ -2682,8 +2692,7 @@ void* MemFile_Seek(MemFile* src, u32 seek) {
 }
 
 void MemFile_LoadMem(MemFile* mem, void* data, Size size) {
-	if (mem->param.initKey != 0xD0E0A0D0B0E0E0F0)
-		*mem = MemFile_Initialize();
+	MemFile_Validate(mem);
 	mem->dataSize = mem->memSize = size;
 	mem->data = data;
 }
@@ -2701,6 +2710,7 @@ s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
 	fseek(file, 0, SEEK_END);
 	tempSize = ftell(file);
 	
+	MemFile_Validate(memFile);
 	if (memFile->data == NULL) {
 		MemFile_Malloc(memFile, tempSize);
 		memFile->memSize = memFile->dataSize = tempSize;
@@ -2739,6 +2749,7 @@ s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath) {
 	fseek(file, 0, SEEK_END);
 	tempSize = ftell(file);
 	
+	MemFile_Validate(memFile);
 	if (memFile->data == NULL) {
 		MemFile_Malloc(memFile, tempSize + 0x10);
 		memFile->memSize = tempSize + 0x10;

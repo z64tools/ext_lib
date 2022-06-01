@@ -171,6 +171,7 @@ char* AllcWord(const char* str, s32 word);
 void Color_ToHSL(HSL8* hsl, RGB8* rgb);
 void Color_ToRGB(RGB8* rgb, HSL8* hsl);
 
+void MemFile_Validate(MemFile* mem);
 MemFile MemFile_Initialize();
 void MemFile_Params(MemFile* memFile, ...);
 void MemFile_Malloc(MemFile* memFile, u32 size);
@@ -422,7 +423,6 @@ void Sound_Xm_Stop();
 #define stricmp(a, b)        strcasecmp(a, b)
 #define strnicmp(a, b, size) strncasecmp(a, b, size)
 #endif
-
 
 int stricmp(const char* a, const char* b);
 int strnicmp(const char* a, const char* b, Size size);
