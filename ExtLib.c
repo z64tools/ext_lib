@@ -382,61 +382,7 @@ char* Dir_GetWildcard(char* x) {
 }
 
 void Dir_ItemList(ItemList* itemList, bool isPath) {
-	DIR* dir = opendir(dirCtx->curPath);
-	u32 bufSize = 0;
-	struct dirent* entry;
-	
-	*itemList = ItemList_Initialize();
-	
-	if (dir == NULL)
-		printf_error_align("Dir_ItemList", "Could not open: %s", dirCtx->curPath);
-	
-	while ((entry = readdir(dir)) != NULL) {
-		if (isPath) {
-			if (Sys_IsDir(Dir_File(entry->d_name))) {
-				if (entry->d_name[0] == '.')
-					continue;
-				itemList->num++;
-				bufSize += strlen(entry->d_name) + 2;
-			}
-		} else {
-			if (!Sys_IsDir(Dir_File(entry->d_name))) {
-				itemList->num++;
-				bufSize += strlen(entry->d_name) + 2;
-			}
-		}
-	}
-	
-	closedir(dir);
-	
-	if (itemList->num) {
-		u32 i = 0;
-		dir = opendir(dirCtx->curPath);
-		Calloc(itemList->buffer, bufSize);
-		Calloc(itemList->item, sizeof(char*) * itemList->num);
-		
-		while ((entry = readdir(dir)) != NULL) {
-			if (isPath) {
-				if (Sys_IsDir(Dir_File(entry->d_name))) {
-					if (entry->d_name[0] == '.')
-						continue;
-					strcpy(&itemList->buffer[itemList->writePoint], entry->d_name);
-					strcat(&itemList->buffer[itemList->writePoint], "/");
-					itemList->item[i] = &itemList->buffer[itemList->writePoint];
-					itemList->writePoint += strlen(itemList->item[i]) + 1;
-					i++;
-				}
-			} else {
-				if (!Sys_IsDir(Dir_File(entry->d_name))) {
-					strcpy(&itemList->buffer[itemList->writePoint], entry->d_name);
-					itemList->item[i] = &itemList->buffer[itemList->writePoint];
-					itemList->writePoint += strlen(itemList->item[i]) + 1;
-					i++;
-				}
-			}
-		}
-		closedir(dir);
-	}
+	ItemList_List(itemList, Dir_Current(), 0, (isPath ? LIST_FOLDERS : LIST_RELATIVE) | LIST_RELATIVE);
 }
 
 static void Dir_ItemList_Recursive_ChildCount(ItemList* target, char* pathTo, char* keyword) {
@@ -681,6 +627,7 @@ void ItemList_SetFilter(ItemList* list, u32 filterNum, ...) {
 		Calloc(node, sizeof(FilterNode));
 		node->type = va_arg(va, ListFilter);
 		node->txt = StrDup(va_arg(va, char*));
+		Assert(node->txt != NULL);
 		
 		Node_Add(list->private.filterNode, node);
 	}
@@ -690,11 +637,20 @@ void ItemList_SetFilter(ItemList* list, u32 filterNum, ...) {
 
 void ItemList_FreeFilters(ItemList* list) {
 	FilterNode* node = list->private.filterNode;
+	FilterNode* top = node;
 	
 	while (node) {
 		Free(node->txt);
-		Node_Kill(list->private.filterNode, node);
+		
+		node = node->next;
+	}
+	
+	while (node) {
 		node = list->private.filterNode;
+		while (node && node->next)
+			node = node->next;
+		
+		Node_Kill(list->private.filterNode, node);
 	}
 }
 
@@ -2002,7 +1958,7 @@ char* StrDup(const char* src) {
 }
 
 void* ____Free(void* data) {
-	if (data)
+	if (data != NULL)
 		free(data);
 	
 	return NULL;
@@ -3543,8 +3499,13 @@ static char* sLogMsg[FAULT_LOG_NUM];
 static char* sLogFunc[FAULT_LOG_NUM];
 static u32 sLogLine[FAULT_LOG_NUM];
 static s32 sLogInit;
+static s32 sLogOutput = true;
 
-static void Log_Signal_PrintTitle(int arg) {
+void Log_NoOutput(void) {
+	sLogOutput = false;
+}
+
+static void Log_Signal_PrintTitle(int arg, FILE* file) {
 	const char* errorMsg[] = {
 		"\a0",
 		"\a1 - Hang Up",
@@ -3568,61 +3529,103 @@ static void Log_Signal_PrintTitle(int arg) {
 	
 	printf_WinFix();
 	
-	printf("\n");
-	if (arg != 0xDEADBEEF)
-		printf("\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "%s " PRNT_DGRY "]", errorMsg[ClampMax(arg, 16)]);
+	fprintf(file, "\n");
+	if (arg == 16)
+		fprintf(file, "\n[!]: [ ERROR ]");
+	else if (arg != 0xDEADBEEF)
+		fprintf(file, "\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "%s " PRNT_DGRY "]", errorMsg[ClampMax(arg, 16)]);
 	else
-		printf("\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "LOG " PRNT_DGRY "]");
+		fprintf(file, "\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "LOG " PRNT_DGRY "]");
+}
+
+static void Log_Printinf(int arg, FILE* file) {
+	u32 msgsNum = 0;
+	u32 repeat = 0;
+	
+	if (arg != 16) {
+		for (s32 i = FAULT_LOG_NUM - 1; i >= 0; i--) {
+			if (strlen(sLogMsg[i]) == 0)
+				continue;
+			
+			if ((msgsNum > 0 && strcmp(sLogMsg[i], sLogMsg[i + 1])) )
+				if (repeat)
+					fprintf(file, PRNT_PRPL " x %d" PRNT_RSET, repeat + 1);
+			
+			if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogFunc[i], sLogFunc[i + 1])) )
+				fprintf(file, "\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_YELW " %s" PRNT_DGRY "();" PRNT_RSET, sLogFunc[i]);
+			
+			if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogMsg[i], sLogMsg[i + 1])) ) {
+				fprintf(
+					file,
+					"\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ %4d ]" PRNT_RSET " %s" PRNT_RSET,
+					sLogLine[i],
+					sLogMsg[i]
+				);
+				
+				repeat = 0;
+			} else {
+				repeat++;
+			}
+			
+			msgsNum++;
+		}
+		fprintf(file, "\n");
+		
+		fprintf(
+			file,
+			"\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_YELW " Provide this log to the developer." PRNT_RSET "\n"
+		);
+	} else {
+		for (s32 i = FAULT_LOG_NUM - 1; i >= 0; i--) {
+			if (strlen(sLogMsg[i]) == 0)
+				continue;
+			
+			if ((msgsNum > 0 && strcmp(sLogMsg[i], sLogMsg[i + 1])) )
+				if (repeat)
+					fprintf(file, " x %d", repeat + 1);
+			
+			if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogFunc[i], sLogFunc[i + 1])) )
+				fprintf(file, "\n[!]: %s();", sLogFunc[i]);
+			
+			if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogMsg[i], sLogMsg[i + 1])) ) {
+				fprintf(
+					file,
+					"\n[!]: [ %4d ] %s",
+					sLogLine[i],
+					sLogMsg[i]
+				);
+				
+				repeat = 0;
+			} else {
+				repeat++;
+			}
+			
+			msgsNum++;
+		}
+		fprintf(file, "\n");
+		
+		fprintf(
+			file,
+			"\n[!]: Provide this log to the developer.\n"
+		);
+		fclose(file);
+	}
 }
 
 static void Log_Signal(int arg) {
 	static volatile bool ran = 0;
-	u32 msgsNum = 0;
-	u32 repeat = 0;
+	FILE* file;
 	
 	if (ran) return;
 	ran = ___sExt_ThreadInit != 0;
 	
-	Log_Signal_PrintTitle(arg);
+	if (arg == 16 && sLogOutput)
+		file = fopen(".log", "w");
+	else
+		file = stdout;
 	
-	for (s32 i = FAULT_LOG_NUM - 1; i >= 0; i--) {
-		if (strlen(sLogMsg[i]) == 0)
-			continue;
-		
-		if ((msgsNum > 0 && strcmp(sLogMsg[i], sLogMsg[i + 1])) )
-			if (repeat)
-				printf( PRNT_PRPL " x %d" PRNT_RSET, repeat + 1);
-		
-		if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogFunc[i], sLogFunc[i + 1])) )
-			printf("\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_YELW " %s" PRNT_DGRY "();" PRNT_RSET, sLogFunc[i]);
-		
-		if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogMsg[i], sLogMsg[i + 1])) ) {
-			printf(
-				"\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ %4d ]" PRNT_RSET " %s" PRNT_RSET,
-				sLogLine[i],
-				sLogMsg[i]
-			);
-			
-			repeat = 0;
-		} else {
-			repeat++;
-		}
-		
-		msgsNum++;
-	}
-	printf("\n");
-	
-	if (arg != 0xDEADBEEF) {
-		printf(
-			"\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_YELW " Provide this log to the developer." PRNT_RSET "\n"
-		);
-		if (arg != 16) {
-#ifdef _WIN32
-			Terminal_GetChar();
-#endif
-			exit(EXIT_FAILURE);
-		}
-	}
+	Log_Signal_PrintTitle(arg, file);
+	Log_Printinf(arg, file);
 }
 
 void Log_Init() {

@@ -245,6 +245,7 @@ void Toml_WriteSection(MemFile* mem, const char* variable);
 
 char* String_Tsv(char* str, s32 rowNum, s32 lineNum);
 
+void Log_NoOutput(void);
 void Log_Init();
 void Log_Free();
 void Log_Print();
