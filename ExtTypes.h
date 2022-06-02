@@ -206,9 +206,9 @@ typedef enum {
 } DirEnum;
 
 typedef enum {
-	PATH_RELATIVE,
-	PATH_ABSOLUTE
-} PathType;
+	RELATIVE,
+	ABSOLUTE
+} RelAbs;
 
 typedef enum {
 	STAT_ACCS = (1) << 0,

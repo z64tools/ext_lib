@@ -72,7 +72,7 @@ void Sys_SetWorkDir(const char* txt);
 #define cliprintf(dest, tool, args, ...) sprintf(dest, "%s " args, tool, __VA_ARGS__)
 void Sys_TerminalSize(s32* r);
 s32 Sys_Touch(const char* file);
-s32 Sys_Copy(const char* src, const char* dest, bool isStr);
+s32 Sys_Copy(const char* src, const char* dest);
 u8* Sys_Sha256(u8* data, u64 size);
 void Sys_Sleep(f64 sec);
 Date Sys_Date(Time time);
@@ -146,7 +146,7 @@ void* ____Calloc(void* data, s32 size);
 void* ____Realloc(void* data, s32 size);
 void* MemDup(const void* src, Size size);
 char* StrDup(const char* src);
-void* ____Free(void* data);
+void* ____Free(const void* data);
 void ByteSwap(void* src, s32 size);
 s32 ParseArgs(char* argv[], char* arg, u32* parArg);
 u32 Crc32(u8* s, u32 n);
@@ -165,6 +165,9 @@ s32 LineNum(const char* str);
 s32 PathNum(const char* src);
 char* CopyLine(const char* str, s32 line);
 char* CopyWord(const char* str, s32 word);
+char* PathRel(const char* file);
+char* PathAbs(const char* item);
+RelAbs PathType(const char* item);
 
 char* AllcPath(const char* src);
 char* AllcBasename(const char* src);
@@ -217,6 +220,7 @@ void StrRem(char* point, s32 amount);
 s32 StrRep(char* src, const char* word, const char* replacement);
 void* StrU8(const char* str);
 char* StrUnq(const char* str);
+s32 StrComLen(const char* a, const char* b);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 
@@ -279,6 +283,7 @@ void Sound_Xm_Stop();
 #define PRNT_NL   "\n"
 #define PRNT_RNL  PRNT_RSET PRNT_NL
 #define PRNT_TODO "\e[91;2m" "TODO"
+#define PRNT_BOLD "\e[1m"
 
 #define Node_Add(head, node) { \
 		typeof(node) lastNode = head; \
@@ -423,6 +428,7 @@ void Sound_Xm_Stop();
 #define foreach(var, arr)        for (s32 var = 0; var < ArrayCount(arr); var++)
 #define forlist(var, list)       for (s32 var = 0; var < (list).num; var++)
 #define fornode(type, var, head) for (type* var = head; var != NULL; var = var->next)
+#define forstr(var, str)         for (s32 var = 0; var < strlen(str); var++)
 
 #ifndef _WIN32
 #define stricmp(a, b)        strcasecmp(a, b)

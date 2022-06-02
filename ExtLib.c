@@ -44,6 +44,7 @@ void gettimeofday(void*, void*);
 
 static pthread_mutex_t ___sExt_ThreadLock;
 static volatile bool ___sExt_ThreadInit;
+static s32 sEXIT;
 
 void ThreadLock_Init(void) {
 	pthread_mutex_init(&___sExt_ThreadLock, NULL);
@@ -1264,22 +1265,14 @@ s32 Sys_Touch(const char* file) {
 	return 0;
 }
 
-s32 Sys_Copy(const char* src, const char* dest, bool isStr) {
+s32 Sys_Copy(const char* src, const char* dest) {
 	MemFile a = MemFile_Initialize();
 	
-	if (isStr) {
-		if (MemFile_LoadFile_String(&a, src))
-			return -1;
-		if (MemFile_SaveFile_String(&a, dest))
-			return 1;
-		MemFile_Free(&a);
-	} else {
-		if (MemFile_LoadFile(&a, src))
-			return -1;
-		if (MemFile_SaveFile(&a, dest))
-			return 1;
-		MemFile_Free(&a);
-	}
+	if (MemFile_LoadFile(&a, src))
+		return -1;
+	if (MemFile_SaveFile(&a, dest))
+		return 1;
+	MemFile_Free(&a);
 	
 	return 0;
 }
@@ -1313,9 +1306,13 @@ s32 Terminal_YesOrNo(void) {
 		if (clear) {
 			Terminal_ClearLines(2);
 		}
+		
 		printf("\r" PRNT_GRAY "[" PRNT_DGRY "<" PRNT_GRAY "]: " PRNT_BLUE);
 		fgets(ans, 511, stdin);
 		clear = 1;
+		
+		if (sEXIT)
+			exit(1);
 	}
 	
 	if (ans[0] == 'N' || ans[0] == 'n') {
@@ -1556,6 +1553,8 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
 static void Log_Signal(int arg);
 
 void printf_error(const char* fmt, ...) {
+	sEXIT = 1;
+	
 	Log_Signal(16);
 	Log_Free();
 	if (gPrintfSuppress < PSL_NO_ERROR) {
@@ -1566,7 +1565,6 @@ void printf_error(const char* fmt, ...) {
 		
 		va_list args;
 		
-		printf("\n");
 		va_start(args, fmt);
 		__printf_call(2, 0);
 		vprintf(
@@ -1585,6 +1583,8 @@ void printf_error(const char* fmt, ...) {
 }
 
 void printf_error_align(const char* info, const char* fmt, ...) {
+	sEXIT = 1;
+	
 	Log_Signal(16);
 	Log_Free();
 	if (gPrintfSuppress < PSL_NO_ERROR) {
@@ -1956,9 +1956,9 @@ char* StrDup(const char* src) {
 	return MemDup(src, strlen(src) + 1);
 }
 
-void* ____Free(void* data) {
+void* ____Free(const void* data) {
 	if (data != NULL)
-		free(data);
+		free((void*)data);
 	
 	return NULL;
 }
@@ -2326,6 +2326,62 @@ char* CopyWord(const char* str, s32 word) {
 	buffer[j] = '\0';
 	
 	return buffer;
+}
+
+char* PathRel(const char* item) {
+	item = StrUnq(item);
+	char* work = StrDup(Sys_WorkDir());
+	s32 lenCom = StrComLen(work, item);
+	s32 subCnt = 0;
+	char* sub = (char*)&work[lenCom];
+	char* fol = (char*)&item[lenCom];
+	char* buffer = HeapMalloc(strlen(work) + strlen(item));
+	
+	forstr(i, sub) {
+		if (sub[i] == '/' || sub[i] == '\\')
+			subCnt++;
+	}
+	
+	for (s32 i = 0; i < subCnt; i++)
+		strcat(buffer, "../");
+	
+	strcat(buffer, fol);
+	
+	return buffer;
+}
+
+char* PathAbs(const char* item) {
+	item = StrUnq(item);
+	char* path = HeapStrDup(Sys_WorkDir());
+	char* t = StrStr(item, "../");
+	char* f = (char*)item;
+	s32 subCnt = 0;
+	
+	while (t) {
+		f = &f[strlen("../")];
+		subCnt++;
+		t = StrStr(t + 1, "../");
+	}
+	
+	for (s32 i = 0; i < subCnt; i++) {
+		path[strlen(path) - 1] = '\0';
+		path = Path(path);
+	}
+	
+	return HeapPrint("%s%s", path, f);
+}
+
+RelAbs PathType(const char* item) {
+	while (item[0] == '\'' || item[0] == '\"')
+		item++;
+	
+	if (isalpha(item[0]) && item[1] == ':' && (item[2] == '/' || item[2] == '\\'))
+		return ABSOLUTE;
+	
+	if (item[0] == '/' || item[0] == '\\')
+		return ABSOLUTE;
+	
+	return RELATIVE;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -3087,6 +3143,18 @@ char* StrUnq(const char* str) {
 	return new;
 }
 
+// Common lenght
+s32 StrComLen(const char* a, const char* b) {
+	s32 s = 0;
+	
+	for (; s < strlen(b); s++) {
+		if (b[s] != a[s])
+			return s;
+	}
+	
+	return s;
+}
+
 char* String_GetSpacedArg(char* argv[], s32 cur) {
 	char tempBuf[512];
 	s32 i = cur + 1;
@@ -3492,7 +3560,7 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 #include <signal.h>
 
 #define FAULT_BUFFER_SIZE (1024)
-#define FAULT_LOG_NUM     6
+#define FAULT_LOG_NUM     12
 
 static char* sLogMsg[FAULT_LOG_NUM];
 static char* sLogFunc[FAULT_LOG_NUM];
@@ -3529,7 +3597,7 @@ static void Log_Signal_PrintTitle(int arg, FILE* file) {
 	printf_WinFix();
 	
 	fprintf(file, "\n");
-	if (arg == 16)
+	if (arg == 16 && sLogOutput == true)
 		fprintf(file, "\n[!]: [ ERROR ]");
 	else if (arg != 0xDEADBEEF)
 		fprintf(file, "\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "%s " PRNT_DGRY "]", errorMsg[ClampMax(arg, 16)]);
@@ -3541,7 +3609,7 @@ static void Log_Printinf(int arg, FILE* file) {
 	u32 msgsNum = 0;
 	u32 repeat = 0;
 	
-	if (arg != 16) {
+	if (arg != 16 || sLogOutput == false) {
 		for (s32 i = FAULT_LOG_NUM - 1; i >= 0; i--) {
 			if (strlen(sLogMsg[i]) == 0)
 				continue;
@@ -3574,6 +3642,7 @@ static void Log_Printinf(int arg, FILE* file) {
 			file,
 			"\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_YELW " Provide this log to the developer." PRNT_RSET "\n"
 		);
+		fprintf(file, "\n");
 	} else {
 		for (s32 i = FAULT_LOG_NUM - 1; i >= 0; i--) {
 			if (strlen(sLogMsg[i]) == 0)
@@ -3602,12 +3671,6 @@ static void Log_Printinf(int arg, FILE* file) {
 			msgsNum++;
 		}
 		fprintf(file, "\n");
-		
-		fprintf(
-			file,
-			"\n[!]: Provide this log to the developer.\n"
-		);
-		fclose(file);
 	}
 }
 
@@ -3616,6 +3679,8 @@ static void Log_Signal(int arg) {
 	FILE* file;
 	
 	if (ran) return;
+	sLogInit = false;
+	sEXIT = true;
 	ran = ___sExt_ThreadInit != 0;
 	
 	if (arg == 16 && sLogOutput)
