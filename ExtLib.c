@@ -637,7 +637,6 @@ void ItemList_SetFilter(ItemList* list, u32 filterNum, ...) {
 
 void ItemList_FreeFilters(ItemList* list) {
 	FilterNode* node = list->private.filterNode;
-	FilterNode* top = node;
 	
 	while (node) {
 		Free(node->txt);
