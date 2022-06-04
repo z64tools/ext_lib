@@ -207,6 +207,7 @@ void MemFile_Clear(MemFile* memFile);
 u32 Value_Hex(const char* string);
 s32 Value_Int(const char* string);
 f32 Value_Float(const char* string);
+s32 Value_Bool(const char* string);
 s32 Value_ValidateHex(const char* str);
 s32 Value_ValidateInt(const char* str);
 s32 Value_ValidateFloat(const char* str);
@@ -221,6 +222,7 @@ s32 StrRep(char* src, const char* word, const char* replacement);
 void* StrU8(const char* str);
 char* StrUnq(const char* str);
 s32 StrComLen(const char* a, const char* b);
+char* StrSlash(const char* str);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 
@@ -431,8 +433,10 @@ void Sound_Xm_Stop();
 #define forstr(var, str)         for (s32 var = 0; var < strlen(str); var++)
 
 #ifndef _WIN32
+#ifndef __IDE_FLAG__
 #define stricmp(a, b)        strcasecmp(a, b)
 #define strnicmp(a, b, size) strncasecmp(a, b, size)
+#endif
 #endif
 
 int stricmp(const char* a, const char* b);

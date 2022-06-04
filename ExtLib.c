@@ -2329,8 +2329,8 @@ char* CopyWord(const char* str, s32 word) {
 }
 
 char* PathRel(const char* item) {
-	item = StrUnq(item);
-	char* work = StrDup(Sys_WorkDir());
+	item = StrSlash(StrUnq(item));
+	char* work = StrSlash(StrDup(Sys_WorkDir()));
 	s32 lenCom = StrComLen(work, item);
 	s32 subCnt = 0;
 	char* sub = (char*)&work[lenCom];
@@ -2351,8 +2351,8 @@ char* PathRel(const char* item) {
 }
 
 char* PathAbs(const char* item) {
-	item = StrUnq(item);
-	char* path = HeapStrDup(Sys_WorkDir());
+	item = StrSlash(StrUnq(item));
+	char* path = StrSlash(HeapStrDup(Sys_WorkDir()));
 	char* t = StrStr(item, "../");
 	char* f = (char*)item;
 	s32 subCnt = 0;
@@ -2942,6 +2942,18 @@ f32 Value_Float(const char* string) {
 	return fl;
 }
 
+s32 Value_Bool(const char* string) {
+	if (string == NULL)
+		return -1;
+	
+	if (!stricmp(string, "true"))
+		return true;
+	else if (!stricmp(string, "false"))
+		return false;
+	
+	return -1;
+}
+
 s32 Value_ValidateHex(const char* str) {
 	s32 isOk = false;
 	
@@ -3141,6 +3153,14 @@ char* StrUnq(const char* str) {
 	}
 	
 	return new;
+}
+
+char* StrSlash(const char* str) {
+	char* r = (char*)str;
+	
+	StrRep(r, "\\", "/");
+	
+	return r;
 }
 
 // Common lenght
