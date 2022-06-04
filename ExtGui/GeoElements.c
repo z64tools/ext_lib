@@ -886,6 +886,14 @@ void Element_Init(GeoGridContext* geoCtx) {
 	sCurrentPost = pPostStack;
 }
 
+static InputType* Textbox_GetKey(KeyMap key) {
+	return &__inputCtx->key[key];
+}
+
+static InputType* Textbox_GetMouse(MouseMap key) {
+	return &__inputCtx->mouse.clickArray[key];
+}
+
 void Element_Update(GeoGridContext* geoCtx) {
 	static s32 timer = 0;
 	static s32 blocker;
@@ -909,12 +917,12 @@ void Element_Update(GeoGridContext* geoCtx) {
 			geoCtx->input->state.keyBlock++;
 		}
 		
-		if (Input_GetMouse(MOUSE_ANY)->press || Input_GetKey(KEY_ENTER)->press) {
+		if (Textbox_GetMouse(MOUSE_ANY)->press || Textbox_GetKey(KEY_ENTER)->press) {
 			sSelectPos = -1;
 			sCtrlA = 0;
 			
 			Assert(sCurSplitTextbox != NULL);
-			if (!GeoGrid_Cursor_InRect(sCurSplitTextbox, &sCurTextbox->rect) || Input_GetKey(KEY_ENTER)->press) {
+			if (!GeoGrid_Cursor_InRect(sCurSplitTextbox, &sCurTextbox->rect) || Textbox_GetKey(KEY_ENTER)->press) {
 				sCurTextbox = NULL;
 				sCurTextbox = NULL;
 				sStoreA = NULL;
@@ -925,18 +933,18 @@ void Element_Update(GeoGridContext* geoCtx) {
 			}
 		}
 		
-		if (Input_GetKey(KEY_LEFT_CONTROL)->hold) {
-			if (Input_GetKey(KEY_A)->press) {
+		if (Textbox_GetKey(KEY_LEFT_CONTROL)->hold) {
+			if (Textbox_GetKey(KEY_A)->press) {
 				prevTextPos = strlen(sCurTextbox->txt);
 				sTextPos = 0;
 				sCtrlA = 1;
 			}
 			
-			if (Input_GetKey(KEY_V)->press) {
+			if (Textbox_GetKey(KEY_V)->press) {
 				txt = (char*)Input_GetClipboardStr();
 			}
 			
-			if (Input_GetKey(KEY_C)->press) {
+			if (Textbox_GetKey(KEY_C)->press) {
 				s32 max = fmax(sSelectPos, sTextPos);
 				s32 min = fmin(sSelectPos, sTextPos);
 				char* copy = HeapMalloc(512);
@@ -945,7 +953,7 @@ void Element_Update(GeoGridContext* geoCtx) {
 				Input_SetClipboardStr(copy);
 			}
 			
-			if (Input_GetKey(KEY_X)->press) {
+			if (Textbox_GetKey(KEY_X)->press) {
 				s32 max = fmax(sSelectPos, sTextPos);
 				s32 min = fmin(sSelectPos, sTextPos);
 				char* copy = HeapMalloc(512);
@@ -954,7 +962,7 @@ void Element_Update(GeoGridContext* geoCtx) {
 				Input_SetClipboardStr(copy);
 			}
 			
-			if (Input_GetKey(KEY_LEFT)->press) {
+			if (Textbox_GetKey(KEY_LEFT)->press) {
 				sFlickFlag = 1;
 				sFlickTimer = 0;
 				while (sTextPos > 0 && isalnum(sCurTextbox->txt[sTextPos - 1]))
@@ -962,7 +970,7 @@ void Element_Update(GeoGridContext* geoCtx) {
 				if (sTextPos == prevTextPos)
 					sTextPos--;
 			}
-			if (Input_GetKey(KEY_RIGHT)->press) {
+			if (Textbox_GetKey(KEY_RIGHT)->press) {
 				sFlickFlag = 1;
 				sFlickTimer = 0;
 				while (isalnum(sCurTextbox->txt[sTextPos]))
@@ -971,7 +979,7 @@ void Element_Update(GeoGridContext* geoCtx) {
 					sTextPos++;
 			}
 		} else {
-			if (Input_GetKey(KEY_LEFT)->press) {
+			if (Textbox_GetKey(KEY_LEFT)->press) {
 				if (sCtrlA == 0) {
 					sTextPos--;
 					press++;
@@ -984,7 +992,7 @@ void Element_Update(GeoGridContext* geoCtx) {
 				}
 			}
 			
-			if (Input_GetKey(KEY_RIGHT)->press) {
+			if (Textbox_GetKey(KEY_RIGHT)->press) {
 				if (sCtrlA == 0) {
 					sTextPos++;
 					press++;
@@ -997,26 +1005,26 @@ void Element_Update(GeoGridContext* geoCtx) {
 				}
 			}
 			
-			if (Input_GetKey(KEY_HOME)->press) {
+			if (Textbox_GetKey(KEY_HOME)->press) {
 				sTextPos = 0;
 			}
 			
-			if (Input_GetKey(KEY_END)->press) {
+			if (Textbox_GetKey(KEY_END)->press) {
 				sTextPos = strlen(sCurTextbox->txt);
 			}
 			
-			if (Input_GetKey(KEY_LEFT)->hold || Input_GetKey(KEY_RIGHT)->hold) {
+			if (Textbox_GetKey(KEY_LEFT)->hold || Textbox_GetKey(KEY_RIGHT)->hold) {
 				timer++;
 			} else {
 				timer = 0;
 			}
 			
 			if (timer >= 30 && timer % 2 == 0) {
-				if (Input_GetKey(KEY_LEFT)->hold) {
+				if (Textbox_GetKey(KEY_LEFT)->hold) {
 					sTextPos--;
 				}
 				
-				if (Input_GetKey(KEY_RIGHT)->hold) {
+				if (Textbox_GetKey(KEY_RIGHT)->hold) {
 					sTextPos++;
 				}
 				sFlickFlag = 1;
@@ -1027,7 +1035,7 @@ void Element_Update(GeoGridContext* geoCtx) {
 		sTextPos = Clamp(sTextPos, 0, strlen(sCurTextbox->txt));
 		
 		if (sTextPos != prevTextPos) {
-			if (Input_GetKey(KEY_LEFT_SHIFT)->hold || Input_GetShortcut(KEY_LEFT_CONTROL, KEY_A)) {
+			if (Textbox_GetKey(KEY_LEFT_SHIFT)->hold || Input_GetShortcut(KEY_LEFT_CONTROL, KEY_A)) {
 				if (sSelectPos == -1)
 					sSelectPos = prevTextPos;
 			} else
@@ -1036,7 +1044,7 @@ void Element_Update(GeoGridContext* geoCtx) {
 			sSelectPos = -1;
 		}
 		
-		if (Input_GetKey(KEY_BACKSPACE)->press || Input_GetShortcut(KEY_LEFT_CONTROL, KEY_X)) {
+		if (Textbox_GetKey(KEY_BACKSPACE)->press || Input_GetShortcut(KEY_LEFT_CONTROL, KEY_X)) {
 			if (sSelectPos != -1) {
 				s32 max = fmax(sTextPos, sSelectPos);
 				s32 min = fmin(sTextPos, sSelectPos);

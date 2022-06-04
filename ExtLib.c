@@ -3155,14 +3155,25 @@ char* StrUnq(const char* str) {
 	return new;
 }
 
-char* StrSlash(const char* str) {
-	char* r = (char*)str;
+char* StrSlash(char* t) {
+	StrRep(t, "\\", "/");
 	
-	StrRep(r, "\\", "/");
-	
-	return r;
+	return t;
 }
 
+char* StrStripIllegalChar(char* t) {
+	StrRep(t, "\\", "");
+	StrRep(t, "/", "");
+	StrRep(t, ":", "");
+	StrRep(t, "*", "");
+	StrRep(t, "?", "");
+	StrRep(t, "\"", "");
+	StrRep(t, "<", "");
+	StrRep(t, ">", "");
+	StrRep(t, "|", "");
+	
+	return t;
+}
 // Common lenght
 s32 StrComLen(const char* a, const char* b) {
 	s32 s = 0;

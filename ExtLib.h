@@ -222,7 +222,8 @@ s32 StrRep(char* src, const char* word, const char* replacement);
 void* StrU8(const char* str);
 char* StrUnq(const char* str);
 s32 StrComLen(const char* a, const char* b);
-char* StrSlash(const char* str);
+char* StrSlash(char* str);
+char* StrStripIllegalChar(char* str);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 
