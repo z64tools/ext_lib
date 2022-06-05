@@ -1160,6 +1160,8 @@ s32 Sys_Delete(const char* item) {
 s32 Sys_Delete_Recursive(const char* item) {
 	if (!Sys_IsDir(item))
 		return 1;
+	if (!Sys_Stat(item))
+		return 0;
 	if (nftw(item, __rm_func, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
 		printf_error("nftw error: %s %s", item, __FUNCTION__);
 	
@@ -2371,17 +2373,26 @@ char* PathAbs(const char* item) {
 	return HeapPrint("%s%s", path, f);
 }
 
-RelAbs PathType(const char* item) {
+s32 PathIsAbs(const char* item) {
 	while (item[0] == '\'' || item[0] == '\"')
 		item++;
 	
-	if (isalpha(item[0]) && item[1] == ':' && (item[2] == '/' || item[2] == '\\'))
-		return ABSOLUTE;
+	if (isalpha(item[0]) && item[1] == ':' && (item[2] == '/' || item[2] == '\\')) {
+		Log("Abs1");
+		
+		return 1;
+	}
+	if (item[0] == '/' || item[0] == '\\') {
+		Log("Abs2");
+		
+		return 1;
+	}
 	
-	if (item[0] == '/' || item[0] == '\\')
-		return ABSOLUTE;
-	
-	return RELATIVE;
+	return 0;
+}
+
+s32 PathIsRel(const char* item) {
+	return !PathIsAbs(item);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -3120,7 +3131,7 @@ s32 StrRep(char* src, const char* word, const char* replacement) {
 	return diff;
 }
 // utf8
-void* StrU8(const char* str) {
+wchar* StrU8(const char* str) {
 	char* out = NULL;
 	
 #ifdef _WIN32
@@ -3133,7 +3144,7 @@ void* StrU8(const char* str) {
 	out = (void*)str;
 #endif
 	
-	return out;
+	return (wchar*)out;
 }
 // Unquote
 char* StrUnq(const char* str) {

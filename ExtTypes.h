@@ -206,8 +206,8 @@ typedef enum {
 } DirEnum;
 
 typedef enum {
-	RELATIVE,
-	ABSOLUTE
+	RELATIVE = 0,
+	ABSOLUTE = 1
 } RelAbs;
 
 typedef enum {

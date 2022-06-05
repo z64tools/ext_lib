@@ -167,7 +167,8 @@ char* CopyLine(const char* str, s32 line);
 char* CopyWord(const char* str, s32 word);
 char* PathRel(const char* file);
 char* PathAbs(const char* item);
-RelAbs PathType(const char* item);
+s32 PathIsAbs(const char* item);
+s32 PathIsRel(const char* item);
 
 char* AllcPath(const char* src);
 char* AllcBasename(const char* src);
@@ -219,7 +220,7 @@ void StrIns(char* point, const char* insert);
 void StrIns2(char* origin, const char* insert, s32 pos, s32 size);
 void StrRem(char* point, s32 amount);
 s32 StrRep(char* src, const char* word, const char* replacement);
-void* StrU8(const char* str);
+wchar* StrU8(const char* str);
 char* StrUnq(const char* str);
 s32 StrComLen(const char* a, const char* b);
 char* StrSlash(char* str);
