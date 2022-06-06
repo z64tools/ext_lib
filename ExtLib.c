@@ -1008,6 +1008,10 @@ char* FileSys_FindFile(const char* str) {
 	return file;
 }
 
+void FileSys_Free() {
+	Free(__sPath);
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # SYS                                 #
 // # # # # # # # # # # # # # # # # # # # #

@@ -61,6 +61,7 @@ void FileSys_MakePath(s32 flag);
 void FileSys_Path(const char* fmt, ...);
 char* FileSys_File(const char* str);
 char* FileSys_FindFile(const char* str);
+void FileSys_Free();
 
 bool Sys_IsDir(const char* path);
 void Sys_MakeDir(const char* dir, ...);
