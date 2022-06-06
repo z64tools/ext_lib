@@ -312,8 +312,7 @@ void Sound_Xm_Stop();
 		} else { \
 			head = node->next; \
 		} \
-		free(kill); \
-		kill = NULL; \
+		Free(kill); \
 }
 
 #define Node_Remove(head, node) { \

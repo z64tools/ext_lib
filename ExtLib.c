@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 146
+#define THIS_EXTLIB_VERSION 147
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -375,9 +375,13 @@ char* Dir_GetWildcard(char* x) {
 	
 	for (s32 i = 0; i < list.num; i++) {
 		if (StrStr(list.item[i], sEnd) && (sStart == NULL || StrStr(list.item[i], sStart))) {
+			ItemList_Free(&list);
+			
 			return HeapPrint("%s%s", posPath, list.item[i]);
 		}
 	}
+	
+	ItemList_Free(&list);
 	
 	return NULL;
 }
@@ -637,20 +641,10 @@ void ItemList_SetFilter(ItemList* list, u32 filterNum, ...) {
 }
 
 void ItemList_FreeFilters(ItemList* list) {
-	FilterNode* node = list->private.filterNode;
-	
-	while (node) {
-		Free(node->txt);
+	while (list->private.filterNode) {
+		Free(list->private.filterNode->txt);
 		
-		node = node->next;
-	}
-	
-	while (node) {
-		node = list->private.filterNode;
-		while (node && node->next)
-			node = node->next;
-		
-		Node_Kill(list->private.filterNode, node);
+		Node_Kill(list->private.filterNode, list->private.filterNode);
 	}
 }
 
@@ -758,13 +752,12 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags
 	
 	for (s32 i = 0; i < info.num; i++) {
 		StrNode* node = info.node;
-		
 		target->item[i] = &target->buffer[target->writePoint];
 		strcpy(target->item[i], node->txt);
 		target->writePoint += strlen(target->item[i]) + 1;
 		
 		Free(node->txt);
-		Node_Kill(info.node, node);
+		Node_Kill(info.node, info.node);
 	}
 	
 	Log("OK, %d [%s]", target->num, path);
@@ -929,6 +922,7 @@ void ItemList_NumericalSort(ItemList* list) {
 	}
 	
 	sorted.private.filterNode = list->private.filterNode;
+	list->private.filterNode = NULL;
 	ItemList_Free(list);
 	
 	Log("Sorted");
@@ -2676,7 +2670,7 @@ void MemFile_Realloc(MemFile* memFile, u32 size) {
 		size += 0x10000;
 	}
 	
-	memFile->data = realloc(memFile->data, size);
+	Realloc(memFile->data, size);
 	memFile->memSize = size;
 }
 
