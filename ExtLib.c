@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 147
+#define THIS_EXTLIB_VERSION 148
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -958,6 +958,54 @@ void ItemList_AddItem(ItemList* list, const char* item) {
 	strcpy(list->item[list->num], item);
 	list->writePoint += len + 1;
 	list->num++;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+// # SYS                                 #
+// # # # # # # # # # # # # # # # # # # # #
+
+static char* __sPath;
+static s32 __sMakeDir;
+
+void FileSys_MakePath(s32 flag) {
+	__sMakeDir = flag;
+}
+
+void FileSys_Path(const char* fmt, ...) {
+	va_list va;
+	
+	Free(__sPath);
+	va_start(va, fmt);
+	vasprintf(&__sPath, fmt, va);
+	va_end(va);
+	
+	if (__sMakeDir)
+		Sys_MakeDir(__sPath);
+}
+
+char* FileSys_File(const char* str) {
+	return HeapPrint("%s%s", __sPath, str);
+}
+
+char* FileSys_FindFile(const char* str) {
+	ItemList list = ItemList_Initialize();
+	char* file = NULL;
+	Time stat = 0;
+	
+	ItemList_List(&list, __sPath, 0, LIST_FILES | LIST_NO_DOT);
+	for (s32 i = 0; i < list.num; i++) {
+		if (StrEndCase(list.item[i], str) && Sys_Stat(list.item[i]) > stat) {
+			file = list.item[i];
+			stat = Sys_Stat(file);
+		}
+	}
+	
+	if (file)
+		file = HeapStrDup(file);
+	
+	ItemList_Free(&list);
+	
+	return file;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -3596,7 +3644,7 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 #include <signal.h>
 
 #define FAULT_BUFFER_SIZE (1024)
-#define FAULT_LOG_NUM     12
+#define FAULT_LOG_NUM     32
 
 static char* sLogMsg[FAULT_LOG_NUM];
 static char* sLogFunc[FAULT_LOG_NUM];
@@ -3724,8 +3772,12 @@ static void Log_Signal(int arg) {
 	else
 		file = stdout;
 	
+	fprintf(file, "App [%s]\n\n", Sys_ThisApp());
 	Log_Signal_PrintTitle(arg, file);
 	Log_Printinf(arg, file);
+	
+	if (arg != 16)
+		exit(1);
 }
 
 void Log_Init() {
