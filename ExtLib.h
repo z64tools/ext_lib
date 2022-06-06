@@ -176,6 +176,8 @@ char* PathAbs(const char* item);
 s32 PathIsAbs(const char* item);
 s32 PathIsRel(const char* item);
 
+void* qFree(const void* ptr);
+
 char* AllcPath(const char* src);
 char* AllcBasename(const char* src);
 char* AllcFilename(const char* src);

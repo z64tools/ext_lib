@@ -2442,6 +2442,44 @@ s32 PathIsRel(const char* item) {
 }
 
 // # # # # # # # # # # # # # # # # # # # #
+// # On Exit                             #
+// # # # # # # # # # # # # # # # # # # # #
+
+typedef struct PostFreeNode {
+	struct PostFreeNode* prev;
+	struct PostFreeNode* next;
+	void* ptr;
+} PostFreeNode;
+
+static PostFreeNode* sPostFreeHead;
+static s32 sOnExitFlag;
+
+static void ____PostFree(s32 i, void* arg) {
+	while (sPostFreeHead) {
+		Free(sPostFreeHead->ptr);
+		Node_Kill(sPostFreeHead, sPostFreeHead);
+	}
+}
+
+void* qFree(const void* ptr) {
+	PostFreeNode* node;
+	
+	if (!sOnExitFlag) {
+		sOnExitFlag++;
+		if (on_exit(____PostFree, NULL))
+			printf_error("Could not init OnExit");
+	}
+	
+	Calloc(node, sizeof(struct PostFreeNode));
+	if (node == NULL) printf_error("Could not malloc ExitNode!");
+	node->ptr = (void*)ptr;
+	
+	Node_Add(sPostFreeHead, node);
+	
+	return (void*)ptr;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
 // # Allocated String functions          #
 // # # # # # # # # # # # # # # # # # # # #
 
@@ -3801,6 +3839,7 @@ void Log_Init() {
 void Log_Free() {
 	if (!sLogInit)
 		return;
+	sLogInit = 0;
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
 		____Free(sLogMsg[i]);
 		____Free(sLogFunc[i]);
