@@ -1310,20 +1310,14 @@ void Sys_TerminalSize(s32* r) {
 }
 
 s32 Sys_Touch(const char* file) {
-	MemFile mem = MemFile_Initialize();
+#include <utime.h>
+	struct stat st;
+	struct utimbuf nTime;
 	
-	if (Sys_Stat(file)) {
-		if (MemFile_LoadFile(&mem, file))
-			return 1;
-	}
-	
-	if (MemFile_SaveFile(&mem, file)) {
-		MemFile_Free(&mem);
-		
-		return 1;
-	}
-	
-	MemFile_Free(&mem);
+	stat(file, &st);
+	nTime.actime = st.st_atime;
+	nTime.modtime = time(NULL);
+	utime(file, &nTime);
 	
 	return 0;
 }
