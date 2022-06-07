@@ -59,7 +59,7 @@ char* Dir_FindFile(const char* str);
 
 void FileSys_MakePath(s32 flag);
 void FileSys_Path(const char* fmt, ...);
-char* FileSys_File(const char* str);
+char* FileSys_File(const char* str, ...);
 char* FileSys_FindFile(const char* str);
 void FileSys_Free();
 
@@ -220,6 +220,7 @@ s32 Value_Bool(const char* string);
 s32 Value_ValidateHex(const char* str);
 s32 Value_ValidateInt(const char* str);
 s32 Value_ValidateFloat(const char* str);
+ValueType Value_Type(const char* variable);
 
 s32 Music_NoteIndex(const char* note);
 const char* Music_NoteWord(s32 note);
@@ -245,6 +246,7 @@ s32 Toml_GetInt(MemFile* mem, const char* intName);
 char* Toml_GetStr(MemFile* mem, const char* stringName);
 f32 Toml_GetFloat(MemFile* mem, const char* floatName);
 void Toml_GotoSection(const char* section);
+void Toml_ListVariables(MemFile* mem, ItemList* list, const char* section);
 
 s32 Toml_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ...);
 void Toml_WriteComment(MemFile* mem, const char* comment);
@@ -406,16 +408,19 @@ void Sound_Xm_Stop();
 #define Malloc(data, size) { \
 		Log("Malloc(%s); %.2f Kb", #data, BinToKb(size)); \
 		data = ____Malloc(0, size); \
+		Assert(data != NULL); \
 }
 
 #define Realloc(data, size) { \
 		Log("Realloc(%s); %.2f Kb", #data, BinToKb(size)); \
 		data = ____Realloc(data, size); \
+		Assert(data != NULL); \
 }
 
 #define Calloc(data, size) { \
 		Log("Calloc(%s); %.2f Kb", #data, BinToKb(size)); \
 		data = ____Calloc(0, size); \
+		Assert(data != NULL); \
 }
 
 #define Free(data) { \

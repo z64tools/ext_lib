@@ -983,8 +983,21 @@ void FileSys_Path(const char* fmt, ...) {
 		Sys_MakeDir(__sPath);
 }
 
-char* FileSys_File(const char* str) {
-	return HeapPrint("%s%s", __sPath, str);
+char* FileSys_File(const char* str, ...) {
+	char* buffer;
+	char* ret;
+	va_list va;
+	
+	va_start(va, str);
+	vasprintf(&buffer, str, va);
+	va_end(va);
+	
+	Log("%s", str);
+	Assert(buffer != NULL);
+	ret = HeapPrint("%s%s", __sPath, buffer);
+	Free(buffer);
+	
+	return ret;
 }
 
 char* FileSys_FindFile(const char* str) {
@@ -1238,7 +1251,7 @@ s32 SysExe(const char* cmd) {
 }
 
 char* SysExeO(const char* cmd) {
-	char result[1024];
+	char* result;
 	MemFile mem = MemFile_Initialize();
 	FILE* file;
 	
@@ -1250,10 +1263,12 @@ char* SysExeO(const char* cmd) {
 	}
 	
 	MemFile_Params(&mem, MEM_REALLOC, true, MEM_END);
-	MemFile_Malloc(&mem, MbToBin(2.0));
+	MemFile_Malloc(&mem, MbToBin(1.0));
 	
+	Malloc(result, 1024);
 	while (fgets(result, 1024, file))
 		MemFile_Write(&mem, result, strlen(result));
+	Free(result);
 	
 	if ((sSysReturn = pclose(file)) != 0) {
 		if (sSysIgnore == 0) {
@@ -1876,6 +1891,9 @@ void* MemMem(const void* haystack, Size haystacklen, const void* needle, Size ne
 }
 
 void* StrStr(const char* haystack, const char* needle) {
+	if (!haystack || !needle)
+		return NULL;
+	
 	return MemMem(haystack, strlen(haystack), needle, strlen(needle));
 }
 
@@ -2466,12 +2484,15 @@ void* qFree(const void* ptr) {
 	
 	if (!sOnExitFlag) {
 		sOnExitFlag++;
+#ifdef _WIN32
+		if (!_onexit((void*)____PostFree))
+#else
 		if (on_exit(____PostFree, NULL))
+#endif
 			printf_error("Could not init OnExit");
 	}
 	
 	Calloc(node, sizeof(struct PostFreeNode));
-	if (node == NULL) printf_error("Could not malloc ExitNode!");
 	node->ptr = (void*)ptr;
 	
 	Node_Add(sPostFreeHead, node);
@@ -2729,10 +2750,10 @@ void MemFile_Params(MemFile* memFile, ...) {
 				memFile->param.align = arg;
 				break;
 			case MEM_CRC32:
-				memFile->param.getCrc = arg > 0 ? true : false;
+				memFile->param.getCrc = arg != 0 ? true : false;
 				break;
 			case MEM_REALLOC:
-				memFile->param.realloc = arg > 0 ? true : false;
+				memFile->param.realloc = arg != 0 ? true : false;
 				break;
 		}
 	}
@@ -2742,6 +2763,11 @@ void MemFile_Params(MemFile* memFile, ...) {
 void MemFile_Malloc(MemFile* memFile, u32 size) {
 	if (memFile->param.initKey != 0xD0E0A0D0B0E0E0F0)
 		*memFile = MemFile_Initialize();
+	else if (memFile->data) {
+		printf_warning("MemFile_Malloc: Mallocing already allocated MemFile [%s]", memFile->info.name);
+		MemFile_Free(memFile);
+	}
+	
 	Calloc(memFile->data, size);
 	
 	if (memFile->data == NULL) {
@@ -2755,11 +2781,6 @@ void MemFile_Realloc(MemFile* memFile, u32 size) {
 	if (memFile->memSize > size)
 		return;
 	
-	// Make sure to have enough space
-	if (size < memFile->memSize + 0x10000) {
-		size += 0x10000;
-	}
-	
 	Realloc(memFile->data, size);
 	memFile->memSize = size;
 }
@@ -2771,26 +2792,26 @@ void MemFile_Rewind(MemFile* memFile) {
 s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
 	u32 osize = size;
 	
-	if (src == NULL)
-		printf_error("MemFile_Write: " PRNT_YELW "src" PRNT_RSET " == " PRNT_REDD "NULL");
+	if (src == NULL) {
+		printf_warning("MemFile: src is NULL");
+		
+		return -1;
+	}
 	
 	size = ClampMax(size, ClampMin(dest->memSize - dest->seekPoint, 0));
 	
 	if (size != osize) {
-		if (!dest->param.realloc)
-			printf_warning("MemSize: Wrote %.2fkB instead of %.2fkB", BinToKb(size), BinToKb(osize));
-		
-		else {
-			MemFile_Realloc(dest, dest->memSize * 2);
+		if (dest->param.realloc) {
+			MemFile_Realloc(dest, dest->memSize + dest->memSize);
 			size = osize;
+		} else {
+			printf_warning("MemFile: Wrote %.2fkB instead of %.2fkB", BinToKb(size), BinToKb(osize));
 		}
 	}
 	
-	if (dest->seekPoint + size > dest->dataSize)
-		dest->dataSize = dest->seekPoint + size;
-	
 	memcpy(&dest->cast.u8[dest->seekPoint], src, size);
 	dest->seekPoint += size;
+	dest->dataSize = Max(dest->dataSize, dest->seekPoint);
 	
 	if (dest->param.align)
 		if ((dest->seekPoint % dest->param.align) != 0)
@@ -3104,6 +3125,56 @@ s32 Value_ValidateFloat(const char* str) {
 	return isOk;
 }
 
+ValueType Value_Type(const char* variable) {
+	ValueType type = {
+		.isFloat = true,
+		.isHex = true,
+		.isDec = true,
+		.isBool = false,
+	};
+	
+	if (!strcmp(variable, "true") || !strcmp(variable, "false")) {
+		type = (ValueType) {
+			.isBool = true,
+		};
+		
+		return type;
+	}
+	
+	for (s32 i = 0; i < strlen(variable); i++) {
+		if (variable[i] <= ' ') {
+			type.isFloat = false;
+			type.isDec = false;
+			type.isHex = false;
+		}
+		
+		if (isalpha(variable[i])) {
+			type.isFloat = false;
+			type.isDec = false;
+		}
+		
+		if (variable[i] == '.')
+			type.isDec = false;
+		
+		switch (variable[i]) {
+			case 'a' ... 'f':
+			case 'A' ... 'F':
+			case '0' ... '9':
+			case 'x':
+				break;
+			default:
+				type.isHex = false;
+				break;
+		}
+	}
+	
+	if (type.isDec) {
+		type.isFloat = type.isHex = false;
+	}
+	
+	return type;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # MUSIC                               #
 // # # # # # # # # # # # # # # # # # # # #
@@ -3370,8 +3441,6 @@ char* Toml_Variable(const char* str, const char* name) {
 		}
 	}
 	
-	Free(sTomlSection);
-	
 	return ret;
 }
 
@@ -3434,8 +3503,6 @@ char* Toml_GetVariable(const char* str, const char* name) {
 			break;
 		}
 	}
-	
-	Free(sTomlSection);
 	
 	return ret;
 }
@@ -3556,6 +3623,43 @@ void Toml_GotoSection(const char* section) {
 		
 		else
 			asprintf(&sTomlSection, "[%s]", section);
+	}
+}
+
+void Toml_ListVariables(MemFile* mem, ItemList* list, const char* section) {
+	char* line = mem->str;
+	u32 lineNum;
+	char* wordA = HeapMalloc(64);
+	
+	ItemList_Validate(list);
+	ItemList_Alloc(list, 256, 256 * 64);
+	
+	if (section)
+		line = (void*)__Toml_GotoSection(line);
+	
+	lineNum = LineNum(line);
+	
+	for (s32 i = 0; i < lineNum; i++, line = Line(line, 1)) {
+		while (*line == ' ' || *line == '\t')
+			line++;
+		if (*line == '#' || *line == '\n')
+			continue;
+		if (*line == '\0' || *line == '[')
+			break;
+		
+		if (StrStr(CopyLine(line, 0), "=")) {
+			u32 strlen = 0;
+			
+			while (isalnum(line[strlen]) || line[strlen] == '_' || line[strlen] == '-')
+				strlen++;
+			
+			if (strlen) {
+				memcpy(wordA, line, strlen);
+				wordA[strlen] = '\0';
+				
+				ItemList_AddItem(list, wordA);
+			}
+		}
 	}
 }
 
@@ -3686,7 +3790,7 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 #include <signal.h>
 
 #define FAULT_BUFFER_SIZE (1024)
-#define FAULT_LOG_NUM     32
+#define FAULT_LOG_NUM     12
 
 static char* sLogMsg[FAULT_LOG_NUM];
 static char* sLogFunc[FAULT_LOG_NUM];
@@ -3818,8 +3922,10 @@ static void Log_Signal(int arg) {
 	Log_Signal_PrintTitle(arg, file);
 	Log_Printinf(arg, file);
 	
-	if (arg != 16)
+	if (arg != 16) {
+		printf_getchar("Press enter to exit...");
 		exit(1);
+	}
 }
 
 void Log_Init() {

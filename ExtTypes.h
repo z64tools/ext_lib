@@ -185,6 +185,13 @@ typedef struct {
 	s32 second;
 } Date;
 
+typedef struct {
+	u32 isFloat : 1;
+	u32 isHex   : 1;
+	u32 isDec   : 1;
+	u32 isBool  : 1;
+} ValueType;
+
 typedef enum {
 	DIR__MAKE_ON_ENTER = (1) << 0,
 } DirParam;
