@@ -2879,6 +2879,9 @@ s32 MemFile_Read(MemFile* src, void* dest, Size size) {
 }
 
 void* MemFile_Seek(MemFile* src, u32 seek) {
+	if (seek == MEMFILE_SEEK_END)
+		seek = src->dataSize;
+	
 	if (seek > src->memSize) {
 		return NULL;
 	}
@@ -3003,11 +3006,13 @@ s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath) {
 }
 
 void MemFile_Free(MemFile* memFile) {
-	if (memFile->data) {
-		free(memFile->data);
-		
-		*memFile = MemFile_Initialize();
+	if (memFile->param.initKey == 0xD0E0A0D0B0E0E0F0) {
+		if (memFile->data) {
+			free(memFile->data);
+		}
 	}
+	
+	*memFile = MemFile_Initialize();
 }
 
 void MemFile_Reset(MemFile* memFile) {
