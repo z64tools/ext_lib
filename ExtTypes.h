@@ -24,6 +24,8 @@ typedef pthread_t Thread;
 typedef size_t Size;
 typedef wchar_t wchar;
 
+#define StructBE __attribute__((scalar_storage_order("big-endian")))
+
 typedef struct {
 	f32 h;
 	f32 s;

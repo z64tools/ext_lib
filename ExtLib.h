@@ -27,6 +27,7 @@ s32 ThreadLock_Join(Thread* thread);
 
 void Thread_Create(Thread* thread, void* func, void* arg);
 s32 Thread_Join(Thread* thread);
+s32 ThreadLock_TryJoin(Thread* thread);
 
 void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
@@ -143,6 +144,7 @@ void __Assert(s32 expression, const char* msg, ...);
 f32 RandF();
 void* MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
 void* StrStr(const char* haystack, const char* needle);
+void* StrStrWhole(const char* haystack, const char* needle);
 void* StrStrCase(const char* strA, const char* strB);
 void* MemMemAlign(u32 val, const void* haystack, size_t haySize, const void* needle, size_t needleSize);
 char* StrEnd(const char* src, const char* ext);
@@ -152,6 +154,7 @@ void* ____Calloc(void* data, s32 size);
 void* ____Realloc(void* data, s32 size);
 void* MemDup(const void* src, Size size);
 char* StrDup(const char* src);
+char* StrDupX(const char* src, Size size);
 void* ____Free(const void* data);
 void ByteSwap(void* src, s32 size);
 s32 ParseArgs(char* argv[], char* arg, u32* parArg);

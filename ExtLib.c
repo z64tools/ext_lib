@@ -81,6 +81,10 @@ s32 ThreadLock_Join(Thread* thread) {
 	return r;
 }
 
+s32 ThreadLock_TryJoin(Thread* thread) {
+	return _pthread_tryjoin(*thread, NULL);
+}
+
 void Thread_Create(Thread* thread, void* func, void* arg) {
 	pthread_create(thread, NULL, (void*)func, (void*)(arg));
 }
@@ -1891,6 +1895,24 @@ void* StrStr(const char* haystack, const char* needle) {
 	return MemMem(haystack, strlen(haystack), needle, strlen(needle));
 }
 
+void* StrStrWhole(const char* haystack, const char* needle) {
+	char* p = StrStr(haystack, needle);
+	
+	while (p) {
+		if (p > haystack) {
+			if (!isalnum(p[-1]) && !isalnum(p[strlen(needle)]))
+				return p;
+		} else {
+			if (!isalnum(p[strlen(p)]))
+				return p;
+		}
+		
+		p = StrStr(p + 1, needle);
+	}
+	
+	return NULL;
+}
+
 void* StrStrCase(const char* haystack, const char* needle) {
 	Size haystacklen = strlen(haystack);
 	Size needlelen = strlen(needle);
@@ -2014,6 +2036,15 @@ void* MemDup(const void* src, Size size) {
 
 char* StrDup(const char* src) {
 	return MemDup(src, strlen(src) + 1);
+}
+
+char* StrDupX(const char* src, Size size) {
+	void* new;
+	
+	Malloc(new, Max(size, strlen(src) + 1));
+	strcpy(new, src);
+	
+	return new;
 }
 
 void* ____Free(const void* data) {
