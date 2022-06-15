@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 148
+#define THIS_EXTLIB_VERSION 149
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -79,10 +79,6 @@ s32 ThreadLock_Join(Thread* thread) {
 	memset(thread, 0, sizeof(Thread));
 	
 	return r;
-}
-
-s32 ThreadLock_TryJoin(Thread* thread) {
-	return _pthread_tryjoin(*thread, NULL);
 }
 
 void Thread_Create(Thread* thread, void* func, void* arg) {
@@ -180,7 +176,7 @@ char* HeapPrint(const char* fmt, ...) {
 // # TIME                                #
 // # # # # # # # # # # # # # # # # # # # #
 
-static struct timeval sTimeStart[255], sTimeStop[255];
+static _Thread_local struct timeval sTimeStart[255], sTimeStop[255];
 
 void Time_Start(u32 slot) {
 	gettimeofday(&sTimeStart[slot], NULL);
@@ -2028,6 +2024,9 @@ void* ____Realloc(void* data, s32 size) {
 void* MemDup(const void* src, Size size) {
 	void* new;
 	
+	if (src == NULL)
+		return NULL;
+	
 	Malloc(new, size);
 	memcpy(new, src, size);
 	
@@ -2035,11 +2034,17 @@ void* MemDup(const void* src, Size size) {
 }
 
 char* StrDup(const char* src) {
+	if (src == NULL)
+		return NULL;
+	
 	return MemDup(src, strlen(src) + 1);
 }
 
 char* StrDupX(const char* src, Size size) {
 	void* new;
+	
+	if (src == NULL)
+		return NULL;
 	
 	Malloc(new, Max(size, strlen(src) + 1));
 	strcpy(new, src);
@@ -3539,8 +3544,14 @@ char* Toml_GetVariable(const char* str, const char* name) {
 
 static _Thread_local bool sTomlError;
 
-void Toml_SetErrorState(bool boolean) {
-	sTomlError = boolean;
+s32 Toml_GetErrorState(void) {
+	s32 ret = 0;
+	
+	if (sTomlError)
+		ret = 1;
+	sTomlError = 0;
+	
+	return ret;
 }
 
 void Toml_GetArray(MemFile* mem, ItemList* list, const char* variable) {
@@ -3553,10 +3564,8 @@ void Toml_GetArray(MemFile* mem, ItemList* list, const char* variable) {
 	if (array == NULL || (array[0] != '[' && array[0] != '{')) {
 		*list = ItemList_Initialize();
 		
-		if (sTomlError)
-			printf_error("[%s] Variable [%s] not found", __FUNCTION__, variable);
-		else
-			printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+		sTomlError = true;
+		printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
 		
 		return;
 	}
@@ -3588,10 +3597,8 @@ s32 Toml_GetBool(MemFile* mem, const char* variable) {
 		}
 	}
 	
-	if (sTomlError)
-		printf_error("[%s] Variable [%s] not found", __FUNCTION__, variable);
-	else
-		printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+	sTomlError = true;
+	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
 	
 	return 0;
 }
@@ -3611,10 +3618,8 @@ s32 Toml_GetOption(MemFile* mem, const char* variable, char* strList[]) {
 			return i;
 	}
 	
-	if (sTomlError)
-		printf_error("[%s] Variable [%s] not found", __FUNCTION__, variable);
-	else
-		printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+	sTomlError = true;
+	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
 	
 	return 0;
 }
@@ -3627,10 +3632,8 @@ s32 Toml_GetInt(MemFile* mem, const char* variable) {
 		return Value_Int(ptr);
 	}
 	
-	if (sTomlError)
-		printf_error("[%s] Variable [%s] not found", __FUNCTION__, variable);
-	else
-		printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+	sTomlError = true;
+	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
 	
 	return 0;
 }
@@ -3645,10 +3648,8 @@ char* Toml_GetStr(MemFile* mem, const char* variable) {
 		return ptr;
 	}
 	
-	if (sTomlError)
-		printf_error("[%s] Variable [%s] not found", __FUNCTION__, variable);
-	else
-		printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+	sTomlError = true;
+	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
 	
 	return NULL;
 }
@@ -3661,10 +3662,8 @@ f32 Toml_GetFloat(MemFile* mem, const char* variable) {
 		return Value_Float(ptr);
 	}
 	
-	if (sTomlError)
-		printf_error("[%s] Variable [%s] not found", __FUNCTION__, variable);
-	else
-		printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+	sTomlError = true;
+	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
 	
 	return 0.0f;
 }

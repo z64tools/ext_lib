@@ -27,7 +27,6 @@ s32 ThreadLock_Join(Thread* thread);
 
 void Thread_Create(Thread* thread, void* func, void* arg);
 s32 Thread_Join(Thread* thread);
-s32 ThreadLock_TryJoin(Thread* thread);
 
 void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
@@ -243,7 +242,7 @@ char* String_GetSpacedArg(char* argv[], s32 cur);
 
 char* Toml_Variable(const char* str, const char* name);
 char* Toml_GetVariable(const char* str, const char* name);
-void Toml_SetErrorState(bool boolean);
+s32 Toml_GetErrorState(void);
 void Toml_GetArray(MemFile* mem, ItemList* list, const char* name);
 s32 Toml_GetBool(MemFile* mem, const char* boolName);
 s32 Toml_GetOption(MemFile* mem, const char* stringName, char* strList[]);
