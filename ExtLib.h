@@ -172,6 +172,8 @@ s32 LineNum(const char* str);
 s32 PathNum(const char* src);
 char* CopyLine(const char* str, s32 line);
 char* CopyWord(const char* str, s32 word);
+char* PathRel_From(const char* from, const char* item);
+char* PathAbs_From(const char* from, const char* item);
 char* PathRel(const char* file);
 char* PathAbs(const char* item);
 s32 PathIsAbs(const char* item);
@@ -271,8 +273,10 @@ void Log_Init();
 void Log_Free();
 void Log_Print();
 void Log_Unlocked(const char* func, u32 line, const char* txt, ...);
+void __Log_ItemList(ItemList* list, const char* function, s32 line);
 void __Log(const char* func, u32 line, const char* txt, ...);
-#define Log(...) __Log(__FUNCTION__, __LINE__, __VA_ARGS__)
+#define Log(...)           __Log(__FUNCTION__, __LINE__, __VA_ARGS__)
+#define Log_ItemList(list) __Log_ItemList(list, __FUNCTION__, __LINE__)
 
 f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep);
 f32 Math_Spline_Audio(float k, float xm1, float x0, float x1, float x2);

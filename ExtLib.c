@@ -2419,9 +2419,9 @@ char* CopyWord(const char* str, s32 word) {
 	return buffer;
 }
 
-char* PathRel(const char* item) {
+char* PathRel_From(const char* from, const char* item) {
 	item = StrSlash(StrUnq(item));
-	char* work = StrSlash(StrDup(Sys_WorkDir()));
+	char* work = StrSlash(StrDup(from));
 	s32 lenCom = StrComLen(work, item);
 	s32 subCnt = 0;
 	char* sub = (char*)&work[lenCom];
@@ -2441,9 +2441,9 @@ char* PathRel(const char* item) {
 	return buffer;
 }
 
-char* PathAbs(const char* item) {
+char* PathAbs_From(const char* from, const char* item) {
 	item = StrSlash(StrUnq(item));
-	char* path = StrSlash(HeapStrDup(Sys_WorkDir()));
+	char* path = StrSlash(HeapStrDup(from));
 	char* t = StrStr(item, "../");
 	char* f = (char*)item;
 	s32 subCnt = 0;
@@ -2460,6 +2460,14 @@ char* PathAbs(const char* item) {
 	}
 	
 	return HeapPrint("%s%s", path, f);
+}
+
+char* PathRel(const char* item) {
+	return PathRel_From(Sys_WorkDir(), item);
+}
+
+char* PathAbs(const char* item) {
+	return PathAbs_From(Sys_WorkDir(), item);
 }
 
 s32 PathIsAbs(const char* item) {
@@ -4029,6 +4037,12 @@ void Log_Unlocked(const char* func, u32 line, const char* txt, ...) {
 	
 	strcpy(sLogFunc[0], func);
 	sLogLine[0] = line;
+}
+
+void __Log_ItemList(ItemList* list, const char* function, s32 line) {
+	forlist(i, *list) {
+		__Log(function, line, "%d - [%s]", i, list->item[i]);
+	}
 }
 
 void __Log(const char* func, u32 line, const char* txt, ...) {
