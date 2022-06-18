@@ -192,8 +192,8 @@ void Color_ToRGB(RGB8* rgb, HSL8* hsl);
 void MemFile_Validate(MemFile* mem);
 MemFile MemFile_Initialize();
 void MemFile_Params(MemFile* memFile, ...);
-void __MemFile_Malloc(MemFile* memFile, u32 size);
-void __MemFile_Realloc(MemFile* memFile, u32 size);
+void MemFile_Malloc(MemFile* memFile, u32 size);
+void MemFile_Realloc(MemFile* memFile, u32 size);
 void MemFile_Rewind(MemFile* memFile);
 s32 MemFile_Write(MemFile* dest, void* src, u32 size);
 s32 MemFile_Insert(MemFile* mem, void* src, u32 size, u32 pos);
@@ -430,16 +430,6 @@ void Sound_Xm_Stop();
 #define Free(data) { \
 		Log("Free(%s);", #data ); \
 		data = ____Free(data); \
-}
-
-#define MemFile_Malloc(memFile, size) { \
-		Log("MemFile_Malloc(%s); %.2f Kb", #memFile, BinToKb(size)); \
-		__MemFile_Malloc(memFile, size); \
-}
-
-#define MemFile_Realloc(memFile, size) { \
-		Log("MemFile_Realloc(%s); %.2f Kb", #memFile, BinToKb(size)); \
-		__MemFile_Realloc(memFile, size); \
 }
 
 #define Main(y1, y2) main(y1, y2)

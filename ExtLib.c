@@ -176,7 +176,7 @@ char* HeapPrint(const char* fmt, ...) {
 // # TIME                                #
 // # # # # # # # # # # # # # # # # # # # #
 
-static _Thread_local struct timeval sTimeStart[255], sTimeStop[255];
+static struct timeval sTimeStart[255], sTimeStop[255];
 
 void Time_Start(u32 slot) {
 	gettimeofday(&sTimeStart[slot], NULL);
@@ -2801,7 +2801,7 @@ void MemFile_Params(MemFile* memFile, ...) {
 	va_end(args);
 }
 
-void __MemFile_Malloc(MemFile* memFile, u32 size) {
+void MemFile_Malloc(MemFile* memFile, u32 size) {
 	if (memFile->param.initKey != 0xD0E0A0D0B0E0E0F0) {
 		*memFile = MemFile_Initialize();
 	} else if (memFile->data) {
@@ -2809,7 +2809,7 @@ void __MemFile_Malloc(MemFile* memFile, u32 size) {
 		MemFile_Free(memFile);
 	}
 	
-	memFile->data = ____Calloc(0, size);
+	Calloc(memFile->data, size);
 	
 	if (memFile->data == NULL)
 		printf_error("Failed to malloc [0x%X] bytes.", size);
@@ -2817,11 +2817,11 @@ void __MemFile_Malloc(MemFile* memFile, u32 size) {
 	memFile->memSize = size;
 }
 
-void __MemFile_Realloc(MemFile* memFile, u32 size) {
+void MemFile_Realloc(MemFile* memFile, u32 size) {
 	if (memFile->memSize > size)
 		return;
 	
-	____Realloc(memFile->data, size);
+	Realloc(memFile->data, size);
 	memFile->memSize = size;
 }
 
