@@ -2093,22 +2093,6 @@ s32 ParseArgs(char* argv[], char* arg, u32* parArg) {
 	return 0;
 }
 
-u32 Crc32(u8* s, u32 n) {
-	u32 crc = 0xFFFFFFFF;
-	
-	for (u32 i = 0; i < n; i++) {
-		u8 ch = s[i];
-		for (s32 j = 0; j < 8; j++) {
-			u32 b = (ch ^ crc) & 1;
-			crc >>= 1;
-			if (b) crc = crc ^ 0xEDB88320;
-			ch >>= 1;
-		}
-	}
-	
-	return ~crc;
-}
-
 void SlashAndPoint(const char* src, s32* slash, s32* point) {
 	s32 strSize = strlen(src);
 	

@@ -157,7 +157,6 @@ char* StrDupX(const char* src, Size size);
 void* ____Free(const void* data);
 void ByteSwap(void* src, s32 size);
 s32 ParseArgs(char* argv[], char* arg, u32* parArg);
-u32 Crc32(u8* s, u32 n);
 void SlashAndPoint(const char* src, s32* slash, s32* point);
 char* Path(const char* src);
 char* PathSlot(const char* src, s32 num);
