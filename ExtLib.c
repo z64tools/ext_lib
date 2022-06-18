@@ -2801,28 +2801,27 @@ void MemFile_Params(MemFile* memFile, ...) {
 	va_end(args);
 }
 
-void MemFile_Malloc(MemFile* memFile, u32 size) {
-	if (memFile->param.initKey != 0xD0E0A0D0B0E0E0F0)
+void __MemFile_Malloc(MemFile* memFile, u32 size) {
+	if (memFile->param.initKey != 0xD0E0A0D0B0E0E0F0) {
 		*memFile = MemFile_Initialize();
-	else if (memFile->data) {
-		printf_warning("MemFile_Malloc: Mallocing already allocated MemFile [%s]", memFile->info.name);
+	} else if (memFile->data) {
+		Log("MemFile_Malloc: Mallocing already allocated MemFile [%s], freeing and reallocating!", memFile->info.name);
 		MemFile_Free(memFile);
 	}
 	
-	Calloc(memFile->data, size);
+	memFile->data = ____Calloc(0, size);
 	
-	if (memFile->data == NULL) {
-		printf_warning("Failed to malloc [0x%X] bytes.", size);
-	}
+	if (memFile->data == NULL)
+		printf_error("Failed to malloc [0x%X] bytes.", size);
 	
 	memFile->memSize = size;
 }
 
-void MemFile_Realloc(MemFile* memFile, u32 size) {
+void __MemFile_Realloc(MemFile* memFile, u32 size) {
 	if (memFile->memSize > size)
 		return;
 	
-	Realloc(memFile->data, size);
+	____Realloc(memFile->data, size);
 	memFile->memSize = size;
 }
 
