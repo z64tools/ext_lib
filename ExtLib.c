@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 151
+#define THIS_EXTLIB_VERSION 152
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -665,6 +665,8 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
 			StrNode* node;
 			char* path;
 			u32 cont = 0;
+			u32 containFlag = false;
+			u32 contains = false;
 			
 			if (!strcmp(".", entry->d_name) || !strcmp("..", entry->d_name))
 				continue;
@@ -686,6 +688,27 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
 					case FILTER_WORD:
 						if (!strcmp(entry->d_name, filterNode->txt))
 							cont = true;
+						break;
+						
+					case CONTAIN_SEARCH:
+						containFlag = true;
+						if (StrStr(entry->d_name, filterNode->txt))
+							contains = true;
+						break;
+					case CONTAIN_START:
+						containFlag = true;
+						if (!memcmp(entry->d_name, filterNode->txt, strlen(filterNode->txt)))
+							contains = true;
+						break;
+					case CONTAIN_END:
+						containFlag = true;
+						if (StrEnd(entry->d_name, filterNode->txt))
+							contains = true;
+						break;
+					case CONTAIN_WORD:
+						containFlag = true;
+						if (!strcmp(entry->d_name, filterNode->txt))
+							contains = true;
 						break;
 				}
 				
@@ -711,15 +734,17 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
 					Node_Add(info->node, node);
 				}
 			} else {
-				if ((info->flags & 0xF) == LIST_FILES) {
-					StrNode* node;
-					
-					Calloc(node, sizeof(StrNode));
-					asprintf(&node->txt, "%s%s", entryPath, entry->d_name);
-					info->len += strlen(node->txt) + 1;
-					info->num++;
-					
-					Node_Add(info->node, node);
+				if (!containFlag || (containFlag && contains)) {
+					if ((info->flags & 0xF) == LIST_FILES) {
+						StrNode* node;
+						
+						Calloc(node, sizeof(StrNode));
+						asprintf(&node->txt, "%s%s", entryPath, entry->d_name);
+						info->len += strlen(node->txt) + 1;
+						info->num++;
+						
+						Node_Add(info->node, node);
+					}
 				}
 			}
 			

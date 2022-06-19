@@ -153,10 +153,17 @@ typedef enum {
 } ListFlag;
 
 typedef enum {
+	// Files and folders
 	FILTER_SEARCH = 0,
 	FILTER_START,
 	FILTER_END,
 	FILTER_WORD,
+	
+	// Files
+	CONTAIN_SEARCH,
+	CONTAIN_START,
+	CONTAIN_END,
+	CONTAIN_WORD,
 } ListFilter;
 
 typedef struct FilterNode {
