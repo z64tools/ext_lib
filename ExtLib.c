@@ -1779,8 +1779,8 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 }
 
 void printf_info(const char* fmt, ...) {
-	char printfBuf[512];
-	char buf[512];
+	char printfBuf[1024];
+	char buf[1024];
 	
 	if (sEXIT)
 		return;
@@ -2367,9 +2367,7 @@ char* LineHead(const char* str) {
 		return NULL;
 	
 	for (;; i--) {
-		if (str[i - 1] == '\0')
-			return NULL;
-		if (str[i - 1] == '\n' || str[i - 1] == '\r')
+		if (str[i - 1] == '\n' || str[i - 1] <= '\r' || str[i - 1] == 0x8)
 			return (char*)&str[i];
 	}
 }
@@ -3703,6 +3701,74 @@ char* Config_GetVariable(const char* str, const char* name) {
 }
 
 static _Thread_local bool sCfgError;
+
+void Config_ProcessIncludes(MemFile* mem) {
+	StrNode* strNodeHead = NULL;
+	StrNode* strNode = NULL;
+	
+	Calloc(strNode, sizeof(StrNode));
+	strNode->txt = HeapStrDup(mem->info.name);
+	Node_Add(strNodeHead, strNode);
+	
+reprocess:
+	(void)0;
+	u32 lineNum = LineNum(mem->str);
+	char* line = mem->str;
+	
+	for (s32 i = 0; i < lineNum; i++, line = Line(line, 1)) {
+		if (memcmp(line, "include ", 8))
+			continue;
+		
+		while (line[-1] != '<') {
+			line++;
+			if (*line == '\n' || *line == '\r' || *line == '\0')
+				goto free;
+		}
+		
+		s32 ln = 0;
+		
+		for (;; ln++) {
+			if (line[ln] == '>')
+				break;
+			if (*line == '\0')
+				goto free;
+		}
+		
+		char* name;
+		char* head = CopyLine(LineHead(line), 0);
+		MemFile in = MemFile_Initialize();
+		
+		Calloc(name, ln + 1);
+		memcpy(name, line, ln);
+		
+		FileSys_Path(Path(mem->info.name));
+		MemFile_LoadFile_String(&in, FileSys_File(name));
+		
+		strNode = strNodeHead;
+		while (strNode) {
+			if (!strcmp(in.info.name, strNode->txt))
+				printf_error("Recursive inclusion in patch [%s] including [%s]", mem->info.name, in.info.name);
+			
+			strNode = strNode->next;
+		}
+		
+		if (!StrRep(mem->str, head, in.str))
+			printf_error("Replacing Failed: [%s] [%X]", head, (u32) * head);
+		
+		Calloc(strNode, sizeof(StrNode));
+		strNode->txt = FileSys_File(name);
+		Node_Add(strNodeHead, strNode);
+		
+		MemFile_Free(&in);
+		goto reprocess;
+	}
+	
+free:
+	while (strNodeHead)
+		Node_Kill(strNodeHead, strNodeHead);
+	mem->dataSize = strlen(mem->str);
+	Log("Done");
+}
 
 s32 Config_GetErrorState(void) {
 	s32 ret = 0;

@@ -244,6 +244,8 @@ char* String_GetSpacedArg(char* argv[], s32 cur);
 
 char* Config_Variable(const char* str, const char* name);
 char* Config_GetVariable(const char* str, const char* name);
+void Config_ProcessIncludes(MemFile* mem);
+
 s32 Config_GetErrorState(void);
 void Config_GetArray(MemFile* mem, ItemList* list, const char* name);
 s32 Config_GetBool(MemFile* mem, const char* boolName);
