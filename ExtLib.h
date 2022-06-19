@@ -242,27 +242,27 @@ char* StrStripIllegalChar(char* str);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 
-char* Toml_Variable(const char* str, const char* name);
-char* Toml_GetVariable(const char* str, const char* name);
-s32 Toml_GetErrorState(void);
-void Toml_GetArray(MemFile* mem, ItemList* list, const char* name);
-s32 Toml_GetBool(MemFile* mem, const char* boolName);
-s32 Toml_GetOption(MemFile* mem, const char* stringName, char* strList[]);
-s32 Toml_GetInt(MemFile* mem, const char* intName);
-char* Toml_GetStr(MemFile* mem, const char* stringName);
-f32 Toml_GetFloat(MemFile* mem, const char* floatName);
-void Toml_GotoSection(const char* section);
-void Toml_ListVariables(MemFile* mem, ItemList* list, const char* section);
+char* Config_Variable(const char* str, const char* name);
+char* Config_GetVariable(const char* str, const char* name);
+s32 Config_GetErrorState(void);
+void Config_GetArray(MemFile* mem, ItemList* list, const char* name);
+s32 Config_GetBool(MemFile* mem, const char* boolName);
+s32 Config_GetOption(MemFile* mem, const char* stringName, char* strList[]);
+s32 Config_GetInt(MemFile* mem, const char* intName);
+char* Config_GetStr(MemFile* mem, const char* stringName);
+f32 Config_GetFloat(MemFile* mem, const char* floatName);
+void Config_GotoSection(const char* section);
+void Config_ListVariables(MemFile* mem, ItemList* list, const char* section);
 
-s32 Toml_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ...);
-void Toml_WriteComment(MemFile* mem, const char* comment);
-void Toml_WriteArray(MemFile* mem, const char* variable, ItemList* list, bool quote, const char* comment);
-void Toml_WriteInt(MemFile* mem, const char* variable, const s64 integer, const char* comment);
-void Toml_WriteHex(MemFile* mem, const char* variable, const s64 integer, const char* comment);
-void Toml_WriteStr(MemFile* mem, const char* variable, const char* str, bool quote, const char* comment);
-void Toml_WriteFloat(MemFile* mem, const char* variable, const f64 flo, const char* comment);
-void Toml_WriteSection(MemFile* mem, const char* variable);
-#define Toml_Print(mem, ...) MemFile_Printf(mem, __VA_ARGS__)
+s32 Config_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ...);
+void Config_WriteComment(MemFile* mem, const char* comment);
+void Config_WriteArray(MemFile* mem, const char* variable, ItemList* list, bool quote, const char* comment);
+void Config_WriteInt(MemFile* mem, const char* variable, const s64 integer, const char* comment);
+void Config_WriteHex(MemFile* mem, const char* variable, const s64 integer, const char* comment);
+void Config_WriteStr(MemFile* mem, const char* variable, const char* str, bool quote, const char* comment);
+void Config_WriteFloat(MemFile* mem, const char* variable, const f64 flo, const char* comment);
+void Config_WriteSection(MemFile* mem, const char* variable);
+#define Config_Print(mem, ...) MemFile_Printf(mem, __VA_ARGS__)
 #define NO_COMMENT NULL
 #define QUOTES     1
 #define NO_QUOTES  0

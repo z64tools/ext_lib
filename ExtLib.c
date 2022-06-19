@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 150
+#define THIS_EXTLIB_VERSION 151
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -3544,36 +3544,36 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 // # CONFIG                              #
 // # # # # # # # # # # # # # # # # # # # #
 
-static _Thread_local char* sTomlSection;
+static _Thread_local char* sCfgSection;
 
-static const char* __Toml_GotoSection(const char* str) {
-	if (sTomlSection == NULL)
+static const char* __Config_GotoSection(const char* str) {
+	if (sCfgSection == NULL)
 		return str;
 	
 	s32 lineNum = LineNum(str);
 	const char* line = str;
 	
-	Log("GoTo \"%s\"", sTomlSection);
+	Log("GoTo \"%s\"", sCfgSection);
 	
 	for (s32 i = 0; i < lineNum; i++, line = Line(line, 1)) {
 		if (*line == '\0')
 			return NULL;
 		while (*line == ' ' || *line == '\t') line++;
-		if (!strncmp(line, sTomlSection, strlen(sTomlSection) - 1))
+		if (!strncmp(line, sCfgSection, strlen(sCfgSection) - 1))
 			return Line(line, 1);
 	}
 	
-	Log("Return NULL;", sTomlSection);
+	Log("Return NULL;", sCfgSection);
 	
 	return NULL;
 }
 
-char* Toml_Variable(const char* str, const char* name) {
+char* Config_Variable(const char* str, const char* name) {
 	u32 lineCount;
 	char* line;
 	char* ret = NULL;
 	
-	str = __Toml_GotoSection(str);
+	str = __Config_GotoSection(str);
 	if (str == NULL) return NULL;
 	
 	lineCount = LineNum(str);
@@ -3613,12 +3613,12 @@ char* Toml_Variable(const char* str, const char* name) {
 	return ret;
 }
 
-char* Toml_GetVariable(const char* str, const char* name) {
+char* Config_GetVariable(const char* str, const char* name) {
 	u32 lineCount;
 	char* line;
 	char* ret = NULL;
 	
-	str = __Toml_GotoSection(str);
+	str = __Config_GotoSection(str);
 	if (str == NULL) return NULL;
 	
 	lineCount = LineNum(str);
@@ -3677,29 +3677,29 @@ char* Toml_GetVariable(const char* str, const char* name) {
 	return ret;
 }
 
-static _Thread_local bool sTomlError;
+static _Thread_local bool sCfgError;
 
-s32 Toml_GetErrorState(void) {
+s32 Config_GetErrorState(void) {
 	s32 ret = 0;
 	
-	if (sTomlError)
+	if (sCfgError)
 		ret = 1;
-	sTomlError = 0;
+	sCfgError = 0;
 	
 	return ret;
 }
 
-void Toml_GetArray(MemFile* mem, ItemList* list, const char* variable) {
+void Config_GetArray(MemFile* mem, ItemList* list, const char* variable) {
 	char* array;
 	char* tmp;
 	u32 size = 0;
 	
-	array = Toml_Variable(mem->str, variable);
+	array = Config_Variable(mem->str, variable);
 	
 	if (array == NULL || (array[0] != '[' && array[0] != '{')) {
 		*list = ItemList_Initialize();
 		
-		sTomlError = true;
+		sCfgError = true;
 		printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
 		
 		return;
@@ -3718,10 +3718,10 @@ void Toml_GetArray(MemFile* mem, ItemList* list, const char* variable) {
 		StrRep(list->item[i], "\"", "");
 }
 
-s32 Toml_GetBool(MemFile* mem, const char* variable) {
+s32 Config_GetBool(MemFile* mem, const char* variable) {
 	char* ptr;
 	
-	ptr = Toml_GetVariable(mem->str, variable);
+	ptr = Config_GetVariable(mem->str, variable);
 	if (ptr) {
 		char* word = ptr;
 		if (!strcmp(word, "true")) {
@@ -3732,18 +3732,18 @@ s32 Toml_GetBool(MemFile* mem, const char* variable) {
 		}
 	}
 	
-	sTomlError = true;
+	sCfgError = true;
 	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
 	
 	return 0;
 }
 
-s32 Toml_GetOption(MemFile* mem, const char* variable, char* strList[]) {
+s32 Config_GetOption(MemFile* mem, const char* variable, char* strList[]) {
 	char* ptr;
 	char* word;
 	s32 i = 0;
 	
-	ptr = Toml_GetVariable(mem->str, variable);
+	ptr = Config_GetVariable(mem->str, variable);
 	if (ptr) {
 		word = ptr;
 		while (strList[i] != NULL && !StrStr(word, strList[i]))
@@ -3753,68 +3753,68 @@ s32 Toml_GetOption(MemFile* mem, const char* variable, char* strList[]) {
 			return i;
 	}
 	
-	sTomlError = true;
+	sCfgError = true;
 	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
 	
 	return 0;
 }
 
-s32 Toml_GetInt(MemFile* mem, const char* variable) {
+s32 Config_GetInt(MemFile* mem, const char* variable) {
 	char* ptr;
 	
-	ptr = Toml_GetVariable(mem->str, variable);
+	ptr = Config_GetVariable(mem->str, variable);
 	if (ptr) {
 		return Value_Int(ptr);
 	}
 	
-	sTomlError = true;
+	sCfgError = true;
 	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
 	
 	return 0;
 }
 
-char* Toml_GetStr(MemFile* mem, const char* variable) {
+char* Config_GetStr(MemFile* mem, const char* variable) {
 	char* ptr;
 	
-	ptr = Toml_GetVariable(mem->str, variable);
+	ptr = Config_GetVariable(mem->str, variable);
 	if (ptr) {
 		Log("\"%s\" [%s]", ptr, mem->info.name);
 		
 		return ptr;
 	}
 	
-	sTomlError = true;
+	sCfgError = true;
 	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
 	
 	return NULL;
 }
 
-f32 Toml_GetFloat(MemFile* mem, const char* variable) {
+f32 Config_GetFloat(MemFile* mem, const char* variable) {
 	char* ptr;
 	
-	ptr = Toml_GetVariable(mem->str, variable);
+	ptr = Config_GetVariable(mem->str, variable);
 	if (ptr) {
 		return Value_Float(ptr);
 	}
 	
-	sTomlError = true;
+	sCfgError = true;
 	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
 	
 	return 0.0f;
 }
 
-void Toml_GotoSection(const char* section) {
-	Free(sTomlSection);
+void Config_GotoSection(const char* section) {
+	Free(sCfgSection);
 	if (section) {
 		if (section[0] == '[')
-			sTomlSection = StrDup(section);
+			sCfgSection = StrDup(section);
 		
 		else
-			asprintf(&sTomlSection, "[%s]", section);
+			asprintf(&sCfgSection, "[%s]", section);
 	}
 }
 
-void Toml_ListVariables(MemFile* mem, ItemList* list, const char* section) {
+void Config_ListVariables(MemFile* mem, ItemList* list, const char* section) {
 	char* line = mem->str;
 	u32 lineNum;
 	char* wordA = HeapMalloc(64);
@@ -3823,7 +3823,7 @@ void Toml_ListVariables(MemFile* mem, ItemList* list, const char* section) {
 	ItemList_Alloc(list, 256, 256 * 64);
 	
 	if (section)
-		line = (void*)__Toml_GotoSection(line);
+		line = (void*)__Config_GotoSection(line);
 	if (line == NULL) return;
 	
 	lineNum = LineNum(line);
@@ -3856,13 +3856,13 @@ void Toml_ListVariables(MemFile* mem, ItemList* list, const char* section) {
 // # TOML                                #
 // # # # # # # # # # # # # # # # # # # # #
 
-static void Toml_FollowUpComment(MemFile* mem, const char* comment) {
+static void Config_FollowUpComment(MemFile* mem, const char* comment) {
 	if (comment)
 		MemFile_Printf(mem, HeapPrint(" # %s", comment));
 	MemFile_Printf(mem, "\n");
 }
 
-s32 Toml_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ...) {
+s32 Config_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ...) {
 	char* replacement;
 	va_list va;
 	char* p;
@@ -3871,12 +3871,12 @@ s32 Toml_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ..
 	vasprintf(&replacement, fmt, va);
 	va_end(va);
 	
-	p = Toml_Variable(mem->str, variable);
+	p = Config_Variable(mem->str, variable);
 	
 	if (p) {
 		if (p[0] == '"')
 			p++;
-		StrRem(p, strlen(Toml_GetVariable(mem->str, variable)));
+		StrRem(p, strlen(Config_GetVariable(mem->str, variable)));
 		StrIns(p, replacement);
 		
 		mem->dataSize = strlen(mem->str);
@@ -3890,13 +3890,13 @@ s32 Toml_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ..
 	return 1;
 }
 
-void Toml_WriteComment(MemFile* mem, const char* comment) {
+void Config_WriteComment(MemFile* mem, const char* comment) {
 	if (comment)
 		MemFile_Printf(mem, HeapPrint("# %s", comment));
 	MemFile_Printf(mem, "\n");
 }
 
-void Toml_WriteArray(MemFile* mem, const char* variable, ItemList* list, bool quote, const char* comment) {
+void Config_WriteArray(MemFile* mem, const char* variable, ItemList* list, bool quote, const char* comment) {
 	const char* q[2] = {
 		"",
 		"\"",
@@ -3908,35 +3908,35 @@ void Toml_WriteArray(MemFile* mem, const char* variable, ItemList* list, bool qu
 	}
 	mem->seekPoint -= 2;
 	MemFile_Printf(mem, " ]");
-	Toml_FollowUpComment(mem, comment);
+	Config_FollowUpComment(mem, comment);
 }
 
-void Toml_WriteInt(MemFile* mem, const char* variable, const s64 integer, const char* comment) {
+void Config_WriteInt(MemFile* mem, const char* variable, const s64 integer, const char* comment) {
 	MemFile_Printf(mem, "%-15s = %ld", variable, integer);
-	Toml_FollowUpComment(mem, comment);
+	Config_FollowUpComment(mem, comment);
 }
 
-void Toml_WriteHex(MemFile* mem, const char* variable, const s64 integer, const char* comment) {
+void Config_WriteHex(MemFile* mem, const char* variable, const s64 integer, const char* comment) {
 	MemFile_Printf(mem, "%-15s = 0x%lX", variable, integer);
-	Toml_FollowUpComment(mem, comment);
+	Config_FollowUpComment(mem, comment);
 }
 
-void Toml_WriteStr(MemFile* mem, const char* variable, const char* str, bool quote, const char* comment) {
+void Config_WriteStr(MemFile* mem, const char* variable, const char* str, bool quote, const char* comment) {
 	const char* q[2] = {
 		"",
 		"\"",
 	};
 	
 	MemFile_Printf(mem, "%-15s = %s%s%s", variable, q[quote], str, q[quote]);
-	Toml_FollowUpComment(mem, comment);
+	Config_FollowUpComment(mem, comment);
 }
 
-void Toml_WriteFloat(MemFile* mem, const char* variable, const f64 flo, const char* comment) {
+void Config_WriteFloat(MemFile* mem, const char* variable, const f64 flo, const char* comment) {
 	MemFile_Printf(mem, "%-15s = %lf", variable, flo);
-	Toml_FollowUpComment(mem, comment);
+	Config_FollowUpComment(mem, comment);
 }
 
-void Toml_WriteSection(MemFile* mem, const char* variable) {
+void Config_WriteSection(MemFile* mem, const char* variable) {
 	MemFile_Printf(mem, "[%s]\n", variable);
 }
 
