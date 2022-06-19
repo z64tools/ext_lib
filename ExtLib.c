@@ -1179,6 +1179,28 @@ void Sys_MakeDir(const char* dir, ...) {
 	vasprintf(&buffer, dir, args);
 	va_end(args);
 	
+#ifdef _WIN32
+	s32 i = 0;
+	if (PathIsAbs(buffer))
+		i = 3;
+	
+	for (; i < strlen(buffer); i++) {
+		switch (buffer[i]) {
+			case ':':
+			case '*':
+			case '?':
+			case '"':
+			case '<':
+			case '>':
+			case '|':
+				printf_error("MakeDir: Can't make folder with illegal character! '%s'", buffer);
+				break;
+			default:
+				break;
+		}
+	}
+#endif
+	
 	if (!Sys_IsDir(dir)) {
 		for (s32 i = strlen(buffer) - 1; i >= 0; i--) {
 			if (buffer[i] == '/' || buffer[i] == '\\')
@@ -3079,6 +3101,26 @@ s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath) {
 }
 
 s32 MemFile_SaveFile(MemFile* memFile, const char* filepath) {
+#ifdef _WIN32
+	char* filename = Filename(filepath);
+	
+	for (s32 i = 0; i < strlen(filename); i++) {
+		switch (filename[i]) {
+			case ':':
+			case '*':
+			case '?':
+			case '"':
+			case '<':
+			case '>':
+			case '|':
+				printf_error("SaveFile: Can't save a file with illegal character! '%s'", filename);
+				break;
+			default:
+				break;
+		}
+	}
+#endif
+	
 	FILE* file = fopen(filepath, "wb");
 	
 	if (file == NULL) {
@@ -3094,6 +3136,26 @@ s32 MemFile_SaveFile(MemFile* memFile, const char* filepath) {
 }
 
 s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath) {
+#ifdef _WIN32
+	char* filename = Filename(filepath);
+	
+	for (s32 i = 0; i < strlen(filename); i++) {
+		switch (filename[i]) {
+			case ':':
+			case '*':
+			case '?':
+			case '"':
+			case '<':
+			case '>':
+			case '|':
+				printf_error("SaveFile: Can't save a file with illegal character! '%s'", filename);
+				break;
+			default:
+				break;
+		}
+	}
+#endif
+	
 	FILE* file = fopen(filepath, "w");
 	
 	if (file == NULL) {
