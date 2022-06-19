@@ -971,6 +971,15 @@ void ItemList_AddItem(ItemList* list, const char* item) {
 	list->num++;
 }
 
+void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b) {
+	ItemList_Alloc(out, a->num + b->num, a->writePoint + b->writePoint);
+	
+	forlist(i, *a)
+	ItemList_AddItem(out, a->item[i]);
+	forlist(i, *b)
+	ItemList_AddItem(out, b->item[i]);
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # SYS                                 #
 // # # # # # # # # # # # # # # # # # # # #
@@ -1536,7 +1545,7 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 		printf("\n");
 }
 
-static void __printf_call(u32 type, char* dest) {
+static void __printf_call(u32 type, char* dest, FILE* file) {
 	char* color[4] = {
 		PRNT_PRPL,
 		PRNT_REDD,
@@ -1560,7 +1569,8 @@ static void __printf_call(u32 type, char* dest) {
 		return;
 	}
 	
-	printf(
+	fprintf(
+		file,
 		"%s"
 		PRNT_GRAY "["
 		"%s%s"
@@ -1576,6 +1586,9 @@ void printf_warning(const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_WARNING)
 		return;
 	
+	if (sEXIT)
+		return;
+	
 	if (gPrintfProgressing) {
 		printf("\n");
 		gPrintfProgressing = false;
@@ -1584,7 +1597,7 @@ void printf_warning(const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(1, 0);
+	__printf_call(1, 0, stdout);
 	vprintf(
 		fmt,
 		args
@@ -1597,6 +1610,9 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_WARNING)
 		return;
 	
+	if (sEXIT)
+		return;
+	
 	if (gPrintfProgressing) {
 		printf("\n");
 		gPrintfProgressing = false;
@@ -1605,7 +1621,7 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(1, 0);
+	__printf_call(1, 0, stdout);
 	printf(
 		"%-16s " PRNT_RSET,
 		info
@@ -1620,8 +1636,20 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
 
 static void Log_Signal(int arg);
 
+static void printf_MuteOutput(FILE* output) {
+#ifdef _WIN32
+	freopen ("NUL", "w", output);
+#else
+	freopen ("/dev/null", "w", output);
+#endif
+}
+
 void printf_error(const char* fmt, ...) {
+	char* msg;
+	
 	sEXIT = 1;
+	if (___sExt_ThreadInit)
+		printf_MuteOutput(stdout);
 	
 	Log_Signal(16);
 	Log_Free();
@@ -1634,16 +1662,23 @@ void printf_error(const char* fmt, ...) {
 		va_list args;
 		
 		va_start(args, fmt);
-		__printf_call(2, 0);
-		vprintf(
+		__printf_call(2, 0, stdout);
+		if (___sExt_ThreadInit)
+			fprintf(stderr, "[>]: ");
+		vasprintf(
+			&msg,
 			fmt,
 			args
 		);
-		printf("\n");
+		
+		fprintf(stderr, "%s\n", msg);
+		
 		va_end(args);
 	}
 	
 #ifdef _WIN32
+	if (___sExt_ThreadInit)
+		fprintf(stderr, "[<]: Press enter to exit");
 	Terminal_GetChar();
 #endif
 	
@@ -1651,7 +1686,11 @@ void printf_error(const char* fmt, ...) {
 }
 
 void printf_error_align(const char* info, const char* fmt, ...) {
+	char* msg[2];
+	
 	sEXIT = 1;
+	if (___sExt_ThreadInit)
+		printf_MuteOutput(stdout);
 	
 	Log_Signal(16);
 	Log_Free();
@@ -1664,20 +1703,28 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 		va_list args;
 		
 		va_start(args, fmt);
-		__printf_call(2, 0);
-		printf(
+		__printf_call(2, 0, stdout);
+		if (___sExt_ThreadInit)
+			fprintf(stderr, "[>]: ");
+		asprintf(
+			&msg[0],
 			"%-16s " PRNT_RSET,
 			info
 		);
-		vprintf(
+		vasprintf(
+			&msg[1],
 			fmt,
 			args
 		);
-		printf(PRNT_RSET "\n");
+		
+		fprintf(stderr, "%s%s\n", msg[0], msg[1]);
+		
 		va_end(args);
 	}
 	
 #ifdef _WIN32
+	if (___sExt_ThreadInit)
+		fprintf(stderr, "[<]: Press enter to exit");
 	Terminal_GetChar();
 #endif
 	
@@ -1687,6 +1734,9 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 void printf_info(const char* fmt, ...) {
 	char printfBuf[512];
 	char buf[512];
+	
+	if (sEXIT)
+		return;
 	
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
@@ -1698,7 +1748,7 @@ void printf_info(const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(3, printfBuf);
+	__printf_call(3, printfBuf, stdout);
 	vsprintf(
 		buf,
 		fmt,
@@ -1714,6 +1764,9 @@ void printf_info_align(const char* info, const char* fmt, ...) {
 	char printfBuf[512];
 	char buf[512];
 	
+	if (sEXIT)
+		return;
+	
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
 	
@@ -1724,7 +1777,7 @@ void printf_info_align(const char* info, const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(3, printfBuf);
+	__printf_call(3, printfBuf, stdout);
 	sprintf(
 		buf,
 		"%-16s " PRNT_RSET,
@@ -1746,6 +1799,9 @@ void printf_prog_align(const char* info, const char* fmt, const char* color) {
 	char printfBuf[512];
 	char buf[512];
 	
+	if (sEXIT)
+		return;
+	
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
 	
@@ -1754,7 +1810,7 @@ void printf_prog_align(const char* info, const char* fmt, const char* color) {
 		gPrintfProgressing = false;
 	}
 	
-	__printf_call(3, printfBuf);
+	__printf_call(3, printfBuf, stdout);
 	sprintf(
 		buf,
 		"%-16s " PRNT_RSET,
@@ -1774,8 +1830,11 @@ void printf_progressFst(const char* info, u32 a, u32 b) {
 		return;
 	}
 	
+	if (sEXIT)
+		return;
+	
 	printf("\r");
-	__printf_call(3, 0);
+	__printf_call(3, 0, stdout);
 	printf(
 		"%-16s " PRNT_RSET,
 		info
@@ -1795,6 +1854,9 @@ void printf_progress(const char* info, u32 a, u32 b) {
 		return;
 	}
 	
+	if (sEXIT)
+		return;
+	
 	static f32 lstPrcnt;
 	f32 prcnt = (f32)a / (f32)b;
 	
@@ -1810,7 +1872,7 @@ void printf_progress(const char* info, u32 a, u32 b) {
 	}
 	
 	printf("\r");
-	__printf_call(3, 0);
+	__printf_call(3, 0, stdout);
 	printf(
 		"%-16s " PRNT_RSET,
 		info
@@ -1832,6 +1894,9 @@ void printf_getchar(const char* txt) {
 
 void printf_lock(const char* fmt, ...) {
 	va_list va;
+	
+	if (sEXIT)
+		return;
 	
 	va_start(va, fmt);
 	ThreadLock_Lock();
@@ -2233,7 +2298,7 @@ char* Line(const char* str, s32 line) {
 	s32 i = 0;
 	
 	while (line > curline) {
-		while (str[i] != '\n') {
+		while (str[i] != '\n' && str[i] != '\r') {
 			i++;
 			if (str[i] == '\0') {
 				return (char*)r;
@@ -2257,7 +2322,7 @@ char* LineHead(const char* str) {
 	for (;; i--) {
 		if (str[i - 1] == '\0')
 			return NULL;
-		if (str[i - 1] == '\n')
+		if (str[i - 1] == '\n' || str[i - 1] == '\r')
 			return (char*)&str[i];
 	}
 }
@@ -2328,7 +2393,7 @@ s32 LineNum(const char* str) {
 	s32 i = 0;
 	
 	while (str[i] != '\0') {
-		if (str[i] == '\n')
+		if (str[i] == '\n' || str[i] == '\r')
 			line++;
 		i++;
 	}
@@ -2358,8 +2423,8 @@ char* CopyLine(const char* str, s32 line) {
 	
 	while (str[i] != '\0') {
 		j = 0;
-		if (str[i] != '\n') {
-			while (str[i + j] != '\n' && str[i + j] != '\0') {
+		if (str[i] != '\n' && str[i] != '\r') {
+			while (str[i + j] != '\n' && str[i + j] != '\r' && str[i + j] != '\0') {
 				j++;
 			}
 			
@@ -3428,11 +3493,15 @@ static const char* __Toml_GotoSection(const char* str) {
 	
 	Log("GoTo \"%s\"", sTomlSection);
 	
-	for (s32 i = 0; i < lineNum; i++) {
+	for (s32 i = 0; i < lineNum; i++, line = Line(line, 1)) {
+		if (*line == '\0')
+			return NULL;
+		while (*line == ' ' || *line == '\t') line++;
 		if (!strncmp(line, sTomlSection, strlen(sTomlSection) - 1))
 			return Line(line, 1);
-		line = Line(line, 1);
 	}
+	
+	Log("Return NULL;", sTomlSection);
 	
 	return NULL;
 }
@@ -3443,6 +3512,7 @@ char* Toml_Variable(const char* str, const char* name) {
 	char* ret = NULL;
 	
 	str = __Toml_GotoSection(str);
+	if (str == NULL) return NULL;
 	
 	lineCount = LineNum(str);
 	line = (char*)str;
@@ -3487,6 +3557,7 @@ char* Toml_GetVariable(const char* str, const char* name) {
 	char* ret = NULL;
 	
 	str = __Toml_GotoSection(str);
+	if (str == NULL) return NULL;
 	
 	lineCount = LineNum(str);
 	line = (char*)str;
@@ -3691,6 +3762,7 @@ void Toml_ListVariables(MemFile* mem, ItemList* list, const char* section) {
 	
 	if (section)
 		line = (void*)__Toml_GotoSection(line);
+	if (line == NULL) return;
 	
 	lineNum = LineNum(line);
 	

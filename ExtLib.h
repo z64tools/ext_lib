@@ -111,6 +111,7 @@ void ItemList_NumericalSort(ItemList* list);
 void ItemList_Free(ItemList* itemList);
 void ItemList_Alloc(ItemList* list, u32 num, Size size);
 void ItemList_AddItem(ItemList* list, const char* item);
+void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b);
 
 #ifndef __EXTLIB_C__
 
