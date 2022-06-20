@@ -2363,11 +2363,10 @@ char* Line(const char* str, s32 line) {
 char* LineHead(const char* str) {
 	s32 i = 1;
 	
-	if (str == NULL)
-		return NULL;
-	
 	for (;; i--) {
-		if (str[i - 1] == '\n' || str[i - 1] <= '\r' || str[i - 1] == 0x8)
+		if (str[i - 1] == '\0')
+			return NULL;
+		if (str[i - 1] == '\n' || str[i - 1] == '\r')
 			return (char*)&str[i];
 	}
 }
@@ -3718,6 +3717,7 @@ reprocess:
 	for (s32 i = 0; i < lineNum; i++, line = Line(line, 1)) {
 		if (memcmp(line, "include ", 8))
 			continue;
+		char* head = CopyLine(line, 0);
 		
 		while (line[-1] != '<') {
 			line++;
@@ -3735,7 +3735,6 @@ reprocess:
 		}
 		
 		char* name;
-		char* head = CopyLine(LineHead(line), 0);
 		MemFile in = MemFile_Initialize();
 		
 		Calloc(name, ln + 1);
