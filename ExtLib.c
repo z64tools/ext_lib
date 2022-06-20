@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 152
+#define THIS_EXTLIB_VERSION 153
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -2367,7 +2367,7 @@ char* LineHead(const char* str) {
 		return NULL;
 	
 	for (;; i--) {
-		if (str[i - 1] == '\n' || str[i - 1] <= '\r' || str[i - 1] == 0x8)
+		if (str[i - 1] == '\n' || str[i - 1] == '\r' || str[i - 1] == 0x8)
 			return (char*)&str[i];
 	}
 }
@@ -3780,7 +3780,7 @@ s32 Config_GetErrorState(void) {
 	return ret;
 }
 
-void Config_GetArray(MemFile* mem, ItemList* list, const char* variable) {
+void Config_GetArray(MemFile* mem, const char* variable, ItemList* list) {
 	char* array;
 	char* tmp;
 	u32 size = 0;
@@ -3997,7 +3997,8 @@ void Config_WriteArray(MemFile* mem, const char* variable, ItemList* list, bool 
 	for (s32 i = 0; i < list->num; i++) {
 		MemFile_Printf(mem, "%s%s%s, ", q[quote], list->item[i], q[quote]);
 	}
-	mem->seekPoint -= 2;
+	if (list->num)
+		mem->seekPoint -= 2;
 	MemFile_Printf(mem, " ]");
 	Config_FollowUpComment(mem, comment);
 }

@@ -247,7 +247,7 @@ char* Config_GetVariable(const char* str, const char* name);
 void Config_ProcessIncludes(MemFile* mem);
 
 s32 Config_GetErrorState(void);
-void Config_GetArray(MemFile* mem, ItemList* list, const char* name);
+void Config_GetArray(MemFile* mem, const char* name, ItemList* list);
 s32 Config_GetBool(MemFile* mem, const char* boolName);
 s32 Config_GetOption(MemFile* mem, const char* stringName, char* strList[]);
 s32 Config_GetInt(MemFile* mem, const char* intName);
@@ -455,6 +455,9 @@ void Sound_Xm_Stop();
 #define forlist(var, list)       for (s32 var = 0; var < (list).num; var++)
 #define fornode(type, var, head) for (type* var = head; var != NULL; var = var->next)
 #define forstr(var, str)         for (s32 var = 0; var < strlen(str); var++)
+#define forbit(var, max)         for (s32 var = (1) << 0, shift_ ## var = 0; shift_ ## var < max; shift_ ## var++, var = (1) << shift_ ## var)
+
+#define strfy(a) #a
 
 #ifndef _WIN32
 #ifndef __IDE_FLAG__
