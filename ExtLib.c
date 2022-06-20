@@ -3446,28 +3446,49 @@ void StrRem(char* point, s32 amount) {
 }
 // Replace
 s32 StrRep(char* src, const char* word, const char* replacement) {
+	u32 repLen = strlen(replacement);
+	u32 wordLen = strlen(word);
 	s32 diff = 0;
 	char* ptr;
-	void* dup = NULL;
 	
 	if ((uPtr)word >= (uPtr)src && (uPtr)word < (uPtr)src + strlen(src)) {
-		word = StrDup(word);
-		dup = (void*)word;
+		printf("[%s] [%s]", word, replacement);
+		printf_error("Replacing with self!");
 	}
-	
-	if (!StrStr(src, word))
-		return 0;
 	
 	ptr = StrStr(src, word);
 	
 	while (ptr != NULL) {
-		StrRem(ptr, strlen(word));
-		StrIns(ptr, replacement);
-		ptr = StrStr(ptr + strlen(replacement), word);
+		u32 remLen = strlen(ptr + wordLen);
+		memmove(ptr + repLen, ptr + wordLen, remLen + 1);
+		strncpy(ptr, replacement, repLen);
+		ptr = StrStr(ptr  + repLen, word);
 		diff = true;
 	}
 	
-	Free(dup);
+	return diff;
+}
+
+s32 StrRepWhole(char* src, const char* word, const char* replacement) {
+	u32 repLen = strlen(replacement);
+	u32 wordLen = strlen(word);
+	s32 diff = 0;
+	char* ptr;
+	
+	if ((uPtr)word >= (uPtr)src && (uPtr)word < (uPtr)src + strlen(src)) {
+		printf("[%s] [%s]", word, replacement);
+		printf_error("Replacing with self!");
+	}
+	
+	ptr = StrStrWhole(src, word);
+	
+	while (ptr != NULL) {
+		u32 remLen = strlen(ptr + wordLen);
+		memmove(ptr + repLen, ptr + wordLen, remLen + 1);
+		strncpy(ptr, replacement, repLen);
+		ptr = StrStrWhole(ptr  + repLen, word);
+		diff = true;
+	}
 	
 	return diff;
 }

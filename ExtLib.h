@@ -234,6 +234,7 @@ void StrIns(char* point, const char* insert);
 void StrIns2(char* origin, const char* insert, s32 pos, s32 size);
 void StrRem(char* point, s32 amount);
 s32 StrRep(char* src, const char* word, const char* replacement);
+s32 StrRepWhole(char* src, const char* word, const char* replacement);
 wchar* StrU8(const char* str);
 char* StrUnq(const char* str);
 s32 StrComLen(const char* a, const char* b);
