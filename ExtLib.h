@@ -164,7 +164,7 @@ char* PathSlot(const char* src, s32 num);
 char* Basename(const char* src);
 char* Filename(const char* src);
 char* Line(const char* str, s32 line);
-char* LineHead(const char* str);
+char* LineHead(const char* str, const char* head);
 char* Word(const char* str, s32 word);
 char* FileExtension(const char* str);
 void CaseToLow(char* s, s32 i);

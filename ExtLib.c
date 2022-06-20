@@ -2360,12 +2360,12 @@ char* Line(const char* str, s32 line) {
 	return (char*)r;
 }
 
-char* LineHead(const char* str) {
+char* LineHead(const char* str, const char* head) {
 	s32 i = 1;
 	
 	for (;; i--) {
-		if (str[i - 1] == '\0')
-			return NULL;
+		if (&str[i] == head)
+			return (char*)&str[i];
 		if (str[i - 1] == '\n' || str[i - 1] == '\r')
 			return (char*)&str[i];
 	}
@@ -3759,6 +3759,7 @@ reprocess:
 		Node_Add(strNodeHead, strNode);
 		
 		MemFile_Free(&in);
+		Free(name);
 		goto reprocess;
 	}
 	
