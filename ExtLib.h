@@ -32,10 +32,11 @@ void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
 
-void* HeapMalloc(Size size);
-char* HeapStrDup(const char* str);
-char* HeapMemDup(const char* data, Size size);
-char* HeapPrint(const char* fmt, ...);
+// Temporary variable alloc, won't last forever
+void* xAlloc(Size size);
+char* xStrDup(const char* str);
+char* xMemDup(const char* data, Size size);
+char* xPrint(const char* fmt, ...);
 
 void Time_Start(u32 slot);
 f64 Time_Get(u32 slot);
@@ -194,7 +195,7 @@ void Color_ToRGB(RGB8* rgb, HSL8* hsl);
 void MemFile_Validate(MemFile* mem);
 MemFile MemFile_Initialize();
 void MemFile_Params(MemFile* memFile, ...);
-void MemFile_Malloc(MemFile* memFile, u32 size);
+void MemFile_Alloc(MemFile* memFile, u32 size);
 void MemFile_Realloc(MemFile* memFile, u32 size);
 void MemFile_Rewind(MemFile* memFile);
 s32 MemFile_Write(MemFile* dest, void* src, u32 size);

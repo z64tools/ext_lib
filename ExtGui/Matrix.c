@@ -512,7 +512,7 @@ Mtx* Matrix_ToMtx(Mtx* dest) {
 }
 
 Mtx* Matrix_NewMtx() {
-	return Matrix_ToMtx(HeapMalloc(sizeof(Mtx)));
+	return Matrix_ToMtx(xAlloc(sizeof(Mtx)));
 }
 
 void Matrix_MtxFMtxFMult(MtxF* mfA, MtxF* mfB, MtxF* dest) {

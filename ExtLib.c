@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 152
+#define THIS_EXTLIB_VERSION 153
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -122,7 +122,7 @@ static _Thread_local u8 sTempHeap[MbToBin(4)];
 static _Thread_local u32 sPosTempHeap = 0;
 static const u32 sSizeTempHeap = MbToBin(4);
 
-void* HeapMalloc(Size size) {
+void* xAlloc(Size size) {
 	u8* ret;
 	
 	if (size < 1)
@@ -135,7 +135,7 @@ void* HeapMalloc(Size size) {
 		return NULL;
 	
 	if (sPosTempHeap + size + 0x10 > sSizeTempHeap) {
-		Log("" PRNT_PRPL "HeapMalloc: " PRNT_YELW "rewind\a");
+		Log("" PRNT_PRPL "xAlloc: " PRNT_YELW "rewind\a");
 		sPosTempHeap = 0;
 	}
 	
@@ -146,12 +146,12 @@ void* HeapMalloc(Size size) {
 	return ret;
 }
 
-char* HeapStrDup(const char* str) {
-	return HeapMemDup(str, strlen(str) + 1);
+char* xStrDup(const char* str) {
+	return xMemDup(str, strlen(str) + 1);
 }
 
-char* HeapMemDup(const char* data, Size size) {
-	char* ret = HeapMalloc(size);
+char* xMemDup(const char* data, Size size) {
+	char* ret = xAlloc(size);
 	
 	if (ret == NULL)
 		return NULL;
@@ -160,7 +160,7 @@ char* HeapMemDup(const char* data, Size size) {
 	return ret;
 }
 
-char* HeapPrint(const char* fmt, ...) {
+char* xPrint(const char* fmt, ...) {
 	char tempBuf[512 * 2];
 	
 	va_list args;
@@ -169,7 +169,7 @@ char* HeapPrint(const char* fmt, ...) {
 	vsnprintf(tempBuf, ArrayCount(tempBuf), fmt, args);
 	va_end(args);
 	
-	return HeapStrDup(tempBuf);
+	return xStrDup(tempBuf);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -320,7 +320,7 @@ char* Dir_File(char* fmt, ...) {
 		return Dir_GetWildcard(argBuf);
 	}
 	
-	buffer = HeapPrint("%s%s", sDirCtx.curPath, argBuf);
+	buffer = xPrint("%s%s", sDirCtx.curPath, argBuf);
 	
 	return buffer;
 }
@@ -352,15 +352,15 @@ char* Dir_GetWildcard(char* x) {
 	if (search == NULL)
 		return NULL;
 	
-	sEnd = HeapStrDup(&search[1]);
-	posPath = Path(HeapPrint("%s%s", sDirCtx.curPath, x));
+	sEnd = xStrDup(&search[1]);
+	posPath = Path(xPrint("%s%s", sDirCtx.curPath, x));
 	
 	if ((uptr)search - (uptr)x > 0) {
-		sStart = HeapMalloc((uptr)search - (uptr)x + 2);
+		sStart = xAlloc((uptr)search - (uptr)x + 2);
 		memcpy(sStart, x, (uptr)search - (uptr)x);
 	}
 	
-	restorePath = HeapStrDup(sDirCtx.curPath);
+	restorePath = xStrDup(sDirCtx.curPath);
 	
 	if (strcmp(posPath, restorePath)) {
 		Dir_Set(posPath);
@@ -376,7 +376,7 @@ char* Dir_GetWildcard(char* x) {
 		if (StrStr(list.item[i], sEnd) && (sStart == NULL || StrStr(list.item[i], sStart))) {
 			ItemList_Free(&list);
 			
-			return HeapPrint("%s%s", posPath, list.item[i]);
+			return xPrint("%s%s", posPath, list.item[i]);
 		}
 	}
 	
@@ -585,7 +585,7 @@ char* Dir_FindFile(const char* str) {
 	}
 	
 	if (file)
-		file = HeapStrDup(file);
+		file = xStrDup(file);
 	
 	ItemList_Free(&list);
 	
@@ -906,7 +906,7 @@ Time ItemList_StatMin(ItemList* list) {
 s32 ItemList_SaveList(ItemList* target, const char* output) {
 	MemFile mem = MemFile_Initialize();
 	
-	MemFile_Malloc(&mem, 512 * target->num);
+	MemFile_Alloc(&mem, 512 * target->num);
 	
 	for (s32 i = 0; i < target->num; i++)
 		MemFile_Printf(&mem, "%s\n", target->item[i]);
@@ -1037,7 +1037,7 @@ char* FileSys_File(const char* str, ...) {
 	
 	Log("%s", str);
 	Assert(buffer != NULL);
-	ret = HeapPrint("%s%s", __sPath, buffer);
+	ret = xPrint("%s%s", __sPath, buffer);
 	Free(buffer);
 	
 	return ret;
@@ -1057,7 +1057,7 @@ char* FileSys_FindFile(const char* str) {
 	}
 	
 	if (file)
-		file = HeapStrDup(file);
+		file = xStrDup(file);
 	
 	ItemList_Free(&list);
 	
@@ -1328,7 +1328,7 @@ char* SysExeO(const char* cmd) {
 	}
 	
 	MemFile_Params(&mem, MEM_REALLOC, true, MEM_END);
-	MemFile_Malloc(&mem, MbToBin(1.0));
+	MemFile_Alloc(&mem, MbToBin(1.0));
 	
 	Malloc(result, 1024);
 	while (fgets(result, 1024, file))
@@ -2158,9 +2158,9 @@ char* StrDupX(const char* src, Size size) {
 }
 
 s32 ParseArgs(char* argv[], char* arg, u32* parArg) {
-	char* s = HeapPrint("%s", arg);
-	char* ss = HeapPrint("-%s", arg);
-	char* sss = HeapPrint("--%s", arg);
+	char* s = xPrint("%s", arg);
+	char* ss = xPrint("-%s", arg);
+	char* sss = xPrint("--%s", arg);
 	char* tst[] = {
 		s, ss, sss
 	};
@@ -2210,7 +2210,7 @@ char* Path(const char* src) {
 	if (slash == 0)
 		slash = -1;
 	
-	buffer = HeapMalloc(slash + 1 + 1);
+	buffer = xAlloc(slash + 1 + 1);
 	memcpy(buffer, src, slash + 1);
 	buffer[slash + 1] = '\0';
 	
@@ -2246,7 +2246,7 @@ char* PathSlot(const char* src, s32 num) {
 	}
 	end++;
 	
-	buffer = HeapMalloc(end - start + 1);
+	buffer = xAlloc(end - start + 1);
 	
 	memcpy(buffer, &src[start], end - start);
 	buffer[end - start] = '\0';
@@ -2273,7 +2273,7 @@ char* Basename(const char* src) {
 		while (src[point] > ' ') point++;
 	}
 	
-	buffer = HeapMalloc(point - slash + 1);
+	buffer = xAlloc(point - slash + 1);
 	
 	memcpy(buffer, &src[slash], point - slash);
 	buffer[point - slash] = '\0';
@@ -2306,7 +2306,7 @@ char* Filename(const char* src) {
 		while (src[point] > ' ') point++;
 	}
 	
-	buffer = HeapMalloc(point - slash + ext + 1);
+	buffer = xAlloc(point - slash + ext + 1);
 	
 	memcpy(buffer, &src[slash], point - slash + ext);
 	buffer[point - slash + ext] = '\0';
@@ -2459,7 +2459,7 @@ char* CopyLine(const char* str, s32 line) {
 		}
 	}
 	
-	buffer = HeapMalloc(j + 1);
+	buffer = xAlloc(j + 1);
 	
 	memcpy(buffer, &str[i], j);
 	buffer[j] = '\0';
@@ -2495,7 +2495,7 @@ char* CopyWord(const char* str, s32 word) {
 		}
 	}
 	
-	buffer = HeapMalloc(j + 1);
+	buffer = xAlloc(j + 1);
 	
 	memcpy(buffer, &str[i], j);
 	buffer[j] = '\0';
@@ -2510,7 +2510,7 @@ char* PathRel_From(const char* from, const char* item) {
 	s32 subCnt = 0;
 	char* sub = (char*)&work[lenCom];
 	char* fol = (char*)&item[lenCom];
-	char* buffer = HeapMalloc(strlen(work) + strlen(item));
+	char* buffer = xAlloc(strlen(work) + strlen(item));
 	
 	forstr(i, sub) {
 		if (sub[i] == '/' || sub[i] == '\\')
@@ -2527,7 +2527,7 @@ char* PathRel_From(const char* from, const char* item) {
 
 char* PathAbs_From(const char* from, const char* item) {
 	item = StrSlash(StrUnq(item));
-	char* path = StrSlash(HeapStrDup(from));
+	char* path = StrSlash(xStrDup(from));
 	char* t = StrStr(item, "../");
 	char* f = (char*)item;
 	s32 subCnt = 0;
@@ -2543,7 +2543,7 @@ char* PathAbs_From(const char* from, const char* item) {
 		path = Path(path);
 	}
 	
-	return HeapPrint("%s%s", path, f);
+	return xPrint("%s%s", path, f);
 }
 
 char* PathRel(const char* item) {
@@ -2877,11 +2877,11 @@ void MemFile_Params(MemFile* memFile, ...) {
 	va_end(args);
 }
 
-void MemFile_Malloc(MemFile* memFile, u32 size) {
+void MemFile_Alloc(MemFile* memFile, u32 size) {
 	if (memFile->param.initKey != 0xD0E0A0D0B0E0E0F0) {
 		*memFile = MemFile_Initialize();
 	} else if (memFile->data) {
-		Log("MemFile_Malloc: Mallocing already allocated MemFile [%s], freeing and reallocating!", memFile->info.name);
+		Log("MemFile_Alloc: Mallocing already allocated MemFile [%s], freeing and reallocating!", memFile->info.name);
 		MemFile_Free(memFile);
 	}
 	
@@ -3033,7 +3033,7 @@ s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
 	
 	MemFile_Validate(memFile);
 	if (memFile->data == NULL) {
-		MemFile_Malloc(memFile, tempSize);
+		MemFile_Alloc(memFile, tempSize);
 		memFile->memSize = memFile->dataSize = tempSize;
 		if (memFile->data == NULL) {
 			printf_warning("Failed to malloc MemFile.\n\tAttempted size is [0x%X] bytes to store data from [%s].", tempSize, filepath);
@@ -3072,7 +3072,7 @@ s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath) {
 	
 	MemFile_Validate(memFile);
 	if (memFile->data == NULL) {
-		MemFile_Malloc(memFile, tempSize + 0x10);
+		MemFile_Alloc(memFile, tempSize + 0x10);
 		memFile->memSize = tempSize + 0x10;
 		memFile->dataSize = tempSize;
 		if (memFile->data == NULL) {
@@ -3379,7 +3379,7 @@ const char* Music_NoteWord(s32 note) {
 	
 	note %= 12;
 	
-	return HeapPrint("%s%d", sNoteName[note], (s32)floorf(octave));
+	return xPrint("%s%d", sNoteName[note], (s32)floorf(octave));
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -3473,7 +3473,7 @@ wchar* StrU8(const char* str) {
 	
 #ifdef _WIN32
 	u32 ln = MultiByteToWideChar(CP_UTF8, 0, str, strlen(str), 0, 0);
-	out = HeapMalloc(ln + 1);
+	out = xAlloc(ln + 1);
 	if (!out)
 		printf_error("Failed to convert UTF8 to WCHAR");
 	MultiByteToWideChar(CP_UTF8, 0, str, strlen(str), (void*)out, ln);
@@ -3485,7 +3485,7 @@ wchar* StrU8(const char* str) {
 }
 // Unquote
 char* StrUnq(const char* str) {
-	char* new = HeapStrDup(str);
+	char* new = xStrDup(str);
 	
 	if (StrStr(str, "\"") || StrStr(str, "'")) {
 		while (new[0] != '\"' && new[0] != '\'')
@@ -3546,7 +3546,7 @@ char* String_GetSpacedArg(char* argv[], s32 cur) {
 			strcat(tempBuf, argv[i++]);
 		}
 		
-		return HeapStrDup(tempBuf);
+		return xStrDup(tempBuf);
 	}
 	
 	return argv[cur];
@@ -3684,7 +3684,7 @@ char* Config_GetVariable(const char* str, const char* name) {
 				while (p[size - 1] <= ' ')
 					size--;
 			
-			buf = HeapMalloc(size + 1);
+			buf = xAlloc(size + 1);
 			memcpy(buf, p + isString, size - isString);
 			
 			ret = buf;
@@ -3702,7 +3702,7 @@ void Config_ProcessIncludes(MemFile* mem) {
 	StrNode* strNode = NULL;
 	
 	Calloc(strNode, sizeof(StrNode));
-	strNode->txt = HeapStrDup(mem->info.name);
+	strNode->txt = xStrDup(mem->info.name);
 	Node_Add(strNodeHead, strNode);
 	
 reprocess:
@@ -3904,7 +3904,7 @@ void Config_GotoSection(const char* section) {
 void Config_ListVariables(MemFile* mem, ItemList* list, const char* section) {
 	char* line = mem->str;
 	u32 lineNum;
-	char* wordA = HeapMalloc(64);
+	char* wordA = xAlloc(64);
 	
 	ItemList_Validate(list);
 	ItemList_Alloc(list, 256, 256 * 64);
@@ -3945,7 +3945,7 @@ void Config_ListVariables(MemFile* mem, ItemList* list, const char* section) {
 
 static void Config_FollowUpComment(MemFile* mem, const char* comment) {
 	if (comment)
-		MemFile_Printf(mem, HeapPrint(" # %s", comment));
+		MemFile_Printf(mem, xPrint(" # %s", comment));
 	MemFile_Printf(mem, "\n");
 }
 
@@ -3979,7 +3979,7 @@ s32 Config_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, 
 
 void Config_WriteComment(MemFile* mem, const char* comment) {
 	if (comment)
-		MemFile_Printf(mem, HeapPrint("# %s", comment));
+		MemFile_Printf(mem, xPrint("# %s", comment));
 	MemFile_Printf(mem, "\n");
 }
 
@@ -4053,7 +4053,7 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 	if (*line == '\t') return NULL;
 	while (line[size] != '\t' && line[size] != '\0' && line[size] != '\n') size++;
 	
-	r = HeapMalloc(size + 1);
+	r = xAlloc(size + 1);
 	memcpy(r, line, size);
 	
 	return r;
