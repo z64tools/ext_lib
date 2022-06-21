@@ -112,7 +112,7 @@ void Input_TextCallback(GLFWwindow* window, u32 scancode) {
 		if (scancode > 0x7F) {
 			printf("\a");
 		} else {
-			strcat(input->buffer, xPrint("%c", (char)scancode));
+			strcat(input->buffer, xFmt("%c", (char)scancode));
 		}
 	}
 }

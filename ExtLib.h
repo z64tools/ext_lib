@@ -36,7 +36,7 @@ void32 VirtualToSegmented(const u8 id, void* ptr);
 void* xAlloc(Size size);
 char* xStrDup(const char* str);
 char* xMemDup(const char* data, Size size);
-char* xPrint(const char* fmt, ...);
+char* xFmt(const char* fmt, ...);
 
 void Time_Start(u32 slot);
 f64 Time_Get(u32 slot);

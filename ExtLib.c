@@ -160,16 +160,20 @@ char* xMemDup(const char* data, Size size) {
 	return ret;
 }
 
-char* xPrint(const char* fmt, ...) {
-	char tempBuf[512 * 2];
+char* xFmt(const char* fmt, ...) {
+	char* tempBuf;
+	char* r;
 	
 	va_list args;
 	
 	va_start(args, fmt);
-	vsnprintf(tempBuf, ArrayCount(tempBuf), fmt, args);
+	vasprintf(&tempBuf, fmt, args);
 	va_end(args);
 	
-	return xStrDup(tempBuf);
+	r = xStrDup(tempBuf);
+	Free(tempBuf);
+	
+	return r;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -320,7 +324,7 @@ char* Dir_File(char* fmt, ...) {
 		return Dir_GetWildcard(argBuf);
 	}
 	
-	buffer = xPrint("%s%s", sDirCtx.curPath, argBuf);
+	buffer = xFmt("%s%s", sDirCtx.curPath, argBuf);
 	
 	return buffer;
 }
@@ -353,7 +357,7 @@ char* Dir_GetWildcard(char* x) {
 		return NULL;
 	
 	sEnd = xStrDup(&search[1]);
-	posPath = Path(xPrint("%s%s", sDirCtx.curPath, x));
+	posPath = Path(xFmt("%s%s", sDirCtx.curPath, x));
 	
 	if ((uptr)search - (uptr)x > 0) {
 		sStart = xAlloc((uptr)search - (uptr)x + 2);
@@ -376,7 +380,7 @@ char* Dir_GetWildcard(char* x) {
 		if (StrStr(list.item[i], sEnd) && (sStart == NULL || StrStr(list.item[i], sStart))) {
 			ItemList_Free(&list);
 			
-			return xPrint("%s%s", posPath, list.item[i]);
+			return xFmt("%s%s", posPath, list.item[i]);
 		}
 	}
 	
@@ -1037,7 +1041,7 @@ char* FileSys_File(const char* str, ...) {
 	
 	Log("%s", str);
 	Assert(buffer != NULL);
-	ret = xPrint("%s%s", __sPath, buffer);
+	ret = xFmt("%s%s", __sPath, buffer);
 	Free(buffer);
 	
 	return ret;
@@ -2158,9 +2162,9 @@ char* StrDupX(const char* src, Size size) {
 }
 
 s32 ParseArgs(char* argv[], char* arg, u32* parArg) {
-	char* s = xPrint("%s", arg);
-	char* ss = xPrint("-%s", arg);
-	char* sss = xPrint("--%s", arg);
+	char* s = xFmt("%s", arg);
+	char* ss = xFmt("-%s", arg);
+	char* sss = xFmt("--%s", arg);
 	char* tst[] = {
 		s, ss, sss
 	};
@@ -2543,7 +2547,7 @@ char* PathAbs_From(const char* from, const char* item) {
 		path = Path(path);
 	}
 	
-	return xPrint("%s%s", path, f);
+	return xFmt("%s%s", path, f);
 }
 
 char* PathRel(const char* item) {
@@ -3379,7 +3383,7 @@ const char* Music_NoteWord(s32 note) {
 	
 	note %= 12;
 	
-	return xPrint("%s%d", sNoteName[note], (s32)floorf(octave));
+	return xFmt("%s%d", sNoteName[note], (s32)floorf(octave));
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -3945,7 +3949,7 @@ void Config_ListVariables(MemFile* mem, ItemList* list, const char* section) {
 
 static void Config_FollowUpComment(MemFile* mem, const char* comment) {
 	if (comment)
-		MemFile_Printf(mem, xPrint(" # %s", comment));
+		MemFile_Printf(mem, xFmt(" # %s", comment));
 	MemFile_Printf(mem, "\n");
 }
 
@@ -3979,7 +3983,7 @@ s32 Config_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, 
 
 void Config_WriteComment(MemFile* mem, const char* comment) {
 	if (comment)
-		MemFile_Printf(mem, xPrint("# %s", comment));
+		MemFile_Printf(mem, xFmt("# %s", comment));
 	MemFile_Printf(mem, "\n");
 }
 
