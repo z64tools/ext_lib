@@ -2117,41 +2117,30 @@ void ByteSwap(void* src, s32 size) {
 	}
 }
 
-void* ____Malloc(void* data, s32 size) {
-	data = malloc(size);
-	
-	return data;
+void* __Malloc(s32 size) {
+	return malloc(size);
 }
 
-void* ____Calloc(void* data, s32 size) {
-	data = malloc(size);
-	if (data != NULL) {
-		memset(data, 0, size);
-	}
-	
-	return data;
+void* __Calloc(s32 size) {
+	return calloc(1, size);
 }
 
-void* ____Realloc(void* data, s32 size) {
-	data = realloc(data, size);
+void* __Realloc(const void* data, s32 size) {
+	return realloc((void*)data, size);
+}
+
+void* __Free(const void* data) {
+	if (data)
+		free((void*)data);
 	
-	if (data == NULL) {
-		printf_error("Could not reallocate to [0x%X] bytes.", size);
-	}
-	
-	return data;
+	return NULL;
 }
 
 void* MemDup(const void* src, Size size) {
-	void* new;
-	
 	if (src == NULL)
 		return NULL;
 	
-	new = ____Malloc(0, size);
-	memcpy(new, src, size);
-	
-	return new;
+	return memcpy(__Malloc(size), src, size);
 }
 
 char* StrDup(const char* src) {
@@ -2162,22 +2151,10 @@ char* StrDup(const char* src) {
 }
 
 char* StrDupX(const char* src, Size size) {
-	void* new;
-	
 	if (src == NULL)
 		return NULL;
 	
-	new = ____Malloc(0, Max(size, strlen(src) + 1));
-	strcpy(new, src);
-	
-	return new;
-}
-
-void* ____Free(const void* data) {
-	if (data != NULL)
-		free((void*)data);
-	
-	return NULL;
+	return strcpy(__Malloc(Max(size, strlen(src) + 1)), src);
 }
 
 s32 ParseArgs(char* argv[], char* arg, u32* parArg) {
@@ -2612,7 +2589,7 @@ typedef struct PostFreeNode {
 static PostFreeNode* sPostFreeHead;
 static s32 sOnExitFlag;
 
-static void ____PostFree(s32 i, void* arg) {
+static void __PostFree(s32 i, void* arg) {
 	while (sPostFreeHead) {
 		Free(sPostFreeHead->ptr);
 		Node_Kill(sPostFreeHead, sPostFreeHead);
@@ -2625,9 +2602,9 @@ void* qFree(const void* ptr) {
 	if (!sOnExitFlag) {
 		sOnExitFlag++;
 #ifdef _WIN32
-		if (!_onexit((void*)____PostFree))
+		if (!_onexit((void*)__PostFree))
 #else
-		if (on_exit(____PostFree, NULL))
+		if (on_exit(__PostFree, NULL))
 #endif
 			printf_error("Could not init OnExit");
 	}
@@ -4234,8 +4211,8 @@ void Log_Init() {
 		signal(i, Log_Signal);
 	
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-		sLogMsg[i] = ____Calloc(0, FAULT_BUFFER_SIZE);
-		sLogFunc[i] = ____Calloc(0, FAULT_BUFFER_SIZE * 0.25);
+		sLogMsg[i] = __Calloc(FAULT_BUFFER_SIZE);
+		sLogFunc[i] = __Calloc(FAULT_BUFFER_SIZE * 0.25);
 	}
 	
 	sLogInit = true;
@@ -4246,8 +4223,8 @@ void Log_Free() {
 		return;
 	sLogInit = 0;
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-		____Free(sLogMsg[i]);
-		____Free(sLogFunc[i]);
+		__Free(sLogMsg[i]);
+		__Free(sLogFunc[i]);
 	}
 }
 

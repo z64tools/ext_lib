@@ -149,13 +149,13 @@ void* StrStrCase(const char* strA, const char* strB);
 void* MemMemAlign(u32 val, const void* haystack, size_t haySize, const void* needle, size_t needleSize);
 char* StrEnd(const char* src, const char* ext);
 char* StrEndCase(const char* src, const char* ext);
-void* ____Malloc(void* data, s32 size);
-void* ____Calloc(void* data, s32 size);
-void* ____Realloc(void* data, s32 size);
+void* __Malloc(s32 size);
+void* __Calloc(s32 size);
+void* __Realloc(const void* data, s32 size);
 void* MemDup(const void* src, Size size);
 char* StrDup(const char* src);
 char* StrDupX(const char* src, Size size);
-void* ____Free(const void* data);
+void* __Free(const void* data);
 void ByteSwap(void* src, s32 size);
 s32 ParseArgs(char* argv[], char* arg, u32* parArg);
 void SlashAndPoint(const char* src, s32* slash, s32* point);
@@ -418,25 +418,25 @@ void Sound_Xm_Stop();
 
 #define Malloc(data, size) { \
 		Log("Malloc(%s); %.2f Kb", #data, BinToKb(size)); \
-		data = ____Malloc(0, size); \
-		Assert(data != NULL); \
-}
-
-#define Realloc(data, size) { \
-		Log("Realloc(%s); %.2f Kb", #data, BinToKb(size)); \
-		data = ____Realloc(data, size); \
+		data = __Malloc(size); \
 		Assert(data != NULL); \
 }
 
 #define Calloc(data, size) { \
 		Log("Calloc(%s); %.2f Kb", #data, BinToKb(size)); \
-		data = ____Calloc(0, size); \
+		data = __Calloc(size); \
+		Assert(data != NULL); \
+}
+
+#define Realloc(data, size) { \
+		Log("Realloc(%s); %.2f Kb", #data, BinToKb(size)); \
+		data = __Realloc(data, size); \
 		Assert(data != NULL); \
 }
 
 #define Free(data) { \
 		Log("Free(%s);", #data ); \
-		data = ____Free(data); \
+		data = __Free(data); \
 }
 
 #define Main(y1, y2) main(y1, y2)
