@@ -3461,8 +3461,8 @@ s32 StrRep(char* src, const char* word, const char* replacement) {
 	while (ptr != NULL) {
 		u32 remLen = strlen(ptr + wordLen);
 		memmove(ptr + repLen, ptr + wordLen, remLen + 1);
-		strcpy(ptr, replacement);
-		ptr = StrStr(ptr  + repLen, word);
+		memcpy(ptr, replacement, repLen);
+		ptr = StrStr(ptr + repLen, word);
 		diff = true;
 	}
 	
@@ -3485,7 +3485,7 @@ s32 StrRepWhole(char* src, const char* word, const char* replacement) {
 	while (ptr != NULL) {
 		u32 remLen = strlen(ptr + wordLen);
 		memmove(ptr + repLen, ptr + wordLen, remLen + 1);
-		strcpy(ptr, replacement);
+		memcpy(ptr, replacement, repLen);
 		ptr = StrStrWhole(ptr  + repLen, word);
 		diff = true;
 	}
