@@ -284,8 +284,8 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 			}
 			
 			if (strlen(buffer) > 4) {
-				s32 posA = (uPtr)txtA - (uPtr)buffer;
-				s32 posB = (uPtr)txtB - (uPtr)buffer;
+				s32 posA = (uptr)txtA - (uptr)buffer;
+				s32 posB = (uptr)txtB - (uptr)buffer;
 				
 				if (sTextPos < posA || sTextPos > posB + 1 || posB - posA <= 4) {
 					if (sTextPos < posA) {
@@ -340,12 +340,12 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 					if (res < dist) {
 						dist = res;
 						
-						sTextPos = (uPtr)tempB - (uPtr)buffer;
+						sTextPos = (uptr)tempB - (uptr)buffer;
 					}
 				}
 			} else {
 				f32 dist = 400;
-				uPtr wow = 0;
+				uptr wow = 0;
 				for (char* tempB = txtA; tempB <= txtB; tempB++) {
 					Vec2s glyphPos;
 					f32 res;
@@ -357,7 +357,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 					
 					if (res < dist) {
 						dist = res;
-						wow = (uPtr)tempB - (uPtr)buffer;
+						wow = (uptr)tempB - (uptr)buffer;
 					}
 				}
 				

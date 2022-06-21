@@ -111,7 +111,7 @@ void* SegmentedToVirtual(const u8 id, void32 ptr) {
 }
 
 void32 VirtualToSegmented(const u8 id, void* ptr) {
-	return (uPtr)ptr - (uPtr)sSegment[id];
+	return (uptr)ptr - (uptr)sSegment[id];
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -355,9 +355,9 @@ char* Dir_GetWildcard(char* x) {
 	sEnd = HeapStrDup(&search[1]);
 	posPath = Path(HeapPrint("%s%s", sDirCtx.curPath, x));
 	
-	if ((uPtr)search - (uPtr)x > 0) {
-		sStart = HeapMalloc((uPtr)search - (uPtr)x + 2);
-		memcpy(sStart, x, (uPtr)search - (uPtr)x);
+	if ((uptr)search - (uptr)x > 0) {
+		sStart = HeapMalloc((uptr)search - (uptr)x + 2);
+		memcpy(sStart, x, (uptr)search - (uptr)x);
 	}
 	
 	restorePath = HeapStrDup(sDirCtx.curPath);
@@ -764,8 +764,6 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags
 	if (strlen(path) > 0 && !Sys_Stat(path))
 		printf_error("Can't walk path that does not exist! [%s]", path);
 	
-	info.len = 0;
-	info.num = 0;
 	info.flags = flags;
 	
 	ItemList_Walk(target, path, path, 0, depth, &info);
@@ -2874,13 +2872,13 @@ void MemFile_Params(MemFile* memFile, ...) {
 	
 	va_start(args, memFile);
 	for (;;) {
-		cmd = va_arg(args, uPtr);
+		cmd = va_arg(args, uptr);
 		
 		if (cmd == MEM_END) {
 			break;
 		}
 		
-		arg = va_arg(args, uPtr);
+		arg = va_arg(args, uptr);
 		
 		if (cmd == MEM_CLEAR) {
 			cmd = arg;
@@ -3451,7 +3449,7 @@ s32 StrRep(char* src, const char* word, const char* replacement) {
 	s32 diff = 0;
 	char* ptr;
 	
-	if ((uPtr)word >= (uPtr)src && (uPtr)word < (uPtr)src + strlen(src)) {
+	if ((uptr)word >= (uptr)src && (uptr)word < (uptr)src + strlen(src)) {
 		printf("[%s] [%s]", word, replacement);
 		printf_error("Replacing with self!");
 	}
@@ -3475,7 +3473,7 @@ s32 StrRepWhole(char* src, const char* word, const char* replacement) {
 	s32 diff = 0;
 	char* ptr;
 	
-	if ((uPtr)word >= (uPtr)src && (uPtr)word < (uPtr)src + strlen(src)) {
+	if ((uptr)word >= (uptr)src && (uptr)word < (uptr)src + strlen(src)) {
 		printf("[%s] [%s]", word, replacement);
 		printf_error("Replacing with self!");
 	}
