@@ -232,7 +232,7 @@ char* Config_GetVariable(const char* str, const char* name);
 void Config_ProcessIncludes(MemFile* mem);
 
 s32 Config_GetErrorState(void);
-void Config_GetArray(MemFile* mem, ItemList* list, const char* name);
+void Config_GetArray(MemFile* mem, const char* name, ItemList* list);
 s32 Config_GetBool(MemFile* mem, const char* boolName);
 s32 Config_GetOption(MemFile* mem, const char* stringName, char* strList[]);
 s32 Config_GetInt(MemFile* mem, const char* intName);
@@ -248,7 +248,8 @@ void Config_WriteInt(MemFile* mem, const char* variable, const s64 integer, cons
 void Config_WriteHex(MemFile* mem, const char* variable, const s64 integer, const char* comment);
 void Config_WriteStr(MemFile* mem, const char* variable, const char* str, bool quote, const char* comment);
 void Config_WriteFloat(MemFile* mem, const char* variable, const f64 flo, const char* comment);
-void Config_WriteSection(MemFile* mem, const char* variable);
+void Config_WriteBool(MemFile* mem, const char* variable, const s32 val, const char* comment);
+void Config_WriteSection(MemFile* mem, const char* variable, const char* comment);
 #define Config_Print(mem, ...) MemFile_Printf(mem, __VA_ARGS__)
 #define NO_COMMENT NULL
 #define QUOTES     1

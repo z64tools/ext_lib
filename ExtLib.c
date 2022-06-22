@@ -3376,7 +3376,7 @@ s32 Config_GetErrorState(void) {
 	return ret;
 }
 
-void Config_GetArray(MemFile* mem, ItemList* list, const char* variable) {
+void Config_GetArray(MemFile* mem, const char* variable, ItemList* list) {
 	char* array;
 	char* tmp;
 	u32 size = 0;
@@ -3623,8 +3623,16 @@ void Config_WriteFloat(MemFile* mem, const char* variable, const f64 flo, const 
 	Config_FollowUpComment(mem, comment);
 }
 
-void Config_WriteSection(MemFile* mem, const char* variable) {
-	MemFile_Printf(mem, "[%s]\n", variable);
+void Config_WriteBool(MemFile* mem, const char* variable, const s32 val, const char* comment) {
+	MemFile_Printf(mem, "%-15s = %s", variable, val ? "true" : "false");
+	Config_FollowUpComment(mem, comment);
+}
+
+void Config_WriteSection(MemFile* mem, const char* variable, const char* comment) {
+	MemFile_Printf(mem, "[%s]", variable);
+	if (comment)
+		MemFile_Printf(mem, " # %s", comment);
+	MemFile_Printf(mem, "\n");
 }
 
 // # # # # # # # # # # # # # # # # # # # #
