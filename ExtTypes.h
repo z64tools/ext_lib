@@ -6,6 +6,8 @@
 #include <pthread.h>
 // __attribute__((scalar_storage_order("big-endian")))
 
+#pragma GCC diagnostic ignored "-Wscalar-storage-order"
+
 typedef signed char s8;
 typedef unsigned char u8;
 typedef signed short int s16;

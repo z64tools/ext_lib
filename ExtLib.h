@@ -41,23 +41,6 @@ char* xFmt(const char* fmt, ...);
 void Time_Start(u32 slot);
 f64 Time_Get(u32 slot);
 
-void Dir_SetParam(DirParam w);
-void Dir_UnsetParam(DirParam w);
-void Dir_Set(char* path, ...);
-void Dir_Enter(char* fmt, ...);
-void Dir_Leave(void);
-void Dir_Make(char* dir, ...);
-void Dir_MakeCurrent(void);
-char* Dir_Current(void);
-char* Dir_File(char* fmt, ...);
-Time Dir_Stat(const char* item);
-char* Dir_GetWildcard(char* x);
-void Dir_ItemList(ItemList* itemList, bool isPath);
-void Dir_ItemList_Recursive(ItemList* target, char* keyword);
-void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not);
-void Dir_ItemList_Keyword(ItemList* itemList, char* ext);
-char* Dir_FindFile(const char* str);
-
 void FileSys_MakePath(s32 flag);
 void FileSys_Path(const char* fmt, ...);
 char* FileSys_File(const char* str, ...);
@@ -412,6 +395,16 @@ void Sound_Xm_Stop();
 #define MbToBin(x)        (u32)(0x100000 * (x))
 #define KbToBin(x)        (u32)(0x400 * (x))
 #define Align(var, align) ((((var) % (align)) != 0) ? (var) + (align) - ((var) % (align)) : (var))
+
+#define VA1(NAME, ...)                                 NAME
+#define VA2(_1, NAME, ...)                             NAME
+#define VA3(_1, _2, NAME, ...)                         NAME
+#define VA4(_1, _2, _3, NAME, ...)                     NAME
+#define VA5(_1, _2, _3, _4, NAME, ...)                 NAME
+#define VA6(_1, _2, _3, _4, _5, NAME, ...)             NAME
+#define VA7(_1, _2, _3, _4, _5, _6, NAME, ...)         NAME
+#define VA8(_1, _2, _3, _4, _5, _6, _7, NAME, ...)     NAME
+#define VA9(_1, _2, _3, _4, _5, _6, _7, _8, NAME, ...) NAME
 
 #define NARGS_SEQ(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, N, ...) N
 #define NARGS(...) \
