@@ -372,7 +372,7 @@ void GeoGrid_KillSplit(GeoGrid* geoGrid, Split* split, SplitDir dir) {
 	GeoGrid_Update_SplitRect(split);
 }
 
-GeoGrid* __geoCtx;
+static GeoGrid* __geoCtx;
 
 s32 Split_Cursor(Split* split, s32 result) {
 	if (__geoCtx->ctxMenu.num != 0 ||
@@ -995,8 +995,9 @@ void GeoGrid_Draw_Splits(GeoGrid* geoGrid) {
 	Split* split = geoGrid->splitHead;
 	Vec2s* winDim = geoGrid->winDim;
 	
-	while (split != NULL) {
+	for (; split != NULL; split = split->next) {
 		GeoGrid_Update_SplitRect(split);
+		
 		glViewport(
 			split->rect.x,
 			winDim->y - split->rect.y - split->rect.h,
@@ -1006,8 +1007,6 @@ void GeoGrid_Draw_Splits(GeoGrid* geoGrid) {
 		nvgBeginFrame(geoGrid->vg, split->rect.w, split->rect.h, gPixelRatio); {
 			GeoGrid_Draw_SplitBorder(geoGrid, split);
 		} nvgEndFrame(geoGrid->vg);
-		
-		split = split->next;
 	}
 }
 

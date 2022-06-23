@@ -13,14 +13,6 @@ static void Interface_Draw() {
 	if (!glfwGetWindowAttrib(__appInfo->mainWindow, GLFW_ICONIFIED))
 		__appInfo->updateCall(__appInfo->context);
 	
-	glClearColor(
-		0.0f,
-		0.0f,
-		0.0f,
-		1.0f
-	);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	
 	if (__appInfo->drawCall) {
 		if (!glfwGetWindowAttrib(__appInfo->mainWindow, GLFW_ICONIFIED)) {
 			s32 winWidth, winHeight;
@@ -99,7 +91,6 @@ void* Interface_Init(const char* title, AppInfo* appInfo, InputContext* inputCtx
 	Log("Init Matrix, Input and set Framerate");
 	Matrix_Init();
 	Input_Init(inputCtx);
-	glfwSetTime(2);
 	
 	Log("Done!");
 	

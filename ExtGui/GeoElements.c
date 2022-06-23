@@ -792,7 +792,7 @@ f32 Element_Slider(GeoGridContext* geoCtx, Split* split, ElSlider* this) {
 				this->isSliding = true;
 			}
 		} else if (Input_GetMouse(MOUSE_L)->release && this->holdState) {
-			if (this->isSliding == false) {
+			if (this->isSliding == false && GeoGrid_Cursor_InRect(split, &this->rect)) {
 				Element_Slider_SetTextbox(split, this);
 			}
 			this->isSliding = false;
