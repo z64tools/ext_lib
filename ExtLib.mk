@@ -50,7 +50,7 @@ Audio_Win32_O   = $(foreach f,$(Audio_C:.c=.o), bin/win32/$f)
 Mp3_Win32_O     = $(foreach f,$(Mp3_C:.c=.o), bin/win32/$f)
 Xm_Win32_O      = $(foreach f,$(Xm_C:.c=.o), bin/win32/$f)
 
-ExtGui_Linux_Flags = -lglfw
+ExtGui_Linux_Flags = -lGL -lglfw
 ExtGui_Win32_Flags = `i686-w64-mingw32.static-pkg-config --cflags --libs glfw3`
 
 # Make build directories
