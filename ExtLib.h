@@ -309,7 +309,7 @@ void Sound_Xm_Stop();
 }
 
 #define Node_Kill(head, node) { \
-		typeof(node) kill = node; \
+		typeof(node) __kill_nodeExt = node; \
 		if (node->next) { \
 			node->next->prev = node->prev; \
 		} \
@@ -318,7 +318,7 @@ void Sound_Xm_Stop();
 		} else { \
 			head = node->next; \
 		} \
-		Free(kill); \
+		Free(__kill_nodeExt); \
 }
 
 #define Node_Remove(head, node) { \

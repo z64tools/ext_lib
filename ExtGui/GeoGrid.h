@@ -187,7 +187,7 @@ typedef struct GeoGridContext {
 	void*  passArg;
 	SplitTask* taskTable;
 	s32    taskTableNum;
-} GeoGridContext;
+} GeoGridContext, GeoGrid;
 
 Split* GeoGrid_AddSplit(GeoGridContext* geoCtx, Rectf32* rect);
 
