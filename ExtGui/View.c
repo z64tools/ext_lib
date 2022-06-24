@@ -40,9 +40,9 @@ void View_Camera_FlyMode(ViewContext* viewCtx, InputContext* inputCtx) {
 	
 	if (viewCtx->flyMode.vel.z || viewCtx->flyMode.vel.x || (viewCtx->cameraControl && inputCtx->mouse.clickL.hold)) {
 		VecSph camSph = {
-			.r = Vec_Vec3f_DistXYZ(eye, at),
-			.yaw = Vec_Yaw(at, eye),
-			.pitch = Vec_Pitch(at, eye)
+			.r = Math_Vec3f_DistXYZ(eye, at),
+			.yaw = Math_Vec3f_Yaw(at, eye),
+			.pitch = Math_Vec3f_Pitch(at, eye)
 		};
 		
 		if (viewCtx->cameraControl && inputCtx->mouse.clickL.hold) {
@@ -52,36 +52,36 @@ void View_Camera_FlyMode(ViewContext* viewCtx, InputContext* inputCtx) {
 		
 		*at = *eye;
 		
-		Vec_AddVecSphToVec3f(at, &camSph);
+		Math_AddVecSphToVec3f(at, &camSph);
 	}
 	
 	if (viewCtx->flyMode.vel.z || viewCtx->flyMode.vel.x) {
 		VecSph velSph = {
 			.r = viewCtx->flyMode.vel.z * 1000,
-			.yaw = Vec_Yaw(at, eye),
-			.pitch = Vec_Pitch(at, eye)
+			.yaw = Math_Vec3f_Yaw(at, eye),
+			.pitch = Math_Vec3f_Pitch(at, eye)
 		};
 		
-		Vec_AddVecSphToVec3f(eye, &velSph);
-		Vec_AddVecSphToVec3f(at, &velSph);
+		Math_AddVecSphToVec3f(eye, &velSph);
+		Math_AddVecSphToVec3f(at, &velSph);
 		
 		velSph = (VecSph) {
 			.r = viewCtx->flyMode.vel.x * 1000,
-			.yaw = Vec_Yaw(at, eye) + 0x3FFF,
+			.yaw = Math_Vec3f_Yaw(at, eye) + 0x3FFF,
 			.pitch = 0
 		};
 		
-		Vec_AddVecSphToVec3f(eye, &velSph);
-		Vec_AddVecSphToVec3f(at, &velSph);
+		Math_AddVecSphToVec3f(eye, &velSph);
+		Math_AddVecSphToVec3f(at, &velSph);
 	}
 }
 
 void View_Camera_OrbitMode(ViewContext* viewCtx, InputContext* inputCtx) {
 	Camera* cam = viewCtx->currentCamera;
 	VecSph orbitSph = {
-		.r = Vec_Vec3f_DistXYZ(&cam->at, &cam->eye),
-		.yaw = Vec_Yaw(&cam->eye, &cam->at),
-		.pitch = Vec_Pitch(&cam->eye, &cam->at)
+		.r = Math_Vec3f_DistXYZ(&cam->at, &cam->eye),
+		.yaw = Math_Vec3f_Yaw(&cam->eye, &cam->at),
+		.pitch = Math_Vec3f_Pitch(&cam->eye, &cam->at)
 	};
 	f32 distMult = (orbitSph.r * 0.1);
 	
@@ -91,21 +91,21 @@ void View_Camera_OrbitMode(ViewContext* viewCtx, InputContext* inputCtx) {
 				if (inputCtx->key[KEY_LEFT_SHIFT].hold) {
 					VecSph velSph = {
 						.r = inputCtx->mouse.vel.y * distMult * 0.01f,
-						.yaw = Vec_Yaw(&cam->at, &cam->eye),
-						.pitch = Vec_Pitch(&cam->at, &cam->eye) + 0x3FFF
+						.yaw = Math_Vec3f_Yaw(&cam->at, &cam->eye),
+						.pitch = Math_Vec3f_Pitch(&cam->at, &cam->eye) + 0x3FFF
 					};
 					
-					Vec_AddVecSphToVec3f(&cam->eye, &velSph);
-					Vec_AddVecSphToVec3f(&cam->at, &velSph);
+					Math_AddVecSphToVec3f(&cam->eye, &velSph);
+					Math_AddVecSphToVec3f(&cam->at, &velSph);
 					
 					velSph = (VecSph) {
 						.r = inputCtx->mouse.vel.x * distMult * 0.01f,
-						.yaw = Vec_Yaw(&cam->at, &cam->eye) + 0x3FFF,
+						.yaw = Math_Vec3f_Yaw(&cam->at, &cam->eye) + 0x3FFF,
 						.pitch = 0
 					};
 					
-					Vec_AddVecSphToVec3f(&cam->eye, &velSph);
-					Vec_AddVecSphToVec3f(&cam->at, &velSph);
+					Math_AddVecSphToVec3f(&cam->eye, &velSph);
+					Math_AddVecSphToVec3f(&cam->at, &velSph);
 				} else {
 					orbitSph.yaw -= inputCtx->mouse.vel.x * 67;
 					orbitSph.pitch += inputCtx->mouse.vel.y * 67;
@@ -117,7 +117,7 @@ void View_Camera_OrbitMode(ViewContext* viewCtx, InputContext* inputCtx) {
 				orbitSph.r = ClampMin(orbitSph.r - (distMult * (inputCtx->mouse.scrollY)), 0.00001f);
 				cam->eye = cam->at;
 				
-				Vec_AddVecSphToVec3f(&cam->eye, &orbitSph);
+				Math_AddVecSphToVec3f(&cam->eye, &orbitSph);
 			}
 		}
 	}

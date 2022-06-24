@@ -135,7 +135,7 @@ s32 GeoGrid_Cursor_GetDistTo(SplitState flag, Split* split) {
 		}
 	}
 	
-	return Vec_Vec2s_DistXZ(&mouse[i], &pos[i]);
+	return Math_Vec2s_DistXZ(&mouse[i], &pos[i]);
 }
 
 SplitState GeoGrid_GetState_CursorPos(Split* split, s32 range) {
@@ -658,7 +658,7 @@ void GeoGrid_Update_ActionSplit(GeoGrid* geoGrid) {
 	
 	if (Input_GetMouse(MOUSE_ANY)->hold) {
 		if (split->stateFlag & SPLIT_POINTS) {
-			s32 dist = Vec_Vec2s_DistXZ(&split->mousePos, &split->mousePressPos);
+			s32 dist = Math_Vec2s_DistXZ(&split->mousePos, &split->mousePressPos);
 			
 			if (dist > 1) {
 				CursorIndex cid = GeoGrid_GerDir_MouseToPressPos(split) + 1;

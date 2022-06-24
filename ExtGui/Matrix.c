@@ -676,8 +676,8 @@ void Matrix_LookAt(MtxF* mf, Vec3f eye, Vec3f at, s16 roll) {
 	Vec3f up;
 	VecSph vecSph;
 	
-	Vec_Vec3fDiffToVecSphGeo(&vecSph, &eye, &at);
-	Vec_CalcUpFromPitchYawRoll(&up, vecSph.pitch, vecSph.yaw, roll);
+	Math_Vec3fDiffToVecSphGeo(&vecSph, &eye, &at);
+	Math_CalcUpFromPitchYawRoll(&up, vecSph.pitch, vecSph.yaw, roll);
 	
 	Matrix_Clear(mf);
 	

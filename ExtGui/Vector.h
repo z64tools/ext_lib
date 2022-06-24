@@ -5,71 +5,43 @@
 
 extern f64 gDeltaTime;
 
-typedef struct {
-	f32 x;
-	f32 y;
-	f32 z;
-	f32 w;
-} Vec4f;
+#define __EXT_VECTYPEDEF(type, suffix) \
+	typedef struct { \
+		union { \
+			type s[4]; \
+			struct { \
+				type x; \
+				type y; \
+				type z; \
+				type w; \
+			}; \
+		}; \
+	} Vec4 ## suffix; \
+	typedef struct { \
+		union { \
+			type s[3]; \
+			struct { \
+				type x; \
+				type y; \
+				type z; \
+			}; \
+		}; \
+	} Vec3 ## suffix; \
+	typedef struct { \
+		union { \
+			type s[2]; \
+			struct { \
+				type x; \
+				type y; \
+			}; \
+		}; \
+	} Vec2 ## suffix;
 
-typedef struct {
-	union {
-		struct {
-			f32 x;
-			f32 y;
-			f32 z;
-		};
-		f32 s[3];
-	};
-} Vec3f;
-
-typedef struct {
-	f32 x;
-	f32 y;
-} Vec2f;
-
-typedef struct {
-	union {
-		struct {
-			f64 x;
-			f64 y;
-		};
-		f64 s[2];
-	};
-} Vec2d;
-
-typedef struct {
-	s16 x;
-	s16 y;
-	s16 z;
-} Vec3s;
-
-typedef struct {
-	s16 x;
-	s16 y;
-} Vec2s;
-
-typedef struct {
-	s8 x;
-	s8 y;
-	s8 z;
-} Vec3c;
-
-typedef struct {
-	s8 x;
-	s8 y;
-} Vec2c;
-
-typedef struct {
-	s32 x;
-	s32 y;
-	s32 z;
-} Vec3i;
-
-typedef struct {
-	s32 x;
-	s32 y;
-} Vec2i;
+__EXT_VECTYPEDEF(f64, d)
+__EXT_VECTYPEDEF(f32, f)
+__EXT_VECTYPEDEF(s32, i)
+__EXT_VECTYPEDEF(s16, s)
+__EXT_VECTYPEDEF(s8, c)
 
 typedef struct {
 	f32 r;
@@ -99,41 +71,28 @@ typedef struct {
 	s32 y2;
 } CRect;
 
-s16 sins(u16 x);
-s16 coss(u16 angle);
+s16 SinS(u16 x);
+s16 CosS(u16 angle);
 
 s16 Math_Atan2S(f32 x, f32 y);
-f32 Vec_Vec3f_DistXZ(Vec3f* a, Vec3f* b);
-f32 Vec_Vec3f_DistXYZ(Vec3f* a, Vec3f* b);
-f32 Vec_Vec3s_DistXZ(Vec3s* a, Vec3s* b);
-f32 Vec_Vec3s_DistXYZ(Vec3s* a, Vec3s* b);
-f32 Vec_Vec2f_DistXZ(Vec2f* a, Vec2f* b);
-f32 Vec_Vec2s_DistXZ(Vec2s* a, Vec2s* b);
-s16 Vec_Yaw(Vec3f* a, Vec3f* b);
-s16 Vec_Vec2f_Yaw(Vec2f* a, Vec2f* b);
-s16 Vec_Pitch(Vec3f* a, Vec3f* b);
-void Vec_VecSphToVec3f(Vec3f* dest, VecSph* sph);
-void Vec_AddVecSphToVec3f(Vec3f* dest, VecSph* sph);
-VecSph* Vec_Vec3fToVecSph(VecSph* dest, Vec3f* vec);
-VecSph* Vec_Vec3fToVecSphGeo(VecSph* dest, Vec3f* vec);
-VecSph* Vec_Vec3fDiffToVecSphGeo(VecSph* dest, Vec3f* a, Vec3f* b);
-Vec3f* Vec_CalcUpFromPitchYawRoll(Vec3f* dest, s16 pitch, s16 yaw, s16 roll);
+f32 Math_Vec3f_DistXZ(Vec3f* a, Vec3f* b);
+f32 Math_Vec3f_DistXYZ(Vec3f* a, Vec3f* b);
+f32 Math_Vec3s_DistXZ(Vec3s* a, Vec3s* b);
+f32 Math_Vec3s_DistXYZ(Vec3s* a, Vec3s* b);
+f32 Math_Vec2f_DistXZ(Vec2f* a, Vec2f* b);
+f32 Math_Vec2s_DistXZ(Vec2s* a, Vec2s* b);
+s16 Math_Vec3f_Yaw(Vec3f* a, Vec3f* b);
+s16 Math_Vec2f_Yaw(Vec2f* a, Vec2f* b);
+s16 Math_Vec3f_Pitch(Vec3f* a, Vec3f* b);
+void Math_VecSphToVec3f(Vec3f* dest, VecSph* sph);
+void Math_AddVecSphToVec3f(Vec3f* dest, VecSph* sph);
+VecSph* Math_Vec3fToVecSph(VecSph* dest, Vec3f* vec);
+VecSph* Math_Vec3fToVecSphGeo(VecSph* dest, Vec3f* vec);
+VecSph* Math_Vec3fDiffToVecSphGeo(VecSph* dest, Vec3f* a, Vec3f* b);
+Vec3f* Math_CalcUpFromPitchYawRoll(Vec3f* dest, s16 pitch, s16 yaw, s16 roll);
 f32 Math_DelSmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep);
 f64 Math_DelSmoothStepToD(f64* pValue, f64 target, f64 fraction, f64 step, f64 minStep);
 s16 Math_DelSmoothStepToS(s16* pValue, s16 target, s16 scale, s16 step, s16 minStep);
-
-// void Vec_Substract(Vec3f* dest, Vec3f* a, Vec3f* b);
-void Vec_Add(Vec3f* dest, Vec3f* a, Vec3f* b);
-void Vec_Multiply(Vec3f* dest, Vec3f* a, Vec3f* b);
-void Vec_Divide(Vec3f* dest, Vec3f* a, Vec3f* b);
-void Vec_Vec2f_Substract(Vec2f* dest, Vec2f* a, Vec2f* b);
-void Vec_Vec2f_Add(Vec2f* dest, Vec2f* a, Vec2f* b);
-void Vec_Vec2f_Multiply(Vec2f* dest, Vec2f* a, Vec2f* b);
-void Vec_Vec2f_Divide(Vec2f* dest, Vec2f* a, Vec2f* b);
-void Vec_Vec2s_Substract(Vec2s* dest, Vec2s* a, Vec2s* b);
-void Vec_Vec2s_Add(Vec2s* dest, Vec2s* a, Vec2s* b);
-void Vec_Vec2s_Multiply(Vec2s* dest, Vec2s* a, Vec2s* b);
-void Vec_Vec2s_Divide(Vec2s* dest, Vec2s* a, Vec2s* b);
 
 void Rect_ToCRect(CRect* dst, Rect* src);
 void Rect_ToRect(Rect* dst, CRect* src);
@@ -145,66 +104,79 @@ void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
 #define Vec2_Substract(dest, a, b) \
 	dest.x = a.x - b.x; \
 	dest.y = a.y - b.y
-
 #define Vec3_Substract(dest, a, b) \
 	dest.x = a.x - b.x; \
 	dest.y = a.y - b.y; \
 	dest.z = a.z - b.z
+#define Vec4_Substract(dest, a, b) \
+	dest.x = a.x - b.x; \
+	dest.y = a.y - b.y; \
+	dest.z = a.z - b.z; \
+	dest.w = a.w - b.w
 
 #define Vec2_Add(dest, a, b) \
 	dest.x = a.x + b.x; \
 	dest.y = a.y + b.y
-
 #define Vec3_Add(dest, a, b) \
 	dest.x = a.x + b.x; \
-	dest.y = a.y + b.y; \
 	dest.z = a.z + b.z
+#define Vec4_Add(dest, a, b) \
+	dest.x = a.x + b.x; \
+	dest.y = a.y + b.y; \
+	dest.z = a.z + b.z; \
+	dest.w = a.w + b.w;
 
 #define Vec2_Equal(a, b) ( \
 		a.x == b.x && \
 		a.y == b.y \
 )
-
 #define Vec3_Equal(a, b) ( \
 		a.x == b.x && \
 		a.y == b.y && \
 		a.z == b.z \
+)
+#define Vec4_Equal(a, b) ( \
+		a.x == b.x && \
+		a.y == b.y && \
+		a.z == b.z && \
+		a.w == b.w \
 )
 
 #define Vec2_Copy(dest, src) \
 	dest.x = src.x; \
 	dest.y = src.y; \
 	dest.z = src.z
-
 #define Vec3_Copy(dest, src) \
 	dest.x = src.x; \
 	dest.y = src.y; \
 	dest.z = src.z
-
-#define Vec3_CopyBE(dest, src) \
-	dest.x = ReadBE(src.x); \
-	dest.y = ReadBE(src.y); \
-	dest.z = ReadBE(src.z)
+#define Vec4_Copy(dest, src) \
+	dest.x = src.x; \
+	dest.y = src.y; \
+	dest.z = src.z; \
+	dest.w = src.w
 
 #define Vec2_MultVec(dest, src) \
 	dest.x *= src.x; \
 	dest.y *= src.y; \
 	dest.z *= src.z
-
 #define Vec3_MultVec(dest, src) \
 	dest.x *= src.x; \
 	dest.y *= src.y; \
 	dest.z *= src.z
+#define Vec4_MultVec(dest, src) \
+	dest.x *= src.x; \
+	dest.y *= src.y; \
+	dest.z *= src.z; \
+	dest.w *= src.w
 
 #define Vec2_Mult(dest, src) \
 	dest.x *= src; \
 	dest.y *= src;
-
 #define Vec3_Mult(dest, src) \
 	dest.x *= src; \
 	dest.y *= src; \
 	dest.z *= src
-
 #define Vec4_Mult(dest, src) \
 	dest.x *= src; \
 	dest.y *= src; \
@@ -215,11 +187,16 @@ void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
 		(a.x * b.x) + \
 		(a.y * b.y); \
 	})
-
 #define Vec3_Dot(a, b) ({ \
 		(a.x * b.x) + \
 		(a.y * b.y) + \
 		(a.z * b.z); \
+	})
+#define Vec4_Dot(a, b) ({ \
+		(a.x * b.x) + \
+		(a.y * b.y) + \
+		(a.z * b.z) + \
+		(a.w * b.w); \
 	})
 
 #define Vec3_Cross(a, b) ({ \
@@ -236,12 +213,19 @@ void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
 			(a.y * a.y) \
 		); \
 	})
-
 #define Vec3_Magnitude(a) ({ \
 		sqrtf( \
 			(a.x * a.x) + \
 			(a.y * a.y) + \
 			(a.z * a.z) \
+		); \
+	})
+#define Vec4_Magnitude(a) ({ \
+		sqrtf( \
+			(a.x * a.x) + \
+			(a.y * a.y) + \
+			(a.z * a.z) + \
+			(a.w * a.w) \
 		); \
 	})
 
@@ -256,7 +240,6 @@ void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
 		} \
 		ret; \
 	})
-
 #define Vec3_Normalize(a) ({ \
 		typeof(a) ret; \
 		f32 mgn = Vec3_Magnitude(a); \
@@ -266,6 +249,19 @@ void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
 			ret.x = a.x / mgn; \
 			ret.y = a.y / mgn; \
 			ret.z = a.z / mgn; \
+		} \
+		ret; \
+	})
+#define Vec4_Normalize(a) ({ \
+		typeof(a) ret; \
+		f32 mgn = Vec4_Magnitude(a); \
+		if (mgn == 0) { \
+			ret.x = ret.y = ret.z = ret.w = 0; \
+		} else { \
+			ret.x = a.x / mgn; \
+			ret.y = a.y / mgn; \
+			ret.z = a.z / mgn; \
+			ret.w = a.w / mgn; \
 		} \
 		ret; \
 	})
