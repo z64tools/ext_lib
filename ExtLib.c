@@ -3944,7 +3944,7 @@ f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minS
 	return fabsf(target - *pValue);
 }
 
-f32 Math_Spline_Audio(float k, float xm1, float x0, float x1, float x2) {
+f32 Math_Spline_Audio(f32 k, f32 xm1, f32 x0, f32 x1, f32 x2) {
 	f32 a = (3.0f * (x0 - x1) - xm1 + x2) * 0.5f;
 	f32 b = 2.0f * x1 + xm1 - (5.0f * x0 + x2) * 0.5f;
 	f32 c = (x1 - xm1) * 0.5f;
