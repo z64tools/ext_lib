@@ -52,11 +52,12 @@ void* Interface_Init(const char* title, AppInfo* appInfo, InputContext* inputCtx
 	appInfo->winDim.y = y;
 	
 	Log("glfw Init");
-	
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	
+	printf_info(glfwGetVersionString());
 	
 	if (samples)
 		glfwWindowHint(GLFW_SAMPLES, samples);
@@ -75,12 +76,13 @@ void* Interface_Init(const char* title, AppInfo* appInfo, InputContext* inputCtx
 	
 	Log("Set Callbacks");
 	glfwMakeContextCurrent(appInfo->mainWindow);
-	
 	glfwSetFramebufferSizeCallback(appInfo->mainWindow, Interface_FramebufferCallback);
 	glfwSetMouseButtonCallback(appInfo->mainWindow, Input_MouseClickCallback);
 	glfwSetKeyCallback(appInfo->mainWindow, Input_KeyCallback);
 	glfwSetCharCallback(appInfo->mainWindow, Input_TextCallback);
 	glfwSetScrollCallback(appInfo->mainWindow, Input_ScrollCallback);
+	glfwSwapInterval(1);
+	
 	if (dropCallback)
 		glfwSetDropCallback(appInfo->mainWindow, (void*)dropCallback);
 	
@@ -99,7 +101,10 @@ void* Interface_Init(const char* title, AppInfo* appInfo, InputContext* inputCtx
 
 void Interface_Main() {
 	while (!glfwWindowShouldClose(__appInfo->mainWindow)) {
-		glfwPollEvents();
 		Interface_Draw();
+		glfwPollEvents();
 	}
+	
+	glfwDestroyWindow(__appInfo->mainWindow);
+	glfwTerminate();
 }

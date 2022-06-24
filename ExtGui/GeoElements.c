@@ -571,8 +571,8 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 	Element_Draw_RoundedOutline(vg, &this->rect, this->hovColor);
 	Element_Draw_RoundedRect(vg, &this->rect, Theme_GetColor(THEME_BASE, 255, 0.75f + 0.75f * this->locked));
 	
-	if (this->vValue <= 0.02) {
-		this->color.a = Lerp(ClampMin((this->vValue - 0.01f) * 100.0f, 0.0f), 0.0, this->color.a);
+	if (this->vValue <= 0.01) {
+		this->color.a = Lerp(ClampMin(this->vValue * 100.0f, 0.0f), 0.0, this->color.a);
 	}
 	
 	nvgBeginPath(vg);
