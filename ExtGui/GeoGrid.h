@@ -118,6 +118,20 @@ typedef struct SplitEdge {
 	u8 killFlag;
 } SplitEdge;
 
+/*
+ * Splits are like quad, it's made out of
+ * vertices and edges. This enables to keep
+ * the Splits and SplitEdges connected for splitting
+ * and resizing of Splits
+ *
+ *  @────────────@ SplitVtx
+ *  |            |
+ *  |   Split    | SplitEdge
+ *  |            |
+ *  @────────────@
+ *
+ */
+
 typedef struct Split {
 	struct Split* prev;
 	struct Split* next;
