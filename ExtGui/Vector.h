@@ -101,30 +101,43 @@ void Rect_Translate(Rect* rect, s32 x, s32 y);
 void Rect_Verify(Rect* rect);
 void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
 
-#define Vec2_Substract(dest, a, b) \
-	dest.x = a.x - b.x; \
-	dest.y = a.y - b.y
-#define Vec3_Substract(dest, a, b) \
-	dest.x = a.x - b.x; \
-	dest.y = a.y - b.y; \
-	dest.z = a.z - b.z
-#define Vec4_Substract(dest, a, b) \
-	dest.x = a.x - b.x; \
-	dest.y = a.y - b.y; \
-	dest.z = a.z - b.z; \
-	dest.w = a.w - b.w
+#define Vec2_Substract(type, a, b) ( \
+		(typeof(Vec2 ## type)) { \
+		a.x - b.x, \
+		a.y - b.y, \
+	})
+#define Vec3_Substract(type, a, b) ( \
+		(typeof(Vec3 ## type)) { \
+		a.x - b.x, \
+		a.y - b.y, \
+		a.z - b.z, \
+	})
+#define Vec4_Substract(type, a, b) ( \
+		(typeof(Vec4 ## type)) { \
+		a.x - b.x, \
+		a.y - b.y, \
+		a.z - b.z, \
+		a.w - b.w, \
+	})
 
-#define Vec2_Add(dest, a, b) \
-	dest.x = a.x + b.x; \
-	dest.y = a.y + b.y
-#define Vec3_Add(dest, a, b) \
-	dest.x = a.x + b.x; \
-	dest.z = a.z + b.z
-#define Vec4_Add(dest, a, b) \
-	dest.x = a.x + b.x; \
-	dest.y = a.y + b.y; \
-	dest.z = a.z + b.z; \
-	dest.w = a.w + b.w;
+#define Vec2_Add(type, a, b) ( \
+		(typeof(Vec2 ## type)) { \
+		a.x + b.x, \
+		a.y + b.y, \
+	})
+#define Vec3_Add(type, a, b) ( \
+		(typeof(Vec3 ## type)) { \
+		a.x + b.x, \
+		a.y + b.y, \
+		a.z + b.z, \
+	})
+#define Vec4_Add(type, a, b) ( \
+		(typeof(Vec4 ## type)) { \
+		a.x + b.x, \
+		a.y + b.y, \
+		a.z + b.z, \
+		a.w + b.w, \
+	})
 
 #define Vec2_Equal(a, b) ( \
 		a.x == b.x && \
@@ -142,46 +155,54 @@ void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
 		a.w == b.w \
 )
 
-#define Vec2_Copy(dest, src) \
-	dest.x = src.x; \
-	dest.y = src.y; \
-	dest.z = src.z
-#define Vec3_Copy(dest, src) \
-	dest.x = src.x; \
-	dest.y = src.y; \
-	dest.z = src.z
-#define Vec4_Copy(dest, src) \
-	dest.x = src.x; \
-	dest.y = src.y; \
-	dest.z = src.z; \
-	dest.w = src.w
+#define Vec2_Copy(dest, src) { \
+		dest.x = src.x; \
+		dest.y = src.y; \
+		dest.z = src.z; \
+}
+#define Vec3_Copy(dest, src) { \
+		dest.x = src.x; \
+		dest.y = src.y; \
+		dest.z = src.z; \
+}
+#define Vec4_Copy(dest, src) { \
+		dest.x = src.x; \
+		dest.y = src.y; \
+		dest.z = src.z; \
+		dest.w = src.w; \
+}
 
-#define Vec2_MultVec(dest, src) \
-	dest.x *= src.x; \
-	dest.y *= src.y; \
-	dest.z *= src.z
-#define Vec3_MultVec(dest, src) \
-	dest.x *= src.x; \
-	dest.y *= src.y; \
-	dest.z *= src.z
-#define Vec4_MultVec(dest, src) \
-	dest.x *= src.x; \
-	dest.y *= src.y; \
-	dest.z *= src.z; \
-	dest.w *= src.w
+#define Vec2_MultVec(dest, src) { \
+		dest.x *= src.x; \
+		dest.y *= src.y; \
+}
+#define Vec3_MultVec(dest, src) { \
+		dest.x *= src.x; \
+		dest.y *= src.y; \
+		dest.z *= src.z; \
+}
+#define Vec4_MultVec(dest, src) { \
+		dest.x *= src.x; \
+		dest.y *= src.y; \
+		dest.z *= src.z; \
+		dest.w *= src.w; \
+}
 
-#define Vec2_Mult(dest, src) \
-	dest.x *= src; \
-	dest.y *= src;
-#define Vec3_Mult(dest, src) \
-	dest.x *= src; \
-	dest.y *= src; \
-	dest.z *= src
-#define Vec4_Mult(dest, src) \
-	dest.x *= src; \
-	dest.y *= src; \
-	dest.z *= src; \
-	dest.w *= src
+#define Vec2_Mult(dest, src) { \
+		dest.x *= src; \
+		dest.y *= src; \
+}
+#define Vec3_Mult(dest, src) { \
+		dest.x *= src; \
+		dest.y *= src; \
+		dest.z *= src; \
+}
+#define Vec4_Mult(dest, src) { \
+		dest.x *= src; \
+		dest.y *= src; \
+		dest.z *= src; \
+		dest.w *= src; \
+}
 
 #define Vec2_Dot(a, b) ({ \
 		(a.x * b.x) + \
@@ -231,7 +252,7 @@ void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
 
 #define Vec2_Normalize(a) ({ \
 		typeof(a) ret; \
-		f32 mgn = Vec2_Magnitude(a); \
+		f64 mgn = Vec2_Magnitude(a); \
 		if (mgn == 0) { \
 			ret.x = ret.y = 0; \
 		} else { \
@@ -242,7 +263,7 @@ void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
 	})
 #define Vec3_Normalize(a) ({ \
 		typeof(a) ret; \
-		f32 mgn = Vec3_Magnitude(a); \
+		f64 mgn = Vec3_Magnitude(a); \
 		if (mgn == 0) { \
 			ret.x = ret.y = ret.z = 0; \
 		} else { \
@@ -254,7 +275,7 @@ void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
 	})
 #define Vec4_Normalize(a) ({ \
 		typeof(a) ret; \
-		f32 mgn = Vec4_Magnitude(a); \
+		f64 mgn = Vec4_Magnitude(a); \
 		if (mgn == 0) { \
 			ret.x = ret.y = ret.z = ret.w = 0; \
 		} else { \
