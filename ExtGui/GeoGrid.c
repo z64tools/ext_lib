@@ -871,7 +871,7 @@ void GeoGrid_Draw_Debug(GeoGrid* geoGrid) {
 			
 			sprintf(buf, "%d", num);
 			nvgFontSize(geoGrid->vg, SPLIT_TEXT);
-			nvgFontFace(geoGrid->vg, "font-basic");
+			nvgFontFace(geoGrid->vg, "dejavu");
 			nvgTextAlign(geoGrid->vg, NVG_ALIGN_MIDDLE | NVG_ALIGN_CENTER);
 			nvgFillColor(geoGrid->vg, Theme_GetColor(THEME_BASE_L1, 255, 1.0f));
 			nvgFontBlur(geoGrid->vg, 1.5f);
@@ -899,7 +899,7 @@ void GeoGrid_Draw_SplitHeader(GeoGrid* geoGrid, Split* split) {
 	nvgBeginPath(geoGrid->vg);
 	nvgRect(geoGrid->vg, 0, ClampMin(rect.h - SPLIT_BAR_HEIGHT, 0), rect.w, rect.h);
 	nvgPathWinding(geoGrid->vg, NVG_HOLE);
-	nvgFillColor(geoGrid->vg, Theme_GetColor(THEME_BASE, 255, 1.10f));
+	nvgFillColor(geoGrid->vg, Theme_GetColor(THEME_BASE, 255, 1.30f));
 	nvgFill(geoGrid->vg);
 	
 	rect.x += SPLIT_ELEM_X_PADDING;
@@ -1044,7 +1044,7 @@ void CtxMenu_UpdateRect(GeoGrid* geoGrid) {
 	sCtxMenuRect.w = 0;
 	for (s32 i = 0; i < ctxMenu->num; i++) {
 		if (ctxMenu->optionList[i] != NULL) {
-			nvgFontFace(vg, "font-basic");
+			nvgFontFace(vg, "dejavu");
 			nvgFontSize(vg, SPLIT_TEXT);
 			nvgFontBlur(vg, 0);
 			nvgTextLetterSpacing(vg, 1.10);
@@ -1178,7 +1178,7 @@ void GeoGrid_Draw_ContextMenu(GeoGrid* geoGrid) {
 			
 			for (s32 i = 0; i < ctxMenu->num; i++) {
 				if (ctxMenu->optionList[i] != NULL) {
-					nvgFontFace(vg, "font-basic");
+					nvgFontFace(vg, "dejavu");
 					nvgFontSize(vg, SPLIT_TEXT);
 					nvgFontBlur(vg, 0);
 					nvgTextLetterSpacing(vg, 1.10);
@@ -1243,6 +1243,10 @@ void GeoGrid_SetBotBarHeight(GeoGrid* geoGrid, s32 h) {
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
+extern unsigned char gFont_DejaVuBold[705684];
+extern unsigned char gFont_DejaVuLight[355380];
+extern unsigned char gFont_DejaVu[757076];
+
 void GeoGrid_Init(GeoGrid* geoGrid, Vec2s* winDim, InputContext* inputCtx, void* vg) {
 	__geoCtx = geoGrid;
 	geoGrid->winDim = winDim;
@@ -1250,6 +1254,10 @@ void GeoGrid_Init(GeoGrid* geoGrid, Vec2s* winDim, InputContext* inputCtx, void*
 	geoGrid->vg = vg;
 	GeoGrid_SetTopBarHeight(geoGrid, SPLIT_BAR_HEIGHT);
 	GeoGrid_SetBotBarHeight(geoGrid, SPLIT_BAR_HEIGHT);
+	
+	nvgCreateFontMem(vg, "dejavu", gFont_DejaVu, sizeof(gFont_DejaVu), 0);
+	nvgCreateFontMem(vg, "dejavu-bold", gFont_DejaVu, sizeof(gFont_DejaVu), 0);
+	nvgCreateFontMem(vg, "dejavu-light", gFont_DejaVu, sizeof(gFont_DejaVu), 0);
 	
 	geoGrid->prevWorkRect = geoGrid->workRect;
 	Element_Init(geoGrid);

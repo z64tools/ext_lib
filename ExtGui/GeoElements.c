@@ -178,7 +178,7 @@ static void Element_Draw_Button(ElementCallInfo* info) {
 		char ftxt[512];
 		f32 bounds[4];
 		
-		nvgFontFace(vg, "font-basic");
+		nvgFontFace(vg, "dejavu");
 		nvgFontSize(vg, SPLIT_TEXT);
 		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
 		nvgTextLetterSpacing(vg, 0.0);
@@ -249,7 +249,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 		}
 	}
 	
-	nvgFontFace(vg, "font-basic");
+	nvgFontFace(vg, "dejavu");
 	nvgFontSize(vg, SPLIT_TEXT);
 	nvgFontBlur(vg, 0.0);
 	nvgTextLetterSpacing(vg, 0.1);
@@ -447,7 +447,7 @@ static void Element_Draw_Text(ElementCallInfo* info) {
 	
 	strcpy(tempText, this->txt);
 	
-	nvgFontFace(vg, "font-basic");
+	nvgFontFace(vg, "dejavu");
 	nvgFontSize(vg, SPLIT_TEXT);
 	nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
 	nvgTextLetterSpacing(vg, 0.1);
@@ -603,7 +603,7 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 		);
 	}
 	
-	nvgFontFace(vg, "font-basic");
+	nvgFontFace(vg, "dejavu");
 	nvgFontSize(vg, SPLIT_TEXT);
 	nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
 	
@@ -636,7 +636,7 @@ s32 Element_Button(GeoGridContext* geoCtx, Split* split, ElButton* this) {
 	if (this->autoWidth) {
 		f32 bounds[4] = { 0.0f };
 		
-		nvgFontFace(vg, "font-basic");
+		nvgFontFace(vg, "dejavu");
 		nvgFontSize(vg, SPLIT_TEXT);
 		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
 		nvgTextLetterSpacing(vg, 0.0);
@@ -703,7 +703,7 @@ f32 Element_Text(GeoGridContext* geoCtx, Split* split, ElText* this) {
 	f32 bounds[4] = { 0 };
 	void* vg = geoCtx->vg;
 	
-	nvgFontFace(vg, "font-basic");
+	nvgFontFace(vg, "dejavu");
 	nvgFontSize(vg, SPLIT_TEXT);
 	nvgFontBlur(vg, 0.0);
 	nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);

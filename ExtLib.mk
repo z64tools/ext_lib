@@ -11,6 +11,9 @@ ExtGui_C  = ExtGui/Cursor.c \
 			ExtGui/Vector.c \
 			ExtGui/View.c \
 			ExtGui/Global.c \
+			ExtGui/assets/DejaVuSans_Bold.c \
+			ExtGui/assets/DejaVuSans_Light.c \
+			ExtGui/assets/DejaVuSans.c \
 			glad/glad.c \
 			nanovg/src/nanovg.c
 
