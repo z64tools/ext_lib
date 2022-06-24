@@ -671,6 +671,7 @@ void GeoGrid_Update_ActionSplit(GeoGrid* geoGrid) {
 				}
 			}
 		}
+		
 		if (split->stateFlag & SPLIT_SIDE_H) {
 			Cursor_SetCursor(CURSOR_ARROW_H);
 		}
@@ -898,7 +899,7 @@ void GeoGrid_Draw_SplitHeader(GeoGrid* geoGrid, Split* split) {
 	nvgBeginPath(geoGrid->vg);
 	nvgRect(geoGrid->vg, 0, ClampMin(rect.h - SPLIT_BAR_HEIGHT, 0), rect.w, rect.h);
 	nvgPathWinding(geoGrid->vg, NVG_HOLE);
-	nvgFillColor(geoGrid->vg, Theme_GetColor(THEME_BASE, 255, 1.20f));
+	nvgFillColor(geoGrid->vg, Theme_GetColor(THEME_BASE, 255, 1.10f));
 	nvgFill(geoGrid->vg);
 	
 	rect.x += SPLIT_ELEM_X_PADDING;
@@ -973,6 +974,22 @@ void GeoGrid_Draw_SplitBorder(GeoGrid* geoGrid, Split* split) {
 	GeoGrid_Draw_SplitHeader(geoGrid, split);
 	
 	Element_PostDraw(geoGrid, split);
+	
+	if (split->edge[DIR_L]->state & EDGE_STICK_L) {
+		adjRect.x += SPLIT_SPLIT_W / 2;
+		adjRect.w -= SPLIT_SPLIT_W / 2;
+	}
+	if (split->edge[DIR_R]->state & EDGE_STICK_R) {
+		adjRect.w -= SPLIT_SPLIT_W / 2;
+	}
+	
+	if (split->edge[DIR_T]->state & EDGE_STICK_T) {
+		adjRect.y += SPLIT_SPLIT_W / 2;
+		adjRect.h -= SPLIT_SPLIT_W / 2;
+	}
+	if (split->edge[DIR_B]->state & EDGE_STICK_B) {
+		adjRect.h -= SPLIT_SPLIT_W / 2;
+	}
 	
 	nvgBeginPath(geoGrid->vg);
 	nvgRect(geoGrid->vg, 0, 0, rect->w, rect->h);
@@ -1270,7 +1287,7 @@ void GeoGrid_Draw(GeoGrid* geoGrid) {
 				geoGrid->bar[i].rect.w,
 				geoGrid->bar[i].rect.h
 			);
-			nvgFillColor(geoGrid->vg, Theme_GetColor(THEME_BASE_L1, 255, 1.0f));
+			nvgFillColor(geoGrid->vg, Theme_GetColor(THEME_BASE_L1, 255, 0.825f));
 			nvgFill(geoGrid->vg);
 		} nvgEndFrame(geoGrid->vg);
 	}

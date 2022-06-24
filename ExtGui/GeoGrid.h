@@ -17,7 +17,7 @@ extern f32 gPixelRatio;
 
 #define SPLIT_GRAB_DIST  4
 #define SPLIT_CTXM_DIST  32
-#define SPLIT_BAR_HEIGHT 28
+#define SPLIT_BAR_HEIGHT 26
 #define SPLIT_SPLIT_W    2.0
 #define SPLIT_ROUND_R    2.0
 #define SPLIT_CLAMP      ((SPLIT_BAR_HEIGHT + SPLIT_SPLIT_W * 1.25) * 2)
@@ -183,24 +183,32 @@ typedef struct {
 
 typedef struct GeoGridContext {
 	GeoCtxMenu ctxMenu;
-	Split*     actionSplit;
-	Split*     splitHead;
-	SplitVtx*  vtxHead;
-	SplitEdge* edgeHead;
 	StatusBar  bar[2];
 	Rect prevWorkRect;
 	Rect workRect;
-	SplitEdge* actionEdge;
+	
 	struct {
 		f64 clampMax;
 		f64 clampMin;
 	} slide;
-	InputContext* input;
-	Vec2s* winDim;
-	void*  vg;
-	void*  passArg;
+	
+	Split* actionSplit;
+	SplitEdge* actionEdge;
+	
 	SplitTask* taskTable;
-	s32    taskTableNum;
+	s32           taskTableNum;
+	
+	Split*        splitHead;
+	SplitVtx*     vtxHead;
+	SplitEdge*    edgeHead;
+	
+	InputContext* input;
+	Vec2s*        winDim;
+	void*         vg;
+	void*         passArg;
+	
+	struct {
+	} state;
 } GeoGridContext, GeoGrid;
 
 Split* GeoGrid_AddSplit(GeoGridContext* geoCtx, Rectf32* rect);
