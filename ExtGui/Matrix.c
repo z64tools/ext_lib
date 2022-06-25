@@ -13,7 +13,7 @@ const MtxF gMtxFClear = {
 };
 
 void Matrix_Init() {
-	Malloc(gCurrentMatrix, 20 * sizeof(MtxF));
+	Calloc(gCurrentMatrix, 20 * sizeof(MtxF));
 	gMatrixStack = gCurrentMatrix;
 }
 

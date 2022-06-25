@@ -120,7 +120,8 @@ void printf_progress(const char* info, u32 a, u32 b);
 void printf_getchar(const char* txt);
 void printf_lock(const char* fmt, ...);
 void printf_WinFix(void);
-void printf_clearMessages(void);
+void printf_hex(const char* txt, const void* data, u32 size, u32 dispOffset);
+void printf_nl(void);
 
 void __Assert(s32 expression, const char* msg, ...);
 #define Assert(expression) \

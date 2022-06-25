@@ -1556,6 +1556,50 @@ void printf_WinFix(void) {
 #endif
 }
 
+void printf_hex(const char* txt, const void* data, u32 size, u32 dispOffset) {
+	const u8* d = data;
+	u32 num = 8;
+	char* digit;
+	s32 i = 0;
+	
+	if (sEXIT)
+		return;
+	
+	if (gPrintfSuppress >= PSL_NO_INFO)
+		return;
+	
+	for (;; num--)
+		if ((size + dispOffset) >> (num * 4))
+			break;
+	
+	digit = xFmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
+	
+	printf_info("%s", txt);
+	for (; i < size; i++) {
+		if (i % 16 == 0)
+			printf(digit, i + dispOffset);
+		
+		printf("%02X", d[i]);
+		if ((i + 1) % 4 == 0)
+			printf(" ");
+		if ((i + 1) % 16 == 0)
+			printf("\n");
+	}
+	
+	if (i % 16 != 0)
+		printf("\n");
+}
+
+void printf_nl(void) {
+	if (sEXIT)
+		return;
+	
+	if (gPrintfSuppress >= PSL_NO_INFO)
+		return;
+	
+	printf("\n");
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # VARIOUS                             #
 // # # # # # # # # # # # # # # # # # # # #
@@ -1592,12 +1636,14 @@ f32 RandF() {
 void* MemMem(const void* haystack, Size haystacklen, const void* needle, Size needlelen) {
 	char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
 	
+	if (haystacklen < needlelen || !haystack || !needle || !haystacklen || !needlelen)
+		return NULL;
+	
 	while ((haystacklen - (p - bf)) >= needlelen) {
 		if (NULL != (p = memchr(p, (int)(*pt), haystacklen - (p - bf)))) {
-			if (0 == memcmp(p, needle, needlelen))
+			if (!memcmp(p, needle, needlelen))
 				return p;
-			else
-				++p;
+			++p;
 		} else
 			break;
 	}
@@ -1631,9 +1677,13 @@ void* StrStrWhole(const char* haystack, const char* needle) {
 }
 
 void* StrStrCase(const char* haystack, const char* needle) {
-	Size haystacklen = strlen(haystack);
-	Size needlelen = strlen(needle);
 	char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
+	
+	if (!haystack || !needle)
+		return NULL;
+	
+	u32 haystacklen = strlen(haystack);
+	u32 needlelen = strlen(needle);
 	
 	while (needlelen <= (haystacklen - (p - bf))) {
 		char* a, * b;
@@ -1651,8 +1701,7 @@ void* StrStrCase(const char* haystack, const char* needle) {
 		if (p) {
 			if (0 == strnicmp(p, needle, needlelen))
 				return p;
-			else
-				++p;
+			++p;
 		} else
 			break;
 	}
@@ -1665,11 +1714,13 @@ void* MemMemAlign(u32 val, const void* haystack, Size haystacklen, const void* n
 	char* bf = (char*)haystack;
 	char* p = (char*)haystack;
 	
+	if (haystacklen < needlelen || !haystack || !needle || !haystacklen || !needlelen || !val)
+		return NULL;
+	
 	while (haystacklen - (p - bf) >= needlelen) {
 		if (p[0] == s[0] && !memcmp(p, needle, needlelen))
 			return p;
-		else
-			p += val;
+		p += val;
 	}
 	
 	return NULL;

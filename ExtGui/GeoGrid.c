@@ -817,7 +817,7 @@ void GeoGrid_Draw_Debug(GeoGrid* geoGrid) {
 		while (split) {
 			nvgBeginPath(geoGrid->vg);
 			nvgLineCap(geoGrid->vg, NVG_ROUND);
-			nvgStrokeWidth(geoGrid->vg, 0.8f);
+			nvgStrokeWidth(geoGrid->vg, 1.0f);
 			nvgMoveTo(
 				geoGrid->vg,
 				split->vtx[0]->pos.x + 2,
@@ -843,7 +843,7 @@ void GeoGrid_Draw_Debug(GeoGrid* geoGrid) {
 				split->vtx[0]->pos.x + 2,
 				split->vtx[0]->pos.y - 2
 			);
-			nvgStrokeColor(geoGrid->vg, nvgHSLA(0.111 * num, 1.0f, 0.4f, 255));
+			nvgStrokeColor(geoGrid->vg, nvgHSLA(0.111 * num, 1.0f, 0.6f, 255));
 			nvgStroke(geoGrid->vg);
 			
 			split = split->next;
@@ -1301,7 +1301,7 @@ void GeoGrid_Draw(GeoGrid* geoGrid) {
 	}
 	
 	GeoGrid_Draw_Splits(geoGrid);
-	if (0)
+	if (1)
 		GeoGrid_Draw_Debug(geoGrid);
 	GeoGrid_Draw_ContextMenu(geoGrid);
 }

@@ -9,10 +9,9 @@ typedef enum {
 	MTXMODE_APPLY
 } MtxMode;
 
-typedef s32 Mtx_t[4][4];
-typedef union {
-	Mtx_t m;
-	struct {
+typedef union StructBE {
+	s32 m[4][4];
+	struct StructBE {
 		u16 intPart[4][4];
 		u16 fracPart[4][4];
 	};
