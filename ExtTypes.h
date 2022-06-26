@@ -131,7 +131,7 @@ typedef struct MemFile {
 		char* str;
 	};
 	u32 memSize;
-	u32 dataSize;
+	u32 size;
 	u32 seekPoint;
 	struct {
 		Time age;

@@ -2578,7 +2578,7 @@ s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
 	
 	memcpy(&dest->cast.u8[dest->seekPoint], src, size);
 	dest->seekPoint += size;
-	dest->dataSize = Max(dest->dataSize, dest->seekPoint);
+	dest->size = Max(dest->size, dest->seekPoint);
 	
 	if (dest->param.align)
 		if ((dest->seekPoint % dest->param.align) != 0)
@@ -2592,7 +2592,7 @@ s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
  */
 s32 MemFile_Insert(MemFile* mem, void* src, u32 size, u32 pos) {
 	u32 p = pos < 0 ? mem->seekPoint : pos;
-	u32 remasize = mem->dataSize - p;
+	u32 remasize = mem->size - p;
 	
 	if (p + size + remasize >= mem->memSize) {
 		if (mem->param.realloc) {
@@ -2608,7 +2608,7 @@ s32 MemFile_Insert(MemFile* mem, void* src, u32 size, u32 pos) {
 }
 
 s32 MemFile_Append(MemFile* dest, MemFile* src) {
-	return MemFile_Write(dest, src->data, src->dataSize);
+	return MemFile_Write(dest, src->data, src->size);
 }
 
 void MemFile_Align(MemFile* src, u32 align) {
@@ -2637,7 +2637,7 @@ s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
 }
 
 s32 MemFile_Read(MemFile* src, void* dest, Size size) {
-	Size nsize = ClampMax(size, ClampMin(src->dataSize - src->seekPoint, 0));
+	Size nsize = ClampMax(size, ClampMin(src->size - src->seekPoint, 0));
 	
 	if (nsize != size)
 		Log("%d == src->seekPoint = %d / %d", nsize, src->seekPoint, src->seekPoint);
@@ -2653,7 +2653,7 @@ s32 MemFile_Read(MemFile* src, void* dest, Size size) {
 
 void* MemFile_Seek(MemFile* src, u32 seek) {
 	if (seek == MEMFILE_SEEK_END)
-		seek = src->dataSize;
+		seek = src->size;
 	
 	if (seek > src->memSize) {
 		return NULL;
@@ -2665,7 +2665,7 @@ void* MemFile_Seek(MemFile* src, u32 seek) {
 
 void MemFile_LoadMem(MemFile* mem, void* data, Size size) {
 	MemFile_Validate(mem);
-	mem->dataSize = mem->memSize = size;
+	mem->size = mem->memSize = size;
 	mem->data = data;
 }
 
@@ -2685,7 +2685,7 @@ s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
 	MemFile_Validate(memFile);
 	if (memFile->data == NULL) {
 		MemFile_Alloc(memFile, tempSize);
-		memFile->memSize = memFile->dataSize = tempSize;
+		memFile->memSize = memFile->size = tempSize;
 		if (memFile->data == NULL) {
 			printf_warning("Failed to malloc MemFile.\n\tAttempted size is [0x%X] bytes to store data from [%s].", tempSize, filepath);
 			
@@ -2694,11 +2694,11 @@ s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
 	} else {
 		if (memFile->memSize < tempSize)
 			MemFile_Realloc(memFile, tempSize * 2);
-		memFile->dataSize = tempSize;
+		memFile->size = tempSize;
 	}
 	
 	rewind(file);
-	if (fread(memFile->data, 1, memFile->dataSize, file)) {
+	if (fread(memFile->data, 1, memFile->size, file)) {
 	}
 	fclose(file);
 	
@@ -2725,7 +2725,7 @@ s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath) {
 	if (memFile->data == NULL) {
 		MemFile_Alloc(memFile, tempSize + 0x10);
 		memFile->memSize = tempSize + 0x10;
-		memFile->dataSize = tempSize;
+		memFile->size = tempSize;
 		if (memFile->data == NULL) {
 			printf_warning("Failed to malloc MemFile.\n\tAttempted size is [0x%X] bytes to store data from [%s].", tempSize, filepath);
 			
@@ -2734,13 +2734,13 @@ s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath) {
 	} else {
 		if (memFile->memSize < tempSize)
 			MemFile_Realloc(memFile, tempSize * 2);
-		memFile->dataSize = tempSize;
+		memFile->size = tempSize;
 	}
 	
 	rewind(file);
-	memFile->dataSize = fread(memFile->data, 1, memFile->dataSize, file);
+	memFile->size = fread(memFile->data, 1, memFile->size, file);
 	fclose(file);
-	memFile->cast.u8[memFile->dataSize] = '\0';
+	memFile->cast.u8[memFile->size] = '\0';
 	
 	memFile->info.age = Sys_Stat(filepath);
 	strcpy(memFile->info.name, filepath);
@@ -2777,7 +2777,7 @@ s32 MemFile_SaveFile(MemFile* memFile, const char* filepath) {
 		return 1;
 	}
 	
-	fwrite(memFile->data, sizeof(char), memFile->dataSize, file);
+	fwrite(memFile->data, sizeof(char), memFile->size, file);
 	fclose(file);
 	
 	return 0;
@@ -2812,7 +2812,7 @@ s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath) {
 		return 1;
 	}
 	
-	fwrite(memFile->data, sizeof(char), memFile->dataSize, file);
+	fwrite(memFile->data, sizeof(char), memFile->size, file);
 	fclose(file);
 	
 	return 0;
@@ -2829,7 +2829,7 @@ void MemFile_Free(MemFile* memFile) {
 }
 
 void MemFile_Reset(MemFile* memFile) {
-	memFile->dataSize = 0;
+	memFile->size = 0;
 	memFile->seekPoint = 0;
 }
 
@@ -3413,7 +3413,7 @@ reprocess:
 free:
 	while (strNodeHead)
 		Node_Kill(strNodeHead, strNodeHead);
-	mem->dataSize = strlen(mem->str);
+	mem->size = strlen(mem->str);
 	Log("Done");
 }
 
@@ -3617,7 +3617,7 @@ s32 Config_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, 
 		StrRem(p, strlen(Config_GetVariable(mem->str, variable)));
 		StrIns(p, replacement);
 		
-		mem->dataSize = strlen(mem->str);
+		mem->size = strlen(mem->str);
 		Free(replacement);
 		
 		return 0;
