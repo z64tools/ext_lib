@@ -176,6 +176,15 @@ char* xFmt(const char* fmt, ...) {
 	return r;
 }
 
+char* xRep(const char* str, const char* a, const char* b) {
+	char* r = xAlloc(strlen(str) + (strlen(b) - strlen(a)) + 1 );
+	
+	strcpy(r, str);
+	StrRep(r, a, b);
+	
+	return r;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # TIME                                #
 // # # # # # # # # # # # # # # # # # # # #
@@ -438,7 +447,7 @@ void ItemList_Separated(ItemList* list, const char* str, const char separator) {
 			break;
 		
 		for (s32 v = 0; v < b - a + strcompns + 1; v++) {
-			if (isalnum(str[a + v]))
+			if (isgraph(str[a + v]))
 				brk = false;
 		}
 		
@@ -648,6 +657,8 @@ char* FileSys_FindFile(const char* str) {
 	char* file = NULL;
 	Time stat = 0;
 	
+	if (*str == '*') str++;
+	
 	ItemList_List(&list, __sPath, 0, LIST_FILES | LIST_NO_DOT);
 	for (s32 i = 0; i < list.num; i++) {
 		if (StrEndCase(list.item[i], str) && Sys_Stat(list.item[i]) > stat) {
@@ -690,14 +701,29 @@ bool Sys_IsDir(const char* path) {
 Time Sys_Stat(const char* item) {
 	struct stat st = { 0 };
 	Time t = 0;
+	s32 free = 0;
 	
-	if (stat(item, &st) == -1)
+	if (item == NULL)
 		return 0;
+	
+	if (StrEnd(item, "/") || StrEnd(item, "\\")) {
+		free = 1;
+		item = StrDup(item);
+		((char*)item)[strlen(item) - 1] = 0;
+	}
+	
+	if (stat(item, &st) == -1) {
+		if (free) Free(item);
+		
+		return 0;
+	}
 	
 	// No access time
 	// t = Max(st.st_atime, t);
 	t = Max(st.st_mtime, t);
 	t = Max(st.st_ctime, t);
+	
+	if (free) Free(item);
 	
 	return t;
 }
@@ -705,6 +731,9 @@ Time Sys_Stat(const char* item) {
 Time Sys_StatF(const char* item, StatFlag flag) {
 	struct stat st = { 0 };
 	Time t = 0;
+	
+	if (item == NULL)
+		return 0;
 	
 	if (stat(item, &st) == -1)
 		return 0;

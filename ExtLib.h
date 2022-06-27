@@ -37,6 +37,7 @@ void* xAlloc(Size size);
 char* xStrDup(const char* str);
 char* xMemDup(const char* data, Size size);
 char* xFmt(const char* fmt, ...);
+char* xRep(const char* str, const char* a, const char* b);
 
 void Time_Start(u32 slot);
 f64 Time_Get(u32 slot);
