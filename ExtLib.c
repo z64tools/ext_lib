@@ -3644,7 +3644,8 @@ void Config_WriteArray(MemFile* mem, const char* variable, ItemList* list, bool 
 	for (s32 i = 0; i < list->num; i++) {
 		MemFile_Printf(mem, "%s%s%s, ", q[quote], list->item[i], q[quote]);
 	}
-	mem->seekPoint -= 2;
+	if (list->num)
+		mem->seekPoint -= 2;
 	MemFile_Printf(mem, " ]");
 	Config_FollowUpComment(mem, comment);
 }
