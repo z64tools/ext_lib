@@ -28,6 +28,9 @@ s32 ThreadLock_Join(Thread* thread);
 void Thread_Create(Thread* thread, void* func, void* arg);
 s32 Thread_Join(Thread* thread);
 
+void ThreadPool_Add(void* func, void* arg, Size argSize);
+void ThreadPool_Run(s32 num);
+
 void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);

@@ -176,10 +176,13 @@ typedef struct FilterNode {
 } FilterNode;
 
 typedef struct ItemList {
-	char*  buffer;
-	u32    writePoint;
-	char** item;
-	u32    num;
+	char* buffer;
+	u32   writePoint;
+	union {
+		char** item;
+		void** ptr;
+	};
+	u32 num;
 	struct {
 		FilterNode* filterNode;
 		u64 initKey;
@@ -239,5 +242,11 @@ typedef struct StrNode {
 	struct StrNode* next;
 	char* txt;
 } StrNode;
+
+typedef struct PtrNode {
+	struct PtrNode* prev;
+	struct PtrNode* next;
+	void* ptr;
+} PtrNode;
 
 #endif

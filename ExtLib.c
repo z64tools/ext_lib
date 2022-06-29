@@ -93,6 +93,91 @@ s32 Thread_Join(Thread* thread) {
 	return r;
 }
 
+typedef struct ThreadPoolNode {
+	struct ThreadPoolNode* prev;
+	struct ThreadPoolNode* next;
+	void*  func;
+	void*  arg;
+	Thread thd;
+	u8 init : 1;
+	u8 done : 1;
+} ThreadPoolNode;
+
+ThreadPoolNode* sThrdPoolNodeHead;
+s32 sThdPoolNum;
+
+void ThreadPool_Add(void* func, void* arg, Size argSize) {
+	ThreadPoolNode* node;
+	
+	Calloc(node, sizeof(struct ThreadPoolNode));
+	node->func = func;
+	node->arg = MemDup(arg, argSize);
+	
+	Assert(node->arg != NULL);
+	
+	Node_Add(sThrdPoolNodeHead, node);
+	sThdPoolNum++;
+}
+
+#ifndef __IDE_FLAG__
+#ifdef _WIN32
+#define Thread_TryJoin(thread, ret) _pthread_tryjoin(thread, ret)
+#else // _WIN32
+#define Thread_TryJoin(thread, ret) pthread_tryjoin_np(thread, ret)
+#endif // _WIN32
+#else // __IDE_FLAG__
+#define Thread_TryJoin(thread, ret) _pthread_tryjoin(thread, ret)
+#endif // __IDE_FLAG__
+
+void ThreadPool_Run(s32 num) {
+	s32 runningNum = 0;
+	
+	printf_lock("PoolNum %d\n", sThdPoolNum);
+	while (sThdPoolNum) {
+		ThreadPoolNode* node = sThrdPoolNodeHead;
+		
+		// Check running threads
+		if (runningNum) {
+			while (node) {
+				if (node->init && node->done == false) {
+					if (!Thread_TryJoin(node->thd, NULL)) {
+						node->done = true;
+						runningNum--;
+						sThdPoolNum--;
+						break;
+					}
+				}
+				
+				node = node->next;
+			}
+		}
+		
+		if (sThdPoolNum == 0)
+			break;
+		
+		if (runningNum == num)
+			continue;
+		
+		node = sThrdPoolNodeHead;
+		
+		while (node) {
+			if (node->init == 0) {
+				ThreadLock_Create(&node->thd, node->func, node->arg);
+				runningNum++;
+				node->init = true;
+				break;
+			}
+			
+			node = node->next;
+		}
+	}
+	
+	while (sThrdPoolNodeHead) {
+		Free(sThrdPoolNodeHead->arg);
+		Node_Kill(sThrdPoolNodeHead, sThrdPoolNodeHead);
+	}
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # SEGMENT                             #
 // # # # # # # # # # # # # # # # # # # # #
@@ -646,7 +731,10 @@ char* FileSys_File(const char* str, ...) {
 	
 	Log("%s", str);
 	Assert(buffer != NULL);
-	ret = xFmt("%s%s", __sPath, buffer);
+	if (buffer[0] != '/' && buffer[0] != '\\')
+		ret = xFmt("%s%s", __sPath, buffer);
+	else
+		ret = xStrDup(buffer + 1);
 	Free(buffer);
 	
 	return ret;
