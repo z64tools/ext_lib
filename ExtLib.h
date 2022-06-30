@@ -231,6 +231,8 @@ char* StrSlash(char* str);
 char* StrStripIllegalChar(char* str);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
+char* StrUpper(char* str);
+char* StrLower(char* str);
 
 char* Config_Variable(const char* str, const char* name);
 char* Config_GetVariable(const char* str, const char* name);

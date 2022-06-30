@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 156
+#define THIS_EXTLIB_VERSION 157
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -111,9 +111,11 @@ void ThreadPool_Add(void* func, void* arg, Size argSize) {
 	
 	Calloc(node, sizeof(struct ThreadPoolNode));
 	node->func = func;
-	node->arg = MemDup(arg, argSize);
 	
-	Assert(node->arg != NULL);
+	if (arg) {
+		node->arg = MemDup(arg, argSize);
+		Assert(node->arg != NULL);
+	}
 	
 	Node_Add(sThrdPoolNodeHead, node);
 	sThdPoolNum++;
@@ -129,25 +131,27 @@ void ThreadPool_Add(void* func, void* arg, Size argSize) {
 #define Thread_TryJoin(thread, ret) _pthread_tryjoin(thread, ret)
 #endif // __IDE_FLAG__
 
-void ThreadPool_Run(s32 num) {
+void ThreadPool_Run(s32 max) {
 	s32 runningNum = 0;
 	
 	printf_lock("PoolNum %d\n", sThdPoolNum);
+	
 	while (sThdPoolNum) {
 		ThreadPoolNode* node = sThrdPoolNodeHead;
 		
-		// Check running threads
 		if (runningNum) {
+			u32 id = 0;
 			while (node) {
 				if (node->init && node->done == false) {
 					if (!Thread_TryJoin(node->thd, NULL)) {
 						node->done = true;
 						runningNum--;
 						sThdPoolNum--;
-						break;
+						Log("Thread Done %d", id);
 					}
 				}
 				
+				id++;
 				node = node->next;
 			}
 		}
@@ -155,7 +159,7 @@ void ThreadPool_Run(s32 num) {
 		if (sThdPoolNum == 0)
 			break;
 		
-		if (runningNum == num)
+		if (runningNum == max)
 			continue;
 		
 		node = sThrdPoolNodeHead;
@@ -165,7 +169,8 @@ void ThreadPool_Run(s32 num) {
 				ThreadLock_Create(&node->thd, node->func, node->arg);
 				runningNum++;
 				node->init = true;
-				break;
+				if (runningNum == max)
+					break;
 			}
 			
 			node = node->next;
@@ -1039,7 +1044,7 @@ char* SysExeO(const char* cmd) {
 	
 	if ((file = popen(cmd, "r")) == NULL) {
 		Log(PRNT_REDD "SysExeO(%s);", cmd);
-		Log("popen failed...");
+		Log("popen failed!");
 		
 		return NULL;
 	}
@@ -1307,29 +1312,13 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 		printf("\n");
 }
 
-static void __printf_call(u32 type, char* dest, FILE* file) {
+static void __printf_call(u32 type, FILE* file) {
 	char* color[4] = {
 		PRNT_PRPL,
 		PRNT_REDD,
 		PRNT_REDD,
 		PRNT_BLUE
 	};
-	
-	if (dest) {
-		sprintf(
-			dest,
-			"\r%s"
-			PRNT_GRAY "["
-			"%s%s"
-			PRNT_GRAY "]: "
-			PRNT_RSET,
-			sPrintfPrefix,
-			color[type],
-			sPrintfPreType[sPrintfType][type]
-		);
-		
-		return;
-	}
 	
 	fprintf(
 		file,
@@ -1359,7 +1348,7 @@ void printf_warning(const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(1, 0, stdout);
+	__printf_call(1, stdout);
 	vprintf(
 		fmt,
 		args
@@ -1383,7 +1372,7 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(1, 0, stdout);
+	__printf_call(1, stdout);
 	printf(
 		"%-16s " PRNT_RSET,
 		info
@@ -1424,7 +1413,7 @@ void printf_error(const char* fmt, ...) {
 		va_list args;
 		
 		va_start(args, fmt);
-		__printf_call(2, 0, stdout);
+		__printf_call(2, stdout);
 		if (___sExt_ThreadInit)
 			fprintf(stderr, "[>]: ");
 		vasprintf(
@@ -1465,7 +1454,7 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 		va_list args;
 		
 		va_start(args, fmt);
-		__printf_call(2, 0, stdout);
+		__printf_call(2, stdout);
 		if (___sExt_ThreadInit)
 			fprintf(stderr, "[>]: ");
 		asprintf(
@@ -1494,8 +1483,7 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 }
 
 void printf_info(const char* fmt, ...) {
-	char printfBuf[1024];
-	char buf[1024];
+	char* buf = NULL;
 	
 	if (sEXIT)
 		return;
@@ -1510,21 +1498,20 @@ void printf_info(const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(3, printfBuf, stdout);
-	vsprintf(
-		buf,
+	__printf_call(3, stdout);
+	vasprintf(
+		&buf,
 		fmt,
 		args
-	); strcat(printfBuf, buf);
+	);
 	va_end(args);
 	
-	strcat(printfBuf, "" PRNT_RSET "\n");
-	printf("%s", printfBuf);
+	printf("%s" PRNT_RSET "\n", buf);
+	Free(buf);
 }
 
 void printf_info_align(const char* info, const char* fmt, ...) {
-	char printfBuf[512];
-	char buf[512];
+	char* buf = NULL;
 	
 	if (sEXIT)
 		return;
@@ -1539,28 +1526,19 @@ void printf_info_align(const char* info, const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(3, printfBuf, stdout);
-	sprintf(
-		buf,
-		"%-16s " PRNT_RSET,
-		info
-	); strcat(printfBuf, buf);
-	vsprintf(
-		buf,
+	__printf_call(3, stdout);
+	vasprintf(
+		&buf,
 		fmt,
 		args
-	); strcat(printfBuf, buf);
+	);
 	va_end(args);
 	
-	strcat(printfBuf, "" PRNT_RSET "\n");
-	
-	printf("%s", printfBuf);
+	printf("%-16s%s" PRNT_RSET "\n", info, buf);
+	Free(buf);
 }
 
 void printf_prog_align(const char* info, const char* fmt, const char* color) {
-	char printfBuf[512];
-	char buf[512];
-	
 	if (sEXIT)
 		return;
 	
@@ -1572,19 +1550,11 @@ void printf_prog_align(const char* info, const char* fmt, const char* color) {
 		gPrintfProgressing = false;
 	}
 	
-	__printf_call(3, printfBuf, stdout);
-	sprintf(
-		buf,
-		"%-16s " PRNT_RSET,
-		info
-	);
-	strcat(printfBuf, buf);
-	if (color)
-		strcat(printfBuf, color);
-	strcat(printfBuf, fmt);
+	__printf_call(3, stdout);
 	
-	Terminal_ClearLines(1);
-	printf("%s", printfBuf);
+	printf("\n");
+	Terminal_ClearLines(2);
+	printf("%-16s%s%s", info, color ? color : "", fmt);
 }
 
 void printf_progressFst(const char* info, u32 a, u32 b) {
@@ -1595,13 +1565,15 @@ void printf_progressFst(const char* info, u32 a, u32 b) {
 	if (sEXIT)
 		return;
 	
-	printf("\r");
-	__printf_call(3, 0, stdout);
+	printf("\n");
+	Terminal_ClearLines(2);
+	__printf_call(3, stdout);
 	printf(
-		"%-16s " PRNT_RSET,
-		info
+		"%-16s" PRNT_RSET "[%d / %d]",
+		info,
+		a,
+		b
 	);
-	printf("[%d / %d]        ", a, b);
 	gPrintfProgressing = true;
 	
 	if (a == b) {
@@ -1633,13 +1605,15 @@ void printf_progress(const char* info, u32 a, u32 b) {
 		}
 	}
 	
-	printf("\r");
-	__printf_call(3, 0, stdout);
+	printf("\n");
+	Terminal_ClearLines(2);
+	__printf_call(3, stdout);
 	printf(
-		"%-16s " PRNT_RSET,
-		info
+		"%-16s" PRNT_RSET "[%d / %d]",
+		info,
+		a,
+		b
 	);
-	printf("[%d / %d]", a, b);
 	gPrintfProgressing = true;
 	
 	if (a == b) {
@@ -2738,19 +2712,22 @@ void MemFile_Align(MemFile* src, u32 align) {
 }
 
 s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
-	char buffer[512];
+	char* buffer;
 	va_list args;
 	
 	va_start(args, fmt);
-	vsnprintf(
-		buffer,
-		ArrayCount(buffer),
+	vasprintf(
+		&buffer,
 		fmt,
 		args
 	);
 	va_end(args);
 	
-	return MemFile_Write(dest, buffer, strlen(buffer));
+	return ({
+		s32 ret = MemFile_Write(dest, buffer, strlen(buffer));
+		Free(buffer);
+		ret;
+	});
 }
 
 s32 MemFile_Read(MemFile* src, void* dest, Size size) {
@@ -3255,18 +3232,8 @@ wchar* StrU8(const char* str) {
 char* StrUnq(const char* str) {
 	char* new = xStrDup(str);
 	
-	if (StrStr(str, "\"") || StrStr(str, "'")) {
-		while (new[0] != '\"' && new[0] != '\'')
-			StrRem(new, 1);
-		
-		while (new[strlen(new) - 1] != '\"' && new[strlen(new) - 1] != '\'')
-			new[strlen(new) - 1] = '\0';
-		
-		StrRep(new, "\"", "");
-		StrRep(new, "'", "");
-		
-		return new;
-	}
+	StrRep(new, "\"", "");
+	StrRep(new, "'", "");
 	
 	return new;
 }
@@ -3324,6 +3291,20 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 	strcpy(dest, Path(src));
 	strcat(dest, Basename(src));
 	strcat(dest, ext);
+}
+
+char* StrUpper(char* str) {
+	forstr(i, str)
+	str[i] = toupper(str[i]);
+	
+	return str;
+}
+
+char* StrLower(char* str) {
+	forstr(i, str)
+	str[i] = tolower(str[i]);
+	
+	return str;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -3979,7 +3960,7 @@ static void Log_Signal(int arg) {
 	Log_Printinf(arg, file);
 	
 	if (arg != 16) {
-		printf_getchar("Press enter to exit...");
+		printf_getchar("Press enter to exit");
 		exit(1);
 	}
 }
