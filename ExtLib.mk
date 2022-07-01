@@ -32,7 +32,8 @@ Xm_C      = libxm/src/context.c \
 			libxm/src/xm.c \
 			ExtXm.c
 
-Zip_C     = zip/src/zip.c
+Zip_C     = zip/src/zip.c \
+			ExtZip.c
 
 Audio_C   = miniaudio.c \
 			ExtAudio.c

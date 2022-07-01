@@ -29,6 +29,7 @@ void Thread_Create(Thread* thread, void* func, void* arg);
 s32 Thread_Join(Thread* thread);
 
 void ThreadPool_Add(void* func, void* arg, Size argSize);
+void ThreadPool_UserFree(void (*free)(void*), void* ptr);
 void ThreadPool_Run(s32 num);
 
 void SetSegment(const u8 id, void* segment);
@@ -215,6 +216,8 @@ s32 Value_ValidateHex(const char* str);
 s32 Value_ValidateInt(const char* str);
 s32 Value_ValidateFloat(const char* str);
 ValueType Value_Type(const char* variable);
+s32 Digits_Int(s32 i);
+s32 Digits_Hex(s32 i);
 
 s32 Music_NoteIndex(const char* note);
 const char* Music_NoteWord(s32 note);

@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 157
+#define THIS_EXTLIB_VERSION 158
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -96,7 +96,7 @@ s32 Thread_Join(Thread* thread) {
 typedef struct ThreadPoolNode {
 	struct ThreadPoolNode* prev;
 	struct ThreadPoolNode* next;
-	void*  func;
+	void (* func)(void*);
 	void*  arg;
 	Thread thd;
 	u8 init : 1;
@@ -104,6 +104,7 @@ typedef struct ThreadPoolNode {
 } ThreadPoolNode;
 
 ThreadPoolNode* sThrdPoolNodeHead;
+ThreadPoolNode* sThrdPoolFreeNodeHead;
 s32 sThdPoolNum;
 
 void ThreadPool_Add(void* func, void* arg, Size argSize) {
@@ -131,10 +132,18 @@ void ThreadPool_Add(void* func, void* arg, Size argSize) {
 #define Thread_TryJoin(thread, ret) _pthread_tryjoin(thread, ret)
 #endif // __IDE_FLAG__
 
+void ThreadPool_UserFree(void (*free)(void*), void* ptr) {
+	ThreadPoolNode* node;
+	
+	Calloc(node, sizeof(struct ThreadPoolNode));
+	node->func = free;
+	node->arg = ptr;
+	
+	Node_Add(sThrdPoolFreeNodeHead, node);
+}
+
 void ThreadPool_Run(s32 max) {
 	s32 runningNum = 0;
-	
-	printf_lock("PoolNum %d\n", sThdPoolNum);
 	
 	while (sThdPoolNum) {
 		ThreadPoolNode* node = sThrdPoolNodeHead;
@@ -180,6 +189,11 @@ void ThreadPool_Run(s32 max) {
 	while (sThrdPoolNodeHead) {
 		Free(sThrdPoolNodeHead->arg);
 		Node_Kill(sThrdPoolNodeHead, sThrdPoolNodeHead);
+	}
+	
+	while (sThrdPoolFreeNodeHead) {
+		sThrdPoolFreeNodeHead->func(sThrdPoolFreeNodeHead->arg);
+		Node_Kill(sThrdPoolFreeNodeHead, sThrdPoolFreeNodeHead);
 	}
 }
 
@@ -1550,10 +1564,9 @@ void printf_prog_align(const char* info, const char* fmt, const char* color) {
 		gPrintfProgressing = false;
 	}
 	
-	__printf_call(3, stdout);
-	
 	printf("\n");
 	Terminal_ClearLines(2);
+	__printf_call(3, stdout);
 	printf("%-16s%s%s", info, color ? color : "", fmt);
 }
 
@@ -1565,11 +1578,11 @@ void printf_progressFst(const char* info, u32 a, u32 b) {
 	if (sEXIT)
 		return;
 	
-	printf("\n");
-	Terminal_ClearLines(2);
+	printf("\r");
 	__printf_call(3, stdout);
 	printf(
-		"%-16s" PRNT_RSET "[%d / %d]",
+		// "%-16s" PRNT_RSET "[%4d / %-4d]",
+		xFmt("%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
 		info,
 		a,
 		b
@@ -1605,11 +1618,11 @@ void printf_progress(const char* info, u32 a, u32 b) {
 		}
 	}
 	
-	printf("\n");
-	Terminal_ClearLines(2);
+	printf("\r");
 	__printf_call(3, stdout);
 	printf(
-		"%-16s" PRNT_RSET "[%d / %d]",
+		// "%-16s" PRNT_RSET "[%4d / %-4d]",
+		xFmt("%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
 		info,
 		a,
 		b
@@ -2636,6 +2649,13 @@ void MemFile_Alloc(MemFile* memFile, u32 size) {
 }
 
 void MemFile_Realloc(MemFile* memFile, u32 size) {
+	if (memFile->param.initKey != 0xD0E0A0D0B0E0E0F0) {
+		*memFile = MemFile_Initialize();
+		MemFile_Alloc(memFile, size);
+		
+		return;
+	}
+	
 	if (memFile->memSize > size)
 		return;
 	
@@ -2914,9 +2934,7 @@ s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath) {
 
 void MemFile_Free(MemFile* memFile) {
 	if (memFile->param.initKey == 0xD0E0A0D0B0E0E0F0) {
-		if (memFile->data) {
-			free(memFile->data);
-		}
+		__Free(memFile->data);
 	}
 	
 	*memFile = MemFile_Initialize();
@@ -3079,6 +3097,24 @@ ValueType Value_Type(const char* variable) {
 	}
 	
 	return type;
+}
+
+s32 Digits_Int(s32 i) {
+	s32 d = 0;
+	
+	for (; i != 0; d++)
+		i *= 0.1;
+	
+	return ClampMin(d, 1);
+}
+
+s32 Digits_Hex(s32 i) {
+	s32 d = 0;
+	
+	for (; i != 0 && d != 0; d++)
+		i = (i >> 4);
+	
+	return ClampMin(d, 1);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
