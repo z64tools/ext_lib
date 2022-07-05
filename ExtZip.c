@@ -58,6 +58,53 @@ s32 ZipFile_ReadEntry_Index(ZipFile* zip, Size index, MemFile* mem) {
 	return 0;
 }
 
+s32 ZipFile_ReadEntries_Path(ZipFile* zip, const char* path, s32 (*callback)(const char* name, MemFile* mem)) {
+	u32 ent = zip_entries_total(zip->pkg);
+	
+	if (callback == NULL)
+		printf_error("[ZipFile_ReadEntries_Path]: Please provide a callback function!");
+	
+	for (u32 i = 0; i < ent; i++) {
+		const char* name;
+		s32 ret;
+		s32 brk = 0;
+		
+		if (zip_entry_openbyindex(zip->pkg, i))
+			return ZIP_ERROR_OPEN_ENTRY;
+		if (zip_entry_isdir(zip->pkg)) {
+			zip_entry_close(zip->pkg);
+			continue;
+		}
+		name = StrDup(zip_entry_name(zip->pkg));
+		
+		if (name == NULL)
+			return -6;
+		
+		if (memcmp(path, name, strlen(path))) {
+			zip_entry_close(zip->pkg);
+			Free(name);
+			continue;
+		}
+		zip_entry_close(zip->pkg);
+		
+		MemFile mem = MemFile_Initialize();
+		
+		if ((ret = ZipFile_ReadEntry_Index(zip, i, &mem)))
+			return ret;
+		
+		if (callback(name, &mem))
+			brk = true;
+		
+		MemFile_Free(&mem);
+		Free(name);
+		
+		if (brk)
+			break;
+	}
+	
+	return 0;
+}
+
 s32 ZipFile_WriteEntry(ZipFile* zip, MemFile* mem, char* entry) {
 	if (zip_entry_open(zip->pkg, entry))
 		return ZIP_ERROR_OPEN_ENTRY;

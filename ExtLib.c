@@ -3459,7 +3459,7 @@ char* Config_GetVariable(const char* str, const char* name) {
 					return NULL;
 			}
 			
-			while (p[size + 1] != ';' && (p[size + 1] != '#' || isString == true) && p[size] != '\n' && (isString == false || p[size] != '\"') && p[size] != '\0') {
+			while (p[size] != ';' && (p[size] != '#' || isString == true) && p[size] != '\n' && (isString == false || p[size] != '\"') && p[size] != '\0') {
 				if (p[size] == '\"')
 					isString = 1;
 				size++;
@@ -3579,12 +3579,15 @@ void Config_GetArray(MemFile* mem, const char* variable, ItemList* list) {
 	
 	while (array[size] != ']' && array[size] != '}') size++;
 	
-	tmp = array;
-	Calloc(array, size);
-	memcpy(array, tmp + 1, size - 2);
-	
-	ItemList_Separated(list, array, ',');
-	Free(array);
+	if (size > 1) {
+		tmp = array;
+		Calloc(array, size);
+		memcpy(array, tmp + 1, size - 2);
+		
+		ItemList_Separated(list, array, ',');
+		Free(array);
+	} else
+		*list = ItemList_Initialize();
 	
 	for (s32 i = 0; i < list->num; i++)
 		StrRep(list->item[i], "\"", "");
@@ -3860,7 +3863,7 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 #include <signal.h>
 
 #define FAULT_BUFFER_SIZE (1024)
-#define FAULT_LOG_NUM     16
+#define FAULT_LOG_NUM     32
 
 static char* sLogMsg[FAULT_LOG_NUM];
 static char* sLogFunc[FAULT_LOG_NUM];
