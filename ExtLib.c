@@ -3727,6 +3727,55 @@ void Config_ListVariables(MemFile* mem, ItemList* list, const char* section) {
 	}
 }
 
+void Config_ListSections(MemFile* cfg, ItemList* list) {
+	char* p = cfg->str;
+	s32 ln = LineNum(p);
+	s32 sctCount = 0;
+	s32 sctSize = 0;
+	
+	for (s32 i = 0; i < ln; i++, p = Line(p, 1)) {
+		s32 sz = 0;
+		
+		while (!isgraph(*p)) p++;
+		if (*p != '[')
+			continue;
+		sctCount++;
+		
+		while (p[sz] != ']') {
+			sz++;
+			sctSize++;
+			
+			if (p[sz] == '\0')
+				printf_error("Missing ']' from section name at line %d for [%s]", i, cfg->info.name);
+		}
+	}
+	
+	ItemList_Alloc(list, sctCount, sctSize + sctCount);
+	
+	p = cfg->str;
+	for (s32 i = 0; i < ln; i++, p = Line(p, 1)) {
+		char* word;
+		s32 sz = 0;
+		
+		while (!isgraph(*p)) p++;
+		if (*p != '[')
+			continue;
+		sctCount++;
+		
+		word = StrDup(p + 1);
+		
+		for (s32 j = 0; ; j++) {
+			if (word[j] == ']') {
+				word[j] = '\0';
+				break;
+			}
+		}
+		
+		ItemList_AddItem(list, word);
+		Free(word);
+	}
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # TOML                                #
 // # # # # # # # # # # # # # # # # # # # #

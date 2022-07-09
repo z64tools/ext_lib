@@ -250,6 +250,7 @@ char* Config_GetStr(MemFile* mem, const char* stringName);
 f32 Config_GetFloat(MemFile* mem, const char* floatName);
 void Config_GotoSection(const char* section);
 void Config_ListVariables(MemFile* mem, ItemList* list, const char* section);
+void Config_ListSections(MemFile* cfg, ItemList* list);
 
 s32 Config_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ...);
 void Config_WriteComment(MemFile* mem, const char* comment);
