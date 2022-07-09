@@ -136,6 +136,7 @@ void* MemMem(const void* haystack, size_t haystackSize, const void* needle, size
 void* StrStr(const char* haystack, const char* needle);
 void* StrStrWhole(const char* haystack, const char* needle);
 void* StrStrCase(const char* strA, const char* strB);
+void* MemStrCase(const char* haystack, u32 haystacklen, const char* needle);
 void* MemMemAlign(u32 val, const void* haystack, size_t haySize, const void* needle, size_t needleSize);
 char* StrEnd(const char* src, const char* ext);
 char* StrEndCase(const char* src, const char* ext);

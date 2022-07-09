@@ -1029,6 +1029,9 @@ s32 Sys_Delete_Recursive(const char* item) {
 }
 
 void Sys_SetWorkDir(const char* txt) {
+	if (PathIsRel(txt))
+		txt = PathAbs(txt);
+	
 	chdir(txt);
 }
 
@@ -1787,6 +1790,38 @@ void* StrStrCase(const char* haystack, const char* needle) {
 		return NULL;
 	
 	u32 haystacklen = strlen(haystack);
+	u32 needlelen = strlen(needle);
+	
+	while (needlelen <= (haystacklen - (p - bf))) {
+		char* a, * b;
+		
+		a = memchr(p, tolower((int)(*pt)), haystacklen - (p - bf));
+		b = memchr(p, toupper((int)(*pt)), haystacklen - (p - bf));
+		
+		if (a == NULL)
+			p = b;
+		else if (b == NULL)
+			p = a;
+		else
+			p = Min(a, b);
+		
+		if (p) {
+			if (0 == strnicmp(p, needle, needlelen))
+				return p;
+			++p;
+		} else
+			break;
+	}
+	
+	return NULL;
+}
+
+void* MemStrCase(const char* haystack, u32 haystacklen, const char* needle) {
+	char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
+	
+	if (!haystack || !needle)
+		return NULL;
+	
 	u32 needlelen = strlen(needle);
 	
 	while (needlelen <= (haystacklen - (p - bf))) {
