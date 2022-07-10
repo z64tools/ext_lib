@@ -185,8 +185,8 @@ void GeoGrid_Edge_SetSlideClamp(GeoGrid* geoGrid) {
 	SplitEdge* setEdge = geoGrid->actionEdge;
 	SplitEdge* actionEdge = geoGrid->actionEdge;
 	u32 align = ((actionEdge->state & EDGE_VERTICAL) != 0);
-	f64 posMin = actionEdge->vtx[0]->pos.s[align];
-	f64 posMax = actionEdge->vtx[1]->pos.s[align];
+	f64 posMin = actionEdge->vtx[0]->pos.axis[align];
+	f64 posMax = actionEdge->vtx[1]->pos.axis[align];
 	
 	setEdge->state |= EDGE_EDIT;
 	
@@ -197,7 +197,7 @@ void GeoGrid_Edge_SetSlideClamp(GeoGrid* geoGrid) {
 				setEdge = tempEdge;
 				tempEdge->state |= EDGE_EDIT;
 				tempEdge = geoGrid->edgeHead;
-				posMin = setEdge->vtx[0]->pos.s[align];
+				posMin = setEdge->vtx[0]->pos.axis[align];
 				continue;
 			}
 		}
@@ -214,7 +214,7 @@ void GeoGrid_Edge_SetSlideClamp(GeoGrid* geoGrid) {
 				tempEdge->state |= EDGE_EDIT;
 				setEdge = tempEdge;
 				tempEdge = geoGrid->edgeHead;
-				posMax = setEdge->vtx[1]->pos.s[align];
+				posMax = setEdge->vtx[1]->pos.axis[align];
 				continue;
 			}
 		}
@@ -227,7 +227,7 @@ void GeoGrid_Edge_SetSlideClamp(GeoGrid* geoGrid) {
 	while (tempEdge) {
 		if ((tempEdge->state & EDGE_ALIGN) == (actionEdge->state & EDGE_ALIGN)) {
 			if (tempEdge->pos == actionEdge->pos) {
-				if (tempEdge->vtx[1]->pos.s[align] <= posMax && tempEdge->vtx[0]->pos.s[align] >= posMin) {
+				if (tempEdge->vtx[1]->pos.axis[align] <= posMax && tempEdge->vtx[0]->pos.axis[align] >= posMin) {
 					tempEdge->state |= EDGE_EDIT;
 				}
 			}
@@ -546,16 +546,16 @@ void GeoGrid_Update_Edge_SetSlide(GeoGrid* geoGrid) {
 			while (temp) {
 				for (s32 i = 0; i < 2; i++) {
 					if (((temp->state & EDGE_ALIGN) != (edge->state & EDGE_ALIGN)) && temp->vtx[1] == edge->vtx[i]) {
-						if (temp->vtx[0]->pos.s[align] > geoGrid->slide.clampMin) {
-							geoGrid->slide.clampMin = temp->vtx[0]->pos.s[align];
+						if (temp->vtx[0]->pos.axis[align] > geoGrid->slide.clampMin) {
+							geoGrid->slide.clampMin = temp->vtx[0]->pos.axis[align];
 						}
 					}
 				}
 				
 				for (s32 i = 0; i < 2; i++) {
 					if (((temp->state & EDGE_ALIGN) != (edge->state & EDGE_ALIGN)) && temp->vtx[0] == edge->vtx[i]) {
-						if (temp->vtx[1]->pos.s[align] < geoGrid->slide.clampMax) {
-							geoGrid->slide.clampMax = temp->vtx[1]->pos.s[align];
+						if (temp->vtx[1]->pos.axis[align] < geoGrid->slide.clampMax) {
+							geoGrid->slide.clampMax = temp->vtx[1]->pos.axis[align];
 						}
 					}
 				}
@@ -578,15 +578,15 @@ void GeoGrid_Update_Edge_SetSlide(GeoGrid* geoGrid) {
 		}
 		
 		if (isCornerEdge) {
-			edge->vtx[0]->pos.s[isHor] = edge->pos;
-			edge->vtx[1]->pos.s[isHor] = edge->pos;
+			edge->vtx[0]->pos.axis[isHor] = edge->pos;
+			edge->vtx[1]->pos.axis[isHor] = edge->pos;
 		} else {
 			if (isEditEdge && isCornerEdge == false && clampFail == false) {
-				edge->vtx[0]->pos.s[isHor] = edge->pos;
-				edge->vtx[1]->pos.s[isHor] = edge->pos;
+				edge->vtx[0]->pos.axis[isHor] = edge->pos;
+				edge->vtx[1]->pos.axis[isHor] = edge->pos;
 			} else {
-				edge->vtx[0]->pos.s[isHor] = edge->pos;
-				edge->vtx[1]->pos.s[isHor] = edge->pos;
+				edge->vtx[0]->pos.axis[isHor] = edge->pos;
+				edge->vtx[1]->pos.axis[isHor] = edge->pos;
 			}
 		}
 		

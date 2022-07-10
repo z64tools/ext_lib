@@ -3868,7 +3868,6 @@ void Config_ListSections(MemFile* cfg, ItemList* list) {
 	p = cfg->str;
 	for (s32 i = 0; i < ln; i++, p = Line(p, 1)) {
 		char* word;
-		s32 sz = 0;
 		
 		while (!isgraph(*p)) p++;
 		if (*p != '[')

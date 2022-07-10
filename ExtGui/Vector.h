@@ -6,35 +6,29 @@
 extern f64 gDeltaTime;
 
 #define __EXT_VECTYPEDEF(type, suffix) \
-	typedef struct { \
-		union { \
-			type s[4]; \
-			struct { \
-				type x; \
-				type y; \
-				type z; \
-				type w; \
-			}; \
+	typedef union { \
+		struct { \
+			type x; \
+			type y; \
+			type z; \
+			type w; \
 		}; \
+		type axis[4]; \
 	} Vec4 ## suffix; \
-	typedef struct { \
-		union { \
-			type s[3]; \
-			struct { \
-				type x; \
-				type y; \
-				type z; \
-			}; \
+	typedef union { \
+		struct { \
+			type x; \
+			type y; \
+			type z; \
 		}; \
+		type axis[3]; \
 	} Vec3 ## suffix; \
-	typedef struct { \
-		union { \
-			type s[2]; \
-			struct { \
-				type x; \
-				type y; \
-			}; \
+	typedef union { \
+		struct { \
+			type x; \
+			type y; \
 		}; \
+		type axis[2]; \
 	} Vec2 ## suffix;
 
 __EXT_VECTYPEDEF(f64, d)

@@ -74,10 +74,10 @@ $(shell mkdir -p bin/ $(foreach dir, \
 	$(dir $(Xm_Win32_O)) \
 	, $(dir)))
 
+CFLAGS += -Wno-missing-braces
 ExtLib_CFlags = -Wno-unused-result -Wno-format-truncation -Wno-strict-aliasing -Wno-implicit-function-declaration -DNDEBUG
 
 bin/win32/nanovg/%.o: CFLAGS += -Wno-misleading-indentation
-bin/win32/ExtGui/%.o: CFLAGS += -Wno-missing-braces
 bin/win32/zip/%.o: CFLAGS += -Wno-stringop-truncation
 	
 bin/win32/ExtLib.o: $(C_INCLUDE_PATH)/ExtLib.c $(C_INCLUDE_PATH)/ExtLib.h
