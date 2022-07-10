@@ -99,13 +99,13 @@ typedef struct ThreadPoolNode {
 	void (* func)(void*);
 	void*  arg;
 	Thread thd;
-	u8 init : 1;
-	u8 done : 1;
+	s8 init;
+	s8 done;
 } ThreadPoolNode;
 
 ThreadPoolNode* sThrdPoolNodeHead;
 ThreadPoolNode* sThrdPoolFreeNodeHead;
-s32 sThdPoolNum;
+volatile s32 sThdPoolNum;
 
 void ThreadPool_Add(void* func, void* arg, Size argSize) {
 	ThreadPoolNode* node;
@@ -156,20 +156,20 @@ void ThreadPool_Run(s32 max) {
 						node->done = true;
 						runningNum--;
 						sThdPoolNum--;
-						Log("Thread Done %d", id);
+						Log("Thread Done %d, %d left", id, sThdPoolNum);
 					}
 				}
 				
 				id++;
 				node = node->next;
 			}
+			
+			if (runningNum == max)
+				continue;
 		}
 		
 		if (sThdPoolNum == 0)
 			break;
-		
-		if (runningNum == max)
-			continue;
 		
 		node = sThrdPoolNodeHead;
 		
@@ -186,6 +186,7 @@ void ThreadPool_Run(s32 max) {
 		}
 	}
 	
+	Log("Free");
 	while (sThrdPoolNodeHead) {
 		Free(sThrdPoolNodeHead->arg);
 		Node_Kill(sThrdPoolNodeHead, sThrdPoolNodeHead);
@@ -635,6 +636,13 @@ void ItemList_NumericalSort(ItemList* list) {
 	ItemList sorted = ItemList_Initialize();
 	u32 highestNum = 0;
 	
+	if (list->num < 2) {
+		Log("Nothing to sort!");
+		
+		return;
+	}
+	
+	Log("Sorting!");
 	for (s32 i = 0; i < list->num; i++)
 		highestNum = Max(highestNum, Value_Int(list->item[i]));
 	
@@ -676,6 +684,64 @@ void ItemList_NumericalSort(ItemList* list) {
 	*list = sorted;
 }
 
+static s32 SlotSort_GetNum(char* item, u32* ret) {
+	u32 nonNum = false;
+	char* num = item;
+	
+	while (!isdigit(*num)) {
+		num++;
+		if (*num == '\0') {
+			nonNum = true;
+			break;
+		}
+	}
+	
+	if (!nonNum) {
+		*ret = Value_Int(num);
+		
+		return 0;
+	}
+	
+	return 1;
+}
+
+void ItemList_NumericalSlotSort(ItemList* list) {
+	ItemList new = ItemList_Initialize();
+	u32 max = 0;
+	
+	forlist(i, *list) {
+		u32 num;
+		
+		if (!SlotSort_GetNum(list->item[i], &num))
+			max = Max(num + 1, max);
+	}
+	
+	if (max == 0)
+		return;
+	
+	ItemList_Alloc(&new, max, list->writePoint);
+	
+	for (s32 i = 0; i < max; i++) {
+		u32 write = false;
+		u32 num;
+		forlist(j, *list) {
+			if (list->item[j] && !SlotSort_GetNum(list->item[j], &num) && i == num) {
+				ItemList_AddItem(&new, list->item[j]);
+				list->item[j] = NULL;
+				write = true;
+				
+				break;
+			}
+		}
+		
+		if (!write)
+			ItemList_AddItem(&new, NULL);
+	}
+	
+	ItemList_Free(list);
+	*list = new;
+}
+
 void ItemList_Free(ItemList* itemList) {
 	if (itemList->private.initKey == 0xDEFABEBACECAFAFF) {
 		Free(itemList->buffer);
@@ -699,6 +765,12 @@ void ItemList_Alloc(ItemList* list, u32 num, Size size) {
 }
 
 void ItemList_AddItem(ItemList* list, const char* item) {
+	if (item == NULL) {
+		list->item[list->num++] = NULL;
+		
+		return;
+	}
+	
 	u32 len = strlen(item);
 	
 	list->item[list->num] = &list->buffer[list->writePoint];
@@ -3033,6 +3105,8 @@ s32 Value_ValidateHex(const char* str) {
 	s32 isOk = false;
 	
 	for (s32 i = 0; i < strlen(str); i++) {
+		if (ispunct(str[i]))
+			break;
 		if (
 			(str[i] >= 'A' && str[i] <= 'F') ||
 			(str[i] >= 'a' && str[i] <= 'f') ||
@@ -3054,6 +3128,8 @@ s32 Value_ValidateInt(const char* str) {
 	s32 isOk = false;
 	
 	for (s32 i = 0; i < strlen(str); i++) {
+		if (ispunct(str[i]))
+			break;
 		if (
 			(str[i] >= '0' && str[i] <= '9')
 		) {
@@ -3071,6 +3147,8 @@ s32 Value_ValidateFloat(const char* str) {
 	s32 isOk = false;
 	
 	for (s32 i = 0; i < strlen(str); i++) {
+		if (ispunct(str[i]) && str[i] != '.')
+			break;
 		if (
 			(str[i] >= '0' && str[i] <= '9') || str[i] == '.'
 		) {

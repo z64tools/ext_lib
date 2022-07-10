@@ -97,6 +97,7 @@ Time ItemList_StatMax(ItemList* list);
 Time ItemList_StatMin(ItemList* list);
 s32 ItemList_SaveList(ItemList* target, const char* output);
 void ItemList_NumericalSort(ItemList* list);
+void ItemList_NumericalSlotSort(ItemList* list);
 void ItemList_Free(ItemList* itemList);
 void ItemList_Alloc(ItemList* list, u32 num, Size size);
 void ItemList_AddItem(ItemList* list, const char* item);
