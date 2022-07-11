@@ -1301,7 +1301,7 @@ void GeoGrid_Draw(GeoGrid* geoGrid) {
 	}
 	
 	GeoGrid_Draw_Splits(geoGrid);
-	if (1)
+	if (0)
 		GeoGrid_Draw_Debug(geoGrid);
 	GeoGrid_Draw_ContextMenu(geoGrid);
 }

@@ -310,6 +310,8 @@ f64 Time_Get(u32 slot) {
 // # ITEM LIST                           #
 // # # # # # # # # # # # # # # # # # # # #
 
+ItemList gList_SortError;
+
 typedef struct {
 	StrNode* node;
 	u32 len;
@@ -705,7 +707,8 @@ static s32 SlotSort_GetNum(char* item, u32* ret) {
 	return 1;
 }
 
-void ItemList_NumericalSlotSort(ItemList* list) {
+s32 ItemList_NumericalSlotSort(ItemList* list, bool checkOverlaps) {
+	s32 error = false;
 	ItemList new = ItemList_Initialize();
 	u32 max = 0;
 	
@@ -717,7 +720,7 @@ void ItemList_NumericalSlotSort(ItemList* list) {
 	}
 	
 	if (max == 0)
-		return;
+		return error;
 	
 	ItemList_Alloc(&new, max, list->writePoint);
 	
@@ -738,8 +741,40 @@ void ItemList_NumericalSlotSort(ItemList* list) {
 			ItemList_AddItem(&new, NULL);
 	}
 	
+	if (checkOverlaps) {
+		forlist(i, new) {
+			u32 newNum;
+			u32 listNum;
+			
+			if (new.item[i] == NULL)
+				continue;
+			
+			SlotSort_GetNum(new.item[i], &newNum);
+			
+			forlist(j, *list) {
+				if (list->item[j] == NULL)
+					continue;
+				
+				SlotSort_GetNum(list->item[j], &listNum);
+				
+				if (newNum != listNum)
+					continue;
+				
+				if (!strcmp(list->item[j], new.item[i]))
+					continue;
+				
+				if (error == 0)
+					ItemList_Alloc(&gList_SortError, new.num, list->writePoint);
+				ItemList_AddItem(&gList_SortError, list->item[j]);
+				error = true;
+			}
+		}
+	}
+	
 	ItemList_Free(list);
 	*list = new;
+	
+	return error;
 }
 
 void ItemList_Free(ItemList* itemList) {
@@ -753,6 +788,7 @@ void ItemList_Free(ItemList* itemList) {
 
 void ItemList_Alloc(ItemList* list, u32 num, Size size) {
 	ItemList_Validate(list);
+	ItemList_Free(list);
 	list->num = 0;
 	list->writePoint = 0;
 	
@@ -4357,6 +4393,22 @@ f32 WrapF(f32 x, f32 min, f32 max) {
 		x += range * roundf((min - x) / range + 1);
 	
 	return min + fmodf((x - min), range);
+}
+
+s32 PingPongS(s32 v, s32 min, s32 max) {
+	min = WrapS(v, min, max * 2);
+	if (min < max)
+		return min;
+	else
+		return 2 * max - min;
+}
+
+f32 PingPongF(f32 v, f32 min, f32 max) {
+	min = WrapF(v, min, max * 2);
+	if (min < max)
+		return min;
+	else
+		return 2 * max - min;
 }
 
 // # # # # # # # # # # # # # # # # # # # #

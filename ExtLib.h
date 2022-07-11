@@ -85,6 +85,8 @@ void Terminal_Move(s32 x, s32 y);
 const char* Terminal_GetStr(void);
 char Terminal_GetChar();
 
+extern ItemList gList_SortError;
+
 void ItemList_Validate(ItemList* itemList);
 ItemList ItemList_Initialize(void);
 void ItemList_SetFilter(ItemList* list, u32 filterNum, ...);
@@ -97,7 +99,7 @@ Time ItemList_StatMax(ItemList* list);
 Time ItemList_StatMin(ItemList* list);
 s32 ItemList_SaveList(ItemList* target, const char* output);
 void ItemList_NumericalSort(ItemList* list);
-void ItemList_NumericalSlotSort(ItemList* list);
+s32 ItemList_NumericalSlotSort(ItemList* list, bool checkOverlaps);
 void ItemList_Free(ItemList* itemList);
 void ItemList_Alloc(ItemList* list, u32 num, Size size);
 void ItemList_AddItem(ItemList* list, const char* item);
@@ -287,6 +289,8 @@ void Math_ApproachF(f32* pValue, f32 target, f32 fraction, f32 step);
 void Math_ApproachS(s32* pValue, s32 target, s32 scale, s32 step);
 s32 WrapS(s32 x, s32 min, s32 max);
 f32 WrapF(f32 x, f32 min, f32 max);
+s32 PingPongS(s32 v, s32 min, s32 max);
+f32 PingPongF(f32 v, f32 min, f32 max);
 
 void* Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx);
 void Sound_Free(void* sound);
