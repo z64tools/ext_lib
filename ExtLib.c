@@ -521,7 +521,7 @@ char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, .
 
 void ItemList_Separated(ItemList* list, const char* str, const char separator) {
 	s32 a = 0;
-	s32 b;
+	s32 b = 0;
 	StrNode* nodeHead = NULL;
 	
 	ItemList_Validate(list);
@@ -535,12 +535,27 @@ void ItemList_Separated(ItemList* list, const char* str, const char separator) {
 		s32 brk = true;
 		
 		if (str[a] == '\"' || str[a] == '\'') {
+			Log("String? %c%c", str[a], str[a + 1]);
+			Log("a%d - b%d / %d", a, b, strlen(str));
 			isString = 1;
 			a++;
 		}
 		
 		b = a;
 		
+		if (isString && (str[b] == '\"' || str[b] == '\'')) {
+			Log("Empty String");
+			Calloc(node, sizeof(StrNode));
+			Calloc(node->txt, 2);
+			Node_Add(nodeHead, node);
+			
+			b++;
+			
+			goto write;
+		}
+		
+		Log("char %02X", str[b], isString);
+		Log("a%d - b%d / %d", a, b, strlen(str));
 		while (isString || (str[b] != separator && str[b] != '\0')) {
 			b++;
 			if (isString && (str[b] == '\"' || str[b] == '\'')) {
@@ -548,7 +563,7 @@ void ItemList_Separated(ItemList* list, const char* str, const char separator) {
 				strcompns = -1;
 			}
 		}
-		while (!isString && separator != ' ' && str[b - 1] == ' ') b--;
+		while (!isString && a != b && separator != ' ' && str[b - 1] == ' ') b--;
 		
 		if (b == a)
 			break;
@@ -564,13 +579,15 @@ void ItemList_Separated(ItemList* list, const char* str, const char separator) {
 		Calloc(node, sizeof(StrNode));
 		Calloc(node->txt, b - a + strcompns + 1);
 		memcpy(node->txt, &str[a], b - a + strcompns);
-		Log("%d, [%s]", b - a + 1, node->txt);
+		Log("%d [%s]", b - a + 1, node->txt);
 		Node_Add(nodeHead, node);
 		
+write:
 		list->num++;
 		list->writePoint += strlen(node->txt) + 1;
 		
 		a = b;
+		Log("" PRNT_REDD "CONTINUE" PRNT_RSET ": [%s]", &str[a]);
 		
 		while (str[a] == separator || str[a] == ' ' || str[a] == '\t' || str[a] == '\n' || str[a] == '\r') a++;
 		if (str[a] == '\0')
@@ -743,8 +760,8 @@ s32 ItemList_NumericalSlotSort(ItemList* list, bool checkOverlaps) {
 	
 	if (checkOverlaps) {
 		forlist(i, new) {
-			u32 newNum;
-			u32 listNum;
+			u32 newNum = 0;
+			u32 listNum = 0;
 			
 			if (new.item[i] == NULL)
 				continue;
@@ -3034,7 +3051,8 @@ s32 MemFile_SaveFile(MemFile* memFile, const char* filepath) {
 		return 1;
 	}
 	
-	fwrite(memFile->data, sizeof(char), memFile->size, file);
+	if (memFile->size)
+		fwrite(memFile->data, sizeof(char), memFile->size, file);
 	fclose(file);
 	
 	return 0;
@@ -3069,7 +3087,8 @@ s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath) {
 		return 1;
 	}
 	
-	fwrite(memFile->data, sizeof(char), memFile->size, file);
+	if (memFile->size)
+		fwrite(memFile->data, sizeof(char), memFile->size, file);
 	fclose(file);
 	
 	return 0;
@@ -3731,7 +3750,7 @@ void Config_GetArray(MemFile* mem, const char* variable, ItemList* list) {
 	if (size > 1) {
 		tmp = array;
 		Calloc(array, size);
-		memcpy(array, tmp + 1, size - 2);
+		memcpy(array, tmp + 1, size - 1);
 		
 		ItemList_Separated(list, array, ',');
 		Free(array);
