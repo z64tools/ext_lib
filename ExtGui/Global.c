@@ -20,7 +20,7 @@ static void Interface_Draw() {
 			glfwGetWindowSize(__appInfo->mainWindow, &winWidth, &winHeight);
 			glfwGetFramebufferSize(__appInfo->mainWindow, &fbWidth, &fbHeight);
 			gPixelRatio = (float)fbWidth / (float)winWidth;
-			
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			__appInfo->drawCall(__appInfo->context);
 		}
 	}

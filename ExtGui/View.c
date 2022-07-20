@@ -1,51 +1,51 @@
 #include "Global.h"
 
-void View_Camera_FlyMode(ViewContext* viewCtx, InputContext* inputCtx) {
-	Camera* cam = viewCtx->currentCamera;
+void View_Camera_FlyMode(ViewContext* this, InputContext* inputCtx) {
+	Camera* cam = this->currentCamera;
 	
-	if (viewCtx->cameraControl) {
+	if (this->cameraControl) {
 		if (inputCtx->key[KEY_LEFT_SHIFT].hold) {
-			Math_DelSmoothStepToF(&viewCtx->flyMode.speed, 4.0f, 0.25f, 1.00f, 0.00001f);
+			Math_DelSmoothStepToF(&this->flyMode.speed, 4.0f, 0.25f, 1.00f, 0.00001f);
 		} else if (inputCtx->key[KEY_SPACE].hold) {
-			Math_DelSmoothStepToF(&viewCtx->flyMode.speed, 16.0f, 0.25f, 1.00f, 0.00001f);
+			Math_DelSmoothStepToF(&this->flyMode.speed, 16.0f, 0.25f, 1.00f, 0.00001f);
 		} else {
-			Math_DelSmoothStepToF(&viewCtx->flyMode.speed, 0.5f, 0.25f, 1.00f, 0.00001f);
+			Math_DelSmoothStepToF(&this->flyMode.speed, 0.5f, 0.25f, 1.00f, 0.00001f);
 		}
 		
 		if (inputCtx->key[KEY_A].hold || inputCtx->key[KEY_D].hold) {
 			if (inputCtx->key[KEY_A].hold)
-				Math_DelSmoothStepToF(&viewCtx->flyMode.vel.x, viewCtx->flyMode.speed, 0.25f, 1.00f, 0.00001f);
+				Math_DelSmoothStepToF(&this->flyMode.vel.x, this->flyMode.speed, 0.25f, 1.00f, 0.00001f);
 			if (inputCtx->key[KEY_D].hold)
-				Math_DelSmoothStepToF(&viewCtx->flyMode.vel.x, -viewCtx->flyMode.speed, 0.25f, 1.00f, 0.00001f);
+				Math_DelSmoothStepToF(&this->flyMode.vel.x, -this->flyMode.speed, 0.25f, 1.00f, 0.00001f);
 		} else {
-			Math_DelSmoothStepToF(&viewCtx->flyMode.vel.x, 0, 0.25f, 1.00f, 0.00001f);
+			Math_DelSmoothStepToF(&this->flyMode.vel.x, 0, 0.25f, 1.00f, 0.00001f);
 		}
 		
 		if (inputCtx->key[KEY_W].hold || inputCtx->key[KEY_S].hold) {
 			if (inputCtx->key[KEY_W].hold)
-				Math_DelSmoothStepToF(&viewCtx->flyMode.vel.z, viewCtx->flyMode.speed, 0.25f, 1.00f, 0.00001f);
+				Math_DelSmoothStepToF(&this->flyMode.vel.z, this->flyMode.speed, 0.25f, 1.00f, 0.00001f);
 			if (inputCtx->key[KEY_S].hold)
-				Math_DelSmoothStepToF(&viewCtx->flyMode.vel.z, -viewCtx->flyMode.speed, 0.25f, 1.00f, 0.00001f);
+				Math_DelSmoothStepToF(&this->flyMode.vel.z, -this->flyMode.speed, 0.25f, 1.00f, 0.00001f);
 		} else {
-			Math_DelSmoothStepToF(&viewCtx->flyMode.vel.z, 0, 0.25f, 1.00f, 0.00001f);
+			Math_DelSmoothStepToF(&this->flyMode.vel.z, 0, 0.25f, 1.00f, 0.00001f);
 		}
 	} else {
-		Math_DelSmoothStepToF(&viewCtx->flyMode.speed, 0.5f, 0.25f, 1.00f, 0.00001f);
-		Math_DelSmoothStepToF(&viewCtx->flyMode.vel.x, 0, 0.25f, 1.00f, 0.00001f);
-		Math_DelSmoothStepToF(&viewCtx->flyMode.vel.z, 0, 0.25f, 1.00f, 0.00001f);
+		Math_DelSmoothStepToF(&this->flyMode.speed, 0.5f, 0.25f, 1.00f, 0.00001f);
+		Math_DelSmoothStepToF(&this->flyMode.vel.x, 0, 0.25f, 1.00f, 0.00001f);
+		Math_DelSmoothStepToF(&this->flyMode.vel.z, 0, 0.25f, 1.00f, 0.00001f);
 	}
 	
 	Vec3f* eye = &cam->eye;
 	Vec3f* at = &cam->at;
 	
-	if (viewCtx->flyMode.vel.z || viewCtx->flyMode.vel.x || (viewCtx->cameraControl && inputCtx->mouse.clickL.hold)) {
+	if (this->flyMode.vel.z || this->flyMode.vel.x || (this->cameraControl && inputCtx->mouse.clickL.hold)) {
 		VecSph camSph = {
 			.r = Math_Vec3f_DistXYZ(eye, at),
 			.yaw = Math_Vec3f_Yaw(at, eye),
 			.pitch = Math_Vec3f_Pitch(at, eye)
 		};
 		
-		if (viewCtx->cameraControl && inputCtx->mouse.clickL.hold) {
+		if (this->cameraControl && inputCtx->mouse.clickL.hold) {
 			camSph.yaw -= inputCtx->mouse.vel.x * 65;
 			camSph.pitch -= inputCtx->mouse.vel.y * 65;
 		}
@@ -55,9 +55,9 @@ void View_Camera_FlyMode(ViewContext* viewCtx, InputContext* inputCtx) {
 		Math_AddVecSphToVec3f(at, &camSph);
 	}
 	
-	if (viewCtx->flyMode.vel.z || viewCtx->flyMode.vel.x) {
+	if (this->flyMode.vel.z || this->flyMode.vel.x) {
 		VecSph velSph = {
-			.r = viewCtx->flyMode.vel.z * 1000,
+			.r = this->flyMode.vel.z * 1000,
 			.yaw = Math_Vec3f_Yaw(at, eye),
 			.pitch = Math_Vec3f_Pitch(at, eye)
 		};
@@ -66,7 +66,7 @@ void View_Camera_FlyMode(ViewContext* viewCtx, InputContext* inputCtx) {
 		Math_AddVecSphToVec3f(at, &velSph);
 		
 		velSph = (VecSph) {
-			.r = viewCtx->flyMode.vel.x * 1000,
+			.r = this->flyMode.vel.x * 1000,
 			.yaw = Math_Vec3f_Yaw(at, eye) + 0x3FFF,
 			.pitch = 0
 		};
@@ -76,8 +76,8 @@ void View_Camera_FlyMode(ViewContext* viewCtx, InputContext* inputCtx) {
 	}
 }
 
-void View_Camera_OrbitMode(ViewContext* viewCtx, InputContext* inputCtx) {
-	Camera* cam = viewCtx->currentCamera;
+void View_Camera_OrbitMode(ViewContext* this, InputContext* inputCtx) {
+	Camera* cam = this->currentCamera;
 	VecSph orbitSph = {
 		.r = Math_Vec3f_DistXYZ(&cam->at, &cam->eye),
 		.yaw = Math_Vec3f_Yaw(&cam->eye, &cam->at),
@@ -85,7 +85,7 @@ void View_Camera_OrbitMode(ViewContext* viewCtx, InputContext* inputCtx) {
 	};
 	f32 distMult = (orbitSph.r * 0.1);
 	
-	if (viewCtx->cameraControl) {
+	if (this->cameraControl) {
 		if (inputCtx->mouse.clickMid.hold || inputCtx->mouse.scrollY) {
 			if (inputCtx->mouse.clickMid.hold) {
 				if (inputCtx->key[KEY_LEFT_SHIFT].hold) {
@@ -112,7 +112,7 @@ void View_Camera_OrbitMode(ViewContext* viewCtx, InputContext* inputCtx) {
 				}
 			}
 			if (inputCtx->key[KEY_LEFT_CONTROL].hold) {
-				viewCtx->fovyTarget = Clamp(viewCtx->fovyTarget * (1.0 + (inputCtx->mouse.scrollY / 20)), 20, 170);
+				this->fovyTarget = Clamp(this->fovyTarget * (1.0 + (inputCtx->mouse.scrollY / 20)), 20, 170);
 			} else {
 				orbitSph.r = ClampMin(orbitSph.r - (distMult * (inputCtx->mouse.scrollY)), 0.00001f);
 				cam->eye = cam->at;
@@ -123,11 +123,11 @@ void View_Camera_OrbitMode(ViewContext* viewCtx, InputContext* inputCtx) {
 	}
 }
 
-void View_Init(ViewContext* viewCtx, InputContext* inputCtx) {
+void View_Init(ViewContext* this, InputContext* inputCtx) {
 	Camera* cam;
 	
-	viewCtx->currentCamera = &viewCtx->camera[0];
-	cam = viewCtx->currentCamera;
+	this->currentCamera = &this->camera[0];
+	cam = this->currentCamera;
 	
 	cam->eye = (Vec3f) { -50.0f * 100, 50.0f * 100, 50.0f * 100 };
 	cam->at = (Vec3f) { 0, 0, 0 };
@@ -136,43 +136,42 @@ void View_Init(ViewContext* viewCtx, InputContext* inputCtx) {
 	cam->at = (Vec3f) { 0, 0, 0 };
 	cam->roll = 0;
 	
-	Matrix_LookAt(&viewCtx->viewMtx, cam->eye, cam->at, cam->roll);
+	Matrix_LookAt(&this->viewMtx, cam->eye, cam->at, cam->roll);
 	
-	viewCtx->fovyTarget = viewCtx->fovy = 65;
-	viewCtx->near = 10.0;
-	viewCtx->far = 12800.0;
-	viewCtx->scale = 1;
+	this->fovyTarget = this->fovy = 65;
+	this->near = 10.0;
+	this->far = 12800.0;
+	this->scale = 1;
 }
 
-void View_Update(ViewContext* viewCtx, InputContext* inputCtx) {
-	Camera* cam = viewCtx->currentCamera;
-	MtxF model = gMtxFClear;
+void View_Update(ViewContext* this, InputContext* inputCtx) {
+	Camera* cam = this->currentCamera;
 	
-	Math_DelSmoothStepToF(&viewCtx->fovy, viewCtx->fovyTarget, 0.25, 5.25f, 0.00001);
+	Math_DelSmoothStepToF(&this->fovy, this->fovyTarget, 0.25, 5.25f, 0.00001);
 	
 	Matrix_Projection(
-		&viewCtx->projMtx,
-		viewCtx->fovy,
-		(f32)viewCtx->projectDim.x / (f32)viewCtx->projectDim.y,
-		viewCtx->near,
-		viewCtx->far,
-		viewCtx->scale
+		&this->projMtx,
+		this->fovy,
+		(f32)this->projectDim.x / (f32)this->projectDim.y,
+		this->near,
+		this->far,
+		this->scale
 	);
 	
 	if (inputCtx->mouse.click.press || inputCtx->mouse.scrollY)
-		viewCtx->setCamMove = 1;
+		this->setCamMove = 1;
 	
 	if (inputCtx->mouse.cursorAction == 0)
-		viewCtx->setCamMove = 0;
+		this->setCamMove = 0;
 	
-	View_Camera_OrbitMode(viewCtx, inputCtx);
-	View_Camera_FlyMode(viewCtx, inputCtx);
-	Matrix_LookAt(&viewCtx->viewMtx, cam->eye, cam->at, cam->roll);
+	View_Camera_OrbitMode(this, inputCtx);
+	View_Camera_FlyMode(this, inputCtx);
+	Matrix_LookAt(&this->viewMtx, cam->eye, cam->at, cam->roll);
 	
 	Matrix_Scale(1.0, 1.0, 1.0, MTXMODE_NEW);
-	Matrix_ToMtxF(&model);
+	Matrix_ToMtxF(&this->modelMtx);
 }
 
-void View_SetProjectionDimensions(ViewContext* viewCtx, Vec2s* dim) {
-	viewCtx->projectDim = *dim;
+void View_SetProjectionDimensions(ViewContext* this, Vec2s* dim) {
+	this->projectDim = *dim;
 }

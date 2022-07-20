@@ -27,6 +27,7 @@ typedef struct ViewContext {
 	f32     far;
 	f32     scale;
 	f32     aspect;
+	MtxF    modelMtx;
 	MtxF    viewMtx;
 	MtxF    projMtx;
 	CamSettings settings;
