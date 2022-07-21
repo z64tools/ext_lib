@@ -688,7 +688,7 @@ void GeoGrid_Update_SplitRect(Split* split) {
 	};
 }
 
-void GeoGrid_Update_Split(GeoGrid* geo) {
+void GeoGrid_Update_Splits(GeoGrid* geo) {
 	Split* split = geo->splitHead;
 	MouseInput* mouse = &geo->input->mouse;
 	
@@ -1023,7 +1023,6 @@ void GeoGrid_Update(GeoGrid* geo) {
 	Element_Update(geo);
 	GeoGrid_Update_Vtx(geo);
 	GeoGrid_Update_Edges(geo);
-	GeoGrid_Update_Split(geo);
 	
 	geo->prevWorkRect = geo->workRect;
 }
@@ -1053,6 +1052,7 @@ void GeoGrid_Draw(GeoGrid* geo) {
 		} nvgEndFrame(geo->vg);
 	}
 	
+	GeoGrid_Update_Splits(geo);
 	GeoGrid_Draw_Splits(geo);
 	if (0)
 		GeoGrid_Draw_Debug(geo);

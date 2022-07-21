@@ -26,7 +26,7 @@ extern f32 gPixelRatio;
 #define SPLIT_TEXT         12
 
 #define SPLIT_TEXT_H         (SPLIT_TEXT_PADDING * 2 + SPLIT_TEXT)
-#define SPLIT_ELEM_X_PADDING 6
+#define SPLIT_ELEM_X_PADDING (SPLIT_TEXT * 0.5f)
 #define SPLIT_ELEM_Y_PADDING (SPLIT_TEXT_H + SPLIT_ELEM_X_PADDING)
 
 struct GeoGridContext;

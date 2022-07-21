@@ -17,14 +17,7 @@ ExtGui_C  = ExtGui/Cursor.c \
 			glad/glad.c \
 			nanovg/src/nanovg.c
 
-ExtGui_H  = $(C_INCLUDE_PATH)/ExtGui/Cursor.h \
-			$(C_INCLUDE_PATH)/ExtGui/GeoGrid.h \
-			$(C_INCLUDE_PATH)/ExtGui/Input.h \
-			$(C_INCLUDE_PATH)/ExtGui/Matrix.h \
-			$(C_INCLUDE_PATH)/ExtGui/Theme.h \
-			$(C_INCLUDE_PATH)/ExtGui/Vector.h \
-			$(C_INCLUDE_PATH)/ExtGui/View.h \
-			$(C_INCLUDE_PATH)/ExtGui/Global.h
+ExtGui_H  = $(shell find $(C_INCLUDE_PATH)/ExtGui/* -type f -name '*.h')
 
 Xm_C      = libxm/src/context.c \
 			libxm/src/load.c \
@@ -74,22 +67,39 @@ $(shell mkdir -p bin/ $(foreach dir, \
 	$(dir $(Xm_Win32_O)) \
 	, $(dir)))
 
+print:
+	@echo $(ExtGui_H)
+
 CFLAGS += -Wno-missing-braces
 ExtLib_CFlags = -Wno-unused-result -Wno-format-truncation -Wno-strict-aliasing -Wno-implicit-function-declaration -DNDEBUG
 
 bin/win32/nanovg/%.o: CFLAGS += -Wno-misleading-indentation
 bin/win32/zip/%.o: CFLAGS += -Wno-stringop-truncation
 	
+
 bin/win32/ExtLib.o: $(C_INCLUDE_PATH)/ExtLib.c $(C_INCLUDE_PATH)/ExtLib.h
-bin/win32/ExtGui/%.o: $(C_INCLUDE_PATH)/ExtGui/%.c $(ExtGui_H)
+	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
+	@i686-w64-mingw32.static-gcc -c -o $@ $< $(OPT_WIN32) $(CFLAGS) $(ExtLib_CFlags) -D_WIN32
 bin/win32/nanovg/%.o: $(C_INCLUDE_PATH)/nanovg/%.c
+	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
+	@i686-w64-mingw32.static-gcc -c -o $@ $< $(OPT_WIN32) $(CFLAGS) $(ExtLib_CFlags) -D_WIN32
+bin/win32/ExtGui/%.o: $(C_INCLUDE_PATH)/ExtGui/%.c $(ExtGui_H)
+	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
+	@i686-w64-mingw32.static-gcc -c -o $@ $< $(OPT_WIN32) $(CFLAGS) $(ExtLib_CFlags) -D_WIN32
 bin/win32/%.o: $(C_INCLUDE_PATH)/%.c
 	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
 	@i686-w64-mingw32.static-gcc -c -o $@ $< $(OPT_WIN32) $(CFLAGS) $(ExtLib_CFlags) -D_WIN32
+	
 
 bin/linux/ExtLib.o: $(C_INCLUDE_PATH)/ExtLib.c $(C_INCLUDE_PATH)/ExtLib.h
-bin/linux/ExtGui/%.o: $(C_INCLUDE_PATH)/ExtGui/%.c $(ExtGui_H)
+	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
+	@gcc -c -o $@ $< $(OPT_LINUX) $(CFLAGS) $(ExtLib_CFlags)
 bin/linux/nanovg/%.o: $(C_INCLUDE_PATH)/nanovg/%.c
+	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
+	@gcc -c -o $@ $< $(OPT_LINUX) $(CFLAGS) $(ExtLib_CFlags)
+bin/linux/ExtGui/%.o: $(C_INCLUDE_PATH)/ExtGui/%.c $(ExtGui_H)
+	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
+	@gcc -c -o $@ $< $(OPT_LINUX) $(CFLAGS) $(ExtLib_CFlags)
 bin/linux/%.o: $(C_INCLUDE_PATH)/%.c
 	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
 	@gcc -c -o $@ $< $(OPT_LINUX) $(CFLAGS) $(ExtLib_CFlags)

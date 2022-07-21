@@ -824,7 +824,10 @@ queue_element:
 		this
 	);
 	
-	return Lerp(this->value, this->min, this->max);
+	if (this->isInt)
+		return (s32)rint(Lerp(this->value, this->min, this->max));
+	else
+		return Lerp(this->value, this->min, this->max);
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */
@@ -846,7 +849,7 @@ static void Element_SetRectImpl(Rect* rect, f32 x, f32 y, f32 w) {
 }
 
 void Element_SetRowY(f32 y) {
-	sRowY = y;
+	sRowY = ClampMin(y, SPLIT_ELEM_X_PADDING * 2);
 }
 
 void Element_SetRect(Split* split, s32 rectNum, ...) {
