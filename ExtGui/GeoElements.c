@@ -8,10 +8,10 @@ struct ElementCallInfo;
 typedef void (* ElementFunc)(struct ElementCallInfo*);
 
 typedef struct ElementCallInfo {
-	void*  arg;
-	Split* split;
+	void*       arg;
+	Split*      split;
 	ElementFunc func;
-	GeoGridContext* geoCtx;
+	GeoGrid*    geo;
 } ElementCallInfo;
 
 /* ───────────────────────────────────────────────────────────────────────── */
@@ -19,10 +19,6 @@ typedef struct ElementCallInfo {
 static ElementCallInfo pElementStack[1024 * 2];
 static ElementCallInfo* sCurrentElement;
 static u32 sElemNum;
-
-static ElementCallInfo pPostStack[1024 * 2];
-static ElementCallInfo* sCurrentPost;
-static u32 sPostNum;
 
 static ElTextbox* sCurTextbox;
 static Split* sCurSplitTextbox;
@@ -43,8 +39,8 @@ static const char* sFmt[] = {
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
-static void Element_QueueElement(GeoGridContext* geoCtx, Split* split, ElementFunc func, void* arg) {
-	sCurrentElement->geoCtx = geoCtx;
+static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, void* arg) {
+	sCurrentElement->geo = geo;
 	sCurrentElement->split = split;
 	sCurrentElement->func = func;
 	sCurrentElement->arg = arg;
@@ -80,8 +76,8 @@ static void Element_Draw_RoundedRect(void* vg, Rect* rect, NVGcolor color) {
 	nvgFill(vg);
 }
 
-static s32 Element_PressCondition(GeoGridContext* geoCtx, Split* split, Rect* rect) {
-	return (geoCtx->ctxMenu.num == 0 &&
+static s32 Element_PressCondition(GeoGrid* geo, Split* split, Rect* rect) {
+	return (!geo->state.noClickInput &&
 	       split->mouseInSplit &&
 	       !split->blockMouse &&
 	       !split->elemBlockMouse &&
@@ -140,7 +136,7 @@ static void Element_Slider_SetTextbox(Split* split, ElSlider* this) {
 /* ───────────────────────────────────────────────────────────────────────── */
 
 static void Element_Draw_Button(ElementCallInfo* info) {
-	void* vg = info->geoCtx->vg;
+	void* vg = info->geo->vg;
 	ElButton* this = info->arg;
 	f32 dsbleMul = (this->isDisabled ? 0.5 : 1.0);
 	
@@ -216,7 +212,7 @@ static void Element_Draw_Button(ElementCallInfo* info) {
 }
 
 static void Element_Draw_Textbox(ElementCallInfo* info) {
-	void* vg = info->geoCtx->vg;
+	void* vg = info->geo->vg;
 	Split* split = info->split;
 	ElTextbox* this = info->arg;
 	
@@ -318,7 +314,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 			sStoreA = txtA;
 	}
 	
-	InputContext* inputCtx = info->geoCtx->input;
+	InputContext* inputCtx = info->geo->input;
 	
 	if (GeoGrid_Cursor_InRect(split, &this->rect) && inputCtx->mouse.clickL.hold) {
 		if (this->isHintText) {
@@ -439,7 +435,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 }
 
 static void Element_Draw_Text(ElementCallInfo* info) {
-	void* vg = info->geoCtx->vg;
+	void* vg = info->geo->vg;
 	// Split* split = info->split;
 	ElText* this = info->arg;
 	f32 bounds[4];
@@ -474,7 +470,7 @@ static void Element_Draw_Text(ElementCallInfo* info) {
 }
 
 static void Element_Draw_Checkbox(ElementCallInfo* info) {
-	void* vg = info->geoCtx->vg;
+	void* vg = info->geo->vg;
 	// Split* split = info->split;
 	ElCheckbox* this = info->arg;
 	Vec2f center;
@@ -544,7 +540,7 @@ static void Element_Draw_Checkbox(ElementCallInfo* info) {
 }
 
 static void Element_Draw_Slider(ElementCallInfo* info) {
-	void* vg = info->geoCtx->vg;
+	void* vg = info->geo->vg;
 	// Split* split = info->split;
 	ElSlider* this = info->arg;
 	Rectf32 rect;
@@ -627,8 +623,8 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 /* ───────────────────────────────────────────────────────────────────────── */
 
 // Returns button state, 0bXY, X == toggle, Y == pressed
-s32 Element_Button(GeoGridContext* geoCtx, Split* split, ElButton* this) {
-	void* vg = geoCtx->vg;
+s32 Element_Button(GeoGrid* geo, Split* split, ElButton* this) {
+	void* vg = geo->vg;
 	
 	this->hover = 0;
 	this->state = 0;
@@ -645,7 +641,7 @@ s32 Element_Button(GeoGridContext* geoCtx, Split* split, ElButton* this) {
 		this->rect.w = bounds[2] + SPLIT_TEXT_PADDING * 2;
 	}
 	
-	if (Element_PressCondition(geoCtx, split, &this->rect) && this->isDisabled == false) {
+	if (Element_PressCondition(geo, split, &this->rect) && this->isDisabled == false) {
 		if (Input_GetMouse(MOUSE_L)->press) {
 			this->state++;
 			
@@ -664,7 +660,7 @@ s32 Element_Button(GeoGridContext* geoCtx, Split* split, ElButton* this) {
 	}
 	
 	Element_QueueElement(
-		geoCtx,
+		geo,
 		split,
 		Element_Draw_Button,
 		this
@@ -673,9 +669,9 @@ s32 Element_Button(GeoGridContext* geoCtx, Split* split, ElButton* this) {
 	return (this->state == 2) | (ClampMin(this->toggle - 1, 0)) << 4;
 }
 
-void Element_Textbox(GeoGridContext* geoCtx, Split* split, ElTextbox* this) {
+void Element_Textbox(GeoGrid* geo, Split* split, ElTextbox* this) {
 	this->hover = 0;
-	if (Element_PressCondition(geoCtx, split, &this->rect)) {
+	if (Element_PressCondition(geo, split, &this->rect)) {
 		this->hover = 1;
 		if (Input_GetMouse(MOUSE_L)->press) {
 			if (this != sCurTextbox) {
@@ -691,7 +687,7 @@ void Element_Textbox(GeoGridContext* geoCtx, Split* split, ElTextbox* this) {
 	}
 	
 	Element_QueueElement(
-		geoCtx,
+		geo,
 		split,
 		Element_Draw_Textbox,
 		this
@@ -699,9 +695,9 @@ void Element_Textbox(GeoGridContext* geoCtx, Split* split, ElTextbox* this) {
 }
 
 // Returns text width
-f32 Element_Text(GeoGridContext* geoCtx, Split* split, ElText* this) {
+f32 Element_Text(GeoGrid* geo, Split* split, ElText* this) {
 	f32 bounds[4] = { 0 };
-	void* vg = geoCtx->vg;
+	void* vg = geo->vg;
 	
 	nvgFontFace(vg, "dejavu");
 	nvgFontSize(vg, SPLIT_TEXT);
@@ -712,7 +708,7 @@ f32 Element_Text(GeoGridContext* geoCtx, Split* split, ElText* this) {
 	nvgTextBounds(vg, 0, 0, this->txt, NULL, bounds);
 	
 	Element_QueueElement(
-		geoCtx,
+		geo,
 		split,
 		Element_Draw_Text,
 		this
@@ -721,11 +717,11 @@ f32 Element_Text(GeoGridContext* geoCtx, Split* split, ElText* this) {
 	return bounds[2];
 }
 
-s32 Element_Checkbox(GeoGridContext* geoCtx, Split* split, ElCheckbox* this) {
+s32 Element_Checkbox(GeoGrid* geo, Split* split, ElCheckbox* this) {
 	this->rect.w = this->rect.h;
 	
 	this->hover = 0;
-	if (Element_PressCondition(geoCtx, split, &this->rect)) {
+	if (Element_PressCondition(geo, split, &this->rect)) {
 		this->hover = 1;
 		if (Input_GetMouse(MOUSE_L)->press) {
 			this->toggle ^= 1;
@@ -733,7 +729,7 @@ s32 Element_Checkbox(GeoGridContext* geoCtx, Split* split, ElCheckbox* this) {
 	}
 	
 	Element_QueueElement(
-		geoCtx,
+		geo,
 		split,
 		Element_Draw_Checkbox,
 		this
@@ -742,7 +738,7 @@ s32 Element_Checkbox(GeoGridContext* geoCtx, Split* split, ElCheckbox* this) {
 	return this->toggle;
 }
 
-f32 Element_Slider(GeoGridContext* geoCtx, Split* split, ElSlider* this) {
+f32 Element_Slider(GeoGrid* geo, Split* split, ElSlider* this) {
 	if (this->min == 0.0f && this->max == 0.0f)
 		this->max = 1.0f;
 	
@@ -751,7 +747,7 @@ f32 Element_Slider(GeoGridContext* geoCtx, Split* split, ElSlider* this) {
 	if (this->locked)
 		goto queue_element;
 	
-	if (Element_PressCondition(geoCtx, split, &this->rect) || this->holdState) {
+	if (Element_PressCondition(geo, split, &this->rect) || this->holdState) {
 		u32 pos = false;
 		this->hover = true;
 		
@@ -761,7 +757,7 @@ f32 Element_Slider(GeoGridContext* geoCtx, Split* split, ElSlider* this) {
 				this->isTextbox = true;
 				this->holdState = true;
 				
-				Element_Textbox(geoCtx, split, &this->textBox);
+				Element_Textbox(geo, split, &this->textBox);
 				
 				return Lerp(this->value, this->min, this->max);
 			} else {
@@ -775,14 +771,14 @@ f32 Element_Slider(GeoGridContext* geoCtx, Split* split, ElSlider* this) {
 			this->holdState = true;
 			split->elemBlockMouse++;
 		} else if (Input_GetMouse(MOUSE_L)->hold && this->holdState) {
-			if (geoCtx->input->mouse.vel.x) {
+			if (geo->input->mouse.vel.x) {
 				if (this->isSliding == false) {
 					Element_Slider_SetCursorToVal(split, this);
 				} else {
 					if (Input_GetKey(KEY_LEFT_SHIFT)->hold)
-						this->value += (f32)geoCtx->input->mouse.vel.x * 0.0001f;
+						this->value += (f32)geo->input->mouse.vel.x * 0.0001f;
 					else
-						this->value += (f32)geoCtx->input->mouse.vel.x * 0.001f;
+						this->value += (f32)geo->input->mouse.vel.x * 0.001f;
 					if (this->min || this->max)
 						this->value = Clamp(this->value, 0.0f, 1.0f);
 					
@@ -802,13 +798,13 @@ f32 Element_Slider(GeoGridContext* geoCtx, Split* split, ElSlider* this) {
 			this->holdState = false;
 		}
 		
-		if (geoCtx->input->mouse.scrollY) {
+		if (geo->input->mouse.scrollY) {
 			if (Input_GetKey(KEY_LEFT_SHIFT)->hold) {
-				this->value += geoCtx->input->mouse.scrollY * 0.1;
+				this->value += geo->input->mouse.scrollY * 0.1;
 			} else if (Input_GetKey(KEY_LEFT_ALT)->hold) {
-				this->value += geoCtx->input->mouse.scrollY * 0.001;
+				this->value += geo->input->mouse.scrollY * 0.001;
 			} else {
-				this->value += geoCtx->input->mouse.scrollY * 0.01;
+				this->value += geo->input->mouse.scrollY * 0.01;
 			}
 		}
 		
@@ -822,7 +818,7 @@ queue_element:
 		Cursor_SetCursor(CURSOR_EMPTY);
 	
 	Element_QueueElement(
-		geoCtx,
+		geo,
 		split,
 		Element_Draw_Slider,
 		this
@@ -833,6 +829,8 @@ queue_element:
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
+static f32 sRowY;
+
 void Element_Slider_SetValue(ElSlider* this, f64 val) {
 	this->value = val;
 	this->value -= this->min;
@@ -840,24 +838,18 @@ void Element_Slider_SetValue(ElSlider* this, f64 val) {
 	this->vValue = this->value = Clamp(this->value, 0.0f, 1.0f);
 }
 
-void Element_PushToPost() {
-	sCurrentPost[0] = sCurrentElement[-1];
-	
-	sCurrentPost++;
-	sPostNum++;
-	
-	sCurrentElement--;
-	sElemNum--;
-}
-
-void Element_SetRect(Rect* rect, f32 x, f32 y, f32 w) {
+static void Element_SetRectImpl(Rect* rect, f32 x, f32 y, f32 w) {
 	rect->x = x;
 	rect->y = y;
 	rect->w = w;
 	rect->h = SPLIT_TEXT_H;
 }
 
-void Element_SetRect_Multiple(Split* split, f32 y, s32 rectNum, ...) {
+void Element_SetRowY(f32 y) {
+	sRowY = y;
+}
+
+void Element_SetRect(Split* split, s32 rectNum, ...) {
 	f32 x = SPLIT_ELEM_X_PADDING;
 	f32 width;
 	va_list va;
@@ -872,18 +864,19 @@ void Element_SetRect_Multiple(Split* split, f32 y, s32 rectNum, ...) {
 		
 		width = (f32)(split->rect.w - SPLIT_ELEM_X_PADDING * 3) * a;
 		if (rect)
-			Element_SetRect(rect, x + SPLIT_ELEM_X_PADDING, y, width - SPLIT_ELEM_X_PADDING);
+			Element_SetRectImpl(rect, x + SPLIT_ELEM_X_PADDING, sRowY, width - SPLIT_ELEM_X_PADDING);
 		x += width;
 	}
+	
+	sRowY += SPLIT_ELEM_Y_PADDING;
 	
 	va_end(va);
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
-void Element_Init(GeoGridContext* geoCtx) {
+void Element_Init(GeoGrid* geo) {
 	sCurrentElement = pElementStack;
-	sCurrentPost = pPostStack;
 }
 
 static InputType* Textbox_GetKey(KeyMap key) {
@@ -894,27 +887,24 @@ static InputType* Textbox_GetMouse(MouseMap key) {
 	return &__inputCtx->mouse.clickArray[key];
 }
 
-void Element_Update(GeoGridContext* geoCtx) {
+void Element_Update(GeoGrid* geo) {
 	static s32 timer = 0;
 	static s32 blocker;
 	
 	sCurrentElement = pElementStack;
 	sElemNum = 0;
 	
-	sCurrentPost = pPostStack;
-	sPostNum = 0;
-	
 	sBreatheYaw += DegToBin(3);
 	sBreathe = (Math_SinS(sBreatheYaw) + 1.0f) * 0.5;
 	
 	if (sCurTextbox) {
-		char* txt = geoCtx->input->buffer;
+		char* txt = geo->input->buffer;
 		s32 prevTextPos = sTextPos;
 		s32 press = 0;
 		
 		if (blocker == 0) {
 			blocker++;
-			geoCtx->input->state.keyBlock++;
+			geo->input->state.keyBlock++;
 		}
 		
 		if (Textbox_GetMouse(MOUSE_ANY)->press || Textbox_GetKey(KEY_ENTER)->press) {
@@ -1081,21 +1071,14 @@ void Element_Update(GeoGridContext* geoCtx) {
 	} else {
 		if (blocker) {
 			blocker--;
-			geoCtx->input->state.keyBlock--;
+			geo->input->state.keyBlock--;
 		}
 	}
 }
 
-void Element_Draw(GeoGridContext* geoCtx, Split* split) {
+void Element_Draw(GeoGrid* geo, Split* split) {
 	for (s32 i = 0; i < sElemNum; i++) {
 		if (pElementStack[i].split == split)
 			pElementStack[i].func(&pElementStack[i]);
-	}
-}
-
-void Element_PostDraw(GeoGridContext* geoCtx, Split* split) {
-	for (s32 i = 0; i < sPostNum; i++) {
-		if (pPostStack[i].split == split)
-			pPostStack[i].func(&pPostStack[i]);
 	}
 }

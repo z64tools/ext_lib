@@ -139,7 +139,6 @@ typedef struct Split {
 	SplitEdge*    edge[4];
 	SplitVtx* vtx[4];
 	Rect  rect; // Absolute XY, relative WH
-	Rect  cect;
 	Vec2s center;
 	Vec2s mousePos; // relative
 	Vec2s mousePressPos;
@@ -154,23 +153,11 @@ typedef struct Split {
 		bool useCustomBG;
 		RGB8 color;
 	} bg;
-	struct {
-		char data[160];
-	} header;
 } Split;
 
 typedef struct {
 	Rect rect;
 } StatusBar;
-
-typedef struct {
-	Vec2s  pos;
-	Split* split;
-	char** optionList;
-	s32    num;
-	s32    hoverNum;
-	Rect   hoverRect;
-} GeoCtxMenu;
 
 typedef struct {
 	char* taskName;
@@ -181,9 +168,13 @@ typedef struct {
 	s32 size;
 } SplitTask;
 
+typedef struct {
+	u32 noSplit      : 1;
+	u32 noClickInput : 1;
+} GeoState;
+
 typedef struct GeoGridContext {
-	GeoCtxMenu ctxMenu;
-	StatusBar  bar[2];
+	StatusBar bar[2];
 	Rect prevWorkRect;
 	Rect workRect;
 	
@@ -207,22 +198,8 @@ typedef struct GeoGridContext {
 	void*         vg;
 	void*         passArg;
 	
-	struct {
-	} state;
+	GeoState      state;
 } GeoGridContext, GeoGrid;
-
-Split* GeoGrid_AddSplit(GeoGridContext* geoCtx, Rectf32* rect);
-
-bool GeoGrid_Cursor_InRect(Split* split, Rect* rect);
-
-void GeoGrid_Init(GeoGridContext* geoCtx, Vec2s* winDim, InputContext* input, void* vg);
-void GeoGrid_Update(GeoGridContext* geoCtx);
-void GeoGrid_Draw(GeoGridContext* geoCtx);
-
-void Element_Init(GeoGridContext* geoCtx);
-void Element_Update(GeoGridContext* geoCtx);
-void Element_Draw(GeoGridContext* geoCtx, Split* split);
-void Element_PostDraw(GeoGridContext* geoCtx, Split* split);
 
 typedef struct ElButton {
 	char*    txt;
@@ -289,21 +266,32 @@ typedef struct {
 	ElTextbox textBox;
 } ElSlider;
 
-s32 Split_Cursor(Split* split, s32 result);
+bool GeoGrid_Cursor_InRect(Split* split, Rect* rect);
+bool GeoGrid_Cursor_InSplit(Split* split);
+Split* GeoGrid_AddSplit(GeoGrid* geo, Rectf32* rect);
 
-s32 Element_Button(GeoGridContext*, Split*, ElButton*);
-void Element_Textbox(GeoGridContext*, Split*, ElTextbox*);
-f32 Element_Text(GeoGridContext* geoCtx, Split* split, ElText* txt);
-s32 Element_Checkbox(GeoGridContext* geoCtx, Split* split, ElCheckbox* this);
+s32 Split_Cursor(GeoGrid* geo, Split* split, s32 result);
+
+void GeoGrid_Init(GeoGrid* geo, Vec2s* winDim, InputContext* input, void* vg);
+void GeoGrid_Update(GeoGrid* geo);
+void GeoGrid_Draw(GeoGrid* geo);
+
+void Element_Init(GeoGrid* geo);
+void Element_Update(GeoGrid* geo);
+void Element_Draw(GeoGrid* geo, Split* split);
+
+s32 Element_Button(GeoGrid*, Split*, ElButton*);
+void Element_Textbox(GeoGrid*, Split*, ElTextbox*);
+f32 Element_Text(GeoGrid* geo, Split* split, ElText* txt);
+s32 Element_Checkbox(GeoGrid* geo, Split* split, ElCheckbox* this);
 void Element_Slider_SetValue(ElSlider* this, f64 val);
-f32 Element_Slider(GeoGridContext* geoCtx, Split* split, ElSlider* this);
+f32 Element_Slider(GeoGrid* geo, Split* split, ElSlider* this);
 
-void Element_PushToPost();
-void Element_SetRect(Rect* rect, f32 x, f32 y, f32 w);
-void Element_SetRect_Multiple(Split* split, f32 y, s32 rectNum, ...);
+void Element_SetRowY(f32 y);
+void Element_SetRect(Split* split, s32 rectNum, ...);
 
 #ifndef __GEO_ELEM_C__
-#define Element_SetRect_Multiple(split, y, ...) Element_SetRect_Multiple(split, y, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
+#define Element_SetRect(split, ...) Element_SetRect(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
 #endif
 
 #endif

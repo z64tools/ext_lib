@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 159
+#define THIS_EXTLIB_VERSION 160
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
