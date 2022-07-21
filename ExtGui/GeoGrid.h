@@ -29,7 +29,7 @@ extern f32 gPixelRatio;
 #define SPLIT_ELEM_X_PADDING (SPLIT_TEXT * 0.5f)
 #define SPLIT_ELEM_Y_PADDING (SPLIT_TEXT_H + SPLIT_ELEM_X_PADDING)
 
-struct GeoGridContext;
+struct GeoGrid;
 struct Split;
 typedef void (* SplitFunc)(
 	void*,
@@ -153,6 +153,8 @@ typedef struct Split {
 		bool useCustomBG;
 		RGB8 color;
 	} bg;
+	
+	const char* name;
 } Split;
 
 typedef struct {
@@ -173,7 +175,7 @@ typedef struct {
 	u32 noClickInput : 1;
 } GeoState;
 
-typedef struct GeoGridContext {
+typedef struct GeoGrid {
 	StatusBar bar[2];
 	Rect prevWorkRect;
 	Rect workRect;
@@ -199,7 +201,7 @@ typedef struct GeoGridContext {
 	void*         passArg;
 	
 	GeoState      state;
-} GeoGridContext, GeoGrid;
+} GeoGrid;
 
 typedef struct ElButton {
 	char*    txt;
@@ -268,7 +270,7 @@ typedef struct {
 
 bool GeoGrid_Cursor_InRect(Split* split, Rect* rect);
 bool GeoGrid_Cursor_InSplit(Split* split);
-Split* GeoGrid_AddSplit(GeoGrid* geo, Rectf32* rect);
+Split* GeoGrid_AddSplit(GeoGrid* geo, const char* name, Rectf32* rect);
 
 s32 Split_Cursor(GeoGrid* geo, Split* split, s32 result);
 
