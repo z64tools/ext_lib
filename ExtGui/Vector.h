@@ -96,18 +96,18 @@ void Rect_Verify(Rect* rect);
 void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
 
 #define Vec2_Substract(type, a, b) ( \
-		(typeof(Vec2 ## type)) { \
+		(Vec2 ## type) { \
 		a.x - b.x, \
 		a.y - b.y, \
 	})
 #define Vec3_Substract(type, a, b) ( \
-		(typeof(Vec3 ## type)) { \
+		(Vec3 ## type) { \
 		a.x - b.x, \
 		a.y - b.y, \
 		a.z - b.z, \
 	})
 #define Vec4_Substract(type, a, b) ( \
-		(typeof(Vec4 ## type)) { \
+		(Vec4 ## type) { \
 		a.x - b.x, \
 		a.y - b.y, \
 		a.z - b.z, \
@@ -115,18 +115,18 @@ void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
 	})
 
 #define Vec2_Add(type, a, b) ( \
-		(typeof(Vec2 ## type)) { \
+		(Vec2 ## type) { \
 		a.x + b.x, \
 		a.y + b.y, \
 	})
 #define Vec3_Add(type, a, b) ( \
-		(typeof(Vec3 ## type)) { \
+		(Vec3 ## type) { \
 		a.x + b.x, \
 		a.y + b.y, \
 		a.z + b.z, \
 	})
 #define Vec4_Add(type, a, b) ( \
-		(typeof(Vec4 ## type)) { \
+		(Vec4 ## type) { \
 		a.x + b.x, \
 		a.y + b.y, \
 		a.z + b.z, \
@@ -215,7 +215,7 @@ void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
 	})
 
 #define Vec3_Cross(a, b) ({ \
-		(typeof(*(a))) { \
+		(typeof(a)) { \
 			a.y* b.z - b.y* a.z, \
 			a.z* b.x - b.z* a.x, \
 			a.x* b.y - b.x* a.y \

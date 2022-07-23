@@ -1,4 +1,5 @@
 #ifndef __EXTTYPES_H__
+#define __EXTTYPES_H__
 
 #include <stdint.h>
 #include <stdio.h>
@@ -124,6 +125,7 @@ typedef enum {
 	MEM_END      = 1 << 31,
 } MemInit;
 
+#ifndef __cplusplus
 typedef struct MemFile {
 	union {
 		void* data;
@@ -145,6 +147,7 @@ typedef struct MemFile {
 		u64 initKey;
 	} param;
 } MemFile;
+#endif
 
 typedef enum {
 	LIST_FILES    = 0x0,
@@ -183,11 +186,9 @@ typedef struct ItemList {
 		void** ptr;
 	};
 	u32 num;
-	struct {
-		FilterNode* filterNode;
-		u64 initKey;
-		u32 alnum;
-	} private;
+	FilterNode* filterNode;
+	u64 initKey;
+	u32 alnum;
 } ItemList;
 
 typedef struct {

@@ -320,14 +320,14 @@ typedef struct {
 } WalkInfo;
 
 void ItemList_Validate(ItemList* itemList) {
-	if (itemList->private.initKey == 0xDEFABEBACECAFAFF)
+	if (itemList->initKey == 0xDEFABEBACECAFAFF)
 		return;
 	
 	*itemList = ItemList_Initialize();
 }
 
 ItemList ItemList_Initialize(void) {
-	return (ItemList) { .private = { .initKey = 0xDEFABEBACECAFAFF } };
+	return (ItemList) { .initKey = 0xDEFABEBACECAFAFF };
 }
 
 void ItemList_SetFilter(ItemList* list, u32 filterNum, ...) {
@@ -349,17 +349,17 @@ void ItemList_SetFilter(ItemList* list, u32 filterNum, ...) {
 		node->txt = StrDup(va_arg(va, char*));
 		Assert(node->txt != NULL);
 		
-		Node_Add(list->private.filterNode, node);
+		Node_Add(list->filterNode, node);
 	}
 	
 	va_end(va);
 }
 
 void ItemList_FreeFilters(ItemList* list) {
-	while (list->private.filterNode) {
-		Free(list->private.filterNode->txt);
+	while (list->filterNode) {
+		Free(list->filterNode->txt);
 		
-		Node_Kill(list->private.filterNode, list->private.filterNode);
+		Node_Kill(list->filterNode, list->filterNode);
 	}
 }
 
@@ -387,7 +387,7 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
 			if (!strcmp(".", entry->d_name) || !strcmp("..", entry->d_name))
 				continue;
 			
-			fornode(FilterNode, filterNode, list->private.filterNode) {
+			fornode(FilterNode, filterNode, list->filterNode) {
 				switch (filterNode->type) {
 					case FILTER_SEARCH:
 						if (StrStr(entry->d_name, filterNode->txt))
@@ -695,8 +695,8 @@ void ItemList_NumericalSort(ItemList* list) {
 		}
 	}
 	
-	sorted.private.filterNode = list->private.filterNode;
-	list->private.filterNode = NULL;
+	sorted.filterNode = list->filterNode;
+	list->filterNode = NULL;
 	ItemList_Free(list);
 	
 	Log("Sorted");
@@ -795,7 +795,7 @@ s32 ItemList_NumericalSlotSort(ItemList* list, bool checkOverlaps) {
 }
 
 void ItemList_Free(ItemList* itemList) {
-	if (itemList->private.initKey == 0xDEFABEBACECAFAFF) {
+	if (itemList->initKey == 0xDEFABEBACECAFAFF) {
 		Free(itemList->buffer);
 		Free(itemList->item);
 		ItemList_FreeFilters(itemList);
@@ -814,7 +814,7 @@ void ItemList_Alloc(ItemList* list, u32 num, Size size) {
 	
 	Calloc(list->item, sizeof(char*) * num);
 	Calloc(list->buffer, size);
-	list->private.alnum = num;
+	list->alnum = num;
 }
 
 void ItemList_AddItem(ItemList* list, const char* item) {
@@ -2861,10 +2861,10 @@ s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
 /*
  * If pos is 0 or bigger: override seekPoint
  */
-s32 MemFile_Insert(MemFile* mem, void* src, u32 size, u32 pos) {
+s32 MemFile_Insert(MemFile* mem, void* src, u32 size, s64 pos) {
 	u32 p = pos < 0 ? mem->seekPoint : pos;
 	u32 remasize = mem->size - p;
-	
+
 	if (p + size + remasize >= mem->memSize) {
 		if (mem->param.realloc) {
 			MemFile_Realloc(mem, mem->memSize * 2);
