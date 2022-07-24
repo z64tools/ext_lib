@@ -125,7 +125,6 @@ typedef enum {
 	MEM_END      = 1 << 31,
 } MemInit;
 
-#ifndef __cplusplus
 typedef struct MemFile {
 	union {
 		void* data;
@@ -147,7 +146,6 @@ typedef struct MemFile {
 		u64 initKey;
 	} param;
 } MemFile;
-#endif
 
 typedef enum {
 	LIST_FILES    = 0x0,

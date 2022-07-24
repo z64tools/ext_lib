@@ -189,7 +189,6 @@ char* AllcWord(const char* str, s32 word);
 void Color_ToHSL(HSL8* hsl, RGB8* rgb);
 void Color_ToRGB(RGB8* rgb, HSL8* hsl);
 
-#ifndef __cplusplus
 void MemFile_Validate(MemFile* mem);
 MemFile MemFile_Initialize();
 void MemFile_Params(MemFile* memFile, ...);
@@ -211,7 +210,7 @@ s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath);
 void MemFile_Free(MemFile* memFile);
 void MemFile_Reset(MemFile* memFile);
 void MemFile_Clear(MemFile* memFile);
-#endif
+
 #define MEMFILE_SEEK_END 0xFFFFFFFF
 
 #define StrStrNum(src, comp, n) MemMem(src, n, comp, n)
