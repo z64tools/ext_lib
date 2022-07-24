@@ -89,6 +89,11 @@ bool Rect_Check_PosIntersect(Rect* rect, Vec2s* pos);
 void Rect_Translate(Rect* rect, s32 x, s32 y);
 void Rect_Verify(Rect* rect);
 void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
+Rect Rect_Add(Rect* a, Rect* b);
+Rect Rect_Sub(Rect* a, Rect* b);
+Rect Rect_AddPos(Rect* a, Rect* b);
+Rect Rect_SubPos(Rect* a, Rect* b);
+bool Rect_PointIntersect(Rect* rect, s32 x, s32 y);
 
 #define Vec2_Substract(type, a, b) ( \
 		(Vec2 ## type) { \

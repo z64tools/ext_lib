@@ -352,3 +352,47 @@ void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h) {
 	dest->h = h;
 	Rect_Verify(dest);
 }
+
+Rect Rect_Add(Rect* a, Rect* b) {
+	return (Rect) {
+		       a->x + b->x,
+		       a->y + b->y,
+		       a->w + b->w,
+		       a->h + b->h,
+	};
+}
+
+Rect Rect_Sub(Rect* a, Rect* b) {
+	return (Rect) {
+		       a->x - b->x,
+		       a->y - b->y,
+		       a->w - b->w,
+		       a->h - b->h,
+	};
+}
+
+Rect Rect_AddPos(Rect* a, Rect* b) {
+	return (Rect) {
+		       a->x + b->x,
+		       a->y + b->y,
+		       a->w,
+		       a->h,
+	};
+}
+
+Rect Rect_SubPos(Rect* a, Rect* b) {
+	return (Rect) {
+		       a->x - b->x,
+		       a->y - b->y,
+		       a->w,
+		       a->h,
+	};
+}
+
+bool Rect_PointIntersect(Rect* rect, s32 x, s32 y) {
+	if (x >= rect->x && x < rect->x + rect->w)
+		if (y >= rect->y && y < rect->y + rect->h)
+			return true;
+	
+	return false;
+}

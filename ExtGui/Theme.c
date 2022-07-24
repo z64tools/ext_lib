@@ -27,7 +27,7 @@ void Theme_SmoothStepToCol(NVGcolor* src, NVGcolor target, f32 a, f32 b, f32 c) 
 void Theme_Init(u32 themeId) {
 	sIndex = themeId;
 	{
-		sDarkTheme[THEME_BASE] =          (HSLA8) { 000.0 / 360, 0.0, 0.20 };
+		sDarkTheme[THEME_BASE] =          (HSLA8) { 000.0 / 360, 0.0, 0.15 };
 		sDarkTheme[THEME_SHADOW] =        (HSLA8) { 000.0 / 360, 0.0, 0.07 };
 		sDarkTheme[THEME_HIGHLIGHT] =     (HSLA8) { 000.0 / 360, 0.0, 0.80 };
 		sDarkTheme[THEME_ELEMENT_LIGHT] = (HSLA8) { 000.0 / 360, 0.0, 0.60 };

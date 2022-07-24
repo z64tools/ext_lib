@@ -24,7 +24,7 @@ extern f32 gPixelRatio;
 #define SPLIT_TEXT_PADDING 4
 #define SPLIT_TEXT         12
 
-#define SPLIT_TEXT_H         (SPLIT_TEXT_PADDING * 2 + SPLIT_TEXT)
+#define SPLIT_TEXT_H         (SPLIT_TEXT_PADDING + 2 + SPLIT_TEXT)
 #define SPLIT_ELEM_X_PADDING (SPLIT_TEXT * 0.5f)
 #define SPLIT_ELEM_Y_PADDING (SPLIT_TEXT_H + SPLIT_ELEM_X_PADDING)
 
@@ -166,9 +166,23 @@ typedef struct {
 } SplitTask;
 
 typedef struct {
-	u32 noSplit      : 1;
-	u32 noClickInput : 1;
+	u32 noSplit;
+	u32 noClickInput;
 } GeoState;
+
+typedef struct {
+	struct Element*  element;
+	struct PropEnum* prop;
+	Rect  rectOrigin;
+	Rect  rect;
+	Vec2s pos;
+	struct {
+		s32 useOriginRect : 1;
+		s32 dirH          : 4;
+		s32 dirV          : 4;
+		s32 init          : 1;
+	} state;
+} DropMenu;
 
 typedef struct GeoGrid {
 	StatusBar bar[2];
@@ -196,23 +210,29 @@ typedef struct GeoGrid {
 	void*      passArg;
 	
 	GeoState   state;
+	DropMenu   dropMenu;
 } GeoGrid;
 
 // # # # # # # # # # # # # # # # # # # # #
 // # Elements                            #
 // # # # # # # # # # # # # # # # # # # # #
 
+typedef struct {
+	s32 key;
+	const char* name;
+} EnumItem;
+
 typedef struct PropEnum {
 	void* argument;
-	void (* update)(void*);
-	struct {
-		s32 key;
-		const char* name;
-	} item[];
+	void (* update)(struct PropEnum*, s32, void*);
+	s32   defaultKey;
+	EnumItem* item;
+	u32   num;
 } PropEnum;
 
-typedef struct {
-	Rect rect;
+typedef struct Element {
+	Rect        rect;
+	Vec2f       posTxt;
 	const char* name;
 	NVGcolor    prim;
 	NVGcolor    shadow;
@@ -223,13 +243,12 @@ typedef struct {
 	u32 hover    : 1;
 	u32 press    : 1;
 	u32 toggle   : 2;
+	u32 dispText : 1;
 } Element;
 
 typedef struct ElButton {
 	Element element;
-	u8 isDisabled;
 	u8 state;
-	u8 hover;
 	u8 autoWidth;
 } ElButton;
 
@@ -237,7 +256,6 @@ typedef struct {
 	Element element;
 	char    txt[128];
 	s32 size;
-	u8  hover      : 1;
 	u8  isNumBox   : 1;
 	u8  isHintText : 2;
 	TextAlign align;
@@ -252,13 +270,11 @@ typedef struct {
 
 typedef struct {
 	Element element;
-	char*   txt;
 } ElText;
 
 typedef struct {
 	Element element;
 	f32 lerp;
-	u8  hover;
 } ElCheckbox;
 
 typedef struct {
@@ -271,46 +287,72 @@ typedef struct {
 	
 	u8  isSliding : 1;
 	u8  isInt     : 1;
-	u8  hover     : 1;
 	u8  holdState : 1;
-	u8  locked    : 1;
 	
 	s32 isTextbox;
 	ElTextbox textBox;
 } ElSlider;
 
 typedef struct {
-	PropEnum*   prop;
-	Rect rect;
-	const char* name;
+	Element   element;
+	PropEnum* prop;
+	s32 key;
 } ElCombo;
 
-bool GeoGrid_Cursor_InRect(Split* split, Rect* rect);
-bool GeoGrid_Cursor_InSplit(Split* split);
+bool Split_CursorInRect(Split* split, Rect* rect);
+bool Split_CursorInSplit(Split* split);
 Split* GeoGrid_AddSplit(GeoGrid* geo, const char* name, Rectf32* rect);
 
-s32 Split_Cursor(GeoGrid* geo, Split* split, s32 result);
+s32 Split_GetCursor(GeoGrid* geo, Split* split, s32 result);
 
 void GeoGrid_Init(GeoGrid* geo, Vec2s* winDim, Input* input, void* vg);
 void GeoGrid_Update(GeoGrid* geo);
 void GeoGrid_Draw(GeoGrid* geo);
 
-void Element_Init(GeoGrid* geo);
+void DropMenu_Init(GeoGrid* geo, bool useOriginRect);
+void DropMenu_Update(GeoGrid* geo);
+void DropMenu_Draw(GeoGrid* geo);
+
+s32 Element_Button(GeoGrid* geo, Split* split, ElButton* this);
+void Element_Textbox(GeoGrid* geo, Split* split, ElTextbox* this);
+f32 Element_Text(GeoGrid* geo, Split* split, ElText* this);
+s32 Element_Checkbox(GeoGrid* geo, Split* split, ElCheckbox* this);
+f32 Element_Slider(GeoGrid* geo, Split* split, ElSlider* this);
+void Element_Combo(GeoGrid* geo, Split* split, ElCombo* this);
+
+void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type);
+void Element_Slider_SetValue(ElSlider* this, f64 val);
+void Element_Button_SetValue(ElButton* this, bool toggle, bool state);
+void Element_Combo_SetPropEnum(ElCombo* this, PropEnum* prop);
+void Element_Name(Element* this, const char* name);
+void Element_Disable(Element* element);
+void Element_Enable(Element* element);
+void Element_RowY(f32 y);
+void Element_Row(Split* split, s32 rectNum, ...);
+void Element_DisplayName(GeoGrid* geo, Split* split, Element* this);
+
 void Element_Update(GeoGrid* geo);
 void Element_Draw(GeoGrid* geo, Split* split);
 
-s32 Element_Button(GeoGrid*, Split*, ElButton*);
-void Element_Textbox(GeoGrid*, Split*, ElTextbox*);
-f32 Element_Text(GeoGrid* geo, Split* split, ElText* txt);
-s32 Element_Checkbox(GeoGrid* geo, Split* split, ElCheckbox* this);
-void Element_Slider_SetValue(ElSlider* this, f64 val);
-f32 Element_Slider(GeoGrid* geo, Split* split, ElSlider* this);
+#define Element_Name(el, name)                Element_Name(el.element, name)
+#define Element_Disable(el)                   Element_Disable(el.element)
+#define Element_Enable(el)                    Element_Enable(el.element)
+#define Element_DisplayName(geo, split, this) Element_DisplayName(geo, split, this.element)
 
-void Element_RowY(f32 y);
-void Element_Row(Split* split, s32 rectNum, ...);
-
-#ifndef __GEO_ELEM_C__
 #define Element_Row(split, ...) Element_Row(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
-#endif
+
+PropEnum* PropEnum_Init(void* update, void* argument, s32 defaultKey, EnumItem* item, u32 size);
+void PropEnum_Free(PropEnum* penum);
+
+#define PropEnum_Declare(name, upd, default, ...) \
+	EnumItem __ ## name ## Item[] = { \
+		__VA_ARGS__ \
+	}; \
+	PropEnum name = { \
+		.update = upd, \
+		.defaultKey = default, \
+		.item = __ ## name ## Item, \
+		.num = ArrayCount( __ ## name ## Item), \
+	}
 
 #endif

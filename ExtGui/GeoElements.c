@@ -1,5 +1,3 @@
-#define __GEO_ELEM_C__
-
 #include "GeoGrid.h"
 #include "Interface.h"
 
@@ -8,17 +6,21 @@ struct ElementCallInfo;
 typedef void (* ElementFunc)(struct ElementCallInfo*);
 
 typedef struct ElementCallInfo {
+	struct ElementCallInfo* prev;
+	struct ElementCallInfo* next;
+	
 	void*       arg;
 	Split*      split;
 	ElementFunc func;
 	GeoGrid*    geo;
+	
+	const char* elemFunc;
+	s32 update;
 } ElementCallInfo;
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
-static ElementCallInfo pElementStack[1024 * 2];
-static ElementCallInfo* sCurrentElement;
-static u32 sElemNum;
+static ElementCallInfo* sElemHead;
 
 static ElTextbox* sCurTextbox;
 static Split* sCurSplitTextbox;
@@ -39,14 +41,21 @@ static const char* sFmt[] = {
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
-static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, void* arg) {
-	sCurrentElement->geo = geo;
-	sCurrentElement->split = split;
-	sCurrentElement->func = func;
-	sCurrentElement->arg = arg;
-	sCurrentElement++;
-	sElemNum++;
+static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, void* arg, const char* elemFunc) {
+	ElementCallInfo* node;
+	
+	Calloc(node, sizeof(ElementCallInfo));
+	Node_Add(sElemHead, node);
+	node->geo = geo;
+	node->split = split;
+	node->func = func;
+	node->arg = arg;
+	node->update = true;
+	
+	node->elemFunc = elemFunc;
 }
+
+#define Element_QueueElement(geo, split, func, arg) Element_QueueElement(geo, split, func, arg, __FUNCTION__)
 
 static void Element_Draw_RoundedOutline(void* vg, Rect* rect, NVGcolor color) {
 	nvgBeginPath(vg);
@@ -59,6 +68,16 @@ static void Element_Draw_RoundedOutline(void* vg, Rect* rect, NVGcolor color) {
 		rect->h + 2,
 		SPLIT_ROUND_R
 	);
+	nvgRoundedRect(
+		vg,
+		rect->x,
+		rect->y,
+		rect->w,
+		rect->h,
+		SPLIT_ROUND_R
+	);
+	
+	nvgPathWinding(vg, NVG_HOLE);
 	nvgFill(vg);
 }
 
@@ -81,7 +100,7 @@ static s32 Element_PressCondition(GeoGrid* geo, Split* split, Rect* rect) {
 	       split->mouseInSplit &&
 	       !split->blockMouse &&
 	       !split->elemBlockMouse &&
-	       GeoGrid_Cursor_InRect(split, rect));
+	       Split_CursorInRect(split, rect));
 }
 
 static void Element_Draw_TextOutline(void* vg, f32 x, f32 y, char* txt) {
@@ -132,16 +151,144 @@ static void Element_Slider_SetTextbox(Split* split, ElSlider* this) {
 	sSelectPos = strlen(this->textBox.txt);
 }
 
+static bool Element_DisableDraw(Element* element, Split* split) {
+	if (element->rect.w <= 0)
+		return true;
+	if (element->rect.x >= split->rect.w || element->rect.y >= split->rect.h)
+		return true;
+	
+	return false;
+}
+#define Element_DisableDraw(elem, split) Element_DisableDraw(&elem->element, split)
+
+static f32 Element_TextWidth(void* vg, const char* txt) {
+	f32 bounds[4];
+	
+	nvgTextBounds(vg, 0, 0, txt, 0, bounds);
+	
+	return bounds[2];
+}
+
+/* ───────────────────────────────────────────────────────────────────────── */
+
+PropEnum* PropEnum_Init(void* update, void* argument, s32 defaultKey, EnumItem* item, u32 size) {
+	PropEnum* penum;
+	
+	Calloc(penum, sizeof(PropEnum));
+	penum->update = update;
+	penum->argument = argument;
+	penum->defaultKey = defaultKey;
+	penum->num = size;
+	penum->item = MemDup(item, sizeof(EnumItem) * size);
+	
+	return penum;
+}
+
+void PropEnum_Free(PropEnum* penum) {
+	Free(penum->item);
+	Free(penum);
+	memset(penum, 0, sizeof(PropEnum));
+}
+
+/* ───────────────────────────────────────────────────────────────────────── */
+
+void DropMenu_Init(GeoGrid* geo, bool useOriginRect) {
+	DropMenu* this = &geo->dropMenu;
+	PropEnum* prop = this->prop;
+	s32 height;
+	
+	geo->state.noClickInput++;
+	geo->state.noSplit++;
+	this->pos = geo->input->mouse.pos;
+	this->state.useOriginRect = useOriginRect;
+	
+	height = SPLIT_ELEM_X_PADDING * 2 + SPLIT_TEXT_H * prop->num;
+	
+	if (useOriginRect) {
+		this->rect.y = this->rectOrigin.y + this->rectOrigin.h;
+		this->rect.h = height;
+		
+		this->rect.x = this->rectOrigin.x;
+		this->rect.w = this->rectOrigin.w;
+	}
+	
+	printf("height %d\n", height);
+}
+
+void DropMenu_Close(GeoGrid* geo) {
+	DropMenu* this = &geo->dropMenu;
+	
+	geo->state.noClickInput--;
+	geo->state.noSplit--;
+	this->prop = 0;
+	this->state.useOriginRect = 0;
+	this->state.init = 0;
+}
+
+void DropMenu_Draw(GeoGrid* geo) {
+	DropMenu* this = &geo->dropMenu;
+	PropEnum* prop = this->prop;
+	void* vg = geo->vg;
+	f32 height = SPLIT_ELEM_X_PADDING;
+	MouseInput* mouse = &geo->input->mouse;
+	s32 key = -1;
+	
+	if (prop == NULL)
+		return;
+	
+	glViewport(
+		0,
+		0,
+		geo->winDim->x,
+		geo->winDim->y
+	);
+	nvgBeginFrame(geo->vg, geo->winDim->x, geo->winDim->y, gPixelRatio); {
+		Element_Draw_RoundedOutline(vg, &this->rect, Theme_GetColor(THEME_HIGHLIGHT, 215, 0.8f));
+		Element_Draw_RoundedRect(vg, &this->rect, Theme_GetColor(THEME_SHADOW, 215, 1.0f));
+		
+		for (s32 i = 0; i < prop->num; i++) {
+			Rect r = this->rect;
+			
+			r.y = this->rect.y + height;
+			r.h = SPLIT_TEXT_H;
+			
+			if (Rect_PointIntersect(&r, mouse->pos.x, mouse->pos.y)) {
+				key = i;
+				Element_Draw_RoundedRect(vg, &r, Theme_GetColor(THEME_PRIM, 125, 1.0f));
+			}
+			
+			nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
+			nvgFontFace(vg, "dejavu");
+			nvgFontSize(vg, SPLIT_TEXT);
+			nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
+			nvgText(vg, this->rect.x + SPLIT_ELEM_X_PADDING, this->rect.y + height + SPLIT_ELEM_X_PADDING * 0.5f, prop->item[i].name, NULL);
+			
+			height += SPLIT_TEXT_H;
+		}
+	} nvgEndFrame(geo->vg);
+	
+	if (this->state.init == false) {
+		this->state.init = true;
+		
+		return;
+	}
+	
+	if (Input_GetMouse(geo->input, MOUSE_L)->press) {
+		if (key > -1)
+			prop->update(prop, key, prop->argument);
+		
+		DropMenu_Close(geo);
+	}
+}
+
 /* ───────────────────────────────────────────────────────────────────────── */
 
 static void Element_Draw_Button(ElementCallInfo* info) {
 	void* vg = info->geo->vg;
 	ElButton* this = info->arg;
-	f32 dsbleMul = (this->isDisabled ? 0.5 : 1.0);
 	
-	if (this->element.rect.w < 16) {
+	if (Element_DisableDraw(this, info->split))
 		return;
-	}
 	
 	Element_Draw_RoundedOutline(vg, &this->element.rect, this->element.light);
 	
@@ -150,7 +297,7 @@ static void Element_Draw_Button(ElementCallInfo* info) {
 	nvgRoundedRect(vg, this->element.rect.x, this->element.rect.y, this->element.rect.w, this->element.rect.h, SPLIT_ROUND_R);
 	nvgFill(vg);
 	
-	if (this->element.name) {
+	if (this->element.name && this->element.rect.w > 8) {
 		char* txt = (char*)this->element.name;
 		char ftxt[512];
 		f32 bounds[4];
@@ -158,7 +305,6 @@ static void Element_Draw_Button(ElementCallInfo* info) {
 		nvgFontFace(vg, "dejavu");
 		nvgFontSize(vg, SPLIT_TEXT);
 		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-		nvgTextLetterSpacing(vg, 0.0);
 		nvgTextBounds(vg, 0, 0, txt, NULL, bounds);
 		
 		if (bounds[2] > this->element.rect.w - SPLIT_TEXT_PADDING * 2) {
@@ -172,13 +318,12 @@ static void Element_Draw_Button(ElementCallInfo* info) {
 		}
 		
 		nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-		
-		nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f - 0.25f * this->isDisabled));
 		nvgFontBlur(vg, 0.0);
+		nvgFillColor(vg, this->element.texcol);
 		nvgText(
 			vg,
 			this->element.rect.x + this->element.rect.w * 0.5,
-			this->element.rect.y + this->element.rect.h * 0.5,
+			this->element.rect.y + this->element.rect.h * 0.5 + 1,
 			txt,
 			NULL
 		);
@@ -190,6 +335,9 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 	GeoGrid* geo = info->geo;
 	Split* split = info->split;
 	ElTextbox* this = info->arg;
+	
+	if (Element_DisableDraw(this, info->split))
+		return;
 	
 	Assert(this->txt != NULL);
 	static char buffer[512]; strcpy(buffer, this->txt);
@@ -223,7 +371,6 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 	nvgFontFace(vg, "dejavu");
 	nvgFontSize(vg, SPLIT_TEXT);
 	nvgFontBlur(vg, 0.0);
-	nvgTextLetterSpacing(vg, 0.1);
 	
 	switch (this->align) {
 		case ALIGN_LEFT:
@@ -291,7 +438,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 	
 	Input* inputCtx = info->geo->input;
 	
-	if (GeoGrid_Cursor_InRect(split, &this->element.rect) && inputCtx->mouse.clickL.hold) {
+	if (Split_CursorInRect(split, &this->element.rect) && inputCtx->mouse.clickL.hold) {
 		if (this->isHintText) {
 			this->isHintText = 2;
 			sTextPos = 0;
@@ -394,7 +541,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 	nvgText(
 		vg,
 		this->element.rect.x + SPLIT_TEXT_PADDING + ccx,
-		this->element.rect.y + this->element.rect.h * 0.5,
+		this->element.rect.y + this->element.rect.h * 0.5 + 1,
 		txtA,
 		txtB
 	);
@@ -404,33 +551,50 @@ static void Element_Draw_Text(ElementCallInfo* info) {
 	void* vg = info->geo->vg;
 	// Split* split = info->split;
 	ElText* this = info->arg;
-	f32 bounds[4];
+	f32 width;
+	f32 max = this->element.rect.w;
 	char tempText[512];
 	
-	strcpy(tempText, this->txt);
+	if (Element_DisableDraw(this, info->split))
+		return;
+	
+	if (this->element.dispText)
+		max *= 0.333333f;
+	
+	strcpy(tempText, this->element.name);
 	
 	nvgFontFace(vg, "dejavu");
 	nvgFontSize(vg, SPLIT_TEXT);
 	nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-	nvgTextLetterSpacing(vg, 0.1);
 	
-	nvgTextBounds(vg, 0, 0, this->txt, 0, bounds);
-	
-	while (bounds[2] > this->element.rect.w) {
+	width = Element_TextWidth(vg, this->element.name);
+	while (width > max) {
+		Log("%.2f > %.2f", width, max);
 		strcpy(tempText + ClampMin(strlen(tempText) - 3, 0), "..");
 		
-		nvgTextBounds(vg, 0, 0, tempText, 0, bounds);
+		width = Element_TextWidth(vg, tempText);
 	}
 	
 	nvgFontBlur(vg, 0.0);
 	nvgFillColor(vg, this->element.texcol);
-	nvgText(
-		vg,
-		this->element.rect.x,
-		this->element.rect.y + this->element.rect.h * 0.5,
-		tempText,
-		NULL
-	);
+	
+	if (this->element.dispText == true) {
+		nvgText(
+			vg,
+			this->element.posTxt.x,
+			this->element.posTxt.y,
+			tempText,
+			NULL
+		);
+	} else {
+		nvgText(
+			vg,
+			this->element.rect.x,
+			this->element.rect.y + this->element.rect.h * 0.5 + 1,
+			tempText,
+			NULL
+		);
+	}
 }
 
 static void Element_Draw_Checkbox(ElementCallInfo* info) {
@@ -448,6 +612,9 @@ static void Element_Draw_Checkbox(ElementCallInfo* info) {
 		{ .x = -10, .y = -10 }, { .x = -10, .y =  -7 },
 		{ .x =  -3, .y =   0 }, { .x = -10, .y =   7 },
 	};
+	
+	if (Element_DisableDraw(this, info->split))
+		return;
 	
 	if (this->element.toggle)
 		Math_DelSmoothStepToF(&this->lerp, 0.8f - sBreathe * 0.08, 0.178f, 0.1f, 0.0f);
@@ -499,14 +666,25 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 	// Split* split = info->split;
 	ElSlider* this = info->arg;
 	Rectf32 rect;
+	f32 mul = this->vValue;
+	
+	if (Element_DisableDraw(this, info->split))
+		return;
 	
 	Math_DelSmoothStepToF(&this->vValue, this->value, 0.5f, (this->max - this->min) * 0.5f, 0.0f);
+	
+	if (this->isInt) {
+		mul = rint(Lerp(this->value, this->min, this->max));
+		
+		mul -= this->min;
+		mul /= this->max;
+	}
 	
 	rect.x = this->element.rect.x;
 	rect.y = this->element.rect.y;
 	rect.w = this->element.rect.w;
 	rect.h = this->element.rect.h;
-	rect.w = ClampMin(rect.w * this->vValue, 0);
+	rect.w = ClampMin(rect.w * mul, 0);
 	
 	Element_Draw_RoundedOutline(vg, &this->element.rect, this->element.light);
 	Element_Draw_RoundedRect(vg, &this->element.rect, this->element.shadow);
@@ -552,10 +730,68 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 	nvgText(
 		vg,
 		this->element.rect.x + this->element.rect.w * 0.5,
-		this->element.rect.y + this->element.rect.h * 0.5,
+		this->element.rect.y + this->element.rect.h * 0.5 + 1,
 		this->textBox.txt,
 		NULL
 	);
+}
+
+static void Element_Draw_Combo(ElementCallInfo* info) {
+	ElCombo* this = info->arg;
+	GeoGrid* geo = info->geo;
+	void* vg = geo->vg;
+	PropEnum* prop = this->prop;
+	Rect r = this->element.rect;
+	Vec2f center;
+	Vec2f arrow[] = {
+		{ -5.0f, -2.5f },
+		{ 0.0f,   2.5f },
+		{ 5.0f,  -2.5f },
+		{ -5.0f, -2.5f },
+	};
+	
+	nvgFontFace(vg, "dejavu");
+	
+	nvgFontSize(vg, SPLIT_TEXT);
+	nvgFontBlur(vg, 0.0);
+	
+	Element_Draw_RoundedOutline(vg, &r, this->element.light);
+	Element_Draw_RoundedRect(vg, &r, this->element.shadow);
+	
+	nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+	nvgFillColor(vg, this->element.texcol);
+	nvgText(
+		vg,
+		r.x + r.w * 0.5,
+		r.y + r.h * 0.5 + 1,
+		prop->item[this->key].name,
+		NULL
+	);
+	
+	center.x = r.x + r.w - 5 - 5;
+	center.y = r.y + r.h * 0.5f;
+	
+	nvgBeginPath(vg);
+	nvgFillColor(vg, this->element.light);
+	for (s32 i = 0; i < ArrayCount(arrow); i++) {
+		s32 wi = WrapS(i, 0, ArrayCount(arrow) - 1);
+		Vec2f zero = { 0 };
+		Vec2f pos = {
+			arrow[wi].x,
+			arrow[wi].y,
+		};
+		f32 dist = Math_Vec2f_DistXZ(&zero, &pos);
+		s16 yaw = Math_Vec2f_Yaw(&zero, &pos);
+		
+		pos.x = center.x + SinS(yaw) * dist;
+		pos.y = center.y + CosS(yaw) * dist;
+		
+		if ( i == 0 )
+			nvgMoveTo(vg, pos.x, pos.y);
+		else
+			nvgLineTo(vg, pos.x, pos.y);
+	}
+	nvgFill(vg);
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */
@@ -564,7 +800,6 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 s32 Element_Button(GeoGrid* geo, Split* split, ElButton* this) {
 	void* vg = geo->vg;
 	
-	this->hover = 0;
 	this->state = 0;
 	
 	if (this->autoWidth) {
@@ -573,13 +808,15 @@ s32 Element_Button(GeoGrid* geo, Split* split, ElButton* this) {
 		nvgFontFace(vg, "dejavu");
 		nvgFontSize(vg, SPLIT_TEXT);
 		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-		nvgTextLetterSpacing(vg, 0.0);
 		nvgTextBounds(vg, 0, 0, this->element.name, NULL, bounds);
 		
 		this->element.rect.w = bounds[2] + SPLIT_TEXT_PADDING * 2;
 	}
 	
-	if (Element_PressCondition(geo, split, &this->element.rect) && this->isDisabled == false) {
+	if (this->element.disabled || geo->state.noClickInput)
+		goto queue_element;
+	
+	if (Element_PressCondition(geo, split, &this->element.rect)) {
 		if (Input_GetMouse(geo->input, MOUSE_L)->press) {
 			this->state++;
 			
@@ -593,10 +830,9 @@ s32 Element_Button(GeoGrid* geo, Split* split, ElButton* this) {
 		if (Input_GetMouse(geo->input, MOUSE_L)->hold) {
 			this->state++;
 		}
-		
-		this->hover = 1;
 	}
 	
+queue_element:
 	Element_QueueElement(
 		geo,
 		split,
@@ -608,9 +844,10 @@ s32 Element_Button(GeoGrid* geo, Split* split, ElButton* this) {
 }
 
 void Element_Textbox(GeoGrid* geo, Split* split, ElTextbox* this) {
-	this->hover = 0;
+	if (this->element.disabled || geo->state.noClickInput)
+		goto queue_element;
+	
 	if (Element_PressCondition(geo, split, &this->element.rect)) {
-		this->hover = 1;
 		if (Input_GetMouse(geo->input, MOUSE_L)->press) {
 			if (this != sCurTextbox) {
 				sCtrlA = 1;
@@ -624,6 +861,7 @@ void Element_Textbox(GeoGrid* geo, Split* split, ElTextbox* this) {
 		}
 	}
 	
+queue_element:
 	Element_QueueElement(
 		geo,
 		split,
@@ -641,9 +879,8 @@ f32 Element_Text(GeoGrid* geo, Split* split, ElText* this) {
 	nvgFontSize(vg, SPLIT_TEXT);
 	nvgFontBlur(vg, 0.0);
 	nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-	nvgTextLetterSpacing(vg, 0.1);
 	nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
-	nvgTextBounds(vg, 0, 0, this->txt, NULL, bounds);
+	nvgTextBounds(vg, 0, 0, this->element.name, NULL, bounds);
 	
 	Element_QueueElement(
 		geo,
@@ -658,14 +895,16 @@ f32 Element_Text(GeoGrid* geo, Split* split, ElText* this) {
 s32 Element_Checkbox(GeoGrid* geo, Split* split, ElCheckbox* this) {
 	this->element.rect.w = this->element.rect.h;
 	
-	this->hover = 0;
+	if (this->element.disabled || geo->state.noClickInput)
+		goto queue_element;
+	
 	if (Element_PressCondition(geo, split, &this->element.rect)) {
-		this->hover = 1;
 		if (Input_GetMouse(geo->input, MOUSE_L)->press) {
 			this->element.toggle ^= 1;
 		}
 	}
 	
+queue_element:
 	Element_QueueElement(
 		geo,
 		split,
@@ -680,14 +919,11 @@ f32 Element_Slider(GeoGrid* geo, Split* split, ElSlider* this) {
 	if (this->min == 0.0f && this->max == 0.0f)
 		this->max = 1.0f;
 	
-	this->hover = false;
-	
-	if (this->locked)
+	if (this->element.disabled || geo->state.noClickInput)
 		goto queue_element;
 	
 	if (Element_PressCondition(geo, split, &this->element.rect) || this->holdState) {
 		u32 pos = false;
-		this->hover = true;
 		
 		if (this->isTextbox) {
 			this->isTextbox = false;
@@ -726,7 +962,7 @@ f32 Element_Slider(GeoGrid* geo, Split* split, ElSlider* this) {
 				this->isSliding = true;
 			}
 		} else if (Input_GetMouse(geo->input, MOUSE_L)->release && this->holdState) {
-			if (this->isSliding == false && GeoGrid_Cursor_InRect(split, &this->element.rect)) {
+			if (this->isSliding == false && Split_CursorInRect(split, &this->element.rect)) {
 				Element_Slider_SetTextbox(split, this);
 			}
 			this->isSliding = false;
@@ -768,15 +1004,72 @@ queue_element:
 		return Lerp(this->value, this->min, this->max);
 }
 
+void Element_Combo(GeoGrid* geo, Split* split, ElCombo* this) {
+	if (this->element.disabled || geo->state.noClickInput)
+		goto queue_element;
+	
+	if (Element_PressCondition(geo, split, &this->element.rect) && Input_GetMouse(geo->input, MOUSE_L)->press) {
+		geo->dropMenu.element = &this->element;
+		geo->dropMenu.prop = this->prop;
+		geo->dropMenu.rectOrigin = Rect_AddPos(&this->element.rect, &split->rect);
+		DropMenu_Init(geo, true);
+	}
+	
+queue_element:
+	Element_QueueElement(
+		geo,
+		split,
+		Element_Draw_Combo,
+		this
+	);
+}
+
 /* ───────────────────────────────────────────────────────────────────────── */
 
+#undef Element_Row
+#undef Element_Disable
+#undef Element_Enable
+#undef Element_Name
+#undef Element_DisplayName
+
 static f32 sRowY;
+
+void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type) {
+	this->min = min;
+	this->max = max;
+	if (!stricmp(type, "int"))
+		this->isInt = true;
+	if (!stricmp(type, "float"))
+		this->isInt = false;
+}
 
 void Element_Slider_SetValue(ElSlider* this, f64 val) {
 	this->value = val;
 	this->value -= this->min;
 	this->value *= 1.0 / (this->max - this->min);
 	this->vValue = this->value = Clamp(this->value, 0.0f, 1.0f);
+}
+
+void Element_Button_SetValue(ElButton* this, bool toggle, bool state) {
+	this->element.toggle = toggle ? toggle + state : 0;
+	this->state = state;
+}
+
+void Element_Combo_SetPropEnum(ElCombo* this, PropEnum* prop) {
+	this->prop = prop;
+	this->key = prop->defaultKey;
+}
+
+void Element_Name(Element* this, const char* name) {
+	this->name = name;
+}
+
+void Element_Disable(Element* element) {
+	element->disabled = true;
+}
+
+void Element_Enable(Element* element) {
+	element->disabled = false;
 }
 
 static void Element_SetRectImpl(Rect* rect, f32 x, f32 y, f32 w) {
@@ -814,11 +1107,32 @@ void Element_Row(Split* split, s32 rectNum, ...) {
 	va_end(va);
 }
 
-/* ───────────────────────────────────────────────────────────────────────── */
-
-void Element_Init(GeoGrid* geo) {
-	sCurrentElement = pElementStack;
+void Element_DisplayName(GeoGrid* geo, Split* split, Element* this) {
+	ElementCallInfo* node;
+	s32 w = this->rect.w * 0.25f;
+	
+	if (w < 32)
+		return;
+	
+	this->posTxt.x = this->rect.x;
+	this->posTxt.y = this->rect.y + this->rect.h * 0.5 + 1;
+	
+	this->rect.x += w;
+	this->rect.w -= w;
+	
+	this->dispText = true;
+	
+	Calloc(node, sizeof(ElementCallInfo));
+	Node_Add(sElemHead, node);
+	node->geo = geo;
+	node->split = split;
+	node->func = Element_Draw_Text;
+	node->arg = this;
+	node->elemFunc = "Element_DisplayName";
+	node->update = false;
 }
+
+/* ───────────────────────────────────────────────────────────────────────── */
 
 static InputType* Textbox_GetKey(GeoGrid* geo, KeyMap key) {
 	return &geo->input->key[key];
@@ -831,9 +1145,6 @@ static InputType* Textbox_GetMouse(GeoGrid* geo, MouseMap key) {
 void Element_Update(GeoGrid* geo) {
 	static s32 timer = 0;
 	static s32 blocker;
-	
-	sCurrentElement = pElementStack;
-	sElemNum = 0;
 	
 	sBreatheYaw += DegToBin(3);
 	sBreathe = (SinS(sBreatheYaw) + 1.0f) * 0.5;
@@ -853,7 +1164,7 @@ void Element_Update(GeoGrid* geo) {
 			sCtrlA = 0;
 			
 			Assert(sCurSplitTextbox != NULL);
-			if (!GeoGrid_Cursor_InRect(sCurSplitTextbox, &sCurTextbox->element.rect) || Textbox_GetKey(geo, KEY_ENTER)->press) {
+			if (!Split_CursorInRect(sCurSplitTextbox, &sCurTextbox->element.rect) || Textbox_GetKey(geo, KEY_ENTER)->press) {
 				sCurTextbox = NULL;
 				sCurTextbox = NULL;
 				sStoreA = NULL;
@@ -1022,52 +1333,69 @@ static void Element_UpdateElement(ElementCallInfo* info) {
 	Element* this = info->arg;
 	Split* split = info->split;
 	f32 toggle = this->toggle == 2 ? 0.50f : 0.0f;
+	f32 press = 1.0f;
 	
 	this->hover = false;
 	this->press = false;
 	
-	if (GeoGrid_Cursor_InRect(split, &this->rect)) {
+	if (Element_PressCondition(geo, split, &this->rect)) {
 		this->hover = true;
 		
 		if (Input_GetMouse(geo->input, MOUSE_L)->hold)
 			this->press = true;
 	}
 	
-	if (this->disabled) {
-		Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 0.75f), 0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, 1.50f + toggle), 0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, 0.25f + toggle), 0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 0.75f), 0.25f, 0.35f, 0.001f);
+	if (this == (void*)sCurTextbox || this == geo->dropMenu.element)
+		this->hover = true;
+	
+	if (this->press && this->disabled == false)
+		press = 1.2f;
+	
+	if (this->hover) {
+		Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 1.10f * press),            0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 1.15f * press),            0.25f, 0.35f, 0.001f);
 		
 		if (this->toggle < 2)
-			Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.25f + toggle), 0.25f, 0.35f, 0.001f);
-	} else if (this->hover) {
-		Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 1.10f), 0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, 1.07f + toggle), 0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, 1.07f + toggle), 0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 1.15f), 0.25f, 0.35f, 0.001f);
-		
-		if (this->toggle < 2)
-			Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.07f + toggle), 0.25f, 0.35f, 0.001f);
+			Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
 	} else {
-		Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 1.00f), 0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, 1.00f + toggle), 0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, 0.50f + toggle), 0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 1.00f), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 1.00f * press),            0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.00f + toggle) * press), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (0.50f + toggle) * press), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 1.00f * press),            0.25f, 0.35f, 0.001f);
 		
 		if (this->toggle < 2)
-			Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f + toggle), 0.25f, 0.35f, 0.001f);
+			Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.00f + toggle) * press), 0.25f, 0.35f, 0.001f);
 	}
 	
 	if (this->toggle == 2)
-		Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_PRIM,  255, 0.95f), 0.25f, 8.85f, 0.001f);
+		Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_PRIM,  255, 0.95f * press), 0.25f, 8.85f, 0.001f);
+	
+	if (this->disabled) {
+		Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), 1.00f, 1.00f, 0.001f);
+		Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), 0.25f, 0.35f, 0.001f);
+	}
 }
 
 void Element_Draw(GeoGrid* geo, Split* split) {
-	for (s32 i = 0; i < sElemNum; i++) {
-		if (pElementStack[i].split == split) {
-			Element_UpdateElement(&pElementStack[i]);
-			pElementStack[i].func(&pElementStack[i]);
+	ElementCallInfo* elem = sElemHead;
+	
+	while (elem) {
+		ElementCallInfo* next = elem->next;
+		
+		if (elem->split == split) {
+			Log("ElemFunc: " PRNT_PRPL "%s", elem->elemFunc);
+			
+			if (elem->update)
+				Element_UpdateElement(elem);
+			elem->func(elem);
+			Node_Kill(sElemHead, elem);
 		}
+		
+		elem = next;
 	}
 }

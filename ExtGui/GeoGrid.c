@@ -4,7 +4,7 @@
 f32 gPixelRatio = 1.0f;
 
 static void GeoGrid_RemoveDublicates(GeoGrid* geo);
-static void GeoGrid_Update_SplitRect(Split* split);
+static void Split_UpdateRect(Split* split);
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
@@ -104,7 +104,7 @@ static SplitEdge* GeoGrid_AddEdge(GeoGrid* geo, SplitVtx* v1, SplitVtx* v2) {
 	return edge;
 }
 
-static s32 GeoGrid_Cursor_GetDistTo(SplitState flag, Split* split) {
+static s32 Split_CursorDistToFlagPos(SplitState flag, Split* split) {
 	Vec2s mouse[] = {
 		{ split->mousePos.x, split->mousePos.y },
 		{ split->mousePos.x, split->mousePos.y },
@@ -135,9 +135,9 @@ static s32 GeoGrid_Cursor_GetDistTo(SplitState flag, Split* split) {
 	return Math_Vec2s_DistXZ(&mouse[i], &pos[i]);
 }
 
-static SplitState GeoGrid_GetState_CursorPos(Split* split, s32 range) {
+static SplitState Split_GetCursorPosState(Split* split, s32 range) {
 	for (s32 i = 0; (1 << i) <= SPLIT_SIDE_B; i++) {
-		if (GeoGrid_Cursor_GetDistTo((1 << i), split) <= range) {
+		if (Split_CursorDistToFlagPos((1 << i), split) <= range) {
 			SplitEdge* edge = NULL;
 			EdgeState stick = 0;
 			
@@ -168,21 +168,21 @@ static SplitState GeoGrid_GetState_CursorPos(Split* split, s32 range) {
 	return SPLIT_POINT_NONE;
 }
 
-bool GeoGrid_Cursor_InRect(Split* split, Rect* rect) {
+bool Split_CursorInRect(Split* split, Rect* rect) {
 	s32 resX = (split->mousePos.x < rect->x + rect->w && split->mousePos.x >= rect->x);
 	s32 resY = (split->mousePos.y < rect->y + rect->h && split->mousePos.y >= rect->y);
 	
 	return (resX && resY);
 }
 
-bool GeoGrid_Cursor_InSplit(Split* split) {
+bool Split_CursorInSplit(Split* split) {
 	s32 resX = (split->mousePos.x < split->rect.w && split->mousePos.x >= 0);
 	s32 resY = (split->mousePos.y < split->rect.h && split->mousePos.y >= 0);
 	
 	return (resX && resY);
 }
 
-Split* Split_Alloc(const char* name) {
+static Split* Split_Alloc(const char* name) {
 	Split* split;
 	
 	Calloc(split, sizeof(Split));
@@ -209,7 +209,7 @@ Split* GeoGrid_AddSplit(GeoGrid* geo, const char* name, Rectf32* rect) {
 	return split;
 }
 
-static void GeoGrid_Edge_SetSlideClamp(GeoGrid* geo) {
+static void Edge_SetSlideClamp(GeoGrid* geo) {
 	SplitEdge* tempEdge = geo->edgeHead;
 	SplitEdge* setEdge = geo->actionEdge;
 	SplitEdge* actionEdge = geo->actionEdge;
@@ -273,14 +273,14 @@ static void GeoGrid_Edge_SetSlideClamp(GeoGrid* geo) {
 	}
 }
 
-static void GeoGrid_Reset(GeoGrid* geo) {
+static void Split_ClearActionSplit(GeoGrid* geo) {
 	Assert(geo->actionSplit);
 	geo->actionSplit->stateFlag &= ~(SPLIT_POINTS | SPLIT_SIDES);
 	
 	geo->actionSplit = NULL;
 }
 
-static void GeoGrid_Split(GeoGrid* geo, Split* split, SplitDir dir) {
+static void Split_Split(GeoGrid* geo, Split* split, SplitDir dir) {
 	Split* newSplit;
 	f64 splitPos = (dir == DIR_L || dir == DIR_R) ? geo->input->mouse.pos.x : geo->input->mouse.pos.y;
 	
@@ -335,12 +335,12 @@ static void GeoGrid_Split(GeoGrid* geo, Split* split, SplitDir dir) {
 	
 	geo->actionEdge = newSplit->edge[dir];
 	GeoGrid_RemoveDublicates(geo);
-	GeoGrid_Edge_SetSlideClamp(geo);
-	GeoGrid_Update_SplitRect(split);
-	GeoGrid_Update_SplitRect(newSplit);
+	Edge_SetSlideClamp(geo);
+	Split_UpdateRect(split);
+	Split_UpdateRect(newSplit);
 }
 
-static void GeoGrid_KillSplit(GeoGrid* geo, Split* split, SplitDir dir) {
+static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
 	SplitEdge* sharedEdge = split->edge[dir];
 	Split* killSplit = geo->splitHead;
 	SplitDir oppositeDir = GeoGrid_GetDir_Opposite(dir);
@@ -396,10 +396,10 @@ static void GeoGrid_KillSplit(GeoGrid* geo, Split* split, SplitDir dir) {
 	}
 	Node_Kill(geo->splitHead, killSplit);
 	GeoGrid_RemoveDublicates(geo);
-	GeoGrid_Update_SplitRect(split);
+	Split_UpdateRect(split);
 }
 
-s32 Split_Cursor(GeoGrid* geo, Split* split, s32 result) {
+s32 Split_GetCursor(GeoGrid* geo, Split* split, s32 result) {
 	if (geo->state.noClickInput ||
 		!split->mouseInSplit ||
 		split->blockMouse ||
@@ -411,7 +411,7 @@ s32 Split_Cursor(GeoGrid* geo, Split* split, s32 result) {
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
-static void GeoGrid_Update_Vtx_RemoveDublicates(GeoGrid* geo, SplitVtx* vtx) {
+static void Vtx_RemoveDuplicates(GeoGrid* geo, SplitVtx* vtx) {
 	SplitVtx* vtx2 = geo->vtxHead;
 	
 	while (vtx2) {
@@ -452,7 +452,7 @@ static void GeoGrid_Update_Vtx_RemoveDublicates(GeoGrid* geo, SplitVtx* vtx) {
 	}
 }
 
-static void GeoGrid_Update_Vtx(GeoGrid* geo) {
+static void Vtx_Update(GeoGrid* geo) {
 	SplitVtx* vtx = geo->vtxHead;
 	static s32 clean;
 	
@@ -462,7 +462,7 @@ static void GeoGrid_Update_Vtx(GeoGrid* geo) {
 	
 	while (vtx) {
 		if (clean == true && geo->actionEdge == NULL) {
-			GeoGrid_Update_Vtx_RemoveDublicates(geo, vtx);
+			Vtx_RemoveDuplicates(geo, vtx);
 		}
 		
 		if (vtx->killFlag == true) {
@@ -494,7 +494,7 @@ static void GeoGrid_Update_Vtx(GeoGrid* geo) {
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
-static void GeoGrid_Update_Edge_RemoveDublicates(GeoGrid* geo, SplitEdge* edge) {
+static void Edge_RemoveDuplicates(GeoGrid* geo, SplitEdge* edge) {
 	SplitEdge* edge2 = geo->edgeHead;
 	
 	while (edge2) {
@@ -529,7 +529,7 @@ static void GeoGrid_Update_Edge_RemoveDublicates(GeoGrid* geo, SplitEdge* edge) 
 	}
 }
 
-static void GeoGrid_Update_Edge_SetSlide(GeoGrid* geo) {
+static void Edge_SetSlide(GeoGrid* geo) {
 	SplitEdge* edge = geo->edgeHead;
 	f64 diffCentX = (f64)geo->workRect.w / geo->prevWorkRect.w;
 	f64 diffCentY = (f64)geo->workRect.h / geo->prevWorkRect.h;
@@ -621,7 +621,7 @@ static void GeoGrid_Update_Edge_SetSlide(GeoGrid* geo) {
 	}
 }
 
-static void GeoGrid_Update_Edges(GeoGrid* geo) {
+static void Edge_Update(GeoGrid* geo) {
 	SplitEdge* edge = geo->edgeHead;
 	
 	if (!Input_GetMouse(geo->input, MOUSE_ANY)->hold) {
@@ -643,21 +643,21 @@ static void GeoGrid_Update_Edges(GeoGrid* geo) {
 			edge->state &= ~EDGE_EDIT;
 		}
 		
-		GeoGrid_Update_Edge_RemoveDublicates(geo, edge);
+		Edge_RemoveDuplicates(geo, edge);
 		edge = edge->next;
 	}
 	
-	GeoGrid_Update_Edge_SetSlide(geo);
+	Edge_SetSlide(geo);
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
-static void GeoGrid_Update_ActionSplit(GeoGrid* geo) {
+static void Split_UpdateActionSplit(GeoGrid* geo) {
 	Split* split = geo->actionSplit;
 	
 	if (Input_GetMouse(geo->input, MOUSE_ANY)->press) {
-		SplitState tempStateA = GeoGrid_GetState_CursorPos(split, SPLIT_GRAB_DIST);
-		SplitState tempStateB = GeoGrid_GetState_CursorPos(split, SPLIT_GRAB_DIST * 3);
+		SplitState tempStateA = Split_GetCursorPosState(split, SPLIT_GRAB_DIST);
+		SplitState tempStateB = Split_GetCursorPosState(split, SPLIT_GRAB_DIST * 3);
 		if (tempStateB & SPLIT_POINTS) {
 			split->stateFlag |= tempStateB;
 		} else if (tempStateA & SPLIT_SIDES) {
@@ -676,8 +676,8 @@ static void GeoGrid_Update_ActionSplit(GeoGrid* geo) {
 			Assert(split->edge[i] != NULL);
 			
 			geo->actionEdge = split->edge[i];
-			GeoGrid_Edge_SetSlideClamp(geo);
-			GeoGrid_Reset(geo);
+			Edge_SetSlideClamp(geo);
+			Split_ClearActionSplit(geo);
 		}
 	}
 	
@@ -690,11 +690,11 @@ static void GeoGrid_Update_ActionSplit(GeoGrid* geo) {
 				Cursor_SetCursor(cid);
 			}
 			if (dist > SPLIT_CLAMP * 1.05) {
-				GeoGrid_Reset(geo);
+				Split_ClearActionSplit(geo);
 				if (split->mouseInSplit) {
-					GeoGrid_Split(geo, split, GeoGrid_GerDir_MouseToPressPos(split));
+					Split_Split(geo, split, GeoGrid_GerDir_MouseToPressPos(split));
 				} else {
-					GeoGrid_KillSplit(geo, split, GeoGrid_GerDir_MouseToPressPos(split));
+					Split_Kill(geo, split, GeoGrid_GerDir_MouseToPressPos(split));
 				}
 			}
 		}
@@ -708,7 +708,7 @@ static void GeoGrid_Update_ActionSplit(GeoGrid* geo) {
 	}
 }
 
-static void GeoGrid_Update_SplitRect(Split* split) {
+static void Split_UpdateRect(Split* split) {
 	split->rect = (Rect) {
 		floor(split->vtx[1]->pos.x),
 		floor(split->vtx[1]->pos.y),
@@ -721,25 +721,25 @@ static void GeoGrid_Update_SplitRect(Split* split) {
 		table[id].destroy(geo->passArg, split->instance, split); \
 		Free(split->instance); } while (0)
 
-static void GeoGrid_Update_Splits(GeoGrid* geo) {
+static void Split_Update(GeoGrid* geo) {
 	Split* split = geo->splitHead;
 	MouseInput* mouse = &geo->input->mouse;
 	
 	Cursor_SetCursor(CURSOR_DEFAULT);
 	
 	if (geo->actionSplit != NULL && mouse->cursorAction == false)
-		GeoGrid_Reset(geo);
+		Split_ClearActionSplit(geo);
 	
 	while (split) {
-		GeoGrid_Update_SplitRect(split);
+		Split_UpdateRect(split);
 		Vec2s rectPos = { split->rect.x, split->rect.y };
 		Rect headerRect = {
 			0, split->rect.h - SPLIT_BAR_HEIGHT,
 			split->rect.w, SPLIT_BAR_HEIGHT
 		};
 		split->mousePos = Vec2_Substract(s, mouse->pos, rectPos);
-		split->mouseInSplit = GeoGrid_Cursor_InSplit(split);
-		split->mouseInHeader = GeoGrid_Cursor_InRect(split, &headerRect);
+		split->mouseInSplit = Split_CursorInSplit(split);
+		split->mouseInHeader = Split_CursorInRect(split, &headerRect);
 		split->center.x = split->rect.w * 0.5f;
 		split->center.y = (split->rect.h - SPLIT_BAR_HEIGHT) * 0.5f;
 		
@@ -749,13 +749,13 @@ static void GeoGrid_Update_Splits(GeoGrid* geo) {
 			split->mousePressPos = split->mousePos;
 		
 		if (geo->state.noSplit == false) {
-			if (GeoGrid_GetState_CursorPos(split, SPLIT_GRAB_DIST * 3) & SPLIT_POINTS && split->mouseInSplit) {
+			if (Split_GetCursorPosState(split, SPLIT_GRAB_DIST * 3) & SPLIT_POINTS && split->mouseInSplit) {
 				Cursor_SetCursor(CURSOR_CROSSHAIR);
 				split->blockMouse = true;
-			} else if (GeoGrid_GetState_CursorPos(split, SPLIT_GRAB_DIST) & SPLIT_SIDE_H && split->mouseInSplit) {
+			} else if (Split_GetCursorPosState(split, SPLIT_GRAB_DIST) & SPLIT_SIDE_H && split->mouseInSplit) {
 				Cursor_SetCursor(CURSOR_ARROW_H);
 				split->blockMouse = true;
-			} else if (GeoGrid_GetState_CursorPos(split, SPLIT_GRAB_DIST) & SPLIT_SIDE_V && split->mouseInSplit) {
+			} else if (Split_GetCursorPosState(split, SPLIT_GRAB_DIST) & SPLIT_SIDE_V && split->mouseInSplit) {
 				Cursor_SetCursor(CURSOR_ARROW_V);
 				split->blockMouse = true;
 			}
@@ -766,7 +766,7 @@ static void GeoGrid_Update_Splits(GeoGrid* geo) {
 			}
 			
 			if (geo->actionSplit != NULL && geo->actionSplit == split)
-				GeoGrid_Update_ActionSplit(geo);
+				Split_UpdateActionSplit(geo);
 		}
 		
 		if (split->stateFlag != 0)
@@ -802,7 +802,7 @@ static void GeoGrid_Update_Splits(GeoGrid* geo) {
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
-static void GeoGrid_Draw_Debug(GeoGrid* geo) {
+static void Split_DrawDebug(GeoGrid* geo) {
 	SplitVtx* vtx = geo->vtxHead;
 	Split* split = geo->splitHead;
 	s32 num = 0;
@@ -883,7 +883,7 @@ static void GeoGrid_Draw_Debug(GeoGrid* geo) {
 }
 
 #if 0
-static void GeoGrid_Draw_SplitHeader(GeoGrid* geo, Split* split) {
+static void Split_DrawHeader(GeoGrid* geo, Split* split) {
 	Rect rect = split->rect;
 	
 	rect.x = 0;
@@ -897,12 +897,12 @@ static void GeoGrid_Draw_SplitHeader(GeoGrid* geo, Split* split) {
 }
 #endif
 
-static void GeoGrid_Draw_Splits(GeoGrid* geo) {
+static void Split_Draw(GeoGrid* geo) {
 	Split* split = geo->splitHead;
 	Vec2s* winDim = geo->winDim;
 	
 	for (; split != NULL; split = split->next) {
-		GeoGrid_Update_SplitRect(split);
+		Split_UpdateRect(split);
 		
 		glViewport(
 			split->rect.x,
@@ -937,14 +937,14 @@ static void GeoGrid_Draw_Splits(GeoGrid* geo) {
 				nvgBeginFrame(geo->vg, split->rect.w, split->rect.h, gPixelRatio);
 				
 				table[id].draw(geo->passArg, split->instance, split);
-				// GeoGrid_Draw_SplitHeader(geo, split);
+				// Split_DrawHeader(geo, split);
 				Element_Draw(geo, split);
 			} else {
 				nvgBeginPath(vg);
 				nvgRect(vg, 0, 0, rect->w, rect->h);
 				nvgFillColor(vg, Theme_GetColor(THEME_BASE, 255, 1.0f));
 				nvgFill(vg);
-				// GeoGrid_Draw_SplitHeader(geo, split);
+				// Split_DrawHeader(geo, split);
 			}
 			
 			if (split->edge[DIR_L]->state & EDGE_STICK_L) {
@@ -974,7 +974,7 @@ static void GeoGrid_Draw_Splits(GeoGrid* geo) {
 				SPLIT_ROUND_R
 			);
 			nvgPathWinding(geo->vg, NVG_HOLE);
-			nvgFillColor(geo->vg, Theme_GetColor(THEME_BASE, 255, 0.66f));
+			nvgFillColor(geo->vg, Theme_GetColor(THEME_SHADOW, 255, 1.00f));
 			nvgFill(geo->vg);
 		} nvgEndFrame(geo->vg);
 	}
@@ -987,12 +987,12 @@ static void GeoGrid_RemoveDublicates(GeoGrid* geo) {
 	SplitEdge* edge = geo->edgeHead;
 	
 	while (vtx) {
-		GeoGrid_Update_Vtx_RemoveDublicates(geo, vtx);
+		Vtx_RemoveDuplicates(geo, vtx);
 		vtx = vtx->next;
 	}
 	
 	while (edge) {
-		GeoGrid_Update_Edge_RemoveDublicates(geo, edge);
+		Edge_RemoveDuplicates(geo, edge);
 		edge = edge->next;
 	}
 }
@@ -1039,15 +1039,14 @@ void GeoGrid_Init(GeoGrid* geo, Vec2s* winDim, Input* inputCtx, void* vg) {
 	nvgCreateFontMem(vg, "dejavu-light", gFont_DejaVu, sizeof(gFont_DejaVu), 0);
 	
 	geo->prevWorkRect = geo->workRect;
-	Element_Init(geo);
 }
 
 void GeoGrid_Update(GeoGrid* geo) {
 	GeoGrid_SetTopBarHeight(geo, geo->bar[BAR_TOP].rect.h);
 	GeoGrid_SetBotBarHeight(geo, geo->bar[BAR_BOT].rect.h);
 	Element_Update(geo);
-	GeoGrid_Update_Vtx(geo);
-	GeoGrid_Update_Edges(geo);
+	Vtx_Update(geo);
+	Edge_Update(geo);
 	
 	geo->prevWorkRect = geo->workRect;
 }
@@ -1072,13 +1071,14 @@ void GeoGrid_Draw(GeoGrid* geo) {
 				geo->bar[i].rect.w,
 				geo->bar[i].rect.h
 			);
-			nvgFillColor(geo->vg, Theme_GetColor(THEME_BASE, 255, 0.825f));
+			nvgFillColor(geo->vg, Theme_GetColor(THEME_BASE, 255, 0.75f));
 			nvgFill(geo->vg);
 		} nvgEndFrame(geo->vg);
 	}
 	
-	GeoGrid_Update_Splits(geo);
-	GeoGrid_Draw_Splits(geo);
+	Split_Update(geo);
+	Split_Draw(geo);
 	if (0)
-		GeoGrid_Draw_Debug(geo);
+		Split_DrawDebug(geo);
+	DropMenu_Draw(geo);
 }

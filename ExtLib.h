@@ -317,7 +317,7 @@ void Sound_Xm_Stop();
 #define PRNT_TODO "\e[91;2m" "TODO"
 #define PRNT_BOLD "\e[1m"
 
-#define Node_Add(head, node) { \
+#define Node_Add(head, node) do { \
 		typeof(node) lastNode = head; \
 		if (lastNode == NULL) { \
 			head = node; \
@@ -328,9 +328,9 @@ void Sound_Xm_Stop();
 			lastNode->next = node; \
 			node->prev = lastNode; \
 		} \
-}
+} while (0)
 
-#define Node_Kill(head, node) { \
+#define Node_Kill(head, node) do { \
 		typeof(node) __kill_nodeExt = node; \
 		if (node->next) { \
 			node->next->prev = node->prev; \
@@ -341,9 +341,9 @@ void Sound_Xm_Stop();
 			head = node->next; \
 		} \
 		Free(__kill_nodeExt); \
-}
+} while (0)
 
-#define Node_Remove(head, node) { \
+#define Node_Remove(head, node) do { \
 		if (node->next) { \
 			node->next->prev = node->prev; \
 		} \
@@ -353,7 +353,7 @@ void Sound_Xm_Stop();
 			head = node->next; \
 		} \
 		node = NULL; \
-}
+} while (0)
 
 #define Swap(a, b) { \
 		typeof(a) y = a; \
