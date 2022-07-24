@@ -85,7 +85,7 @@ static s32 Element_PressCondition(GeoGrid* geo, Split* split, Rect* rect) {
 }
 
 static void Element_Draw_TextOutline(void* vg, f32 x, f32 y, char* txt) {
-	nvgFillColor(vg, Theme_GetColor(THEME_TEXT_OUTLINE, 255, 1.0f));
+	nvgFillColor(vg, Theme_GetColor(THEME_SHADOW, 255, 1.0f));
 	nvgFontBlur(vg, 1.0);
 	
 	nvgText(
@@ -105,8 +105,8 @@ static void Element_Draw_TextOutline(void* vg, f32 x, f32 y, char* txt) {
 }
 
 static void Element_Slider_SetCursorToVal(GeoGrid* geo, Split* split, ElSlider* this) {
-	f32 x = split->rect.x + this->rect.x + this->rect.w * this->value;
-	f32 y = split->rect.y + this->rect.y + this->rect.h * 0.5;
+	f32 x = split->rect.x + this->element.rect.x + this->element.rect.w * this->value;
+	f32 y = split->rect.y + this->element.rect.y + this->element.rect.h * 0.5;
 	
 	Input_SetMousePos(geo->input, x, y);
 }
@@ -119,9 +119,8 @@ static void Element_Slider_SetTextbox(Split* split, ElSlider* this) {
 	this->isTextbox = true;
 	
 	this->textBox.isNumBox = true;
-	this->textBox.rect = this->rect;
+	this->textBox.element.rect = this->element.rect;
 	this->textBox.align = ALIGN_CENTER;
-	this->textBox.txt = this->txt;
 	this->textBox.size = 32;
 	
 	this->textBox.nbx.isInt = this->isInt;
@@ -130,7 +129,7 @@ static void Element_Slider_SetTextbox(Split* split, ElSlider* this) {
 	
 	this->textBox.isHintText = 2;
 	sTextPos = 0;
-	sSelectPos = strlen(this->txt);
+	sSelectPos = strlen(this->textBox.txt);
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */
@@ -140,37 +139,19 @@ static void Element_Draw_Button(ElementCallInfo* info) {
 	ElButton* this = info->arg;
 	f32 dsbleMul = (this->isDisabled ? 0.5 : 1.0);
 	
-	if (this->rect.w < 16) {
+	if (this->element.rect.w < 16) {
 		return;
 	}
 	
-	if (this->hover)
-		Theme_SmoothStepToCol(&this->colorOL, Theme_GetColor(THEME_HIGHLIGHT, 255, 1.0f), 0.16, 0.1, 0.0);
-	else
-		Theme_SmoothStepToCol(&this->colorOL, Theme_GetColor(THEME_BASE, 255, 0.75f), 0.16, 0.1, 0.0);
-	
-	Element_Draw_RoundedOutline(vg, &this->rect, this->colorOL);
+	Element_Draw_RoundedOutline(vg, &this->element.rect, this->element.light);
 	
 	nvgBeginPath(vg);
-	if (this->toggle == 2) {
-		Theme_SmoothStepToCol(&this->colorIL, Theme_GetColor(THEME_PRIM, 255, 1.0f * dsbleMul), 0.16, 0.1, 0.0);
-	} else {
-		if (this->state) {
-			if (this->toggle)
-				Theme_SmoothStepToCol(&this->colorIL, Theme_GetColor(THEME_BASE_L3, 255, 1.5f * dsbleMul), 0.16, 0.1, 0.0);
-			else
-				Theme_SmoothStepToCol(&this->colorIL, Theme_GetColor(THEME_PRIM, 255, 1.0f * dsbleMul), 0.66, 0.4, 0.0);
-		} else {
-			Theme_SmoothStepToCol(&this->colorIL, Theme_GetColor(THEME_BASE_L3, 255, 1.0f * dsbleMul), 0.16, 0.1, 0.0);
-		}
-	}
-	
-	nvgFillColor(vg, this->colorIL);
-	nvgRoundedRect(vg, this->rect.x, this->rect.y, this->rect.w, this->rect.h, SPLIT_ROUND_R);
+	nvgFillColor(vg, this->element.base);
+	nvgRoundedRect(vg, this->element.rect.x, this->element.rect.y, this->element.rect.w, this->element.rect.h, SPLIT_ROUND_R);
 	nvgFill(vg);
 	
-	if (this->txt) {
-		char* txt = this->txt;
+	if (this->element.name) {
+		char* txt = (char*)this->element.name;
 		char ftxt[512];
 		f32 bounds[4];
 		
@@ -180,11 +161,11 @@ static void Element_Draw_Button(ElementCallInfo* info) {
 		nvgTextLetterSpacing(vg, 0.0);
 		nvgTextBounds(vg, 0, 0, txt, NULL, bounds);
 		
-		if (bounds[2] > this->rect.w - SPLIT_TEXT_PADDING * 2) {
+		if (bounds[2] > this->element.rect.w - SPLIT_TEXT_PADDING * 2) {
 			strcpy(ftxt, txt);
 			txt = ftxt;
 			
-			while (bounds[2] > this->rect.w - SPLIT_TEXT_PADDING * 2) {
+			while (bounds[2] > this->element.rect.w - SPLIT_TEXT_PADDING * 2) {
 				txt[strlen(txt) - 1] = '\0';
 				nvgTextBounds(vg, 0, 0, txt, NULL, bounds);
 			}
@@ -192,19 +173,12 @@ static void Element_Draw_Button(ElementCallInfo* info) {
 		
 		nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
 		
-		Element_Draw_TextOutline(
-			vg,
-			this->rect.x + this->rect.w * 0.5,
-			this->rect.y + this->rect.h * 0.5,
-			txt
-		);
-		
 		nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f - 0.25f * this->isDisabled));
 		nvgFontBlur(vg, 0.0);
 		nvgText(
 			vg,
-			this->rect.x + this->rect.w * 0.5,
-			this->rect.y + this->rect.h * 0.5,
+			this->element.rect.x + this->element.rect.w * 0.5,
+			this->element.rect.y + this->element.rect.h * 0.5,
 			txt,
 			NULL
 		);
@@ -224,7 +198,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 	char* txtB = &buffer[strlen(buffer)];
 	f32 ccx = 0;
 	
-	if (this->rect.w < 16) {
+	if (this->element.rect.w < 16) {
 		return;
 	}
 	
@@ -257,12 +231,12 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 		case ALIGN_CENTER:
 			nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
 			nvgTextBounds(vg, 0, 0, txtA, txtB, (f32*)&bound);
-			ccx = this->rect.w * 0.5 + bound.x - SPLIT_TEXT_PADDING;
+			ccx = this->element.rect.w * 0.5 + bound.x - SPLIT_TEXT_PADDING;
 			break;
 		case ALIGN_RIGHT:
 			nvgTextAlign(vg, NVG_ALIGN_RIGHT | NVG_ALIGN_MIDDLE);
 			nvgTextBounds(vg, 0, 0, txtA, txtB, (f32*)&bound);
-			ccx = this->rect.w + bound.x - SPLIT_TEXT_PADDING * 2;
+			ccx = this->element.rect.w + bound.x - SPLIT_TEXT_PADDING * 2;
 			break;
 	}
 	
@@ -270,12 +244,12 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 	nvgTextBounds(vg, 0, 0, txtA, txtB, (f32*)&bound);
 	
 	if (sStoreA != NULL && this == sCurTextbox) {
-		if (bound.w < this->rect.w) {
+		if (bound.w < this->element.rect.w) {
 			sStoreA = buffer;
 		} else {
 			txtA = sStoreA;
 			nvgTextBounds(vg, ccx, 0, txtA, txtB, (f32*)&bound);
-			while (bound.w > this->rect.w - SPLIT_TEXT_PADDING * 2) {
+			while (bound.w > this->element.rect.w - SPLIT_TEXT_PADDING * 2) {
 				txtB--;
 				nvgTextBounds(vg, ccx, 0, txtA, txtB, (f32*)&bound);
 			}
@@ -298,7 +272,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 					sStoreA = txtA;
 					
 					nvgTextBounds(vg, ccx, 0, txtA, txtB, (f32*)&bound);
-					while (bound.w > this->rect.w - SPLIT_TEXT_PADDING * 2) {
+					while (bound.w > this->element.rect.w - SPLIT_TEXT_PADDING * 2) {
 						txtB--;
 						nvgTextBounds(vg, ccx, 0, txtA, txtB, (f32*)&bound);
 					}
@@ -306,7 +280,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 			}
 		}
 	} else {
-		while (bound.w > this->rect.w - SPLIT_TEXT_PADDING * 2) {
+		while (bound.w > this->element.rect.w - SPLIT_TEXT_PADDING * 2) {
 			txtB--;
 			nvgTextBounds(vg, 0, 0, txtA, txtB, (f32*)&bound);
 		}
@@ -317,7 +291,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 	
 	Input* inputCtx = info->geo->input;
 	
-	if (GeoGrid_Cursor_InRect(split, &this->rect) && inputCtx->mouse.clickL.hold) {
+	if (GeoGrid_Cursor_InRect(split, &this->element.rect) && inputCtx->mouse.clickL.hold) {
 		if (this->isHintText) {
 			this->isHintText = 2;
 			sTextPos = 0;
@@ -329,8 +303,8 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 					Vec2s glyphPos;
 					f32 res;
 					nvgTextBounds(vg, ccx, 0, txtA, tempB, (f32*)&bound);
-					glyphPos.x = this->rect.x + bound.w + SPLIT_TEXT_PADDING - 1;
-					glyphPos.y = this->rect.y + bound.h - 1 + SPLIT_TEXT * 0.5;
+					glyphPos.x = this->element.rect.x + bound.w + SPLIT_TEXT_PADDING - 1;
+					glyphPos.y = this->element.rect.y + bound.h - 1 + SPLIT_TEXT * 0.5;
 					
 					res = Math_Vec2s_DistXZ(&split->mousePos, &glyphPos);
 					
@@ -347,8 +321,8 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 					Vec2s glyphPos;
 					f32 res;
 					nvgTextBounds(vg, ccx, 0, txtA, tempB, (f32*)&bound);
-					glyphPos.x = this->rect.x + bound.w + SPLIT_TEXT_PADDING - 1;
-					glyphPos.y = this->rect.y + bound.h - 1 + SPLIT_TEXT * 0.5;
+					glyphPos.x = this->element.rect.x + bound.w + SPLIT_TEXT_PADDING - 1;
+					glyphPos.y = this->element.rect.y + bound.h - 1 + SPLIT_TEXT * 0.5;
 					
 					res = Math_Vec2s_DistXZ(&split->mousePos, &glyphPos);
 					
@@ -365,20 +339,11 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 		}
 	} else if (this->isHintText == 2) this->isHintText = 0;
 	
-	if (this != sCurTextbox) {
-		if (this->hover) {
-			Theme_SmoothStepToCol(&this->bgCl, Theme_GetColor(THEME_HIGHLIGHT, 255, 1.0f), 0.25, 0.15, 0.0);
-		} else {
-			Theme_SmoothStepToCol(&this->bgCl, Theme_GetColor(THEME_BASE_L2, 255, 1.0f), 0.25, 0.15, 0.0);
-		}
-	} else
-		Theme_SmoothStepToCol(&this->bgCl, Theme_GetColor(THEME_PRIM, 255, 1.0f), 0.25, 0.05, 0.0);
-	
-	Element_Draw_RoundedOutline(vg, &this->rect, this->bgCl);
+	Element_Draw_RoundedOutline(vg, &this->element.rect, this->element.light);
 	
 	nvgBeginPath(vg);
-	nvgFillColor(vg, Theme_GetColor(THEME_BASE, 255, 0.75f));
-	nvgRoundedRect(vg, this->rect.x, this->rect.y, this->rect.w, this->rect.h, SPLIT_ROUND_R);
+	nvgFillColor(vg, Theme_GetColor(THEME_ELEMENT_BASE, 255, 0.75f));
+	nvgRoundedRect(vg, this->element.rect.x, this->element.rect.y, this->element.rect.w, this->element.rect.h, SPLIT_ROUND_R);
 	nvgFill(vg);
 	
 	if (this == sCurTextbox) {
@@ -389,17 +354,17 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 			
 			if (txtA < &buffer[min]) {
 				nvgTextBounds(vg, 0, 0, txtA, &buffer[min], (f32*)&bound);
-				x = this->rect.x + bound.w + SPLIT_TEXT_PADDING - 1;
+				x = this->element.rect.x + bound.w + SPLIT_TEXT_PADDING - 1;
 			} else {
-				x = this->rect.x + SPLIT_TEXT_PADDING;
+				x = this->element.rect.x + SPLIT_TEXT_PADDING;
 			}
 			
 			nvgTextBounds(vg, 0, 0, txtA, &buffer[max], (f32*)&bound);
-			xmax = this->rect.x + bound.w + SPLIT_TEXT_PADDING - 1 - x;
+			xmax = this->element.rect.x + bound.w + SPLIT_TEXT_PADDING - 1 - x;
 			
 			nvgBeginPath(vg);
 			nvgFillColor(vg, Theme_GetColor(THEME_PRIM, 255, 1.0f));
-			nvgRoundedRect(vg, x + ccx, this->rect.y + 2, ClampMax(xmax, this->rect.w - SPLIT_TEXT_PADDING - 2), this->rect.h - 4, SPLIT_ROUND_R);
+			nvgRoundedRect(vg, x + ccx, this->element.rect.y + 2, ClampMax(xmax, this->element.rect.w - SPLIT_TEXT_PADDING - 2), this->element.rect.h - 4, SPLIT_ROUND_R);
 			nvgFill(vg);
 		} else {
 			sFlickTimer++;
@@ -412,7 +377,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 				nvgTextBounds(vg, 0, 0, txtA, &buffer[sTextPos], (f32*)&bound);
 				nvgBeginPath(vg);
 				nvgFillColor(vg, Theme_GetColor(THEME_HIGHLIGHT, 255, 1.0f));
-				nvgRoundedRect(vg, this->rect.x + bound.w + SPLIT_TEXT_PADDING - 1 + ccx, this->rect.y + bound.h - 3, 2, SPLIT_TEXT, SPLIT_ROUND_R);
+				nvgRoundedRect(vg, this->element.rect.x + bound.w + SPLIT_TEXT_PADDING - 1 + ccx, this->element.rect.y + bound.h - 3, 2, SPLIT_TEXT, SPLIT_ROUND_R);
 				nvgFill(vg);
 			}
 		}
@@ -428,8 +393,8 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 		nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
 	nvgText(
 		vg,
-		this->rect.x + SPLIT_TEXT_PADDING + ccx,
-		this->rect.y + this->rect.h * 0.5,
+		this->element.rect.x + SPLIT_TEXT_PADDING + ccx,
+		this->element.rect.y + this->element.rect.h * 0.5,
 		txtA,
 		txtB
 	);
@@ -451,20 +416,18 @@ static void Element_Draw_Text(ElementCallInfo* info) {
 	
 	nvgTextBounds(vg, 0, 0, this->txt, 0, bounds);
 	
-	while (bounds[2] > this->rect.w) {
+	while (bounds[2] > this->element.rect.w) {
 		strcpy(tempText + ClampMin(strlen(tempText) - 3, 0), "..");
 		
 		nvgTextBounds(vg, 0, 0, tempText, 0, bounds);
 	}
 	
-	Element_Draw_TextOutline(vg, this->rect.x, this->rect.y + this->rect.h * 0.5, tempText);
-	
 	nvgFontBlur(vg, 0.0);
-	nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
+	nvgFillColor(vg, this->element.texcol);
 	nvgText(
 		vg,
-		this->rect.x,
-		this->rect.y + this->rect.h * 0.5,
+		this->element.rect.x,
+		this->element.rect.y + this->element.rect.h * 0.5,
 		tempText,
 		NULL
 	);
@@ -486,29 +449,20 @@ static void Element_Draw_Checkbox(ElementCallInfo* info) {
 		{ .x =  -3, .y =   0 }, { .x = -10, .y =   7 },
 	};
 	
-	if (this->hover) {
-		Theme_SmoothStepToCol(&this->colorO, Theme_GetColor(THEME_HIGHLIGHT, 255, 1.0f), 0.16, 0.13, 0.0);
-	} else {
-		Theme_SmoothStepToCol(&this->colorO, Theme_GetColor(THEME_BASE_L2, 255, 1.00f), 0.16, 0.13, 0.0);
-	}
-	
-	if (this->toggle) {
+	if (this->element.toggle)
 		Math_DelSmoothStepToF(&this->lerp, 0.8f - sBreathe * 0.08, 0.178f, 0.1f, 0.0f);
-		Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_PRIM, 255, 1.0f), 0.16, 0.13, 0.0);
-	} else {
+	else
 		Math_DelSmoothStepToF(&this->lerp, 0.0f, 0.268f, 0.1f, 0.0f);
-		Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_BASE_L2, 255, 1.0f), 0.16, 0.13, 0.0);
-	}
 	
-	Element_Draw_RoundedOutline(vg, &this->rect, this->colorO);
-	Element_Draw_RoundedRect(vg, &this->rect, Theme_GetColor(THEME_PRIM, 255, 0.25f));
+	Element_Draw_RoundedOutline(vg, &this->element.rect, this->element.light);
+	Element_Draw_RoundedRect(vg, &this->element.rect, this->element.base);
 	
-	NVGcolor col = this->color;
+	NVGcolor col = this->element.base;
 	f32 flipLerp = 1.0f - this->lerp;
 	
 	flipLerp = (1.0f - powf(flipLerp, 1.6));
-	center.x = this->rect.x + this->rect.w * 0.5;
-	center.y = this->rect.y + this->rect.h * 0.5;
+	center.x = this->element.rect.x + this->element.rect.w * 0.5;
+	center.y = this->element.rect.y + this->element.rect.h * 0.5;
 	
 	col.a = flipLerp * 1.67;
 	col.a = ClampMin(col.a, 0.80);
@@ -548,32 +502,21 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 	
 	Math_DelSmoothStepToF(&this->vValue, this->value, 0.5f, (this->max - this->min) * 0.5f, 0.0f);
 	
-	rect.x = this->rect.x;
-	rect.y = this->rect.y;
-	rect.w = this->rect.w;
-	rect.h = this->rect.h;
+	rect.x = this->element.rect.x;
+	rect.y = this->element.rect.y;
+	rect.w = this->element.rect.w;
+	rect.h = this->element.rect.h;
 	rect.w = ClampMin(rect.w * this->vValue, 0);
 	
-	if (this->isSliding) {
-		Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_PRIM, 255, 1.25f), 0.25f, 0.5f, 0.0f);
-	} else {
-		Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_PRIM, 255, 1.0f), 0.25f, 0.5f, 0.0f);
-	}
-	
-	if (this->hover)
-		Theme_SmoothStepToCol(&this->hovColor, Theme_GetColor(THEME_HIGHLIGHT, 255, 1.0f), 0.25f, 0.5f, 0.0f);
-	else
-		Theme_SmoothStepToCol(&this->hovColor, Theme_GetColor(THEME_BASE_L2, 255, 1.0f), 0.25f, 0.5f, 0.0f);
-	
-	Element_Draw_RoundedOutline(vg, &this->rect, this->hovColor);
-	Element_Draw_RoundedRect(vg, &this->rect, Theme_GetColor(THEME_BASE, 255, 0.75f + 0.75f * this->locked));
+	Element_Draw_RoundedOutline(vg, &this->element.rect, this->element.light);
+	Element_Draw_RoundedRect(vg, &this->element.rect, this->element.shadow);
 	
 	if (this->vValue <= 0.01) {
-		this->color.a = Lerp(ClampMin(this->vValue * 100.0f, 0.0f), 0.0, this->color.a);
+		this->element.base.a = Lerp(ClampMin(this->vValue * 100.0f, 0.0f), 0.0, this->element.base.a);
 	}
 	
 	nvgBeginPath(vg);
-	nvgFillColor(vg, this->color);
+	nvgFillColor(vg, this->element.prim);
 	nvgRoundedRect(
 		vg,
 		rect.x + 1,
@@ -586,14 +529,14 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 	
 	if (this->isInt) {
 		snprintf(
-			this->txt,
+			this->textBox.txt,
 			31,
 			sFmt[this->isInt],
 			(s32)rint(Lerp(this->value, this->min, this->max))
 		);
 	} else {
 		snprintf(
-			this->txt,
+			this->textBox.txt,
 			31,
 			sFmt[this->isInt],
 			Lerp(this->value, this->min, this->max)
@@ -604,19 +547,13 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 	nvgFontSize(vg, SPLIT_TEXT);
 	nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
 	
-	Element_Draw_TextOutline(
-		vg,
-		this->rect.x + this->rect.w * 0.5,
-		this->rect.y + this->rect.h * 0.5,
-		this->txt
-	);
-	nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f - 0.5f * this->locked));
+	nvgFillColor(vg, this->element.texcol);
 	nvgFontBlur(vg, 0.0);
 	nvgText(
 		vg,
-		this->rect.x + this->rect.w * 0.5,
-		this->rect.y + this->rect.h * 0.5,
-		this->txt,
+		this->element.rect.x + this->element.rect.w * 0.5,
+		this->element.rect.y + this->element.rect.h * 0.5,
+		this->textBox.txt,
 		NULL
 	);
 }
@@ -637,19 +574,19 @@ s32 Element_Button(GeoGrid* geo, Split* split, ElButton* this) {
 		nvgFontSize(vg, SPLIT_TEXT);
 		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
 		nvgTextLetterSpacing(vg, 0.0);
-		nvgTextBounds(vg, 0, 0, this->txt, NULL, bounds);
+		nvgTextBounds(vg, 0, 0, this->element.name, NULL, bounds);
 		
-		this->rect.w = bounds[2] + SPLIT_TEXT_PADDING * 2;
+		this->element.rect.w = bounds[2] + SPLIT_TEXT_PADDING * 2;
 	}
 	
-	if (Element_PressCondition(geo, split, &this->rect) && this->isDisabled == false) {
+	if (Element_PressCondition(geo, split, &this->element.rect) && this->isDisabled == false) {
 		if (Input_GetMouse(geo->input, MOUSE_L)->press) {
 			this->state++;
 			
-			if (this->toggle) {
-				u8 t = (this->toggle - 1) == 0; // Invert
+			if (this->element.toggle) {
+				u8 t = (this->element.toggle - 1) == 0; // Invert
 				
-				this->toggle = t + 1;
+				this->element.toggle = t + 1;
 			}
 		}
 		
@@ -667,12 +604,12 @@ s32 Element_Button(GeoGrid* geo, Split* split, ElButton* this) {
 		this
 	);
 	
-	return (this->state == 2) | (ClampMin(this->toggle - 1, 0)) << 4;
+	return (this->state == 2) | (ClampMin(this->element.toggle - 1, 0)) << 4;
 }
 
 void Element_Textbox(GeoGrid* geo, Split* split, ElTextbox* this) {
 	this->hover = 0;
-	if (Element_PressCondition(geo, split, &this->rect)) {
+	if (Element_PressCondition(geo, split, &this->element.rect)) {
 		this->hover = 1;
 		if (Input_GetMouse(geo->input, MOUSE_L)->press) {
 			if (this != sCurTextbox) {
@@ -719,13 +656,13 @@ f32 Element_Text(GeoGrid* geo, Split* split, ElText* this) {
 }
 
 s32 Element_Checkbox(GeoGrid* geo, Split* split, ElCheckbox* this) {
-	this->rect.w = this->rect.h;
+	this->element.rect.w = this->element.rect.h;
 	
 	this->hover = 0;
-	if (Element_PressCondition(geo, split, &this->rect)) {
+	if (Element_PressCondition(geo, split, &this->element.rect)) {
 		this->hover = 1;
 		if (Input_GetMouse(geo->input, MOUSE_L)->press) {
-			this->toggle ^= 1;
+			this->element.toggle ^= 1;
 		}
 	}
 	
@@ -736,7 +673,7 @@ s32 Element_Checkbox(GeoGrid* geo, Split* split, ElCheckbox* this) {
 		this
 	);
 	
-	return this->toggle;
+	return this->element.toggle;
 }
 
 f32 Element_Slider(GeoGrid* geo, Split* split, ElSlider* this) {
@@ -748,7 +685,7 @@ f32 Element_Slider(GeoGrid* geo, Split* split, ElSlider* this) {
 	if (this->locked)
 		goto queue_element;
 	
-	if (Element_PressCondition(geo, split, &this->rect) || this->holdState) {
+	if (Element_PressCondition(geo, split, &this->element.rect) || this->holdState) {
 		u32 pos = false;
 		this->hover = true;
 		
@@ -762,7 +699,7 @@ f32 Element_Slider(GeoGrid* geo, Split* split, ElSlider* this) {
 				
 				return Lerp(this->value, this->min, this->max);
 			} else {
-				Element_Slider_SetValue(this, this->isInt ? Value_Int(this->txt) : Value_Float(this->txt));
+				Element_Slider_SetValue(this, this->isInt ? Value_Int(this->textBox.txt) : Value_Float(this->textBox.txt));
 				
 				goto queue_element;
 			}
@@ -789,7 +726,7 @@ f32 Element_Slider(GeoGrid* geo, Split* split, ElSlider* this) {
 				this->isSliding = true;
 			}
 		} else if (Input_GetMouse(geo->input, MOUSE_L)->release && this->holdState) {
-			if (this->isSliding == false && GeoGrid_Cursor_InRect(split, &this->rect)) {
+			if (this->isSliding == false && GeoGrid_Cursor_InRect(split, &this->element.rect)) {
 				Element_Slider_SetTextbox(split, this);
 			}
 			this->isSliding = false;
@@ -916,7 +853,7 @@ void Element_Update(GeoGrid* geo) {
 			sCtrlA = 0;
 			
 			Assert(sCurSplitTextbox != NULL);
-			if (!GeoGrid_Cursor_InRect(sCurSplitTextbox, &sCurTextbox->rect) || Textbox_GetKey(geo, KEY_ENTER)->press) {
+			if (!GeoGrid_Cursor_InRect(sCurSplitTextbox, &sCurTextbox->element.rect) || Textbox_GetKey(geo, KEY_ENTER)->press) {
 				sCurTextbox = NULL;
 				sCurTextbox = NULL;
 				sStoreA = NULL;
@@ -1080,9 +1017,57 @@ void Element_Update(GeoGrid* geo) {
 	}
 }
 
+static void Element_UpdateElement(ElementCallInfo* info) {
+	GeoGrid* geo = info->geo;
+	Element* this = info->arg;
+	Split* split = info->split;
+	f32 toggle = this->toggle == 2 ? 0.50f : 0.0f;
+	
+	this->hover = false;
+	this->press = false;
+	
+	if (GeoGrid_Cursor_InRect(split, &this->rect)) {
+		this->hover = true;
+		
+		if (Input_GetMouse(geo->input, MOUSE_L)->hold)
+			this->press = true;
+	}
+	
+	if (this->disabled) {
+		Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 0.75f), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, 1.50f + toggle), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, 0.25f + toggle), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 0.75f), 0.25f, 0.35f, 0.001f);
+		
+		if (this->toggle < 2)
+			Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.25f + toggle), 0.25f, 0.35f, 0.001f);
+	} else if (this->hover) {
+		Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 1.10f), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, 1.07f + toggle), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, 1.07f + toggle), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 1.15f), 0.25f, 0.35f, 0.001f);
+		
+		if (this->toggle < 2)
+			Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.07f + toggle), 0.25f, 0.35f, 0.001f);
+	} else {
+		Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 1.00f), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, 1.00f + toggle), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, 0.50f + toggle), 0.25f, 0.35f, 0.001f);
+		Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 1.00f), 0.25f, 0.35f, 0.001f);
+		
+		if (this->toggle < 2)
+			Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f + toggle), 0.25f, 0.35f, 0.001f);
+	}
+	
+	if (this->toggle == 2)
+		Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_PRIM,  255, 0.95f), 0.25f, 8.85f, 0.001f);
+}
+
 void Element_Draw(GeoGrid* geo, Split* split) {
 	for (s32 i = 0; i < sElemNum; i++) {
-		if (pElementStack[i].split == split)
+		if (pElementStack[i].split == split) {
+			Element_UpdateElement(&pElementStack[i]);
 			pElementStack[i].func(&pElementStack[i]);
+		}
 	}
 }

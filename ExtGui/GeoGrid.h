@@ -6,7 +6,6 @@
 #include <ExtGui/Math.h>
 #include <ExtGui/Input.h>
 
-extern char* gBuild;
 extern f32 gPixelRatio;
 
 #define DefineTask(x) (void*)x ## _Init, \
@@ -199,27 +198,49 @@ typedef struct GeoGrid {
 	GeoState   state;
 } GeoGrid;
 
+// # # # # # # # # # # # # # # # # # # # #
+// # Elements                            #
+// # # # # # # # # # # # # # # # # # # # #
+
+typedef struct PropEnum {
+	void* argument;
+	void (* update)(void*);
+	struct {
+		s32 key;
+		const char* name;
+	} item[];
+} PropEnum;
+
+typedef struct {
+	Rect rect;
+	const char* name;
+	NVGcolor    prim;
+	NVGcolor    shadow;
+	NVGcolor    base;
+	NVGcolor    light;
+	NVGcolor    texcol;
+	u32 disabled : 1;
+	u32 hover    : 1;
+	u32 press    : 1;
+	u32 toggle   : 2;
+} Element;
+
 typedef struct ElButton {
-	char*    txt;
-	u8       isDisabled;
-	u8       state;
-	u8       hover;
-	u8       toggle;
-	u8       autoWidth;
-	Rect     rect;
-	NVGcolor colorOL;
-	NVGcolor colorIL;
+	Element element;
+	u8 isDisabled;
+	u8 state;
+	u8 hover;
+	u8 autoWidth;
 } ElButton;
 
 typedef struct {
-	char*    txt;
-	s32      size;
-	Rect     rect;
-	NVGcolor bgCl;
-	u8 hover        : 1;
-	u8 isNumBox     : 1;
-	u8 isHintText   : 2;
-	TextAlign align : 3;
+	Element element;
+	char    txt[128];
+	s32 size;
+	u8  hover      : 1;
+	u8  isNumBox   : 1;
+	u8  isHintText : 2;
+	TextAlign align;
 	struct {
 		u8  isInt : 1;
 		u8  updt  : 1;
@@ -230,39 +251,39 @@ typedef struct {
 } ElTextbox;
 
 typedef struct {
-	char* txt;
-	Rect  rect;
+	Element element;
+	char*   txt;
 } ElText;
 
 typedef struct {
-	Rect rect;
-	u8   toggle;
-	NVGcolor color;
-	NVGcolor colorO;
+	Element element;
 	f32 lerp;
 	u8  hover;
 } ElCheckbox;
 
 typedef struct {
-	char txt[32];
-	Rect rect;
+	Element element;
 	
-	f32  vValue; /* Visual Value */
-	f32  value;
-	f32  min;
-	f32  max;
+	f32 vValue; /* Visual Value */
+	f32 value;
+	f32 min;
+	f32 max;
 	
-	u8   isSliding : 1;
-	u8   isInt     : 1;
-	u8   hover     : 1;
-	u8   holdState : 1;
-	u8   locked    : 1;
-	NVGcolor color;
-	NVGcolor hovColor;
+	u8  isSliding : 1;
+	u8  isInt     : 1;
+	u8  hover     : 1;
+	u8  holdState : 1;
+	u8  locked    : 1;
 	
 	s32 isTextbox;
 	ElTextbox textBox;
 } ElSlider;
+
+typedef struct {
+	PropEnum*   prop;
+	Rect rect;
+	const char* name;
+} ElCombo;
 
 bool GeoGrid_Cursor_InRect(Split* split, Rect* rect);
 bool GeoGrid_Cursor_InSplit(Split* split);

@@ -869,7 +869,7 @@ static void GeoGrid_Draw_Debug(GeoGrid* geo) {
 			nvgFontSize(geo->vg, SPLIT_TEXT);
 			nvgFontFace(geo->vg, "dejavu");
 			nvgTextAlign(geo->vg, NVG_ALIGN_MIDDLE | NVG_ALIGN_CENTER);
-			nvgFillColor(geo->vg, Theme_GetColor(THEME_BASE_L1, 255, 1.0f));
+			nvgFillColor(geo->vg, Theme_GetColor(THEME_BASE, 255, 1.0f));
 			nvgFontBlur(geo->vg, 1.5f);
 			nvgText(geo->vg, pos.x, pos.y, buf, 0);
 			nvgFontBlur(geo->vg, 0);
@@ -929,7 +929,7 @@ static void GeoGrid_Draw_Splits(GeoGrid* geo) {
 				if (split->bg.useCustomBG == true) {
 					nvgFillColor(vg, nvgRGBA(split->bg.color.r, split->bg.color.g, split->bg.color.b, 255));
 				} else {
-					nvgFillColor(vg, Theme_GetColor(THEME_BASE_SPLIT, 255, 1.0f));
+					nvgFillColor(vg, Theme_GetColor(THEME_BASE, 255, 1.0f));
 				}
 				nvgFill(vg);
 				
@@ -942,7 +942,7 @@ static void GeoGrid_Draw_Splits(GeoGrid* geo) {
 			} else {
 				nvgBeginPath(vg);
 				nvgRect(vg, 0, 0, rect->w, rect->h);
-				nvgFillColor(vg, Theme_GetColor(THEME_BASE_SPLIT, 255, 1.0f));
+				nvgFillColor(vg, Theme_GetColor(THEME_BASE, 255, 1.0f));
 				nvgFill(vg);
 				// GeoGrid_Draw_SplitHeader(geo, split);
 			}
@@ -1072,7 +1072,7 @@ void GeoGrid_Draw(GeoGrid* geo) {
 				geo->bar[i].rect.w,
 				geo->bar[i].rect.h
 			);
-			nvgFillColor(geo->vg, Theme_GetColor(THEME_BASE_L1, 255, 0.825f));
+			nvgFillColor(geo->vg, Theme_GetColor(THEME_BASE, 255, 0.825f));
 			nvgFill(geo->vg);
 		} nvgEndFrame(geo->vg);
 	}

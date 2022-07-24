@@ -2864,7 +2864,7 @@ s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
 s32 MemFile_Insert(MemFile* mem, void* src, u32 size, s64 pos) {
 	u32 p = pos < 0 ? mem->seekPoint : pos;
 	u32 remasize = mem->size - p;
-
+	
 	if (p + size + remasize >= mem->memSize) {
 		if (mem->param.realloc) {
 			MemFile_Realloc(mem, mem->memSize * 2);
