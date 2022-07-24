@@ -1,8 +1,10 @@
 #ifndef __Z64INPUT__
 #define __Z64INPUT__
 #include <ExtLib.h>
-#include <ExtGui/Vector.h>
+#include <ExtGui/Math.h>
 #include <GLFW/glfw3.h>
+
+struct AppInfo;
 
 typedef enum {
 	KEY_SPACE         = 32,
@@ -164,33 +166,31 @@ typedef struct {
 } MouseInput;
 
 typedef struct {
+	struct AppInfo* app;
 	MouseInput mouse;
 	InputType  key[KEY_MAX];
 	struct {
 		s32 keyBlock;
 	} state;
 	char buffer[512];
-} InputContext;
+} Input;
 
-struct AppInfo;
-
-void Input_KeyCallback(GLFWwindow* window, s32 key, s32 scancode, s32 action, s32 mods);
-void Input_MouseClickCallback(GLFWwindow* window, s32 button, s32 action, s32 mods);
-void Input_ScrollCallback(GLFWwindow* window, f64 x, f64 y);
-void Input_TextCallback(GLFWwindow* window, u32 scancode);
-
-void Input_Init(InputContext* input);
-void Input_Update(InputContext* input, struct AppInfo* app);
-void Input_End(InputContext* input);
-
-const char* Input_GetClipboardStr();
-void Input_SetClipboardStr(char* str);
-
-InputType* Input_GetKey(KeyMap key);
-InputType* Input_GetMouse(MouseMap type);
-s32 Input_GetShortcut(KeyMap mod, KeyMap key);
-void Input_SetMousePos(s32 x, s32 y);
-f32 Input_GetPressPosDist();
 #define MOUSE_KEEP_AXIS 0xD0D0CAFE
+
+void Input_Init(Input* input, struct AppInfo* app);
+void Input_Update(Input* input);
+void Input_End(Input* input);
+const char* Input_GetClipboardStr(Input* input);
+void Input_SetClipboardStr(Input* input, char* str);
+InputType* Input_GetKey(Input* input, KeyMap key);
+InputType* Input_GetMouse(Input* input, MouseMap type);
+s32 Input_GetShortcut(Input* input, KeyMap mod, KeyMap key);
+void Input_SetMousePos(Input* input, s32 x, s32 y);
+f32 Input_GetPressPosDist(Input* input);
+
+void InputCallback_Key(GLFWwindow* window, s32 key, s32 scancode, s32 action, s32 mods);
+void InputCallback_Text(GLFWwindow* window, u32 scancode);
+void InputCallback_Mouse(GLFWwindow* window, s32 button, s32 action, s32 mods);
+void InputCallback_Scroll(GLFWwindow* window, f64 x, f64 y);
 
 #endif

@@ -31,11 +31,9 @@ extern f64 gDeltaTime;
 		type axis[2]; \
 	} Vec2 ## suffix;
 
-__EXT_VECTYPEDEF(f64, d)
 __EXT_VECTYPEDEF(f32, f)
 __EXT_VECTYPEDEF(s32, i)
 __EXT_VECTYPEDEF(s16, s)
-__EXT_VECTYPEDEF(s8, c)
 
 typedef struct {
 	f32 r;
@@ -65,10 +63,7 @@ typedef struct {
 	s32 y2;
 } CRect;
 
-s16 SinS(u16 x);
-s16 CosS(u16 angle);
-
-s16 Math_Atan2S(f32 x, f32 y);
+s16 Atan2S(f32 x, f32 y);
 f32 Math_Vec3f_DistXZ(Vec3f* a, Vec3f* b);
 f32 Math_Vec3f_DistXYZ(Vec3f* a, Vec3f* b);
 f32 Math_Vec3s_DistXZ(Vec3s* a, Vec3s* b);
@@ -281,13 +276,13 @@ void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
 		ret; \
 	})
 
-#define SQ(x)        ((x) * (x))
-#define Math_SinS(x) sinf(BinToRad((s16)(x)))
-#define Math_CosS(x) cosf(BinToRad((s16)(x)))
-#define Math_SinF(x) sinf(DegToRad(x))
-#define Math_CosF(x) cosf(DegToRad(x))
-#define Math_SinR(x) sinf(x)
-#define Math_CosR(x) cosf(x)
+#define SQ(x)   ((x) * (x))
+#define SinS(x) sinf(BinToRad((s16)(x)))
+#define CosS(x) cosf(BinToRad((s16)(x)))
+#define SinF(x) sinf(DegToRad(x))
+#define CosF(x) cosf(DegToRad(x))
+#define SinR(x) sinf(x)
+#define CosR(x) cosf(x)
 
 // Trig macros
 #define DegToBin(degreesf) (s16)(degreesf * 182.04167f + .5f)

@@ -8,9 +8,9 @@ ExtGui_C  = ExtGui/Cursor.c \
 			ExtGui/Input.c \
 			ExtGui/Matrix.c \
 			ExtGui/Theme.c \
-			ExtGui/Vector.c \
+			ExtGui/Math.c \
 			ExtGui/View.c \
-			ExtGui/Global.c \
+			ExtGui/Interface.c \
 			ExtGui/assets/DejaVuSans_Bold.c \
 			ExtGui/assets/DejaVuSans_Light.c \
 			ExtGui/assets/DejaVuSans.c \

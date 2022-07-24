@@ -1,4 +1,4 @@
-#include "Global.h"
+#include "Interface.h"
 
 #define    FTOFIX32(x) (long)((x) * (float)0x00010000)
 #define    FIX32TOF(x) ((float)(x) * (1.0f / (float)0x00010000))
@@ -741,8 +741,8 @@ void Matrix_LookAt(MtxF* mf, Vec3f eye, Vec3f at, s16 roll) {
 
 void Matrix_TranslateRotateZYX(Vec3f* translation, Vec3s* rotation) {
 	MtxF* cmf = gCurrentMatrix;
-	f32 sin = Math_SinS(rotation->z);
-	f32 cos = Math_CosS(rotation->z);
+	f32 sin = SinS(rotation->z);
+	f32 cos = CosS(rotation->z);
 	f32 temp1;
 	f32 temp2;
 	
@@ -771,8 +771,8 @@ void Matrix_TranslateRotateZYX(Vec3f* translation, Vec3s* rotation) {
 	cmf->wy = temp2 * cos - temp1 * sin;
 	
 	if (rotation->y != 0) {
-		sin = Math_SinS(rotation->y);
-		cos = Math_CosS(rotation->y);
+		sin = SinS(rotation->y);
+		cos = CosS(rotation->y);
 		
 		temp1 = cmf->xx;
 		temp2 = cmf->xz;
@@ -796,8 +796,8 @@ void Matrix_TranslateRotateZYX(Vec3f* translation, Vec3s* rotation) {
 	}
 	
 	if (rotation->x != 0) {
-		sin = Math_SinS(rotation->x);
-		cos = Math_CosS(rotation->x);
+		sin = SinS(rotation->x);
+		cos = CosS(rotation->x);
 		
 		temp1 = cmf->xy;
 		temp2 = cmf->xz;

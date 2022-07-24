@@ -16,28 +16,31 @@ typedef void (* CallbackFunc)(void*);
 typedef void (* DropCallback)(GLFWwindow*, s32, char* item[]);
 
 typedef struct AppInfo {
-	GLFWwindow*  mainWindow;
+	GLFWwindow*  window;
 	CallbackFunc updateCall;
 	CallbackFunc drawCall;
-	void* context;
-	Vec2s winDim;
-	Vec2s prevWinDim;
-	bool  isResizeCallback;
+	Input* input;
+	void*  context;
+	Vec2s  winDim;
+	Vec2s  prevWinDim;
+	bool   isResizeCallback;
 } AppInfo;
 
-extern InputContext* __inputCtx;
-extern AppInfo* __appInfo;
+AppInfo* GetAppInfo(void* window);
+void* GetUserCtx(void* window);
 
 void* Interface_Init(
 	const char* title,
-	AppInfo* appInfo,
-	InputContext* inputCtx,
+	AppInfo* app,
+	Input* input,
 	void* context,
-	CallbackFunc updateCall,
+	CallbackFunc
+	updateCall,
 	CallbackFunc drawCall,
 	DropCallback dropCallback,
-	u32 x,  u32 y, u32 samples
+	u32 x, u32 y,
+	u32 samples
 );
-void Interface_Main();
+void Interface_Main(AppInfo* app);
 
 #endif

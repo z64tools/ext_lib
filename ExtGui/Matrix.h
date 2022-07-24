@@ -2,7 +2,7 @@
 #define __Z64MATRIX_H__
 
 #include <ExtLib.h>
-#include <ExtGui/Vector.h>
+#include <ExtGui/Math.h>
 
 typedef enum {
 	MTXMODE_NEW,

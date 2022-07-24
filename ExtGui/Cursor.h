@@ -28,18 +28,18 @@ typedef enum {
 } CursorIndex;
 
 typedef struct {
-	CursorBitmap cursor[64];
+	struct AppInfo* app;
 	void* _p;
-	CursorIndex  cursorNow;
-	CursorIndex  cursorSet;
-	CursorIndex  cursorForce;
-} CursorContext;
+	CursorBitmap    cursor[64];
+	CursorIndex cursorNow;
+	CursorIndex cursorSet;
+	CursorIndex cursorForce;
+} Cursor;
 
-void Cursor_CreateCursor(CursorContext* cursorCtx, CursorIndex id,  const u8* data, s32 size, s32 xcent, s32 ycent);
-
-void Cursor_Init(CursorContext* cursorCtx);
-void Cursor_Update(CursorContext* cursorCtx);
-void Cursor_SetCursor(CursorIndex cursorId);
-void Cursor_ForceCursor(CursorIndex cursorId);
+void Cursor_CreateCursor(CursorIndex id,  const u8* data, s32 size, s32 xcent, s32 ycent);
+void Cursor_Init(Cursor* cursor, struct AppInfo* app);
+void Cursor_Update();
+void Cursor_SetCursor(CursorIndex id);
+void Cursor_ForceCursor(CursorIndex id);
 
 #endif

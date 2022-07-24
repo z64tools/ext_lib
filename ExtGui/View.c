@@ -1,6 +1,6 @@
-#include "Global.h"
+#include "Interface.h"
 
-void View_Camera_FlyMode(ViewContext* this, InputContext* inputCtx) {
+void View_Camera_FlyMode(ViewContext* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
 	
 	if (this->cameraControl) {
@@ -76,7 +76,7 @@ void View_Camera_FlyMode(ViewContext* this, InputContext* inputCtx) {
 	}
 }
 
-void View_Camera_OrbitMode(ViewContext* this, InputContext* inputCtx) {
+void View_Camera_OrbitMode(ViewContext* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
 	VecSph orbitSph = {
 		.r = Math_Vec3f_DistXYZ(&cam->at, &cam->eye),
@@ -123,7 +123,7 @@ void View_Camera_OrbitMode(ViewContext* this, InputContext* inputCtx) {
 	}
 }
 
-void View_Init(ViewContext* this, InputContext* inputCtx) {
+void View_Init(ViewContext* this, Input* inputCtx) {
 	Camera* cam;
 	
 	this->currentCamera = &this->camera[0];
@@ -144,7 +144,7 @@ void View_Init(ViewContext* this, InputContext* inputCtx) {
 	this->scale = 1;
 }
 
-void View_Update(ViewContext* this, InputContext* inputCtx) {
+void View_Update(ViewContext* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
 	
 	Math_DelSmoothStepToF(&this->fovy, this->fovyTarget, 0.25, 5.25f, 0.00001);

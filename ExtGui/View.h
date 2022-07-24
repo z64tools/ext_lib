@@ -1,7 +1,7 @@
 #ifndef __Z64VIEW_H__
 #define __Z64VIEW_H__
 #include <ExtLib.h>
-#include <ExtGui/Vector.h>
+#include <ExtGui/Math.h>
 #include <ExtGui/Matrix.h>
 #include <ExtGui/Input.h>
 
@@ -42,11 +42,11 @@ typedef struct ViewContext {
 	};
 } ViewContext;
 
-void View_Camera_FlyMode(ViewContext* viewCtx, InputContext* inputCtx);
-void View_Camera_OrbitMode(ViewContext* viewCtx, InputContext* inputCtx);
+void View_Camera_FlyMode(ViewContext* viewCtx, Input* inputCtx);
+void View_Camera_OrbitMode(ViewContext* viewCtx, Input* inputCtx);
 
-void View_Init(ViewContext* view, InputContext* input);
-void View_Update(ViewContext* viewCtx, InputContext* inputCtx);
+void View_Init(ViewContext* view, Input* input);
+void View_Update(ViewContext* viewCtx, Input* inputCtx);
 
 void View_SetProjectionDimensions(ViewContext* viewCtx, Vec2s* dim);
 
