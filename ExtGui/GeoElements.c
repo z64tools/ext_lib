@@ -201,6 +201,7 @@ void DropMenu_Init(GeoGrid* geo, bool useOriginRect) {
 	geo->state.noSplit++;
 	this->pos = geo->input->mouse.pos;
 	this->state.useOriginRect = useOriginRect;
+	this->key = -1;
 	
 	height = SPLIT_ELEM_X_PADDING * 2 + SPLIT_TEXT_H * prop->num;
 	
@@ -223,6 +224,7 @@ void DropMenu_Close(GeoGrid* geo) {
 	this->prop = 0;
 	this->state.useOriginRect = 0;
 	this->state.init = 0;
+	this->element = 0;
 }
 
 void DropMenu_Draw(GeoGrid* geo) {
@@ -231,7 +233,7 @@ void DropMenu_Draw(GeoGrid* geo) {
 	void* vg = geo->vg;
 	f32 height = SPLIT_ELEM_X_PADDING;
 	MouseInput* mouse = &geo->input->mouse;
-	s32 key = -1;
+	s32 in = false;
 	
 	if (prop == NULL)
 		return;
@@ -243,18 +245,28 @@ void DropMenu_Draw(GeoGrid* geo) {
 		geo->winDim->y
 	);
 	nvgBeginFrame(geo->vg, geo->winDim->x, geo->winDim->y, gPixelRatio); {
-		Element_Draw_RoundedOutline(vg, &this->rect, Theme_GetColor(THEME_HIGHLIGHT, 215, 0.8f));
-		Element_Draw_RoundedRect(vg, &this->rect, Theme_GetColor(THEME_SHADOW, 215, 1.0f));
+		Rect r = this->rect;
+		Element_Draw_RoundedOutline(vg, &this->rect, Theme_GetColor(THEME_ELEMENT_LIGHT, 215, 1.0f));
+		
+		r.y -= 1;
+		r.h += 1;
+		Element_Draw_RoundedRect(vg, &r, Theme_GetColor(THEME_ELEMENT_DARK, 215, 1.0f));
 		
 		for (s32 i = 0; i < prop->num; i++) {
-			Rect r = this->rect;
+			r = this->rect;
 			
 			r.y = this->rect.y + height;
 			r.h = SPLIT_TEXT_H;
 			
 			if (Rect_PointIntersect(&r, mouse->pos.x, mouse->pos.y)) {
-				key = i;
-				Element_Draw_RoundedRect(vg, &r, Theme_GetColor(THEME_PRIM, 125, 1.0f));
+				this->key = i;
+				in = true;
+			}
+			
+			if (i == this->key) {
+				r.x += 4;
+				r.w -= 8;
+				Element_Draw_RoundedRect(vg, &r, Theme_GetColor(THEME_PRIM, 215, 1.0f));
 			}
 			
 			nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
@@ -274,8 +286,8 @@ void DropMenu_Draw(GeoGrid* geo) {
 	}
 	
 	if (Input_GetMouse(geo->input, MOUSE_L)->press) {
-		if (key > -1)
-			prop->update(prop, key, prop->argument);
+		if (this->key > -1 && in)
+			prop->update(prop, this->key, prop->argument);
 		
 		DropMenu_Close(geo);
 	}
@@ -686,24 +698,27 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 	rect.h = this->element.rect.h;
 	rect.w = ClampMin(rect.w * mul, 0);
 	
+	rect.x = rect.x + 2;
+	rect.y = rect.y + 2;
+	rect.w = ClampMin(rect.w - 4, 0);
+	rect.h = rect.h - 4;
+	
 	Element_Draw_RoundedOutline(vg, &this->element.rect, this->element.light);
 	Element_Draw_RoundedRect(vg, &this->element.rect, this->element.shadow);
 	
-	if (this->vValue <= 0.01) {
-		this->element.base.a = Lerp(ClampMin(this->vValue * 100.0f, 0.0f), 0.0, this->element.base.a);
+	if (rect.w != 0) {
+		nvgBeginPath(vg);
+		nvgFillColor(vg, this->element.prim);
+		nvgRoundedRect(
+			vg,
+			rect.x,
+			rect.y,
+			rect.w,
+			rect.h,
+			SPLIT_ROUND_R
+		);
+		nvgFill(vg);
 	}
-	
-	nvgBeginPath(vg);
-	nvgFillColor(vg, this->element.prim);
-	nvgRoundedRect(
-		vg,
-		rect.x + 1,
-		rect.y + 1,
-		rect.w - 2,
-		rect.h - 2,
-		SPLIT_ROUND_R
-	);
-	nvgFill(vg);
 	
 	if (this->isInt) {
 		snprintf(
@@ -756,13 +771,20 @@ static void Element_Draw_Combo(ElementCallInfo* info) {
 	nvgFontBlur(vg, 0.0);
 	
 	Element_Draw_RoundedOutline(vg, &r, this->element.light);
+	
+	if (&this->element == geo->dropMenu.element)
+		r.h += 2;
+	
 	Element_Draw_RoundedRect(vg, &r, this->element.shadow);
 	
-	nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+	if (&this->element == geo->dropMenu.element)
+		r.h -= 2;
+	
+	nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
 	nvgFillColor(vg, this->element.texcol);
 	nvgText(
 		vg,
-		r.x + r.w * 0.5,
+		r.x + SPLIT_ELEM_X_PADDING,
 		r.y + r.h * 0.5 + 1,
 		prop->item[this->key].name,
 		NULL

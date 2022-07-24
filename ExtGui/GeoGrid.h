@@ -176,6 +176,7 @@ typedef struct {
 	Rect  rectOrigin;
 	Rect  rect;
 	Vec2s pos;
+	s32   key;
 	struct {
 		s32 useOriginRect : 1;
 		s32 dirH          : 4;
