@@ -209,11 +209,11 @@ typedef struct GeoGrid {
 	
 	Input*     input;
 	Vec2s*     winDim;
-	void*      vg;
-	void*      passArg;
+	void*    vg;
+	void*    passArg;
 	
-	GeoState   state;
-	DropMenu   dropMenu;
+	GeoState state;
+	DropMenu dropMenu;
 } GeoGrid;
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -224,14 +224,12 @@ struct PropEnum;
 
 typedef char* (* EnumGet)(struct PropEnum*, s32);
 typedef void (* EnumSet)(struct PropEnum*, s32);
-typedef void (* EnumFree)(struct PropEnum*);
 
 typedef struct PropEnum {
-	void*    argument;
-	void*    list;
-	EnumGet  get;
-	EnumSet  set;
-	EnumFree free;
+	void*   argument;
+	char**  list;
+	EnumGet get;
+	EnumSet set;
 	s32 num;
 	s32 key;
 } PropEnum;
@@ -323,7 +321,7 @@ void Element_Textbox(GeoGrid* geo, Split* split, ElTextbox* this);
 f32 Element_Text(GeoGrid* geo, Split* split, ElText* this);
 s32 Element_Checkbox(GeoGrid* geo, Split* split, ElCheckbox* this);
 f32 Element_Slider(GeoGrid* geo, Split* split, ElSlider* this);
-void Element_Combo(GeoGrid* geo, Split* split, ElCombo* this);
+s32 Element_Combo(GeoGrid* geo, Split* split, ElCombo* this);
 
 void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type);
 void Element_Slider_SetValue(ElSlider* this, f64 val);
@@ -345,17 +343,12 @@ void Element_Draw(GeoGrid* geo, Split* split);
 #define Element_DisplayName(geo, split, this) Element_DisplayName(geo, split, this.element)
 #define Element_Row(split, ...)               Element_Row(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
 
-PropEnum* PropEnum_Alloc(
-	void* list,
-	s32 num,
-	s32 def
-);
-
+PropEnum* PropEnum_Init(s32 def, s32 num);
+PropEnum* PropEnum_AssignList(s32 def, s32 num, ...);
+void PropEnum_Add(PropEnum* this, char* item);
+void PropEnum_Remove(PropEnum* this, s32 key);
 void PropEnum_Free(PropEnum* this);
 
-void PropEnum_ArgCallback(PropEnum* this, void* arg);
-void PropEnum_GetCallback(PropEnum* this, EnumGet func);
-void PropEnum_SetCallback(PropEnum* this, EnumSet func);
-void PropEnum_FreeCallback(PropEnum* this, EnumFree func);
+#define PropEnum_AssignList(default, ...) PropEnum_AssignList(default, NARGS(__VA_ARGS__), __VA_ARGS__)
 
 #endif

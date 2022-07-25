@@ -171,6 +171,8 @@ static f32 Element_TextWidth(void* vg, const char* txt) {
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
+#undef PropEnum_AssignList
+
 static char* PropEnum_Get(PropEnum* this, s32 i) {
 	char** list = this->list;
 	
@@ -189,45 +191,85 @@ static void PropEnum_Set(PropEnum* this, s32 i) {
 		Log("Out of range set!");
 }
 
-PropEnum* PropEnum_Alloc(void* list, s32 num, s32 def) {
-	PropEnum* prop = SysCalloc(sizeof(PropEnum));
+PropEnum* PropEnum_Init(s32 def, s32 num) {
+	PropEnum* this = SysCalloc(sizeof(PropEnum));
 	
-	prop->argument = NULL;
-	prop->list = list;
-	prop->get = PropEnum_Get;
-	prop->set = PropEnum_Set;
-	prop->free = NULL;
-	prop->num = num;
-	prop->key = def;
+	memset(this, 0, sizeof(*this));
+	this->get = PropEnum_Get;
+	this->set = PropEnum_Set;
+	this->key = def;
+	this->num = num;
+	
+	return this;
+}
+
+PropEnum* PropEnum_AssignList(s32 def, s32 num, ...) {
+	PropEnum* prop = PropEnum_Init(def, num);
+	va_list va;
+	
+	va_start(va, num);
+	
+	prop->list = SysCalloc(sizeof(char*) * num);
+	for (s32 i = 0; i < num; i++)
+		prop->list[i] = StrDup(va_arg(va, char*));
+	
+	va_end(va);
 	
 	printf_info("" PRNT_YELW "%s", __FUNCTION__);
-	printf_info("prop->num = %d", prop->num);
 	printf_info("prop->key = %d", prop->key);
+	printf_info("prop->num = %d", prop->num);
 	
 	return prop;
 }
 
+void PropEnum_Add(PropEnum* this, char* item) {
+	char** list = NULL;
+	
+	list = SysCalloc(sizeof(char*) * (this->num + 1));
+	if (this->num)
+		memcpy(list, this->list, sizeof(char*) * this->num);
+	
+	list[this->num++] = StrDup(item);
+	Free(this->list);
+	this->list = list;
+	
+	printf_info("" PRNT_YELW "%s", __FUNCTION__);
+	printf_info("\"%s\"", this->list[this->num - 1]);
+	printf_info("prop->num = %d", this->num);
+}
+
+void PropEnum_Remove(PropEnum* this, s32 key) {
+	char** list = NULL;
+	s32 w = 0;
+	
+	Assert(this->list);
+	
+	if (this->num - 1 > 0)
+		list = SysCalloc(sizeof(char*) * (this->num - 1));
+	
+	printf_info("" PRNT_YELW "%s", __FUNCTION__);
+	
+	for (s32 i = 0; i < this->num; i++) {
+		if (i == key) {
+			printf_info("\"%s\"", this->list[i]);
+			Free(this->list[i]);
+			continue;
+		}
+		
+		list[w++] = this->list[i];
+	}
+	
+	Free(this->list);
+	this->list = list;
+	this->num--;
+	printf_info("prop->num = %d", this->num);
+}
+
 void PropEnum_Free(PropEnum* this) {
-	if (this->free)
-		this->free(this);
+	for (s32 i = 0; i < this->num; i++)
+		Free(this->list[i]);
+	Free(this->list);
 	Free(this);
-	memset(this, 0, sizeof(*this));
-}
-
-void PropEnum_ArgCallback(PropEnum* this, void* arg) {
-	this->argument = arg;
-}
-
-void PropEnum_GetCallback(PropEnum* this, EnumGet func) {
-	this->get = func;
-}
-
-void PropEnum_SetCallback(PropEnum* this, EnumSet func) {
-	this->set = func;
-}
-
-void PropEnum_FreeCallback(PropEnum* this, EnumFree func) {
-	this->free = func;
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */
@@ -237,11 +279,13 @@ void DropMenu_Init(GeoGrid* geo, bool useOriginRect) {
 	PropEnum* prop = this->prop;
 	s32 height;
 	
+	Assert(prop != NULL);
+	
 	geo->state.noClickInput++;
 	geo->state.noSplit++;
 	this->pos = geo->input->mouse.pos;
 	this->state.useOriginRect = useOriginRect;
-	this->key = -1;
+	this->key = this->prop->key;
 	
 	height = SPLIT_ELEM_X_PADDING * 2 + SPLIT_TEXT_H * prop->num;
 	
@@ -262,8 +306,8 @@ void DropMenu_Init(GeoGrid* geo, bool useOriginRect) {
 	}
 	
 	printf_info("" PRNT_YELW "%s", __FUNCTION__);
-	printf_info("prop->num = %d", prop->num);
 	printf_info("prop->key = %d", prop->key);
+	printf_info("prop->num = %d", prop->num);
 }
 
 void DropMenu_Close(GeoGrid* geo) {
@@ -830,15 +874,17 @@ static void Element_Draw_Combo(ElementCallInfo* info) {
 	if (&this->element == geo->dropMenu.element)
 		r.h -= 2;
 	
-	nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-	nvgFillColor(vg, this->element.texcol);
-	nvgText(
-		vg,
-		r.x + SPLIT_ELEM_X_PADDING,
-		r.y + r.h * 0.5 + 1,
-		prop->get(prop, prop->key),
-		NULL
-	);
+	if (prop) {
+		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+		nvgFillColor(vg, this->element.texcol);
+		nvgText(
+			vg,
+			r.x + SPLIT_ELEM_X_PADDING,
+			r.y + r.h * 0.5 + 1,
+			prop->get(prop, prop->key),
+			NULL
+		);
+	}
 	
 	center.x = r.x + r.w - 5 - 5;
 	center.y = r.y + r.h * 0.5f;
@@ -1076,15 +1122,24 @@ queue_element:
 		return Lerp(this->value, this->min, this->max);
 }
 
-void Element_Combo(GeoGrid* geo, Split* split, ElCombo* this) {
+s32 Element_Combo(GeoGrid* geo, Split* split, ElCombo* this) {
 	if (this->element.disabled || geo->state.noClickInput)
 		goto queue_element;
 	
-	if (Element_PressCondition(geo, split, &this->element.rect) && Input_GetMouse(geo->input, MOUSE_L)->press) {
-		geo->dropMenu.element = &this->element;
-		geo->dropMenu.prop = this->prop;
-		geo->dropMenu.rectOrigin = Rect_AddPos(&this->element.rect, &split->rect);
-		DropMenu_Init(geo, true);
+	if (this->prop) {
+		if (Element_PressCondition(geo, split, &this->element.rect)) {
+			s32 scrollY = Clamp(geo->input->mouse.scrollY, -1, 1);
+			
+			if (Input_GetMouse(geo->input, MOUSE_L)->press) {
+				geo->dropMenu.prop = this->prop;
+				geo->dropMenu.element = &this->element;
+				geo->dropMenu.rectOrigin = Rect_AddPos(&this->element.rect, &split->rect);
+				DropMenu_Init(geo, true);
+			}
+			
+			if (scrollY)
+				this->prop->set(this->prop, this->prop->key - scrollY);
+		}
 	}
 	
 queue_element:
@@ -1094,6 +1149,11 @@ queue_element:
 		Element_Draw_Combo,
 		this
 	);
+	
+	if (this->prop)
+		return this->prop->key;
+	else
+		return 0;
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */
