@@ -316,12 +316,19 @@ void DropMenu_Init(GeoGrid* geo, bool useOriginRect, bool highlighCurrentKey);
 void DropMenu_Update(GeoGrid* geo);
 void DropMenu_Draw(GeoGrid* geo);
 
-s32 Element_Button(GeoGrid* geo, Split* split, ElButton* this);
-void Element_Textbox(GeoGrid* geo, Split* split, ElTextbox* this);
-f32 Element_Text(GeoGrid* geo, Split* split, ElText* this);
-s32 Element_Checkbox(GeoGrid* geo, Split* split, ElCheckbox* this);
-f32 Element_Slider(GeoGrid* geo, Split* split, ElSlider* this);
-s32 Element_Combo(GeoGrid* geo, Split* split, ElCombo* this);
+s32 Element_Button(ElButton* this);
+void Element_Textbox(ElTextbox* this);
+f32 Element_Text(ElText* this);
+s32 Element_Checkbox(ElCheckbox* this);
+f32 Element_Slider(ElSlider* this);
+s32 Element_Combo(ElCombo* this);
+void Element_Separator(bool drawLine);
+typedef enum {
+	BOX_START,
+	BOX_END,
+} BoxInit;
+void Element_Box(BoxInit io);
+void Element_DisplayName(Element* this);
 
 void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type);
 void Element_Slider_SetValue(ElSlider* this, f64 val);
@@ -332,16 +339,15 @@ void Element_Disable(Element* element);
 void Element_Enable(Element* element);
 void Element_RowY(f32 y);
 void Element_Row(Split* split, s32 rectNum, ...);
-void Element_DisplayName(GeoGrid* geo, Split* split, Element* this);
 
 void Element_Update(GeoGrid* geo);
 void Element_Draw(GeoGrid* geo, Split* split);
 
-#define Element_Name(el, name)                Element_Name(el.element, name)
-#define Element_Disable(el)                   Element_Disable(el.element)
-#define Element_Enable(el)                    Element_Enable(el.element)
-#define Element_DisplayName(geo, split, this) Element_DisplayName(geo, split, this.element)
-#define Element_Row(split, ...)               Element_Row(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
+#define Element_Name(el, name)    Element_Name(el.element, name)
+#define Element_Disable(el)       Element_Disable(el.element)
+#define Element_Enable(el)        Element_Enable(el.element)
+#define Element_DisplayName(this) Element_DisplayName(this.element)
+#define Element_Row(split, ...)   Element_Row(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
 
 PropEnum* PropEnum_Init(s32 def, s32 num);
 PropEnum* PropEnum_AssignList(s32 def, s32 num, ...);

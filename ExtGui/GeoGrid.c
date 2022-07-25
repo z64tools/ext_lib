@@ -5,6 +5,7 @@ f32 gPixelRatio = 1.0f;
 
 static void GeoGrid_RemoveDublicates(GeoGrid* geo);
 static void Split_UpdateRect(Split* split);
+void Element_SetContext(GeoGrid* setGeo, Split* setSplit);
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
@@ -783,6 +784,7 @@ static void Split_Update(GeoGrid* geo) {
 				split->prevId = split->id;
 			}
 			Log("Update Split [%s]", split->name);
+			Element_SetContext(geo, split);
 			table[id]->update(geo->passArg, table[id]->instance, split);
 			Log("OK");
 		} else if (split->prevId != 0) {
@@ -920,6 +922,7 @@ static void Split_Draw(GeoGrid* geo) {
 				nvgEndFrame(geo->vg);
 				nvgBeginFrame(geo->vg, split->rect.w, split->rect.h, gPixelRatio);
 				
+				Element_SetContext(geo, split);
 				table[id]->draw(geo->passArg, geo->taskTable[split->id]->instance, split);
 				Element_Draw(geo, split);
 			} else {
