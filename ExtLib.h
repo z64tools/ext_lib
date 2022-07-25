@@ -147,13 +147,13 @@ void* MemStrCase(const char* haystack, u32 haystacklen, const char* needle);
 void* MemMemAlign(u32 val, const void* haystack, size_t haySize, const void* needle, size_t needleSize);
 char* StrEnd(const char* src, const char* ext);
 char* StrEndCase(const char* src, const char* ext);
-void* __Malloc(s32 size);
-void* __Calloc(s32 size);
-void* __Realloc(const void* data, s32 size);
+void* SysAlloc(s32 size);
+void* SysCalloc(s32 size);
+void* SysRealloc(const void* data, s32 size);
 void* MemDup(const void* src, Size size);
 char* StrDup(const char* src);
 char* StrDupX(const char* src, Size size);
-void* __Free(const void* data);
+void* SysFree(const void* data);
 void ByteSwap(void* src, s32 size);
 s32 ParseArgs(char* argv[], char* arg, u32* parArg);
 void SlashAndPoint(const char* src, s32* slash, s32* point);
@@ -433,28 +433,40 @@ void Sound_Xm_Stop();
 #define NARGS(...) \
 	NARGS_SEQ(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
 
-#define Malloc(data, size) { \
-		Log("Malloc(%s); %.2f Kb", #data, BinToKb(size)); \
-		data = __Malloc(size); \
+#define Alloc(data, size) do { \
+		Log("Alloc(%s); %.2f Kb", #data, BinToKb(size)); \
+		data = SysAlloc(size); \
 		Assert(data != NULL); \
-}
+} while (0)
 
-#define Calloc(data, size) { \
+#define Calloc(data, size) do { \
 		Log("Calloc(%s); %.2f Kb", #data, BinToKb(size)); \
-		data = __Calloc(size); \
+		data = SysCalloc(size); \
 		Assert(data != NULL); \
-}
+} while (0)
 
-#define Realloc(data, size) { \
+#define Realloc(data, size) do { \
 		Log("Realloc(%s); %.2f Kb", #data, BinToKb(size)); \
-		data = __Realloc(data, size); \
+		data = SysRealloc(data, size); \
 		Assert(data != NULL); \
-}
+} while (0)
 
-#define Free(data) { \
+#define AllocX(data) do { \
+		Log("Alloc(%s); %.2f Kb", # data, BinToKb(sizeof(*data))); \
+		data = SysAlloc(sizeof(*data)); \
+		Assert(data != NULL); \
+} while (0)
+
+#define CallocX(data) do { \
+		Log("Calloc(%s); %.2f Kb", # data, BinToKb(sizeof(*data))); \
+		data = SysCalloc(sizeof(*data)); \
+		Assert(data != NULL); \
+} while (0)
+
+#define Free(data) do { \
 		Log("Free(%s);", #data ); \
-		data = __Free(data); \
-}
+		data = SysFree(data); \
+} while (0)
 
 #define Main(y1, y2) main(y1, y2)
 #define Arg(arg)     ParseArgs(argv, arg, &parArg)

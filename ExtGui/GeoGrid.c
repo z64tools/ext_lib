@@ -390,10 +390,9 @@ static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
 	
 	split->edge[dir] = killSplit->edge[dir];
 	
-	if (killSplit->id > 0) {
-		geo->taskTable[killSplit->id].destroy(geo->passArg, killSplit->instance, killSplit);
-		free(killSplit->instance);
-	}
+	if (killSplit->id > 0)
+		geo->taskTable[killSplit->id]->destroy(geo->passArg, geo->taskTable[killSplit->id]->instance, killSplit);
+	
 	Node_Kill(geo->splitHead, killSplit);
 	GeoGrid_RemoveDublicates(geo);
 	Split_UpdateRect(split);
@@ -718,8 +717,8 @@ static void Split_UpdateRect(Split* split) {
 }
 
 #define FreeSplit(id) do { \
-		table[id].destroy(geo->passArg, split->instance, split); \
-		Free(split->instance); } while (0)
+		table[id]->destroy(geo->passArg, table[id]->instance, split); \
+} while (0)
 
 static void Split_Update(GeoGrid* geo) {
 	Split* split = geo->splitHead;
@@ -773,18 +772,18 @@ static void Split_Update(GeoGrid* geo) {
 			split->blockMouse = true;
 		
 		u32 id = split->id;
-		SplitTask* table = geo->taskTable;
+		SplitTask** table = geo->taskTable;
 		if (split->id > 0) {
 			if (split->id != split->prevId) {
 				if (split->prevId != 0)
 					FreeSplit(split->prevId);
 				
-				Calloc(split->instance, table[id].size);
-				table[id].init(geo->passArg, split->instance, split);
+				Calloc(table[id]->instance, table[id]->size);
+				table[id]->init(geo->passArg, table[id]->instance, split);
 				split->prevId = split->id;
 			}
 			Log("Update Split [%s]", split->name);
-			table[id].update(geo->passArg, split->instance, split);
+			table[id]->update(geo->passArg, table[id]->instance, split);
 			Log("OK");
 		} else if (split->prevId != 0) {
 			id = split->prevId;
@@ -882,21 +881,6 @@ static void Split_DrawDebug(GeoGrid* geo) {
 	} nvgEndFrame(geo->vg);
 }
 
-#if 0
-static void Split_DrawHeader(GeoGrid* geo, Split* split) {
-	Rect rect = split->rect;
-	
-	rect.x = 0;
-	rect.y = ClampMin(rect.h - SPLIT_BAR_HEIGHT, 0);
-	
-	nvgBeginPath(geo->vg);
-	nvgRect(geo->vg, 0, ClampMin(rect.h - SPLIT_BAR_HEIGHT, 0), rect.w, rect.h);
-	nvgPathWinding(geo->vg, NVG_HOLE);
-	nvgFillColor(geo->vg, Theme_GetColor(THEME_BASE, 255, 1.30f));
-	nvgFill(geo->vg);
-}
-#endif
-
 static void Split_Draw(GeoGrid* geo) {
 	Split* split = geo->splitHead;
 	Vec2s* winDim = geo->winDim;
@@ -922,7 +906,7 @@ static void Split_Draw(GeoGrid* geo) {
 			
 			if (split->id > 0) {
 				u32 id = split->id;
-				SplitTask* table = geo->taskTable;
+				SplitTask** table = geo->taskTable;
 				
 				nvgBeginPath(vg);
 				nvgRect(vg, 0, 0, rect->w, rect->h);
@@ -936,15 +920,13 @@ static void Split_Draw(GeoGrid* geo) {
 				nvgEndFrame(geo->vg);
 				nvgBeginFrame(geo->vg, split->rect.w, split->rect.h, gPixelRatio);
 				
-				table[id].draw(geo->passArg, split->instance, split);
-				// Split_DrawHeader(geo, split);
+				table[id]->draw(geo->passArg, geo->taskTable[split->id]->instance, split);
 				Element_Draw(geo, split);
 			} else {
 				nvgBeginPath(vg);
 				nvgRect(vg, 0, 0, rect->w, rect->h);
 				nvgFillColor(vg, Theme_GetColor(THEME_BASE, 255, 1.0f));
 				nvgFill(vg);
-				// Split_DrawHeader(geo, split);
 			}
 			
 			if (split->edge[DIR_L]->state & EDGE_STICK_L) {

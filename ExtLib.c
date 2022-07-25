@@ -484,8 +484,8 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags
 	
 	ItemList_Walk(target, path, path, 0, depth, &info);
 	
-	Malloc(target->buffer, info.len);
-	Malloc(target->item, sizeof(char*) * info.num);
+	Alloc(target->buffer, info.len);
+	Alloc(target->item, sizeof(char*) * info.num);
 	target->num = info.num;
 	
 	for (s32 i = 0; i < info.num; i++) {
@@ -1194,7 +1194,7 @@ char* SysExeO(const char* cmd) {
 	MemFile_Params(&mem, MEM_REALLOC, true, MEM_END);
 	MemFile_Alloc(&mem, MbToBin(1.0));
 	
-	Malloc(result, 1024);
+	Alloc(result, 1024);
 	while (fgets(result, 1024, file))
 		MemFile_Write(&mem, result, strlen(result));
 	Free(result);
@@ -2032,19 +2032,19 @@ void ByteSwap(void* src, s32 size) {
 	}
 }
 
-void* __Malloc(s32 size) {
+void* SysAlloc(s32 size) {
 	return malloc(size);
 }
 
-void* __Calloc(s32 size) {
+void* SysCalloc(s32 size) {
 	return calloc(1, size);
 }
 
-void* __Realloc(const void* data, s32 size) {
+void* SysRealloc(const void* data, s32 size) {
 	return realloc((void*)data, size);
 }
 
-void* __Free(const void* data) {
+void* SysFree(const void* data) {
 	if (data)
 		free((void*)data);
 	
@@ -2055,7 +2055,7 @@ void* MemDup(const void* src, Size size) {
 	if (src == NULL)
 		return NULL;
 	
-	return memcpy(__Malloc(size), src, size);
+	return memcpy(SysAlloc(size), src, size);
 }
 
 char* StrDup(const char* src) {
@@ -2069,7 +2069,7 @@ char* StrDupX(const char* src, Size size) {
 	if (src == NULL)
 		return NULL;
 	
-	return strcpy(__Malloc(Max(size, strlen(src) + 1)), src);
+	return strcpy(SysAlloc(Max(size, strlen(src) + 1)), src);
 }
 
 s32 ParseArgs(char* argv[], char* arg, u32* parArg) {
@@ -3096,7 +3096,7 @@ s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath) {
 
 void MemFile_Free(MemFile* memFile) {
 	if (memFile->param.initKey == 0xD0E0A0D0B0E0E0F0) {
-		__Free(memFile->data);
+		SysFree(memFile->data);
 	}
 	
 	*memFile = MemFile_Initialize();
@@ -4227,8 +4227,8 @@ void Log_Init() {
 		signal(i, Log_Signal);
 	
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-		sLogMsg[i] = __Calloc(FAULT_BUFFER_SIZE);
-		sLogFunc[i] = __Calloc(FAULT_BUFFER_SIZE * 0.25);
+		sLogMsg[i] = SysCalloc(FAULT_BUFFER_SIZE);
+		sLogFunc[i] = SysCalloc(FAULT_BUFFER_SIZE * 0.25);
 	}
 	
 	sLogInit = true;
@@ -4239,8 +4239,8 @@ void Log_Free() {
 		return;
 	sLogInit = 0;
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-		__Free(sLogMsg[i]);
-		__Free(sLogFunc[i]);
+		SysFree(sLogMsg[i]);
+		SysFree(sLogFunc[i]);
 	}
 }
 

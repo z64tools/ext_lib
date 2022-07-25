@@ -8,11 +8,14 @@
 
 extern f32 gPixelRatio;
 
-#define DefineTask(x) (void*)x ## _Init, \
-	(void*)x ## _Destroy, \
-	(void*)x ## _Update, \
-	(void*)x ## _Draw, \
-	sizeof(x)
+#define DefineTask(name, x) { \
+		name, \
+		(void*)x ## _Init, \
+		(void*)x ## _Destroy, \
+		(void*)x ## _Update, \
+		(void*)x ## _Draw, \
+		sizeof(x), \
+		NULL }
 
 #define SPLIT_GRAB_DIST  4
 #define SPLIT_CTXM_DIST  32
@@ -143,7 +146,6 @@ typedef struct Split {
 	u32   prevId;
 	bool  blockMouse;
 	s32   elemBlockMouse;
-	void* instance;
 	struct {
 		bool useCustomBG;
 		RGB8 color;
@@ -162,7 +164,8 @@ typedef struct {
 	SplitFunc destroy;
 	SplitFunc update;
 	SplitFunc draw;
-	s32 size;
+	s32   size;
+	void* instance;
 } SplitTask;
 
 typedef struct {
@@ -196,10 +199,9 @@ typedef struct GeoGrid {
 	} slide;
 	
 	Split* actionSplit;
-	SplitEdge* actionEdge;
+	SplitEdge*  actionEdge;
 	
-	SplitTask* taskTable;
-	s32        taskTableNum;
+	SplitTask** taskTable;
 	
 	Split*     splitHead;
 	SplitVtx*  vtxHead;
@@ -218,17 +220,20 @@ typedef struct GeoGrid {
 // # Elements                            #
 // # # # # # # # # # # # # # # # # # # # #
 
-typedef struct {
-	s32 key;
-	const char* name;
-} EnumItem;
+struct PropEnum;
+
+typedef char* (* EnumGet)(struct PropEnum*, s32);
+typedef void (* EnumSet)(struct PropEnum*, s32);
+typedef void (* EnumFree)(struct PropEnum*);
 
 typedef struct PropEnum {
-	void* argument;
-	void (* update)(struct PropEnum*, s32, void*);
-	s32   defaultKey;
-	EnumItem* item;
-	u32   num;
+	void*    argument;
+	void*    list;
+	EnumGet  get;
+	EnumSet  set;
+	EnumFree free;
+	s32 num;
+	s32 key;
 } PropEnum;
 
 typedef struct Element {
@@ -297,7 +302,6 @@ typedef struct {
 typedef struct {
 	Element   element;
 	PropEnum* prop;
-	s32 key;
 } ElCombo;
 
 bool Split_CursorInRect(Split* split, Rect* rect);
@@ -339,21 +343,19 @@ void Element_Draw(GeoGrid* geo, Split* split);
 #define Element_Disable(el)                   Element_Disable(el.element)
 #define Element_Enable(el)                    Element_Enable(el.element)
 #define Element_DisplayName(geo, split, this) Element_DisplayName(geo, split, this.element)
+#define Element_Row(split, ...)               Element_Row(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
 
-#define Element_Row(split, ...) Element_Row(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
+PropEnum* PropEnum_Alloc(
+	void* list,
+	s32 num,
+	s32 def
+);
 
-PropEnum* PropEnum_Init(void* update, void* argument, s32 defaultKey, EnumItem* item, u32 size);
-void PropEnum_Free(PropEnum* penum);
+void PropEnum_Free(PropEnum* this);
 
-#define PropEnum_Declare(name, upd, default, ...) \
-	EnumItem __ ## name ## Item[] = { \
-		__VA_ARGS__ \
-	}; \
-	PropEnum name = { \
-		.update = upd, \
-		.defaultKey = default, \
-		.item = __ ## name ## Item, \
-		.num = ArrayCount( __ ## name ## Item), \
-	}
+void PropEnum_ArgCallback(PropEnum* this, void* arg);
+void PropEnum_GetCallback(PropEnum* this, EnumGet func);
+void PropEnum_SetCallback(PropEnum* this, EnumSet func);
+void PropEnum_FreeCallback(PropEnum* this, EnumFree func);
 
 #endif

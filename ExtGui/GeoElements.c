@@ -171,23 +171,63 @@ static f32 Element_TextWidth(void* vg, const char* txt) {
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
-PropEnum* PropEnum_Init(void* update, void* argument, s32 defaultKey, EnumItem* item, u32 size) {
-	PropEnum* penum;
+static char* PropEnum_Get(PropEnum* this, s32 i) {
+	char** list = this->list;
 	
-	Calloc(penum, sizeof(PropEnum));
-	penum->update = update;
-	penum->argument = argument;
-	penum->defaultKey = defaultKey;
-	penum->num = size;
-	penum->item = MemDup(item, sizeof(EnumItem) * size);
-	
-	return penum;
+	return list[i];
 }
 
-void PropEnum_Free(PropEnum* penum) {
-	Free(penum->item);
-	Free(penum);
-	memset(penum, 0, sizeof(PropEnum));
+static void PropEnum_Set(PropEnum* this, s32 i) {
+	char** list = this->list;
+	
+	this->key = Clamp(i, 0, this->num - 1);
+	printf_info("" PRNT_YELW "%s", __FUNCTION__);
+	printf_info("this->key = %d", this->key);
+	printf_info("\"%s\"", list[this->key]);
+	
+	if (i != this->key)
+		Log("Out of range set!");
+}
+
+PropEnum* PropEnum_Alloc(void* list, s32 num, s32 def) {
+	PropEnum* prop = SysCalloc(sizeof(PropEnum));
+	
+	prop->argument = NULL;
+	prop->list = list;
+	prop->get = PropEnum_Get;
+	prop->set = PropEnum_Set;
+	prop->free = NULL;
+	prop->num = num;
+	prop->key = def;
+	
+	printf_info("" PRNT_YELW "%s", __FUNCTION__);
+	printf_info("prop->num = %d", prop->num);
+	printf_info("prop->key = %d", prop->key);
+	
+	return prop;
+}
+
+void PropEnum_Free(PropEnum* this) {
+	if (this->free)
+		this->free(this);
+	Free(this);
+	memset(this, 0, sizeof(*this));
+}
+
+void PropEnum_ArgCallback(PropEnum* this, void* arg) {
+	this->argument = arg;
+}
+
+void PropEnum_GetCallback(PropEnum* this, EnumGet func) {
+	this->get = func;
+}
+
+void PropEnum_SetCallback(PropEnum* this, EnumSet func) {
+	this->set = func;
+}
+
+void PropEnum_FreeCallback(PropEnum* this, EnumFree func) {
+	this->free = func;
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */
@@ -211,9 +251,19 @@ void DropMenu_Init(GeoGrid* geo, bool useOriginRect) {
 		
 		this->rect.x = this->rectOrigin.x;
 		this->rect.w = this->rectOrigin.w;
+	} else {
+		this->rect.w = 0;
+		nvgFontFace(geo->vg, "dejavu");
+		nvgFontSize(geo->vg, SPLIT_TEXT);
+		nvgTextAlign(geo->vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
+		for (s32 i = 0; i < prop->num; i++)
+			this->rect.w = Max(this->rect.w, Element_TextWidth(geo->vg, prop->get(prop, i)));
+		this->rect.w += SPLIT_ELEM_X_PADDING * 2;
 	}
 	
-	printf("height %d\n", height);
+	printf_info("" PRNT_YELW "%s", __FUNCTION__);
+	printf_info("prop->num = %d", prop->num);
+	printf_info("prop->key = %d", prop->key);
 }
 
 void DropMenu_Close(GeoGrid* geo) {
@@ -273,7 +323,7 @@ void DropMenu_Draw(GeoGrid* geo) {
 			nvgFontFace(vg, "dejavu");
 			nvgFontSize(vg, SPLIT_TEXT);
 			nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
-			nvgText(vg, this->rect.x + SPLIT_ELEM_X_PADDING, this->rect.y + height + SPLIT_ELEM_X_PADDING * 0.5f, prop->item[i].name, NULL);
+			nvgText(vg, this->rect.x + SPLIT_ELEM_X_PADDING, this->rect.y + height + SPLIT_ELEM_X_PADDING * 0.5f, prop->get(prop, i), NULL);
 			
 			height += SPLIT_TEXT_H;
 		}
@@ -287,7 +337,7 @@ void DropMenu_Draw(GeoGrid* geo) {
 	
 	if (Input_GetMouse(geo->input, MOUSE_L)->press) {
 		if (this->key > -1 && in)
-			prop->update(prop, this->key, prop->argument);
+			prop->set(prop, this->key);
 		
 		DropMenu_Close(geo);
 	}
@@ -786,7 +836,7 @@ static void Element_Draw_Combo(ElementCallInfo* info) {
 		vg,
 		r.x + SPLIT_ELEM_X_PADDING,
 		r.y + r.h * 0.5 + 1,
-		prop->item[this->key].name,
+		prop->get(prop, prop->key),
 		NULL
 	);
 	
@@ -1079,7 +1129,6 @@ void Element_Button_SetValue(ElButton* this, bool toggle, bool state) {
 
 void Element_Combo_SetPropEnum(ElCombo* this, PropEnum* prop) {
 	this->prop = prop;
-	this->key = prop->defaultKey;
 }
 
 void Element_Name(Element* this, const char* name) {
