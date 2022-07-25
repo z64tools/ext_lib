@@ -103,26 +103,6 @@ static s32 Element_PressCondition(GeoGrid* geo, Split* split, Rect* rect) {
 	       Split_CursorInRect(split, rect));
 }
 
-static void Element_Draw_TextOutline(void* vg, f32 x, f32 y, char* txt) {
-	nvgFillColor(vg, Theme_GetColor(THEME_SHADOW, 255, 1.0f));
-	nvgFontBlur(vg, 1.0);
-	
-	nvgText(
-		vg,
-		x,
-		y,
-		txt,
-		NULL
-	);
-	nvgText(
-		vg,
-		x,
-		y,
-		txt,
-		NULL
-	);
-}
-
 static void Element_Slider_SetCursorToVal(GeoGrid* geo, Split* split, ElSlider* this) {
 	f32 x = split->rect.x + this->element.rect.x + this->element.rect.w * this->value;
 	f32 y = split->rect.y + this->element.rect.y + this->element.rect.h * 0.5;
@@ -274,7 +254,7 @@ void PropEnum_Free(PropEnum* this) {
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
-void DropMenu_Init(GeoGrid* geo, bool useOriginRect) {
+void DropMenu_Init(GeoGrid* geo, bool useOriginRect, bool highlighCurrentKey) {
 	DropMenu* this = &geo->dropMenu;
 	PropEnum* prop = this->prop;
 	s32 height;
@@ -285,7 +265,9 @@ void DropMenu_Init(GeoGrid* geo, bool useOriginRect) {
 	geo->state.noSplit++;
 	this->pos = geo->input->mouse.pos;
 	this->state.useOriginRect = useOriginRect;
-	this->key = this->prop->key;
+	this->key = -1;
+	if (highlighCurrentKey)
+		this->key = this->prop->key;
 	
 	height = SPLIT_ELEM_X_PADDING * 2 + SPLIT_TEXT_H * prop->num;
 	
@@ -1134,7 +1116,7 @@ s32 Element_Combo(GeoGrid* geo, Split* split, ElCombo* this) {
 				geo->dropMenu.prop = this->prop;
 				geo->dropMenu.element = &this->element;
 				geo->dropMenu.rectOrigin = Rect_AddPos(&this->element.rect, &split->rect);
-				DropMenu_Init(geo, true);
+				DropMenu_Init(geo, true, true);
 			}
 			
 			if (scrollY)

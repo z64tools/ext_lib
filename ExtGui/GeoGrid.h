@@ -312,7 +312,7 @@ void GeoGrid_Init(GeoGrid* geo, Vec2s* winDim, Input* input, void* vg);
 void GeoGrid_Update(GeoGrid* geo);
 void GeoGrid_Draw(GeoGrid* geo);
 
-void DropMenu_Init(GeoGrid* geo, bool useOriginRect);
+void DropMenu_Init(GeoGrid* geo, bool useOriginRect, bool highlighCurrentKey);
 void DropMenu_Update(GeoGrid* geo);
 void DropMenu_Draw(GeoGrid* geo);
 
