@@ -150,6 +150,9 @@ static bool Element_DisableDraw(Element* element, Split* split) {
 static f32 Element_TextWidth(void* vg, const char* txt) {
 	f32 bounds[4];
 	
+	nvgFontFace(vg, "dejavu");
+	nvgFontSize(vg, SPLIT_TEXT);
+	nvgFontBlur(vg, 0.0);
 	nvgTextBounds(vg, 0, 0, txt, 0, bounds);
 	
 	return bounds[2];
@@ -351,11 +354,19 @@ void DropMenu_Draw(GeoGrid* geo) {
 				Element_Draw_RoundedRect(vg, &r, Theme_GetColor(THEME_PRIM, 215, 1.0f));
 			}
 			
+			nvgScissor(vg, UnfoldRect(r));
 			nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
 			nvgFontFace(vg, "dejavu");
 			nvgFontSize(vg, SPLIT_TEXT);
 			nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
-			nvgText(vg, this->rect.x + SPLIT_ELEM_X_PADDING, this->rect.y + height + SPLIT_ELEM_X_PADDING * 0.5f, prop->get(prop, i), NULL);
+			nvgText(
+				vg,
+				this->rect.x + SPLIT_ELEM_X_PADDING,
+				this->rect.y + height + SPLIT_ELEM_X_PADDING * 0.5f + 1,
+				prop->get(prop, i),
+				NULL
+			);
+			nvgResetScissor(vg);
 			
 			height += SPLIT_TEXT_H;
 		}
@@ -393,34 +404,25 @@ static void Element_Draw_Button(ElementCallInfo* info) {
 	
 	if (this->element.name && this->element.rect.w > 8) {
 		char* txt = (char*)this->element.name;
-		char ftxt[512];
-		f32 bounds[4];
+		f32 width;
 		
+		nvgScissor(vg, UnfoldRect(this->element.rect));
 		nvgFontFace(vg, "dejavu");
 		nvgFontSize(vg, SPLIT_TEXT);
-		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-		nvgTextBounds(vg, 0, 0, txt, NULL, bounds);
-		
-		if (bounds[2] > this->element.rect.w - SPLIT_TEXT_PADDING * 2) {
-			strcpy(ftxt, txt);
-			txt = ftxt;
-			
-			while (bounds[2] > this->element.rect.w - SPLIT_TEXT_PADDING * 2) {
-				txt[strlen(txt) - 1] = '\0';
-				nvgTextBounds(vg, 0, 0, txt, NULL, bounds);
-			}
-		}
-		
-		nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
 		nvgFontBlur(vg, 0.0);
+		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+		
+		width = Element_TextWidth(vg, txt);
+		
 		nvgFillColor(vg, this->element.texcol);
 		nvgText(
 			vg,
-			this->element.rect.x + this->element.rect.w * 0.5,
+			this->element.rect.x + ClampMin((this->element.rect.w - width) * 0.5, SPLIT_ELEM_X_PADDING),
 			this->element.rect.y + this->element.rect.h * 0.5 + 1,
 			txt,
 			NULL
 		);
+		nvgResetScissor(vg);
 	}
 }
 
@@ -645,7 +647,6 @@ static void Element_Draw_Text(ElementCallInfo* info) {
 	void* vg = info->geo->vg;
 	// Split* split = info->split;
 	ElText* this = info->arg;
-	f32 width;
 	f32 max = this->element.rect.w;
 	char tempText[512];
 	
@@ -659,20 +660,18 @@ static void Element_Draw_Text(ElementCallInfo* info) {
 	
 	nvgFontFace(vg, "dejavu");
 	nvgFontSize(vg, SPLIT_TEXT);
+	nvgFontBlur(vg, 0.0);
 	nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
 	
-	width = Element_TextWidth(vg, this->element.name);
-	while (width > max) {
-		Log("%.2f > %.2f", width, max);
-		strcpy(tempText + ClampMin(strlen(tempText) - 3, 0), "..");
-		
-		width = Element_TextWidth(vg, tempText);
-	}
-	
-	nvgFontBlur(vg, 0.0);
 	nvgFillColor(vg, this->element.texcol);
 	
 	if (this->element.dispText == true) {
+		Rect r = this->element.rect;
+		
+		r.x = this->element.posTxt.x;
+		r.w = this->element.rect.x - r.x - SPLIT_ELEM_X_PADDING;
+		
+		nvgScissor(vg, UnfoldRect(r));
 		nvgText(
 			vg,
 			this->element.posTxt.x,
@@ -681,6 +680,7 @@ static void Element_Draw_Text(ElementCallInfo* info) {
 			NULL
 		);
 	} else {
+		nvgScissor(vg, UnfoldRect(this->element.rect));
 		nvgText(
 			vg,
 			this->element.rect.x,
@@ -689,6 +689,7 @@ static void Element_Draw_Text(ElementCallInfo* info) {
 			NULL
 		);
 	}
+	nvgResetScissor(vg);
 }
 
 static void Element_Draw_Checkbox(ElementCallInfo* info) {
@@ -818,12 +819,13 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 		);
 	}
 	
+	nvgScissor(vg, UnfoldRect(this->element.rect));
 	nvgFontFace(vg, "dejavu");
 	nvgFontSize(vg, SPLIT_TEXT);
+	nvgFontBlur(vg, 0.0);
 	nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
 	
 	nvgFillColor(vg, this->element.texcol);
-	nvgFontBlur(vg, 0.0);
 	nvgText(
 		vg,
 		this->element.rect.x + this->element.rect.w * 0.5,
@@ -831,6 +833,7 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 		this->textBox.txt,
 		NULL
 	);
+	nvgResetScissor(vg);
 }
 
 static void Element_Draw_Combo(ElementCallInfo* info) {
@@ -847,11 +850,6 @@ static void Element_Draw_Combo(ElementCallInfo* info) {
 		{ -5.0f, -2.5f },
 	};
 	
-	nvgFontFace(vg, "dejavu");
-	
-	nvgFontSize(vg, SPLIT_TEXT);
-	nvgFontBlur(vg, 0.0);
-	
 	Element_Draw_RoundedOutline(vg, &r, this->element.light);
 	
 	if (&this->element == geo->dropMenu.element)
@@ -863,6 +861,10 @@ static void Element_Draw_Combo(ElementCallInfo* info) {
 		r.h -= 2;
 	
 	if (prop) {
+		nvgScissor(vg, UnfoldRect(this->element.rect));
+		nvgFontFace(vg, "dejavu");
+		nvgFontSize(vg, SPLIT_TEXT);
+		nvgFontBlur(vg, 0.0);
 		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
 		nvgFillColor(vg, this->element.texcol);
 		nvgText(
@@ -872,6 +874,7 @@ static void Element_Draw_Combo(ElementCallInfo* info) {
 			prop->get(prop, prop->key),
 			NULL
 		);
+		nvgResetScissor(vg);
 	}
 	
 	center.x = r.x + r.w - 5 - 5;
@@ -1250,9 +1253,6 @@ void Element_DisplayName(Element* this) {
 	s32 w = this->rect.w * 0.25f;
 	
 	Assert(sGeo && sSplit);
-	
-	if (w < 32)
-		return;
 	
 	this->posTxt.x = this->rect.x;
 	this->posTxt.y = this->rect.y + this->rect.h * 0.5 + 1;

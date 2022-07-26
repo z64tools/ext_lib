@@ -299,4 +299,6 @@ bool Rect_PointIntersect(Rect* rect, s32 x, s32 y);
 #define BinToDeg(binang)   ((f32)binang * (360.0001525f / 65535.0f))
 #define BinToRad(binang)   (((f32)binang / 32768.0f) * M_PI)
 
+#define UnfoldRect(rect) (rect).x, (rect).y, (rect).w, (rect).h
+
 #endif
