@@ -396,3 +396,210 @@ bool Rect_PointIntersect(Rect* rect, s32 x, s32 y) {
 	
 	return false;
 }
+
+Vec2s Rect_ClosestPoint(Rect* rect, s32 x, s32 y) {
+	Vec2s r;
+	
+	if (x >= rect->x && x < rect->x + rect->w)
+		r.x = x;
+	
+	else
+		r.x = Closest(x, rect->x, rect->x + rect->w);
+	
+	if (y >= rect->y && y < rect->y + rect->h)
+		r.y = y;
+	
+	else
+		r.y = Closest(y, rect->y, rect->y + rect->h);
+	
+	return r;
+}
+
+f32 Rect_PointDistance(Rect* rect, s32 x, s32 y) {
+	Vec2s p = { x, y };
+	Vec2s r = Rect_ClosestPoint(rect, x, y);
+	
+	return Math_Vec2s_DistXZ(&r, &p);
+}
+
+#undef Vector_New
+#define Vector_New(format, type) \
+	Vec2 ## format Math_Vec2 ## format ## _New(type x, type y) { \
+		return (Vec2 ## format) { x, y }; \
+	} \
+	Vec3 ## format Math_Vec3 ## format ## _New(type x, type y, type z) { \
+		return (Vec3 ## format) { x, y, z }; \
+	} \
+	Vec4 ## format Math_Vec4 ## format ## _New(type x, type y, type z, type w) { \
+		return (Vec4 ## format) { x, y, z, w }; \
+	}
+
+Vector_New(f, f32)
+// Vector_New(i, s32)
+Vector_New(s, s16)
+
+#define Vector_Equal(format, type) \
+	bool Math_Vec2 ## format ## _Equal(Vec2 ## format a, Vec2 ## format b) { \
+		return !memcmp(&a, &b, sizeof(a)); \
+	} \
+	bool Math_Vec3 ## format ## _Equal(Vec3 ## format a, Vec3 ## format b) { \
+		return !memcmp(&a, &b, sizeof(a)); \
+	} \
+	bool Math_Vec4 ## format ## _Equal(Vec4 ## format a, Vec4 ## format b) { \
+		return !memcmp(&a, &b, sizeof(a)); \
+	}
+
+Vector_Equal(f, f32)
+// Vector_Equal(i, s32)
+Vector_Equal(s, s16)
+
+#define Vector_Dot(format, type) \
+	f32 Math_Vec2 ## format ## _Dot(Vec2 ## format a, Vec2 ## format b) { \
+		f32 dot = 0.0f; \
+		for (s32 i = 0; i < 2; i++) \
+		dot += a.axis[i] *b.axis[i]; \
+		return dot; \
+	} \
+	f32 Math_Vec3 ## format ## _Dot(Vec3 ## format a, Vec3 ## format b) { \
+		f32 dot = 0.0f; \
+		for (s32 i = 0; i < 3; i++) \
+		dot += a.axis[i] *b.axis[i]; \
+		return dot; \
+	} \
+	f32 Math_Vec4 ## format ## _Dot(Vec4 ## format a, Vec4 ## format b) { \
+		f32 dot = 0.0f; \
+		for (s32 i = 0; i < 4; i++) \
+		dot += a.axis[i] *b.axis[i]; \
+		return dot; \
+	}
+
+Vector_Dot(f, f32)
+// Vector_Dot(i, s32)
+Vector_Dot(s, s16)
+
+#define Vector_MgnSQ(format, type) \
+	f32 Math_Vec2 ## format ## _MagnitudeSQ(Vec2 ## format a) { \
+		return Math_Vec2 ## format ## _Dot(a, a); \
+	} \
+	f32 Math_Vec3 ## format ## _MagnitudeSQ(Vec3 ## format a) { \
+		return Math_Vec3 ## format ## _Dot(a, a); \
+	} \
+	f32 Math_Vec4 ## format ## _MagnitudeSQ(Vec4 ## format a) { \
+		return Math_Vec4 ## format ## _Dot(a, a); \
+	}
+
+#define Vector_Mgn(format, type) \
+	f32 Math_Vec2 ## format ## _Magnitude(Vec2 ## format a) { \
+		return sqrtf(Math_Vec2 ## format ## _MagnitudeSQ(a)); \
+	} \
+	f32 Math_Vec3 ## format ## _Magnitude(Vec3 ## format a) { \
+		return sqrtf(Math_Vec3 ## format ## _MagnitudeSQ(a)); \
+	} \
+	f32 Math_Vec4 ## format ## _Magnitude(Vec4 ## format a) { \
+		return sqrtf(Math_Vec4 ## format ## _MagnitudeSQ(a)); \
+	}
+
+Vector_MgnSQ(f, f32)
+// Vector_MgnSQ(i, s32)
+Vector_MgnSQ(s, s16)
+Vector_Mgn(f, f32)
+// Vector_Mgn(i, s32)
+Vector_Mgn(s, s16)
+
+Vec3f Math_Vec3f_Cross(Vec3f a, Vec3f b) {
+	return (Vec3f) {
+		       (a.y * b.z - b.y * a.z),
+		       (a.z * b.x - b.z * a.x),
+		       (a.x * b.y - b.x * a.y)
+	};
+}
+// Vec3i Math_Vec3i_Cross(Vec3i a, Vec3i b) {
+// 	return (Vec3i) {
+// 		       (a.y * b.z - b.y * a.z),
+// 		       (a.z * b.x - b.z * a.x),
+// 		       (a.x * b.y - b.x * a.y)
+// 	};
+// }
+Vec3s Math_Vec3s_Cross(Vec3s a, Vec3s b) {
+	return (Vec3s) {
+		       (a.y * b.z - b.y * a.z),
+		       (a.z * b.x - b.z * a.x),
+		       (a.x * b.y - b.x * a.y)
+	};
+}
+
+#define Vector_Nrm(format, type) \
+	void Math_Vec2 ## format ## _Normalize(Vec2 ## format a) { \
+		f32 mgn = Math_Vec2 ## format ## _Magnitude(a); \
+		if (mgn == 0.0f) Math_Vec2 ## format ## _MulVal(a, 0.0f); \
+		else Math_Vec2 ## format ## _DivVal(a, mgn); \
+	} \
+	void Math_Vec3 ## format ## _Normalize(Vec3 ## format a) { \
+		f32 mgn = Math_Vec3 ## format ## _Magnitude(a); \
+		if (mgn == 0.0f) Math_Vec3 ## format ## _MulVal(a, 0.0f); \
+		else Math_Vec3 ## format ## _DivVal(a, mgn); \
+	} \
+	void Math_Vec4 ## format ## _Normalize(Vec4 ## format a) { \
+		f32 mgn = Math_Vec4 ## format ## _Magnitude(a); \
+		if (mgn == 0.0f) Math_Vec4 ## format ## _MulVal(a, 0.0f); \
+		else Math_Vec4 ## format ## _DivVal(a, mgn); \
+	}
+
+Vector_Nrm(f, f32)
+// Vector_Nrm(i, s32)
+Vector_Nrm(s, s16)
+
+#undef Vector_Math
+#define Vector_Math(format, type, name, operator) \
+	Vec2 ## format Math_Vec2 ## format ## _ ## name (Vec2 ## format a, Vec2 ## format b) { \
+		Vec2 ## format vec = a; \
+		for (s32 i = 0; i < 2; i++) \
+		vec.axis[i] = a.axis[i] operator b.axis[i]; \
+		return vec; \
+	} \
+	Vec3 ## format Math_Vec3 ## format ## _ ## name (Vec3 ## format a, Vec3 ## format b) { \
+		Vec3 ## format vec = a; \
+		for (s32 i = 0; i < 3; i++) \
+		vec.axis[i] = a.axis[i] operator b.axis[i]; \
+		return vec; \
+	} \
+	Vec4 ## format Math_Vec4 ## format ## _ ## name (Vec4 ## format a, Vec4 ## format b) { \
+		Vec4 ## format vec = a; \
+		for (s32 i = 0; i < 4; i++) \
+		vec.axis[i] = a.axis[i] operator b.axis[i]; \
+		return vec; \
+	} \
+	Vec2 ## format Math_Vec2 ## format ## _ ## name ## Val(Vec2 ## format a, type val) { \
+		Vec2 ## format vec = a; \
+		for (s32 i = 0; i < 2; i++) \
+		vec.axis[i] = a.axis[i] operator val; \
+		return vec; \
+	} \
+	Vec3 ## format Math_Vec3 ## format ## _ ## name ## Val(Vec3 ## format a, type val) { \
+		Vec3 ## format vec = a; \
+		for (s32 i = 0; i < 3; i++) \
+		vec.axis[i] = a.axis[i] operator val; \
+		return vec; \
+	} \
+	Vec4 ## format Math_Vec4 ## format ## _ ## name ## Val(Vec4 ## format a, type val) { \
+		Vec4 ## format vec = a; \
+		for (s32 i = 0; i < 4; i++) \
+		vec.axis[i] = a.axis[i] operator val; \
+		return vec; \
+	}
+
+Vector_Math(f, f32, Sub, -)
+// Vector_Math(i, s32, Sub, -)
+Vector_Math(s, s16, Sub, -)
+
+Vector_Math(f, f32, Add, +)
+// Vector_Math(i, s32, Add, +)
+Vector_Math(s, s16, Add, +)
+
+Vector_Math(f, f32, Div, /)
+// Vector_Math(i, s32, Div, /)
+Vector_Math(s, s16, Div, /)
+
+Vector_Math(f, f32, Mul, *)
+// Vector_Math(i, s32, Mul, *)
+Vector_Math(s, s16, Mul, *)

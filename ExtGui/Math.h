@@ -32,7 +32,7 @@ extern f64 gDeltaTime;
 	} Vec2 ## suffix;
 
 __EXT_VECTYPEDEF(f32, f)
-__EXT_VECTYPEDEF(s32, i)
+// __EXT_VECTYPEDEF(s32, i)
 __EXT_VECTYPEDEF(s16, s)
 
 typedef struct {
@@ -94,192 +94,84 @@ Rect Rect_Sub(Rect* a, Rect* b);
 Rect Rect_AddPos(Rect* a, Rect* b);
 Rect Rect_SubPos(Rect* a, Rect* b);
 bool Rect_PointIntersect(Rect* rect, s32 x, s32 y);
+Vec2s Rect_ClosestPoint(Rect* rect, s32 x, s32 y);
+f32 Rect_PointDistance(Rect* rect, s32 x, s32 y);
 
-#define Vec2_Substract(type, a, b) ( \
-		(Vec2 ## type) { \
-		a.x - b.x, \
-		a.y - b.y, \
-	})
-#define Vec3_Substract(type, a, b) ( \
-		(Vec3 ## type) { \
-		a.x - b.x, \
-		a.y - b.y, \
-		a.z - b.z, \
-	})
-#define Vec4_Substract(type, a, b) ( \
-		(Vec4 ## type) { \
-		a.x - b.x, \
-		a.y - b.y, \
-		a.z - b.z, \
-		a.w - b.w, \
+#define veccmp(a, b) ({ \
+		bool r = false; \
+		for (s32 i = 0; i < sizeof((*(a))) / sizeof((*(a)).x); i++) \
+		if ((*(a)).axis[i] != (*(b)).axis[i]) r = true; \
+		r; \
 	})
 
-#define Vec2_Add(type, a, b) ( \
-		(Vec2 ## type) { \
-		a.x + b.x, \
-		a.y + b.y, \
-	})
-#define Vec3_Add(type, a, b) ( \
-		(Vec3 ## type) { \
-		a.x + b.x, \
-		a.y + b.y, \
-		a.z + b.z, \
-	})
-#define Vec4_Add(type, a, b) ( \
-		(Vec4 ## type) { \
-		a.x + b.x, \
-		a.y + b.y, \
-		a.z + b.z, \
-		a.w + b.w, \
-	})
+#define veccpy(a, b) do { \
+	for (s32 i = 0; i < sizeof((*(a))) / sizeof((*(a)).x); i++) \
+	(*(a)).axis[i] = (*(b)).axis[i]; \
+} while (0)
 
-#define Vec2_Equal(a, b) ( \
-		a.x == b.x && \
-		a.y == b.y \
-)
-#define Vec3_Equal(a, b) ( \
-		a.x == b.x && \
-		a.y == b.y && \
-		a.z == b.z \
-)
-#define Vec4_Equal(a, b) ( \
-		a.x == b.x && \
-		a.y == b.y && \
-		a.z == b.z && \
-		a.w == b.w \
-)
+#define Vector_New(format, type) \
+	Vec2 ## format Math_Vec2 ## format ## _New(type x, type y); \
+	Vec3 ## format Math_Vec3 ## format ## _New(type x, type y, type z); \
+	Vec4 ## format Math_Vec4 ## format ## _New(type x, type y, type z, type w)
 
-#define Vec2_Copy(dest, src) { \
-		dest.x = src.x; \
-		dest.y = src.y; \
-		dest.z = src.z; \
-}
-#define Vec3_Copy(dest, src) { \
-		dest.x = src.x; \
-		dest.y = src.y; \
-		dest.z = src.z; \
-}
-#define Vec4_Copy(dest, src) { \
-		dest.x = src.x; \
-		dest.y = src.y; \
-		dest.z = src.z; \
-		dest.w = src.w; \
-}
+#define Vector_TwoArgRet(ret, name, format, type) \
+	ret Math_Vec2 ## format ## _ ## name(Vec2 ## format a, Vec2 ## format b); \
+	ret Math_Vec3 ## format ## _ ## name(Vec3 ## format a, Vec3 ## format b); \
+	ret Math_Vec4 ## format ## _ ## name(Vec4 ## format a, Vec4 ## format b)
 
-#define Vec2_MultVec(dest, src) { \
-		dest.x *= src.x; \
-		dest.y *= src.y; \
-}
-#define Vec3_MultVec(dest, src) { \
-		dest.x *= src.x; \
-		dest.y *= src.y; \
-		dest.z *= src.z; \
-}
-#define Vec4_MultVec(dest, src) { \
-		dest.x *= src.x; \
-		dest.y *= src.y; \
-		dest.z *= src.z; \
-		dest.w *= src.w; \
-}
+#define Vector_OneArgRet(ret, name, format, type) \
+	ret Math_Vec2 ## format ## _ ## name(Vec2 ## format a); \
+	ret Math_Vec3 ## format ## _ ## name(Vec3 ## format a); \
+	ret Math_Vec4 ## format ## _ ## name(Vec4 ## format a)
 
-#define Vec2_Mult(dest, src) { \
-		dest.x *= src; \
-		dest.y *= src; \
-}
-#define Vec3_Mult(dest, src) { \
-		dest.x *= src; \
-		dest.y *= src; \
-		dest.z *= src; \
-}
-#define Vec4_Mult(dest, src) { \
-		dest.x *= src; \
-		dest.y *= src; \
-		dest.z *= src; \
-		dest.w *= src; \
-}
+#define Vector_Math(name, format, type) \
+	Vec2 ## format Math_Vec2 ## format ## _ ## name(Vec2 ## format a, Vec2 ## format b); \
+	Vec3 ## format Math_Vec3 ## format ## _ ## name(Vec3 ## format a, Vec3 ## format b); \
+	Vec4 ## format Math_Vec4 ## format ## _ ## name(Vec4 ## format a, Vec4 ## format b); \
+	Vec2 ## format Math_Vec2 ## format ## _ ## name ## Val(Vec2 ## format a, type val); \
+	Vec3 ## format Math_Vec3 ## format ## _ ## name ## Val(Vec3 ## format a, type val); \
+	Vec4 ## format Math_Vec4 ## format ## _ ## name ## Val(Vec4 ## format a, type val)
 
-#define Vec2_Dot(a, b) ({ \
-		(a.x * b.x) + \
-		(a.y * b.y); \
-	})
-#define Vec3_Dot(a, b) ({ \
-		(a.x * b.x) + \
-		(a.y * b.y) + \
-		(a.z * b.z); \
-	})
-#define Vec4_Dot(a, b) ({ \
-		(a.x * b.x) + \
-		(a.y * b.y) + \
-		(a.z * b.z) + \
-		(a.w * b.w); \
-	})
+#define Vector_VecValRetSame(name, format, type) \
+	Vec2 ## format Math_Vec2 ## format ## _ ## name(Vec2 ## format a, type val); \
+	Vec3 ## format Math_Vec3 ## format ## _ ## name(Vec3 ## format a, type val); \
+	Vec4 ## format Math_Vec4 ## format ## _ ## name(Vec4 ## format a, type val)
 
-#define Vec3_Cross(a, b) ({ \
-		(typeof(a)) { \
-			a.y* b.z - b.y* a.z, \
-			a.z* b.x - b.z* a.x, \
-			a.x* b.y - b.x* a.y \
-		}; \
-	})
+Vector_New(f, f32);
+// Vector_New(i, s32);
+Vector_New(s, s16);
 
-#define Vec2_Magnitude(a) ({ \
-		sqrtf( \
-			(a.x * a.x) + \
-			(a.y * a.y) \
-		); \
-	})
-#define Vec3_Magnitude(a) ({ \
-		sqrtf( \
-			(a.x * a.x) + \
-			(a.y * a.y) + \
-			(a.z * a.z) \
-		); \
-	})
-#define Vec4_Magnitude(a) ({ \
-		sqrtf( \
-			(a.x * a.x) + \
-			(a.y * a.y) + \
-			(a.z * a.z) + \
-			(a.w * a.w) \
-		); \
-	})
+Vector_Math(Add, f, f32);
+// Vector_Math(Add, i, s32);
+Vector_Math(Add, s, s16);
+Vector_Math(Sub, f, f32);
+// Vector_Math(Sub, i, s32);
+Vector_Math(Sub, s, s16);
+Vector_Math(Div, f, f32);
+// Vector_Math(Div, i, s32);
+Vector_Math(Div, s, s16);
+Vector_Math(Mul, f, f32);
+// Vector_Math(Mul, i, s32);
+Vector_Math(Mul, s, s16);
+Vector_TwoArgRet(bool, Equal, f, f32);
+// Vector_TwoArgRet(bool, Equal, i, s32);
+Vector_TwoArgRet(bool, Equal, s, s16);
+Vector_TwoArgRet(f32, Dot, f, f32);
+// Vector_TwoArgRet(f32, Dot, i, s32);
+Vector_TwoArgRet(f32, Dot, s, s16);
+Vector_OneArgRet(f32, MagnitudeSQ, f, f32);
+// Vector_OneArgRet(f32, MagnitudeSQ, i, s32);
+Vector_OneArgRet(f32, MagnitudeSQ, s, s16);
+Vector_OneArgRet(f32, Magnitude, f, f32);
+// Vector_OneArgRet(f32, Magnitude, i, s32);
+Vector_OneArgRet(f32, Magnitude, s, s16);
+Vector_OneArgRet(void, Normalize, f, f32);
+// Vector_OneArgRet(void, Normalize, i, s32);
+Vector_OneArgRet(void, Normalize, s, s16);
 
-#define Vec2_Normalize(a) ({ \
-		typeof(a) ret; \
-		f64 mgn = Vec2_Magnitude(a); \
-		if (mgn == 0) { \
-			ret.x = ret.y = 0; \
-		} else { \
-			ret.x = a.x / mgn; \
-			ret.y = a.y / mgn; \
-		} \
-		ret; \
-	})
-#define Vec3_Normalize(a) ({ \
-		typeof(a) ret; \
-		f64 mgn = Vec3_Magnitude(a); \
-		if (mgn == 0) { \
-			ret.x = ret.y = ret.z = 0; \
-		} else { \
-			ret.x = a.x / mgn; \
-			ret.y = a.y / mgn; \
-			ret.z = a.z / mgn; \
-		} \
-		ret; \
-	})
-#define Vec4_Normalize(a) ({ \
-		typeof(a) ret; \
-		f64 mgn = Vec4_Magnitude(a); \
-		if (mgn == 0) { \
-			ret.x = ret.y = ret.z = ret.w = 0; \
-		} else { \
-			ret.x = a.x / mgn; \
-			ret.y = a.y / mgn; \
-			ret.z = a.z / mgn; \
-			ret.w = a.w / mgn; \
-		} \
-		ret; \
-	})
+Vec3f Vec3f_Cross(Vec3f a, Vec3f b);
+// Vec3i Vec3i_Cross(Vec3i a, Vec3i b);
+Vec3s Vec3s_Cross(Vec3s a, Vec3s b);
 
 #define SQ(x)   ((x) * (x))
 #define SinS(x) sinf(BinToRad((s16)(x)))

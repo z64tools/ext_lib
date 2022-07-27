@@ -4430,6 +4430,17 @@ f32 PingPongF(f32 v, f32 min, f32 max) {
 		return 2 * max - min;
 }
 
+f32 Closest(f32 v, f32 x, f32 y) {
+	if ((Min(v, x) - Max(v, x) > Min(v, y) - Max(v, y)))
+		return x;
+	
+	return y;
+}
+
+f32 Remap(f32 v, f32 iMin, f32 iMax, f32 oMin, f32 oMax) {
+	return (v - iMin) / (iMax - iMin) * (oMax - oMin) + oMin;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # SHA                                 #
 // # # # # # # # # # # # # # # # # # # # #

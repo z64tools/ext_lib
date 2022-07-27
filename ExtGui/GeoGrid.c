@@ -3,9 +3,13 @@
 
 f32 gPixelRatio = 1.0f;
 
-static void GeoGrid_RemoveDublicates(GeoGrid* geo);
+static void GeoGrid_RemoveDuplicates(GeoGrid* geo);
 static void Split_UpdateRect(Split* split);
 void Element_SetContext(GeoGrid* setGeo, Split* setSplit);
+
+Vec2f gZeroVec2f;
+Vec2s gZeroVec2s;
+Rect gZeroRect;
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
@@ -13,8 +17,8 @@ static SplitDir GeoGrid_GetDir_Opposite(SplitDir dir) {
 	return WrapS(dir + 2, DIR_L, DIR_B + 1);
 }
 
-static SplitDir GeoGrid_GerDir_MouseToPressPos(Split* split) {
-	Vec2s pos = Vec2_Substract(s, split->mousePos, split->mousePressPos);
+static SplitDir GeoGrid_GetDir_MouseToPressPos(Split* split) {
+	Vec2s pos = Math_Vec2s_Sub(split->mousePos, split->mousePressPos);
 	
 	if (Abs(pos.x) > Abs(pos.y)) {
 		if (pos.x < 0) {
@@ -106,32 +110,35 @@ static SplitEdge* GeoGrid_AddEdge(GeoGrid* geo, SplitVtx* v1, SplitVtx* v2) {
 }
 
 static s32 Split_CursorDistToFlagPos(SplitState flag, Split* split) {
+	/*
+	 * Manipulate distance check based on the flag so that we get the
+	 * distance always to the point or line we need. For points we
+	 * utilize both mouse positions, for sides (edge) we utilize only
+	 * one axis that makes sense for the direction of that side.
+	 */
 	Vec2s mouse[] = {
-		{ split->mousePos.x, split->mousePos.y },
-		{ split->mousePos.x, split->mousePos.y },
-		{ split->mousePos.x, split->mousePos.y },
-		{ split->mousePos.x, split->mousePos.y },
-		{ split->mousePos.x, 0 },
-		{ 0,                 split->mousePos.y },
-		{ split->mousePos.x, 0 },
-		{ 0,                 split->mousePos.y }
+		/* SPLIT_POINT_BL */ { split->mousePos.x, split->mousePos.y },
+		/* SPLIT_POINT_TL */ { split->mousePos.x, split->mousePos.y },
+		/* SPLIT_POINT_TR */ { split->mousePos.x, split->mousePos.y },
+		/* SPLIT_POINT_BR */ { split->mousePos.x, split->mousePos.y },
+		/* SPLIT_SIDE_L   */ { split->mousePos.x, 0 },
+		/* SPLIT_SIDE_T   */ { 0,                 split->mousePos.y },
+		/* SPLIT_SIDE_R   */ { split->mousePos.x, 0 },
+		/* SPLIT_SIDE_B   */ { 0,                 split->mousePos.y }
 	};
 	Vec2s pos[] = {
-		{ 0,             split->rect.h, },
-		{ 0,             0,            },
-		{ split->rect.w, 0,            },
-		{ split->rect.w, split->rect.h, },
-		{ 0,             0,            },
-		{ 0,             0,            },
-		{ split->rect.w, 0,            },
-		{ 0,             split->rect.h, },
+		/* SPLIT_POINT_BL */ { 0,             split->rect.h, },
+		/* SPLIT_POINT_TL */ { 0,             0,            },
+		/* SPLIT_POINT_TR */ { split->rect.w, 0,            },
+		/* SPLIT_POINT_BR */ { split->rect.w, split->rect.h, },
+		/* SPLIT_SIDE_L   */ { 0,             0,            },
+		/* SPLIT_SIDE_T   */ { 0,             0,            },
+		/* SPLIT_SIDE_R   */ { split->rect.w, 0,            },
+		/* SPLIT_SIDE_B   */ { 0,             split->rect.h, },
 	};
 	s32 i;
 	
-	for (i = 0; (1 << i) <= SPLIT_SIDE_B; i++) {
-		if (flag & (1 << i))
-			break;
-	}
+	i = bitscan32(flag);
 	
 	return Math_Vec2s_DistXZ(&mouse[i], &pos[i]);
 }
@@ -170,17 +177,15 @@ static SplitState Split_GetCursorPosState(Split* split, s32 range) {
 }
 
 bool Split_CursorInRect(Split* split, Rect* rect) {
-	s32 resX = (split->mousePos.x < rect->x + rect->w && split->mousePos.x >= rect->x);
-	s32 resY = (split->mousePos.y < rect->y + rect->h && split->mousePos.y >= rect->y);
-	
-	return (resX && resY);
+	return Rect_PointIntersect(rect, split->mousePos.x, split->mousePos.y);
 }
 
 bool Split_CursorInSplit(Split* split) {
-	s32 resX = (split->mousePos.x < split->rect.w && split->mousePos.x >= 0);
-	s32 resY = (split->mousePos.y < split->rect.h && split->mousePos.y >= 0);
+	Rect r = split->rect;
 	
-	return (resX && resY);
+	r.x = r.y = 0;
+	
+	return Rect_PointIntersect(&r, split->mousePos.x, split->mousePos.y);
 }
 
 static Split* Split_Alloc(const char* name) {
@@ -335,7 +340,7 @@ static void Split_Split(GeoGrid* geo, Split* split, SplitDir dir) {
 	newSplit->edge[EDGE_B] = GeoGrid_AddEdge(geo, newSplit->vtx[VTX_BOT_R], newSplit->vtx[VTX_BOT_L]);
 	
 	geo->actionEdge = newSplit->edge[dir];
-	GeoGrid_RemoveDublicates(geo);
+	GeoGrid_RemoveDuplicates(geo);
 	Edge_SetSlideClamp(geo);
 	Split_UpdateRect(split);
 	Split_UpdateRect(newSplit);
@@ -395,7 +400,7 @@ static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
 		geo->taskTable[killSplit->id]->destroy(geo->passArg, geo->taskTable[killSplit->id]->instance, killSplit);
 	
 	Node_Kill(geo->splitHead, killSplit);
-	GeoGrid_RemoveDublicates(geo);
+	GeoGrid_RemoveDuplicates(geo);
 	Split_UpdateRect(split);
 }
 
@@ -420,7 +425,7 @@ static void Vtx_RemoveDuplicates(GeoGrid* geo, SplitVtx* vtx) {
 			continue;
 		}
 		
-		if (Vec2_Equal(&vtx->pos, &vtx2->pos)) {
+		if (veccmp(&vtx->pos, &vtx2->pos)) {
 			SplitVtx* kill = vtx2;
 			Split* s = geo->splitHead;
 			SplitEdge* e = geo->edgeHead;
@@ -686,15 +691,15 @@ static void Split_UpdateActionSplit(GeoGrid* geo) {
 			s32 dist = Math_Vec2s_DistXZ(&split->mousePos, &split->mousePressPos);
 			
 			if (dist > 1) {
-				CursorIndex cid = GeoGrid_GerDir_MouseToPressPos(split) + 1;
+				CursorIndex cid = GeoGrid_GetDir_MouseToPressPos(split) + 1;
 				Cursor_SetCursor(cid);
 			}
 			if (dist > SPLIT_CLAMP * 1.05) {
 				Split_ClearActionSplit(geo);
 				if (split->mouseInSplit) {
-					Split_Split(geo, split, GeoGrid_GerDir_MouseToPressPos(split));
+					Split_Split(geo, split, GeoGrid_GetDir_MouseToPressPos(split));
 				} else {
-					Split_Kill(geo, split, GeoGrid_GerDir_MouseToPressPos(split));
+					Split_Kill(geo, split, GeoGrid_GetDir_MouseToPressPos(split));
 				}
 			}
 		}
@@ -737,7 +742,8 @@ static void Split_Update(GeoGrid* geo) {
 			0, split->rect.h - SPLIT_BAR_HEIGHT,
 			split->rect.w, SPLIT_BAR_HEIGHT
 		};
-		split->mousePos = Vec2_Substract(s, mouse->pos, rectPos);
+		
+		split->mousePos = Math_Vec2s_Sub(mouse->pos, rectPos);
 		split->mouseInSplit = Split_CursorInSplit(split);
 		split->mouseInHeader = Split_CursorInRect(split, &headerRect);
 		split->center.x = split->rect.w * 0.5f;
@@ -967,7 +973,7 @@ static void Split_Draw(GeoGrid* geo) {
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
-static void GeoGrid_RemoveDublicates(GeoGrid* geo) {
+static void GeoGrid_RemoveDuplicates(GeoGrid* geo) {
 	SplitVtx* vtx = geo->vtxHead;
 	SplitEdge* edge = geo->edgeHead;
 	

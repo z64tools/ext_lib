@@ -173,18 +173,24 @@ typedef struct {
 	u32 noClickInput;
 } GeoState;
 
+typedef enum {
+	PROP_ENUM,
+	PROP_COLOR,
+} PropType;
+
 typedef struct {
-	struct Element*  element;
-	struct PropEnum* prop;
+	struct Element* element;
+	void*    prop;
+	PropType type;
 	Rect  rectOrigin;
 	Rect  rect;
 	Vec2s pos;
 	s32   key;
 	struct {
-		s32 useOriginRect : 1;
-		s32 dirH          : 4;
-		s32 dirV          : 4;
-		s32 init          : 1;
+		s32 dirH         : 4;
+		s32 dirV         : 4;
+		s32 init         : 1;
+		s32 setCondition : 1;
 	} state;
 } DropMenu;
 
@@ -222,17 +228,21 @@ typedef struct GeoGrid {
 
 struct PropEnum;
 
-typedef char* (* EnumGet)(struct PropEnum*, s32);
-typedef void (* EnumSet)(struct PropEnum*, s32);
-
 typedef struct PropEnum {
-	void*   argument;
-	char**  list;
-	EnumGet get;
-	EnumSet set;
+	void*  argument;
+	char** list;
+	char* (* get)(struct PropEnum*, s32);
+	void (* set)(struct PropEnum*, s32);
 	s32 num;
 	s32 key;
 } PropEnum;
+
+typedef struct PropColor {
+	void* argument;
+	void* color;
+	char* (* get)(struct PropColor*);
+	void (* set)(struct PropColor*);
+} PropColor;
 
 typedef struct Element {
 	Rect        rect;
@@ -250,7 +260,7 @@ typedef struct Element {
 	u32 dispText : 1;
 } Element;
 
-typedef struct ElButton {
+typedef struct {
 	Element element;
 	u8 state;
 	u8 autoWidth;
@@ -258,10 +268,10 @@ typedef struct ElButton {
 
 typedef struct {
 	Element element;
-	char    txt[128];
+	char txt[128];
 	s32 size;
-	u8  isNumBox   : 1;
-	u8  isHintText : 2;
+	u8 isNumBox   : 1;
+	u8 isHintText : 2;
 	TextAlign align;
 	struct {
 		u8  isInt : 1;
@@ -302,6 +312,10 @@ typedef struct {
 	PropEnum* prop;
 } ElCombo;
 
+extern Vec2f gZeroVec2f;
+extern Vec2s gZeroVec2s;
+extern Rect gZeroRect;
+
 bool Split_CursorInRect(Split* split, Rect* rect);
 bool Split_CursorInSplit(Split* split);
 Split* GeoGrid_AddSplit(GeoGrid* geo, const char* name, Rectf32* rect);
@@ -312,7 +326,7 @@ void GeoGrid_Init(GeoGrid* geo, Vec2s* winDim, Input* input, void* vg);
 void GeoGrid_Update(GeoGrid* geo);
 void GeoGrid_Draw(GeoGrid* geo);
 
-void DropMenu_Init(GeoGrid* geo, bool useOriginRect, bool highlighCurrentKey);
+void DropMenu_Init(GeoGrid* geo, void* uprop, PropType type, Rect rect);
 void DropMenu_Update(GeoGrid* geo);
 void DropMenu_Draw(GeoGrid* geo);
 
@@ -337,24 +351,26 @@ void Element_Combo_SetPropEnum(ElCombo* this, PropEnum* prop);
 void Element_Name(Element* this, const char* name);
 void Element_Disable(Element* element);
 void Element_Enable(Element* element);
+void Element_Condition(Element* element, s32 condition);
 void Element_RowY(f32 y);
 void Element_Row(Split* split, s32 rectNum, ...);
 
 void Element_Update(GeoGrid* geo);
 void Element_Draw(GeoGrid* geo, Split* split);
 
-#define Element_Name(el, name)    Element_Name(el.element, name)
-#define Element_Disable(el)       Element_Disable(el.element)
-#define Element_Enable(el)        Element_Enable(el.element)
-#define Element_DisplayName(this) Element_DisplayName(this.element)
-#define Element_Row(split, ...)   Element_Row(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
+#define Element_Name(el, name)      Element_Name(el.element, name)
+#define Element_Disable(el)         Element_Disable(el.element)
+#define Element_Enable(el)          Element_Enable(el.element)
+#define Element_Condition(el, cond) Element_Condition(el.element, cond)
+#define Element_DisplayName(this)   Element_DisplayName(this.element)
+#define Element_Row(split, ...)     Element_Row(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
 
-PropEnum* PropEnum_Init(s32 def, s32 num);
-PropEnum* PropEnum_AssignList(s32 def, s32 num, ...);
+PropEnum* PropEnum_Init(s32 defaultVal);
+PropEnum* PropEnum_InitList(s32 def, s32 num, ...);
 void PropEnum_Add(PropEnum* this, char* item);
 void PropEnum_Remove(PropEnum* this, s32 key);
 void PropEnum_Free(PropEnum* this);
 
-#define PropEnum_AssignList(default, ...) PropEnum_AssignList(default, NARGS(__VA_ARGS__), __VA_ARGS__)
+#define PropEnum_InitList(default, ...) PropEnum_InitList(default, NARGS(__VA_ARGS__), __VA_ARGS__)
 
 #endif
