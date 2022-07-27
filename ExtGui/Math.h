@@ -1,11 +1,11 @@
-#ifndef __Z64VECTOR_H__
-#define __Z64VECTOR_H__
+#ifndef __Z64_MATH_H__
+#define __Z64_MATH_H__
 
 #include <ExtLib.h>
 
 extern f64 gDeltaTime;
 
-#define __EXT_VECTYPEDEF(type, suffix) \
+#define VEC_TYPE(type, suffix) \
 	typedef union { \
 		struct { \
 			type x; \
@@ -31,9 +31,8 @@ extern f64 gDeltaTime;
 		type axis[2]; \
 	} Vec2 ## suffix;
 
-__EXT_VECTYPEDEF(f32, f)
-// __EXT_VECTYPEDEF(s32, i)
-__EXT_VECTYPEDEF(s16, s)
+VEC_TYPE(f32, f)
+VEC_TYPE(s16, s)
 
 typedef struct {
 	f32 r;
@@ -64,15 +63,6 @@ typedef struct {
 } CRect;
 
 s16 Atan2S(f32 x, f32 y);
-f32 Math_Vec3f_DistXZ(Vec3f* a, Vec3f* b);
-f32 Math_Vec3f_DistXYZ(Vec3f* a, Vec3f* b);
-f32 Math_Vec3s_DistXZ(Vec3s* a, Vec3s* b);
-f32 Math_Vec3s_DistXYZ(Vec3s* a, Vec3s* b);
-f32 Math_Vec2f_DistXZ(Vec2f* a, Vec2f* b);
-f32 Math_Vec2s_DistXZ(Vec2s* a, Vec2s* b);
-s16 Math_Vec3f_Yaw(Vec3f* a, Vec3f* b);
-s16 Math_Vec2f_Yaw(Vec2f* a, Vec2f* b);
-s16 Math_Vec3f_Pitch(Vec3f* a, Vec3f* b);
 void Math_VecSphToVec3f(Vec3f* dest, VecSph* sph);
 void Math_AddVecSphToVec3f(Vec3f* dest, VecSph* sph);
 VecSph* Math_Vec3fToVecSph(VecSph* dest, Vec3f* vec);
@@ -109,70 +99,6 @@ f32 Rect_PointDistance(Rect* rect, s32 x, s32 y);
 	(*(a)).axis[i] = (*(b)).axis[i]; \
 } while (0)
 
-#define Vector_New(format, type) \
-	Vec2 ## format Math_Vec2 ## format ## _New(type x, type y); \
-	Vec3 ## format Math_Vec3 ## format ## _New(type x, type y, type z); \
-	Vec4 ## format Math_Vec4 ## format ## _New(type x, type y, type z, type w)
-
-#define Vector_TwoArgRet(ret, name, format, type) \
-	ret Math_Vec2 ## format ## _ ## name(Vec2 ## format a, Vec2 ## format b); \
-	ret Math_Vec3 ## format ## _ ## name(Vec3 ## format a, Vec3 ## format b); \
-	ret Math_Vec4 ## format ## _ ## name(Vec4 ## format a, Vec4 ## format b)
-
-#define Vector_OneArgRet(ret, name, format, type) \
-	ret Math_Vec2 ## format ## _ ## name(Vec2 ## format a); \
-	ret Math_Vec3 ## format ## _ ## name(Vec3 ## format a); \
-	ret Math_Vec4 ## format ## _ ## name(Vec4 ## format a)
-
-#define Vector_Math(name, format, type) \
-	Vec2 ## format Math_Vec2 ## format ## _ ## name(Vec2 ## format a, Vec2 ## format b); \
-	Vec3 ## format Math_Vec3 ## format ## _ ## name(Vec3 ## format a, Vec3 ## format b); \
-	Vec4 ## format Math_Vec4 ## format ## _ ## name(Vec4 ## format a, Vec4 ## format b); \
-	Vec2 ## format Math_Vec2 ## format ## _ ## name ## Val(Vec2 ## format a, type val); \
-	Vec3 ## format Math_Vec3 ## format ## _ ## name ## Val(Vec3 ## format a, type val); \
-	Vec4 ## format Math_Vec4 ## format ## _ ## name ## Val(Vec4 ## format a, type val)
-
-#define Vector_VecValRetSame(name, format, type) \
-	Vec2 ## format Math_Vec2 ## format ## _ ## name(Vec2 ## format a, type val); \
-	Vec3 ## format Math_Vec3 ## format ## _ ## name(Vec3 ## format a, type val); \
-	Vec4 ## format Math_Vec4 ## format ## _ ## name(Vec4 ## format a, type val)
-
-Vector_New(f, f32);
-// Vector_New(i, s32);
-Vector_New(s, s16);
-
-Vector_Math(Add, f, f32);
-// Vector_Math(Add, i, s32);
-Vector_Math(Add, s, s16);
-Vector_Math(Sub, f, f32);
-// Vector_Math(Sub, i, s32);
-Vector_Math(Sub, s, s16);
-Vector_Math(Div, f, f32);
-// Vector_Math(Div, i, s32);
-Vector_Math(Div, s, s16);
-Vector_Math(Mul, f, f32);
-// Vector_Math(Mul, i, s32);
-Vector_Math(Mul, s, s16);
-Vector_TwoArgRet(bool, Equal, f, f32);
-// Vector_TwoArgRet(bool, Equal, i, s32);
-Vector_TwoArgRet(bool, Equal, s, s16);
-Vector_TwoArgRet(f32, Dot, f, f32);
-// Vector_TwoArgRet(f32, Dot, i, s32);
-Vector_TwoArgRet(f32, Dot, s, s16);
-Vector_OneArgRet(f32, MagnitudeSQ, f, f32);
-// Vector_OneArgRet(f32, MagnitudeSQ, i, s32);
-Vector_OneArgRet(f32, MagnitudeSQ, s, s16);
-Vector_OneArgRet(f32, Magnitude, f, f32);
-// Vector_OneArgRet(f32, Magnitude, i, s32);
-Vector_OneArgRet(f32, Magnitude, s, s16);
-Vector_OneArgRet(void, Normalize, f, f32);
-// Vector_OneArgRet(void, Normalize, i, s32);
-Vector_OneArgRet(void, Normalize, s, s16);
-
-Vec3f Vec3f_Cross(Vec3f a, Vec3f b);
-// Vec3i Vec3i_Cross(Vec3i a, Vec3i b);
-Vec3s Vec3s_Cross(Vec3s a, Vec3s b);
-
 #define SQ(x)   ((x) * (x))
 #define SinS(x) sinf(BinToRad((s16)(x)))
 #define CosS(x) cosf(BinToRad((s16)(x)))
@@ -192,5 +118,9 @@ Vec3s Vec3s_Cross(Vec3s a, Vec3s b);
 #define BinToRad(binang)   (((f32)binang / 32768.0f) * M_PI)
 
 #define UnfoldRect(rect) (rect).x, (rect).y, (rect).w, (rect).h
+
+#ifndef __VECTOR_H__
+#include "Vector.h"
+#endif
 
 #endif

@@ -568,7 +568,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 					glyphPos.x = this->element.rect.x + bound.w + SPLIT_TEXT_PADDING - 1;
 					glyphPos.y = this->element.rect.y + bound.h - 1 + SPLIT_TEXT * 0.5;
 					
-					res = Math_Vec2s_DistXZ(&split->mousePos, &glyphPos);
+					res = Math_Vec2s_DistXZ(split->mousePos, glyphPos);
 					
 					if (res < dist) {
 						dist = res;
@@ -586,7 +586,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 					glyphPos.x = this->element.rect.x + bound.w + SPLIT_TEXT_PADDING - 1;
 					glyphPos.y = this->element.rect.y + bound.h - 1 + SPLIT_TEXT * 0.5;
 					
-					res = Math_Vec2s_DistXZ(&split->mousePos, &glyphPos);
+					res = Math_Vec2s_DistXZ(split->mousePos, glyphPos);
 					
 					if (res < dist) {
 						dist = res;
@@ -752,8 +752,8 @@ static void Element_Draw_Checkbox(ElementCallInfo* info) {
 			sVector_Cross[wi].x * 0.75,
 			sVector_Cross[wi].y * 0.75,
 		};
-		f32 dist = Math_Vec2f_DistXZ(&zero, &pos);
-		s16 yaw = Math_Vec2f_Yaw(&zero, &pos);
+		f32 dist = Math_Vec2f_DistXZ(zero, pos);
+		s16 yaw = Math_Vec2f_Yaw(zero, pos);
 		
 		dist = Lerp(flipLerp, 4, dist);
 		dist = Lerp((this->lerp > 0.5 ? 1.0 - this->lerp : this->lerp), dist, powf((dist * 0.1), 0.15) * 3);
@@ -908,8 +908,8 @@ static void Element_Draw_Combo(ElementCallInfo* info) {
 			arrow[wi].x * 0.95f,
 			arrow[wi].y * 0.95f,
 		};
-		f32 dist = Math_Vec2f_DistXZ(&zero, &pos);
-		s16 yaw = Math_Vec2f_Yaw(&zero, &pos);
+		f32 dist = Math_Vec2f_DistXZ(zero, pos);
+		s16 yaw = Math_Vec2f_Yaw(zero, pos);
 		
 		pos.x = center.x + SinS(yaw) * dist;
 		pos.y = center.y + CosS(yaw) * dist;

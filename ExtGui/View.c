@@ -40,9 +40,9 @@ void View_Camera_FlyMode(ViewContext* this, Input* inputCtx) {
 	
 	if (this->flyMode.vel.z || this->flyMode.vel.x || (this->cameraControl && inputCtx->mouse.clickL.hold)) {
 		VecSph camSph = {
-			.r = Math_Vec3f_DistXYZ(eye, at),
-			.yaw = Math_Vec3f_Yaw(at, eye),
-			.pitch = Math_Vec3f_Pitch(at, eye)
+			.r = Math_Vec3f_DistXYZ(*eye, *at),
+			.yaw = Math_Vec3f_Yaw(*at, *eye),
+			.pitch = Math_Vec3f_Pitch(*at, *eye)
 		};
 		
 		if (this->cameraControl && inputCtx->mouse.clickL.hold) {
@@ -57,17 +57,17 @@ void View_Camera_FlyMode(ViewContext* this, Input* inputCtx) {
 	
 	if (this->flyMode.vel.z || this->flyMode.vel.x) {
 		VecSph velSph = {
-			.r = this->flyMode.vel.z * 1000,
-			.yaw = Math_Vec3f_Yaw(at, eye),
-			.pitch = Math_Vec3f_Pitch(at, eye)
+			.r = this->flyMode.vel.z * 20,
+			.yaw = Math_Vec3f_Yaw(*at, *eye),
+			.pitch = Math_Vec3f_Pitch(*at, *eye)
 		};
 		
 		Math_AddVecSphToVec3f(eye, &velSph);
 		Math_AddVecSphToVec3f(at, &velSph);
 		
 		velSph = (VecSph) {
-			.r = this->flyMode.vel.x * 1000,
-			.yaw = Math_Vec3f_Yaw(at, eye) + 0x3FFF,
+			.r = this->flyMode.vel.x * 20,
+			.yaw = Math_Vec3f_Yaw(*at, *eye) + 0x3FFF,
 			.pitch = 0
 		};
 		
@@ -79,9 +79,9 @@ void View_Camera_FlyMode(ViewContext* this, Input* inputCtx) {
 void View_Camera_OrbitMode(ViewContext* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
 	VecSph orbitSph = {
-		.r = Math_Vec3f_DistXYZ(&cam->at, &cam->eye),
-		.yaw = Math_Vec3f_Yaw(&cam->eye, &cam->at),
-		.pitch = Math_Vec3f_Pitch(&cam->eye, &cam->at)
+		.r = Math_Vec3f_DistXYZ(cam->at, cam->eye),
+		.yaw = Math_Vec3f_Yaw(cam->eye, cam->at),
+		.pitch = Math_Vec3f_Pitch(cam->eye, cam->at)
 	};
 	f32 distMult = (orbitSph.r * 0.1);
 	
@@ -91,8 +91,8 @@ void View_Camera_OrbitMode(ViewContext* this, Input* inputCtx) {
 				if (inputCtx->key[KEY_LEFT_SHIFT].hold) {
 					VecSph velSph = {
 						.r = inputCtx->mouse.vel.y * distMult * 0.01f,
-						.yaw = Math_Vec3f_Yaw(&cam->at, &cam->eye),
-						.pitch = Math_Vec3f_Pitch(&cam->at, &cam->eye) + 0x3FFF
+						.yaw = Math_Vec3f_Yaw(cam->at, cam->eye),
+						.pitch = Math_Vec3f_Pitch(cam->at, cam->eye) + 0x3FFF
 					};
 					
 					Math_AddVecSphToVec3f(&cam->eye, &velSph);
@@ -100,7 +100,7 @@ void View_Camera_OrbitMode(ViewContext* this, Input* inputCtx) {
 					
 					velSph = (VecSph) {
 						.r = inputCtx->mouse.vel.x * distMult * 0.01f,
-						.yaw = Math_Vec3f_Yaw(&cam->at, &cam->eye) + 0x3FFF,
+						.yaw = Math_Vec3f_Yaw(cam->at, cam->eye) + 0x3FFF,
 						.pitch = 0
 					};
 					
@@ -129,11 +129,9 @@ void View_Init(ViewContext* this, Input* inputCtx) {
 	this->currentCamera = &this->camera[0];
 	cam = this->currentCamera;
 	
-	cam->eye = (Vec3f) { -50.0f * 100, 50.0f * 100, 50.0f * 100 };
-	cam->at = (Vec3f) { 0, 0, 0 };
+	cam->eye = Math_Vec3f_New(0, 0, -150.0f);
+	cam->at = Math_Vec3f_New(0, 0, 0.0f);
 	
-	cam->eye = (Vec3f) { 0, 0, 50.0f * 100 };
-	cam->at = (Vec3f) { 0, 0, 0 };
 	cam->roll = 0;
 	
 	Matrix_LookAt(&this->viewMtx, cam->eye, cam->at, cam->roll);
@@ -144,10 +142,30 @@ void View_Init(ViewContext* this, Input* inputCtx) {
 	this->scale = 1;
 }
 
+Vec3f Wow(Vec3f* a, Vec3f* b) {
+	return (Vec3f) {
+		       a->x + b->x,
+		       a->y + b->y,
+		       a->z + b->z
+	};
+}
+
 void View_Update(ViewContext* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
+	Vec3f vdir;
+	f32 fovDiff = -this->fovy;
 	
 	Math_DelSmoothStepToF(&this->fovy, this->fovyTarget, 0.25, 5.25f, 0.00001);
+	fovDiff += this->fovy;
+	
+	if (fovDiff != 0) {
+		vdir = Math_Vec3f_Median(cam->eye, cam->at);
+		vdir = Math_Vec3f_Sub(vdir, cam->eye);
+		vdir = Math_Vec3f_Normalize(vdir);
+		vdir = Math_Vec3f_MulVal(vdir, fovDiff * 2.5f);
+		cam->eye = Math_Vec3f_Add(cam->eye, vdir);
+		cam->at = Math_Vec3f_Add(cam->at, vdir);
+	}
 	
 	Matrix_Projection(
 		&this->projMtx,

@@ -5,9 +5,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-// __attribute__((scalar_storage_order("big-endian")))
 
 #pragma GCC diagnostic ignored "-Wscalar-storage-order"
+#define StructBE __attribute__((scalar_storage_order("big-endian")))
 
 typedef signed char s8;
 typedef unsigned char u8;
@@ -26,8 +26,6 @@ typedef time_t Time;
 typedef pthread_t Thread;
 typedef size_t Size;
 typedef wchar_t wchar;
-
-#define StructBE __attribute__((scalar_storage_order("big-endian")))
 
 typedef struct {
 	f32 h;

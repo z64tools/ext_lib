@@ -63,7 +63,7 @@ void Input_Update(Input* input) {
 	
 	mouse->doubleClick = false;
 	if (Decr(timer) > 0) {
-		if (Math_Vec2s_DistXZ(&mouse->pos, &mouse->pressPos) > 4) {
+		if (Math_Vec2s_DistXZ(mouse->pos, mouse->pressPos) > 4) {
 			timer = 0;
 		} else if (mouse->clickL.press) {
 			mouse->doubleClick = true;
@@ -153,7 +153,7 @@ void Input_SetMousePos(Input* input, s32 x, s32 y) {
 }
 
 f32 Input_GetPressPosDist(Input* input) {
-	return Math_Vec2s_DistXZ(&input->mouse.pos, &input->mouse.pressPos);
+	return Math_Vec2s_DistXZ(input->mouse.pos, input->mouse.pressPos);
 }
 
 // # # # # # # # # # # # # # # # # # # # #

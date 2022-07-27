@@ -650,9 +650,6 @@ void Matrix_Projection(MtxF* mtx, f32 fovy, f32 aspect, f32 near, f32 far, f32 s
 	
 	Matrix_Clear(mtx);
 	
-	near *= 100;
-	far *= 100;
-	
 	fovy *= M_PI / 180.0;
 	yscale = cosf(fovy / 2) / sinf(fovy / 2);
 	mtx->mf[0][0] = yscale / aspect;
@@ -724,19 +721,6 @@ void Matrix_LookAt(MtxF* mf, Vec3f eye, Vec3f at, s16 roll) {
 	mf->mf[1][3] = 0;
 	mf->mf[2][3] = 0;
 	mf->mf[3][3] = 1;
-	
-	mf->xx *= 100.0f;
-	mf->yx *= 100.0f;
-	mf->zx *= 100.0f;
-	mf->xy *= 100.0f;
-	mf->yy *= 100.0f;
-	mf->zy *= 100.0f;
-	mf->xz *= 100.0f;
-	mf->yz *= 100.0f;
-	mf->zz *= 100.0f;
-	mf->wx *= 100.0f;
-	mf->wy *= 100.0f;
-	mf->wz *= 100.0f;
 }
 
 void Matrix_TranslateRotateZYX(Vec3f* translation, Vec3s* rotation) {

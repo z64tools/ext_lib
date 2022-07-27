@@ -140,7 +140,7 @@ static s32 Split_CursorDistToFlagPos(SplitState flag, Split* split) {
 	
 	i = bitscan32(flag);
 	
-	return Math_Vec2s_DistXZ(&mouse[i], &pos[i]);
+	return Math_Vec2s_DistXZ(mouse[i], pos[i]);
 }
 
 static SplitState Split_GetCursorPosState(Split* split, s32 range) {
@@ -688,7 +688,7 @@ static void Split_UpdateActionSplit(GeoGrid* geo) {
 	
 	if (Input_GetMouse(geo->input, MOUSE_ANY)->hold) {
 		if (split->stateFlag & SPLIT_POINTS) {
-			s32 dist = Math_Vec2s_DistXZ(&split->mousePos, &split->mousePressPos);
+			s32 dist = Math_Vec2s_DistXZ(split->mousePos, split->mousePressPos);
 			
 			if (dist > 1) {
 				CursorIndex cid = GeoGrid_GetDir_MouseToPressPos(split) + 1;

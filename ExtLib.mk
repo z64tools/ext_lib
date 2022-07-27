@@ -2,18 +2,7 @@ ExtLib_H  = $(PATH_EXTLIB)/ExtLib.h
 
 ExtLib_C  = ExtLib.c
 
-ExtGui_C  = ExtGui/Cursor.c \
-			ExtGui/GeoElements.c \
-			ExtGui/GeoGrid.c \
-			ExtGui/Input.c \
-			ExtGui/Matrix.c \
-			ExtGui/Theme.c \
-			ExtGui/Math.c \
-			ExtGui/View.c \
-			ExtGui/Interface.c \
-			ExtGui/assets/DejaVuSans_Bold.c \
-			ExtGui/assets/DejaVuSans_Light.c \
-			ExtGui/assets/DejaVuSans.c \
+ExtGui_C  = $(shell cd $(PATH_EXTLIB) && find ExtGui/* -type f -name '*.c') \
 			glad/glad.c \
 			nanovg/src/nanovg.c
 
