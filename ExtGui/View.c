@@ -86,6 +86,7 @@ static void Camera_CalculateOrbit(Camera* cam) {
 	Matrix_RotateZ_s(cam->roll, MTXMODE_APPLY);
 	
 	Matrix_Translate(cam->offset.x, cam->offset.y, cam->offset.z, MTXMODE_APPLY);
+	cam->offset = Math_Vec3f_New(0, 0, 0);
 	Matrix_MultVec3f(&zero, &cam->at);
 	
 	Matrix_MultVec3f(&upOffset, &cam->up);
@@ -99,32 +100,40 @@ void View_Camera_OrbitMode(ViewContext* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
 	f32 distMult = (cam->dist * 0.1);
 	f32 disdiff = fabsf(cam->dist - cam->targetDist);
+	f32 fovDiff = fabsf(this->fovy - this->fovyTarget);
 	
-	cam->offset.y = 0;
-	
-	cam->offset.x = 0;
 	if (this->cameraControl) {
-		if (inputCtx->mouse.clickMid.hold || inputCtx->mouse.scrollY || disdiff > 1.0) {
-			if (inputCtx->mouse.scrollY || disdiff > 1.0f) {
-				cam->targetDist -= inputCtx->mouse.scrollY * distMult;
+		if (inputCtx->mouse.clickMid.hold || inputCtx->mouse.scrollY || disdiff || fovDiff) {
+			if (inputCtx->key[KEY_LEFT_CONTROL].hold) {
+				cam->targetDist = cam->dist;
+				this->fovyTarget = Clamp(this->fovyTarget * (1.0 + (inputCtx->mouse.scrollY / 20)), 30, 120);
+				fovDiff = -this->fovy;
+			} else if (inputCtx->mouse.scrollY || disdiff) {
+				cam->targetDist -= inputCtx->mouse.scrollY * distMult * 0.75f;
 				cam->targetDist = ClampMin(cam->targetDist, 1.0f);
 				Math_DelSmoothStepToF(&cam->dist, cam->targetDist, 0.25f, 5.0f * distMult, 0.01f * distMult);
+				fovDiff = 0;
+			}
+			
+			if (fovDiff) {
+				f32 f = -this->fovy;
+				Math_DelSmoothStepToF(&this->fovy, this->fovyTarget, 0.25, 5.25f, 0.0f);
+				f += this->fovy;
+				
+				cam->offset.z += f * 1.5f * (1.0f - this->fovy / 150);
 			}
 			
 			if (inputCtx->mouse.clickMid.hold) {
 				if (inputCtx->key[KEY_LEFT_SHIFT].hold) {
-					cam->offset.y = inputCtx->mouse.vel.y * distMult * 0.01f;
-					cam->offset.x = inputCtx->mouse.vel.x * distMult * 0.01f;
+					cam->offset.y += inputCtx->mouse.vel.y * distMult * 0.01f;
+					cam->offset.x += inputCtx->mouse.vel.x * distMult * 0.01f;
 				} else {
 					cam->yaw -= inputCtx->mouse.vel.x * 67;
 					cam->pitch += inputCtx->mouse.vel.y * 67;
 				}
 			}
-			if (inputCtx->key[KEY_LEFT_CONTROL].hold) {
-				this->fovyTarget = Clamp(this->fovyTarget * (1.0 + (inputCtx->mouse.scrollY / 20)), 30, 120);
-			} else {
-				Camera_CalculateOrbit(cam);
-			}
+			
+			Camera_CalculateOrbit(cam);
 		}
 	}
 }
@@ -150,20 +159,6 @@ void View_Init(ViewContext* this, Input* inputCtx) {
 
 void View_Update(ViewContext* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
-	Vec3f vdir;
-	f32 fovDiff = -this->fovy;
-	
-	Math_DelSmoothStepToF(&this->fovy, this->fovyTarget, 0.25, 5.25f, 0.00001);
-	fovDiff += this->fovy;
-	
-	if (fovDiff != 0) {
-		vdir = Math_Vec3f_Median(cam->eye, cam->at);
-		vdir = Math_Vec3f_Sub(vdir, cam->eye);
-		vdir = Math_Vec3f_Normalize(vdir);
-		vdir = Math_Vec3f_MulVal(vdir, fovDiff * ((120 / this->fovy) - 1.0f) * 2.5f);
-		cam->eye = Math_Vec3f_Add(cam->eye, vdir);
-		cam->at = Math_Vec3f_Add(cam->at, vdir);
-	}
 	
 	Matrix_Projection(
 		&this->projMtx,
