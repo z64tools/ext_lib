@@ -85,6 +85,7 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
 	glfwMakeContextCurrent(app->window);
 	glfwSetFramebufferSizeCallback(app->window, Interface_FramebufferCallback);
 	glfwSetMouseButtonCallback(app->window, InputCallback_Mouse);
+	glfwSetCursorPosCallback(app->window, InputCallback_MousePos);
 	glfwSetKeyCallback(app->window, InputCallback_Key);
 	glfwSetCharCallback(app->window, InputCallback_Text);
 	glfwSetScrollCallback(app->window, InputCallback_Scroll);

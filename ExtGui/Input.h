@@ -149,7 +149,6 @@ typedef struct {
 	Vec2s pos;
 	Vec2s prevPos;
 	Vec2s vel;
-	Vec2s jumpVelComp;
 	f64   scrollY;
 	union {
 		struct {
@@ -173,6 +172,12 @@ typedef struct {
 		s32 keyBlock;
 	} state;
 	char buffer[512];
+	
+	struct {
+		s32 mpos;
+		s32 scroll;
+		s32 min;
+	} cbBlock;
 } Input;
 
 #define MOUSE_KEEP_AXIS 0xD0D0CAFE
@@ -191,6 +196,7 @@ f32 Input_GetPressPosDist(Input* input);
 void InputCallback_Key(GLFWwindow* window, s32 key, s32 scancode, s32 action, s32 mods);
 void InputCallback_Text(GLFWwindow* window, u32 scancode);
 void InputCallback_Mouse(GLFWwindow* window, s32 button, s32 action, s32 mods);
+void InputCallback_MousePos(GLFWwindow* window, f64 x, f64 y);
 void InputCallback_Scroll(GLFWwindow* window, f64 x, f64 y);
 
 #endif

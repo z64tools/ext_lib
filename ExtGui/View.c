@@ -123,7 +123,6 @@ void View_Camera_OrbitMode(ViewContext* this, Input* inputCtx) {
 				
 				cam->targetDist = ClampMin(cam->targetDist, 1.0f);
 				Math_DelSmoothStepToF(&cam->dist, cam->targetDist, 0.25f, 5.0f * distMult, 0.01f * distMult);
-				fovDiff = 0;
 			}
 			
 			if (fovDiff) {
@@ -131,7 +130,7 @@ void View_Camera_OrbitMode(ViewContext* this, Input* inputCtx) {
 				Math_DelSmoothStepToF(&this->fovy, this->fovyTarget, 0.25, 5.25f, 0.0f);
 				f += this->fovy;
 				
-				cam->offset.z += f * 2.5f * (1.0f - this->fovy / 150);
+				cam->offset.z += f * 8.f * (1.0f - this->fovy / 150);
 			}
 			
 			if (inputCtx->mouse.clickMid.hold) {
@@ -186,8 +185,8 @@ void View_Update(ViewContext* this, Input* inputCtx) {
 	if (inputCtx->mouse.cursorAction == 0)
 		this->setCamMove = 0;
 	
-	View_Camera_OrbitMode(this, inputCtx);
 	View_Camera_FlyMode(this, inputCtx);
+	View_Camera_OrbitMode(this, inputCtx);
 	
 	Matrix_LookAt(&this->viewMtx, cam->eye, cam->at, cam->up);
 	

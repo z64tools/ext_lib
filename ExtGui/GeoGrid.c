@@ -925,7 +925,9 @@ static void Split_Draw(GeoGrid* geo) {
 		);
 		nvgBeginFrame(geo->vg, split->dispRect.w, split->dispRect.h, gPixelRatio); {
 			void* vg = geo->vg;
-			Rect r = split->rect;
+			Rect r = split->dispRect;
+			
+			r.x = r.y = 0;
 			
 			if (split->id > 0) {
 				u32 id = split->id;
@@ -936,7 +938,8 @@ static void Split_Draw(GeoGrid* geo) {
 				if (split->bg.useCustomBG == true) {
 					nvgFillColor(vg, nvgRGBA(split->bg.color.r, split->bg.color.g, split->bg.color.b, 255));
 				} else {
-					nvgFillColor(vg, Theme_GetColor(THEME_BASE, 255, 1.0f));
+					// nvgFillColor(vg, Theme_GetColor(THEME_BASE, 255, 1.0f));
+					nvgFillPaint(vg, nvgBoxGradient(vg, UnfoldRect(r), SPLIT_ROUND_R, 8.0f, Theme_GetColor(THEME_BASE, 255, 1.0f), Theme_GetColor(THEME_BASE, 255, 0.8f)));
 				}
 				nvgFill(vg);
 				
@@ -953,36 +956,41 @@ static void Split_Draw(GeoGrid* geo) {
 				nvgFill(vg);
 			}
 			
-			r.x = r.y = SPLIT_SPLIT_W;
-			r.w -= SPLIT_SPLIT_W * 2;
-			r.h -= SPLIT_SPLIT_W * 2;
-			
-			if (split->edge[EDGE_L]->state & EDGE_STICK) {
-				r.x = 0;
-				r.w += SPLIT_SPLIT_W;
-			}
-			
-			if (split->edge[EDGE_T]->state & EDGE_STICK) {
-				r.y = 0;
-				r.h += SPLIT_SPLIT_W;
-			}
-			
-			if (split->edge[EDGE_R]->state & EDGE_STICK)
-				r.w += SPLIT_SPLIT_W;
-			
-			if (split->edge[EDGE_B]->state & EDGE_STICK)
-				r.h += SPLIT_SPLIT_W;
+			r = split->dispRect;
+			r.x = 1;
+			r.y = 1;
+			r.w -= 3;
+			r.h -= 3;
 			
 			nvgBeginPath(geo->vg);
-			nvgRect(geo->vg, 0, 0, split->dispRect.w, split->dispRect.h);
+			nvgRect(geo->vg, -4, -4, split->dispRect.w + 8, split->dispRect.h + 8);
+			nvgRoundedRect(
+				geo->vg,
+				UnfoldRect(r),
+				SPLIT_ROUND_R * 2
+			);
+			nvgPathWinding(geo->vg, NVG_HOLE);
+			
+			nvgFillColor(geo->vg, Theme_GetColor(THEME_SHADOW, 255, 1.5f));
+			nvgFill(geo->vg);
+			
+			r = split->dispRect;
+			r.x = 1;
+			r.y = 1;
+			r.w -= 3;
+			r.h -= 3;
+			
+			Rect sc = Rect_SubPos(split->headRect, split->dispRect);
+			nvgScissor(vg, UnfoldRect(sc));
+			nvgBeginPath(vg);
 			nvgRoundedRect(
 				geo->vg,
 				UnfoldRect(r),
 				SPLIT_ROUND_R
 			);
-			nvgPathWinding(geo->vg, NVG_HOLE);
-			nvgFillColor(geo->vg, Theme_GetColor(THEME_SHADOW, 255, 1.00f));
+			nvgFillColor(geo->vg, Theme_GetColor(THEME_BASE, 255, 1.25f));
 			nvgFill(geo->vg);
+			nvgResetScissor(vg);
 		} nvgEndFrame(geo->vg);
 	}
 }
@@ -1074,13 +1082,14 @@ void GeoGrid_Draw(GeoGrid* geo) {
 			geo->bar[i].rect.h
 		);
 		nvgBeginFrame(geo->vg, geo->bar[i].rect.w, geo->bar[i].rect.h, gPixelRatio); {
+			Rect r = geo->bar[i].rect;
+			
+			r.x = r.y = 0;
+			
 			nvgBeginPath(geo->vg);
 			nvgRect(
 				geo->vg,
-				0,
-				0,
-				geo->bar[i].rect.w,
-				geo->bar[i].rect.h
+				UnfoldRect(r)
 			);
 			nvgFillColor(geo->vg, Theme_GetColor(THEME_BASE, 255, 0.75f));
 			nvgFill(geo->vg);
