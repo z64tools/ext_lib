@@ -27,7 +27,7 @@ typedef struct ElementCallInfo {
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
-_Thread_local struct {
+ThreadLocal struct {
 	ElementCallInfo* head;
 	
 	ElTextbox* curTextbox;
@@ -48,6 +48,9 @@ _Thread_local struct {
 	
 	f32      rowY;
 	f32      rowX;
+	
+	s32      timerTextbox;
+	s32      blockerTextbox;
 } gElementState = {
 	.posSel = -1,
 	.flickFlag = 1,
@@ -955,7 +958,8 @@ s32 Element_Button(ElButton* this) {
 	
 	Assert(gElementState.geo && gElementState.split);
 	
-	this->state = 0;
+	if (!this->element.toggle)
+		this->state = 0;
 	
 	if (this->autoWidth) {
 		f32 bounds[4] = { 0.0f };
@@ -973,17 +977,9 @@ s32 Element_Button(ElButton* this) {
 	
 	if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element.rect)) {
 		if (Input_GetMouse(gElementState.geo->input, MOUSE_L)->press) {
-			this->state++;
-			
-			if (this->element.toggle) {
-				u8 t = (this->element.toggle - 1) == 0; // Invert
-				
-				this->element.toggle = t + 1;
-			}
-		}
-		
-		if (Input_GetMouse(gElementState.geo->input, MOUSE_L)->hold) {
-			this->state++;
+			this->state ^= 1;
+			if (this->element.toggle)
+				this->element.toggle ^= 0b10;
 		}
 	}
 	
@@ -995,7 +991,7 @@ queue_element:
 		this
 	);
 	
-	return (this->state == 2) | (ClampMin(this->element.toggle - 1, 0)) << 4;
+	return this->state;
 }
 
 void Element_Textbox(ElTextbox* this) {
@@ -1193,8 +1189,8 @@ s32 Element_Combo(ElCombo* this) {
 					this->prop,
 					PROP_ENUM,
 					Rect_AddPos(
-						&this->element.rect,
-						&gElementState.split->rect
+						this->element.rect,
+						gElementState.split->rect
 					)
 				);
 			}
@@ -1328,7 +1324,7 @@ void Element_Slider_SetValue(ElSlider* this, f64 val) {
 }
 
 void Element_Button_SetValue(ElButton* this, bool toggle, bool state) {
-	this->element.toggle = toggle ? toggle + state : 0;
+	this->element.toggle = toggle | (state == true ? 2 : 0);
 	this->state = state;
 }
 
@@ -1400,9 +1396,6 @@ static InputType* Textbox_GetMouse(GeoGrid* geo, MouseMap key) {
 }
 
 void Element_Update(GeoGrid* geo) {
-	static s32 timer = 0;
-	static s32 blocker;
-	
 	gElementState.breathYaw += DegToBin(3);
 	gElementState.breath = (SinS(gElementState.breathYaw) + 1.0f) * 0.5;
 	
@@ -1411,8 +1404,8 @@ void Element_Update(GeoGrid* geo) {
 		s32 prevTextPos = gElementState.posText;
 		s32 press = 0;
 		
-		if (blocker == 0) {
-			blocker++;
+		if (gElementState.blockerTextbox == 0) {
+			gElementState.blockerTextbox++;
 			geo->input->state.keyBlock++;
 		}
 		
@@ -1513,12 +1506,12 @@ void Element_Update(GeoGrid* geo) {
 			}
 			
 			if (Textbox_GetKey(geo, KEY_LEFT)->hold || Textbox_GetKey(geo, KEY_RIGHT)->hold) {
-				timer++;
+				gElementState.timerTextbox++;
 			} else {
-				timer = 0;
+				gElementState.timerTextbox = 0;
 			}
 			
-			if (timer >= 30 && timer % 2 == 0) {
+			if (gElementState.timerTextbox >= 30 && gElementState.timerTextbox % 2 == 0) {
 				if (Textbox_GetKey(geo, KEY_LEFT)->hold) {
 					gElementState.posText--;
 				}
@@ -1578,8 +1571,8 @@ void Element_Update(GeoGrid* geo) {
 		
 		gElementState.posText = Clamp(gElementState.posText, 0, strlen(gElementState.curTextbox->txt));
 	} else {
-		if (blocker) {
-			blocker--;
+		if (gElementState.blockerTextbox) {
+			gElementState.blockerTextbox--;
 			geo->input->state.keyBlock--;
 		}
 	}
@@ -1589,7 +1582,7 @@ static void Element_UpdateElement(ElementCallInfo* info) {
 	GeoGrid* geo = info->geo;
 	Element* this = info->arg;
 	Split* split = info->split;
-	f32 toggle = this->toggle == 2 ? 0.50f : 0.0f;
+	f32 toggle = this->toggle == 3 ? 0.50f : 0.0f;
 	f32 press = 1.0f;
 	
 	this->hover = false;
@@ -1614,7 +1607,7 @@ static void Element_UpdateElement(ElementCallInfo* info) {
 		Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
 		Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 1.15f * press),            0.25f, 0.35f, 0.001f);
 		
-		if (this->toggle < 2)
+		if (this->toggle < 3)
 			Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
 	} else {
 		Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 1.00f * press),            0.25f, 0.35f, 0.001f);
@@ -1622,11 +1615,11 @@ static void Element_UpdateElement(ElementCallInfo* info) {
 		Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (0.50f + toggle) * press), 0.25f, 0.35f, 0.001f);
 		Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 1.00f * press),            0.25f, 0.35f, 0.001f);
 		
-		if (this->toggle < 2)
+		if (this->toggle < 3)
 			Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.00f + toggle) * press), 0.25f, 0.35f, 0.001f);
 	}
 	
-	if (this->toggle == 2)
+	if (this->toggle == 3)
 		Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_PRIM,  255, 0.95f * press), 0.25f, 8.85f, 0.001f);
 	
 	if (this->disabled) {

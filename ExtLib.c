@@ -223,8 +223,8 @@ void32 VirtualToSegmented(const u8 id, void* ptr) {
 // # TMP                                 #
 // # # # # # # # # # # # # # # # # # # # #
 
-static _Thread_local u8 sTempHeap[MbToBin(4)];
-static _Thread_local u32 sPosTempHeap = 0;
+static ThreadLocal u8 sTempHeap[MbToBin(4)];
+static ThreadLocal u32 sPosTempHeap = 0;
 static const u32 sSizeTempHeap = MbToBin(4);
 
 void* xAlloc(Size size) {
@@ -845,8 +845,8 @@ void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b) {
 // # SYS                                 #
 // # # # # # # # # # # # # # # # # # # # #
 
-static _Thread_local char* __sPath;
-static _Thread_local s32 __sMakeDir;
+static ThreadLocal char* __sPath;
+static ThreadLocal s32 __sMakeDir;
 
 void FileSys_MakePath(s32 flag) {
 	__sMakeDir = flag;
@@ -3515,7 +3515,7 @@ char* StrLower(char* str) {
 // # CONFIG                              #
 // # # # # # # # # # # # # # # # # # # # #
 
-static _Thread_local char* sCfgSection;
+static ThreadLocal char* sCfgSection;
 
 static const char* __Config_GotoSection(const char* str) {
 	if (sCfgSection == NULL)
@@ -3648,7 +3648,7 @@ char* Config_GetVariable(const char* str, const char* name) {
 	return ret;
 }
 
-static _Thread_local bool sCfgError;
+static ThreadLocal bool sCfgError;
 
 void Config_ProcessIncludes(MemFile* mem) {
 	StrNode* strNodeHead = NULL;

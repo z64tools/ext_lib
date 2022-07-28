@@ -78,13 +78,14 @@ void Rect_ToRect(Rect* dst, CRect* src);
 bool Rect_Check_PosIntersect(Rect* rect, Vec2s* pos);
 void Rect_Translate(Rect* rect, s32 x, s32 y);
 void Rect_Verify(Rect* rect);
-void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h);
-Rect Rect_Add(Rect* a, Rect* b);
-Rect Rect_Sub(Rect* a, Rect* b);
-Rect Rect_AddPos(Rect* a, Rect* b);
-Rect Rect_SubPos(Rect* a, Rect* b);
+Rect Rect_New(s32 x, s32 w, s32 y, s32 h);
+Rect Rect_Add(Rect a, Rect b);
+Rect Rect_Sub(Rect a, Rect b);
+Rect Rect_AddPos(Rect a, Rect b);
+Rect Rect_SubPos(Rect a, Rect b);
 bool Rect_PointIntersect(Rect* rect, s32 x, s32 y);
 Vec2s Rect_ClosestPoint(Rect* rect, s32 x, s32 y);
+Vec2s Rect_MidPoint(Rect* rect);
 f32 Rect_PointDistance(Rect* rect, s32 x, s32 y);
 
 #define veccmp(a, b) ({ \

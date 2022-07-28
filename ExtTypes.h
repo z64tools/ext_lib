@@ -8,6 +8,7 @@
 
 #pragma GCC diagnostic ignored "-Wscalar-storage-order"
 #define StructBE __attribute__((scalar_storage_order("big-endian")))
+#define ThreadLocal _Thread_local
 
 typedef signed char s8;
 typedef unsigned char u8;

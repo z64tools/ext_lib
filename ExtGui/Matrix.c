@@ -666,15 +666,10 @@ void Matrix_Projection(MtxF* mtx, f32 fovy, f32 aspect, f32 near, f32 far, f32 s
 	}
 }
 
-void Matrix_LookAt(MtxF* mf, Vec3f eye, Vec3f at, s16 roll) {
+void Matrix_LookAt(MtxF* mf, Vec3f eye, Vec3f at, Vec3f up) {
 	f32 length;
 	Vec3f look;
 	Vec3f right;
-	Vec3f up;
-	VecSph vecSph;
-	
-	Math_Vec3fDiffToVecSphGeo(&vecSph, &eye, &at);
-	Math_CalcUpFromPitchYawRoll(&up, vecSph.pitch, vecSph.yaw, roll);
 	
 	Matrix_Clear(mf);
 	

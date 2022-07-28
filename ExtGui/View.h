@@ -8,17 +8,24 @@
 typedef struct {
 	Vec3f eye;
 	Vec3f at;
+	Vec3f up;
+	
+	Vec3f vel;
+	Vec3f offset;
+	Vec3f pos;
+	f32   dist;
+	f32   targetDist;
+	s16   pitch;
+	s16   yaw;
 	s16   roll;
+	
+	f32   speed;
+	f32   speedMod;
 } Camera;
 
 typedef struct {
 	u8 smoothZoom : 1;
 } CamSettings;
-
-typedef struct {
-	Vec3f vel;
-	f32   speed;
-} CameraFlyMode;
 
 typedef struct ViewContext {
 	f32     fovy;
@@ -34,7 +41,6 @@ typedef struct ViewContext {
 	Camera* currentCamera;
 	Camera  camera[4];
 	Vec2s   projectDim;
-	CameraFlyMode flyMode;
 	struct {
 		u8 cameraControl : 1;
 		u8 setCamMove    : 1;

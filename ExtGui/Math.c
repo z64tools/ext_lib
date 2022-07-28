@@ -283,47 +283,47 @@ void Rect_Verify(Rect* rect) {
 	}
 }
 
-void Rect_Set(Rect* dest, s32 x, s32 w, s32 y, s32 h) {
-	dest->x = x;
-	dest->w = w;
-	dest->y = y;
-	dest->h = h;
-	Rect_Verify(dest);
+Rect Rect_New(s32 x, s32 w, s32 y, s32 h) {
+	Rect dest = { x, y, w, h };
+	
+	Rect_Verify(&dest);
+	
+	return dest;
 }
 
-Rect Rect_Add(Rect* a, Rect* b) {
+Rect Rect_Add(Rect a, Rect b) {
 	return (Rect) {
-		       a->x + b->x,
-		       a->y + b->y,
-		       a->w + b->w,
-		       a->h + b->h,
+		       a.x + b.x,
+		       a.y + b.y,
+		       a.w + b.w,
+		       a.h + b.h,
 	};
 }
 
-Rect Rect_Sub(Rect* a, Rect* b) {
+Rect Rect_Sub(Rect a, Rect b) {
 	return (Rect) {
-		       a->x - b->x,
-		       a->y - b->y,
-		       a->w - b->w,
-		       a->h - b->h,
+		       a.x - b.x,
+		       a.y - b.y,
+		       a.w - b.w,
+		       a.h - b.h,
 	};
 }
 
-Rect Rect_AddPos(Rect* a, Rect* b) {
+Rect Rect_AddPos(Rect a, Rect b) {
 	return (Rect) {
-		       a->x + b->x,
-		       a->y + b->y,
-		       a->w,
-		       a->h,
+		       a.x + b.x,
+		       a.y + b.y,
+		       a.w,
+		       a.h,
 	};
 }
 
-Rect Rect_SubPos(Rect* a, Rect* b) {
+Rect Rect_SubPos(Rect a, Rect b) {
 	return (Rect) {
-		       a->x - b->x,
-		       a->y - b->y,
-		       a->w,
-		       a->h,
+		       a.x - b.x,
+		       a.y - b.y,
+		       a.w,
+		       a.h,
 	};
 }
 
@@ -351,6 +351,13 @@ Vec2s Rect_ClosestPoint(Rect* rect, s32 x, s32 y) {
 		r.y = Closest(y, rect->y, rect->y + rect->h);
 	
 	return r;
+}
+
+Vec2s Rect_MidPoint(Rect* rect) {
+	return (Vec2s) {
+		       rect->x + rect->w * 0.5,
+		       rect->y + rect->h * 0.5
+	};
 }
 
 f32 Rect_PointDistance(Rect* rect, s32 x, s32 y) {
