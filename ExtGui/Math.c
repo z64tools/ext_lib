@@ -274,19 +274,8 @@ void Rect_Translate(Rect* rect, s32 x, s32 y) {
 	rect->h += y;
 }
 
-void Rect_Verify(Rect* rect) {
-	if (rect->x > rect->w) {
-		Swap(rect->x, rect->w);
-	}
-	if (rect->y > rect->h) {
-		Swap(rect->y, rect->h);
-	}
-}
-
-Rect Rect_New(s32 x, s32 w, s32 y, s32 h) {
+Rect Rect_New(s32 x, s32 y, s32 w, s32 h) {
 	Rect dest = { x, y, w, h };
-	
-	Rect_Verify(&dest);
 	
 	return dest;
 }

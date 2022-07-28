@@ -137,11 +137,13 @@ typedef struct Split {
 	SplitEdge*    edge[4];
 	SplitVtx* vtx[4];
 	Rect  rect; // Absolute XY, relative WH
-	Vec2s center;
+	Rect  headRect;
+	Rect  dispRect;
 	Vec2s mousePos; // relative
 	Vec2s mousePressPos;
 	bool  mouseInSplit;
 	bool  mouseInHeader;
+	bool  mouseInDispRect;
 	u32   id;
 	u32   prevId;
 	bool  blockMouse;
@@ -171,6 +173,7 @@ typedef struct {
 typedef struct {
 	u32 noSplit;
 	u32 noClickInput;
+	u32 cleanVtx : 1;
 } GeoState;
 
 typedef enum {
@@ -322,6 +325,7 @@ Split* GeoGrid_AddSplit(GeoGrid* geo, const char* name, Rectf32* rect);
 
 s32 Split_GetCursor(GeoGrid* geo, Split* split, s32 result);
 
+void GeoGrid_Debug(bool b);
 void GeoGrid_Init(GeoGrid* geo, Vec2s* winDim, Input* input, void* vg);
 void GeoGrid_Update(GeoGrid* geo);
 void GeoGrid_Draw(GeoGrid* geo);

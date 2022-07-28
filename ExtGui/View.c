@@ -28,31 +28,35 @@ void View_Camera_FlyMode(ViewContext* this, Input* inputCtx) {
 	static s32 init;
 	
 	if (this->cameraControl) {
-		if (inputCtx->key[KEY_LEFT_SHIFT].hold)
-			Math_DelSmoothStepToF(&cam->speed, cam->speedMod * 4, 0.25f, 1.00f, 0.00001f);
+		f32 step = 1.0f * cam->speedMod;
+		f32 min = 0.01f * cam->speedMod;
 		
-		else if (inputCtx->key[KEY_SPACE].hold)
-			Math_DelSmoothStepToF(&cam->speed, cam->speedMod * 8, 0.25f, 1.00f, 0.00001f);
-		
-		else
-			Math_DelSmoothStepToF(&cam->speed, cam->speedMod, 0.25f, 1.00f, 0.00001f);
+		if (inputCtx->key[KEY_LEFT_SHIFT].hold) {
+			step *= 4;
+			Math_DelSmoothStepToF(&cam->speed, cam->speedMod * 4 * gDeltaTime, 0.25f, 1.00f, 0.1f);
+		} else if (inputCtx->key[KEY_SPACE].hold) {
+			step *= 8;
+			Math_DelSmoothStepToF(&cam->speed, cam->speedMod * 8 * gDeltaTime, 0.25f, 1.00f, 0.1f);
+		} else {
+			Math_DelSmoothStepToF(&cam->speed, cam->speedMod * gDeltaTime, 0.25f, 1.00f, 0.1f);
+		}
 		
 		if (inputCtx->key[KEY_A].hold || inputCtx->key[KEY_D].hold) {
 			if (inputCtx->key[KEY_A].hold)
-				Math_DelSmoothStepToF(&cam->vel.x, cam->speed, 0.25f, 1.00f, 0.00001f);
+				Math_DelSmoothStepToF(&cam->vel.x, cam->speed, 0.25f, step, min);
 			if (inputCtx->key[KEY_D].hold)
-				Math_DelSmoothStepToF(&cam->vel.x, -cam->speed, 0.25f, 1.00f, 0.00001f);
+				Math_DelSmoothStepToF(&cam->vel.x, -cam->speed, 0.25f, step, min);
 		} else {
-			Math_DelSmoothStepToF(&cam->vel.x, 0, 0.25f, 1.00f, 0.00001f);
+			Math_DelSmoothStepToF(&cam->vel.x, 0, 0.25f, step, min);
 		}
 		
 		if (inputCtx->key[KEY_W].hold || inputCtx->key[KEY_S].hold) {
 			if (inputCtx->key[KEY_W].hold)
-				Math_DelSmoothStepToF(&cam->vel.z, cam->speed, 0.25f, 1.00f, 0.00001f);
+				Math_DelSmoothStepToF(&cam->vel.z, cam->speed, 0.25f, step, min);
 			if (inputCtx->key[KEY_S].hold)
-				Math_DelSmoothStepToF(&cam->vel.z, -cam->speed, 0.25f, 1.00f, 0.00001f);
+				Math_DelSmoothStepToF(&cam->vel.z, -cam->speed, 0.25f, step, min);
 		} else {
-			Math_DelSmoothStepToF(&cam->vel.z, 0, 0.25f, 1.00f, 0.00001f);
+			Math_DelSmoothStepToF(&cam->vel.z, 0, 0.25f, step, min);
 		}
 		
 		if (Input_GetMouse(inputCtx, MOUSE_L)->hold) {
@@ -65,10 +69,10 @@ void View_Camera_FlyMode(ViewContext* this, Input* inputCtx) {
 			init = 0;
 	} else {
 		init = 0;
-		Math_DelSmoothStepToF(&cam->speed, 0.5f, 0.25f, 1.00f, 0.00001f);
-		Math_DelSmoothStepToF(&cam->vel.x, 0, 0.25f, 1.00f, 0.00001f);
-		Math_DelSmoothStepToF(&cam->vel.z, 0, 0.25f, 1.00f, 0.00001f);
-		Math_DelSmoothStepToF(&cam->vel.y, 0, 0.25f, 1.00f, 0.00001f);
+		Math_DelSmoothStepToF(&cam->speed, 0.5f, 0.5f, 1.00f, 0.1f);
+		Math_DelSmoothStepToF(&cam->vel.x, 0.0f, 0.5f, 1.00f, 0.1f);
+		Math_DelSmoothStepToF(&cam->vel.z, 0.0f, 0.5f, 1.00f, 0.1f);
+		Math_DelSmoothStepToF(&cam->vel.y, 0.0f, 0.5f, 1.00f, 0.1f);
 	}
 	
 	Camera_CalculateFly(cam);
@@ -98,18 +102,25 @@ static void Camera_CalculateOrbit(Camera* cam) {
 
 void View_Camera_OrbitMode(ViewContext* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
-	f32 distMult = (cam->dist * 0.1);
-	f32 disdiff = fabsf(cam->dist - cam->targetDist);
-	f32 fovDiff = fabsf(this->fovy - this->fovyTarget);
+	f32 distMult = (cam->dist * 0.2);
 	
 	if (this->cameraControl) {
+		if (inputCtx->key[KEY_LEFT_CONTROL].hold && inputCtx->mouse.clickMid.hold && inputCtx->mouse.scrollY == 0)
+			cam->targetDist += inputCtx->mouse.vel.y;
+		
+		f32 disdiff = fabsf(cam->dist - cam->targetDist);
+		f32 fovDiff = fabsf(this->fovy - this->fovyTarget);
+		
 		if (inputCtx->mouse.clickMid.hold || inputCtx->mouse.scrollY || disdiff || fovDiff) {
-			if (inputCtx->key[KEY_LEFT_CONTROL].hold) {
+			if (inputCtx->key[KEY_LEFT_CONTROL].hold && inputCtx->mouse.scrollY) {
 				cam->targetDist = cam->dist;
 				this->fovyTarget = Clamp(this->fovyTarget * (1.0 + (inputCtx->mouse.scrollY / 20)), 30, 120);
 				fovDiff = -this->fovy;
-			} else if (inputCtx->mouse.scrollY || disdiff) {
-				cam->targetDist -= inputCtx->mouse.scrollY * distMult * 0.75f;
+			} else {
+				if (inputCtx->mouse.scrollY) {
+					cam->targetDist -= inputCtx->mouse.scrollY * distMult * 0.75f;
+				}
+				
 				cam->targetDist = ClampMin(cam->targetDist, 1.0f);
 				Math_DelSmoothStepToF(&cam->dist, cam->targetDist, 0.25f, 5.0f * distMult, 0.01f * distMult);
 				fovDiff = 0;
@@ -120,14 +131,14 @@ void View_Camera_OrbitMode(ViewContext* this, Input* inputCtx) {
 				Math_DelSmoothStepToF(&this->fovy, this->fovyTarget, 0.25, 5.25f, 0.0f);
 				f += this->fovy;
 				
-				cam->offset.z += f * 1.5f * (1.0f - this->fovy / 150);
+				cam->offset.z += f * 2.5f * (1.0f - this->fovy / 150);
 			}
 			
 			if (inputCtx->mouse.clickMid.hold) {
 				if (inputCtx->key[KEY_LEFT_SHIFT].hold) {
 					cam->offset.y += inputCtx->mouse.vel.y * distMult * 0.01f;
 					cam->offset.x += inputCtx->mouse.vel.x * distMult * 0.01f;
-				} else {
+				} else if (inputCtx->key[KEY_LEFT_CONTROL].hold == false) {
 					cam->yaw -= inputCtx->mouse.vel.x * 67;
 					cam->pitch += inputCtx->mouse.vel.y * 67;
 				}

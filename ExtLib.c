@@ -306,6 +306,45 @@ f64 Time_Get(u32 slot) {
 	return (sTimeStop[slot].tv_sec - sTimeStart[slot].tv_sec) + (f32)(sTimeStop[slot].tv_usec - sTimeStart[slot].tv_usec) / 1000000;
 }
 
+typedef struct {
+	struct timeval t;
+	f32 ring[20];
+	s8  k;
+} ProfilerSlot;
+
+struct {
+	ProfilerSlot s[255];
+} gProfilerCtx;
+
+void Profiler_I(u8 s) {
+	ProfilerSlot* p = &gProfilerCtx.s[s];
+	
+	gettimeofday(&p->t, 0);
+}
+
+void Profiler_O(u8 s) {
+	struct timeval t;
+	ProfilerSlot* p = &gProfilerCtx.s[s];
+	
+	gettimeofday(&t, 0);
+	
+	p->ring[p->k] = t.tv_sec - p->t.tv_sec + (f32)(t.tv_usec - p->t.tv_usec) * 0.000001f;
+}
+
+f32 Profiler_Time(u8 s) {
+	ProfilerSlot* p = &gProfilerCtx.s[s];
+	f32 sec = 0.0f;
+	
+	for (s32 i = 0; i < 20; i++)
+		sec += p->ring[i];
+	sec /= 20;
+	p->k++;
+	if (p->k >= 20)
+		p->k = 0;
+	
+	return sec;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # ITEM LIST                           #
 // # # # # # # # # # # # # # # # # # # # #
@@ -4439,6 +4478,10 @@ f32 Closest(f32 v, f32 x, f32 y) {
 
 f32 Remap(f32 v, f32 iMin, f32 iMax, f32 oMin, f32 oMax) {
 	return (v - iMin) / (iMax - iMin) * (oMax - oMin) + oMin;
+}
+
+f32 AccuracyF(f32 v, f32 mod) {
+	return rint(v * mod) / mod;
 }
 
 // # # # # # # # # # # # # # # # # # # # #

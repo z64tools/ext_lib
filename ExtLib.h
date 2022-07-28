@@ -49,6 +49,9 @@ char* xRep(const char* str, const char* a, const char* b);
 
 void Time_Start(u32 slot);
 f64 Time_Get(u32 slot);
+void Profiler_I(u8 s);
+void Profiler_O(u8 s);
+f32 Profiler_Time(u8 s);
 
 void FileSys_MakePath(s32 flag);
 void FileSys_Path(const char* fmt, ...);
@@ -298,6 +301,7 @@ s32 PingPongS(s32 v, s32 min, s32 max);
 f32 PingPongF(f32 v, f32 min, f32 max);
 f32 Closest(f32 v, f32 x, f32 y);
 f32 Remap(f32 v, f32 iMin, f32 iMax, f32 oMin, f32 oMax);
+f32 AccuracyF(f32 v, f32 mod);
 
 void* Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx);
 void Sound_Free(void* sound);
