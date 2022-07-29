@@ -3,7 +3,7 @@
 
 #include <ExtLib.h>
 
-extern f64 gDeltaTime;
+extern f32 gDeltaTime;
 
 #define VEC_TYPE(type, suffix) \
 	typedef union { \

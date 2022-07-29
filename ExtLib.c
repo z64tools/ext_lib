@@ -4118,7 +4118,7 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 #include <signal.h>
 
 #define FAULT_BUFFER_SIZE (1024)
-#define FAULT_LOG_NUM     32
+#define FAULT_LOG_NUM     8
 
 static char* sLogMsg[FAULT_LOG_NUM];
 static char* sLogFunc[FAULT_LOG_NUM];
@@ -4154,7 +4154,6 @@ static void Log_Signal_PrintTitle(int arg, FILE* file) {
 	
 	printf_WinFix();
 	
-	fprintf(file, "\n");
 	if (arg == 16 && sLogOutput == true)
 		fprintf(file, "\n[!]: [ ERROR ]");
 	else if (arg != 0xDEADBEEF)
@@ -4249,7 +4248,6 @@ static void Log_Signal(int arg) {
 	else
 		file = stdout;
 	
-	fprintf(file, "App [%s]\n\n", Sys_ThisApp());
 	Log_Signal_PrintTitle(arg, file);
 	Log_Printinf(arg, file);
 	

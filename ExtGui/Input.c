@@ -8,9 +8,6 @@ void Input_Update(Input* input) {
 	MouseInput* mouse = &input->mouse;
 	static u32 timer;
 	
-	gDeltaTime = Time_Get(0xCC) / .0145f;
-	Time_Start(0xCC);
-	
 	for (s32 i = 0; i < KEY_MAX; i++) {
 		input->key[i].press = (input->key[i].prev == 0 && input->key[i].hold);
 		input->key[i].release = (input->key[i].prev && input->key[i].hold == 0);

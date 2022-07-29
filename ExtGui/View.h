@@ -19,6 +19,8 @@ typedef struct {
 	s16   yaw;
 	s16   roll;
 	
+	// s16   vYaw;
+	// s16   vPitch;
 	f32   speed;
 	f32   speedMod;
 } Camera;

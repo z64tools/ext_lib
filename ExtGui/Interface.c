@@ -4,6 +4,8 @@
 #define NANOVG_GL3_IMPLEMENTATION
 #include <nanovg/src/nanovg_gl.h>
 
+f64 gFPS = 70;
+
 AppInfo* GetAppInfo(void* window) {
 	return glfwGetWindowUserPointer(window);
 }
@@ -89,7 +91,7 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
 	glfwSetKeyCallback(app->window, InputCallback_Key);
 	glfwSetCharCallback(app->window, InputCallback_Text);
 	glfwSetScrollCallback(app->window, InputCallback_Scroll);
-	glfwSwapInterval(1);
+	glfwSwapInterval(0);
 	
 	if (dropCallback)
 		glfwSetDropCallback(app->window, (void*)dropCallback);
@@ -108,9 +110,16 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
 }
 
 void Interface_Main(AppInfo* app) {
+	f64 prev = glfwGetTime();
+	
 	while (!glfwWindowShouldClose(app->window)) {
 		Interface_Draw(app);
 		glfwPollEvents();
+		
+		while (glfwGetTime() < prev + 1.0 / gFPS)
+			(void)0;
+		
+		prev += 1.0 / gFPS;
 	}
 	
 	glfwDestroyWindow(app->window);

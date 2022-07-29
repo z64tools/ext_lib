@@ -6,6 +6,9 @@ static void Camera_CalculateFly(Camera* cam) {
 	Vec3f atOffset = Math_Vec3f_New(0, 0, cam->dist);
 	
 	Matrix_Push();
+	
+	// Math_DelSmoothStepToS(&cam->vYaw, cam->yaw, 7, DegToBin(45), DegToBin(0.1));
+	// Math_DelSmoothStepToS(&cam->vPitch, cam->pitch, 7, DegToBin(45), DegToBin(0.1));
 	Matrix_Translate(cam->eye.x, cam->eye.y, cam->eye.z, MTXMODE_NEW);
 	Matrix_RotateY_s(cam->yaw, MTXMODE_APPLY);
 	Matrix_RotateX_s(cam->pitch, MTXMODE_APPLY);
@@ -85,6 +88,9 @@ static void Camera_CalculateOrbit(Camera* cam) {
 	
 	Matrix_Push();
 	Matrix_Translate(cam->at.x, cam->at.y, cam->at.z, MTXMODE_NEW);
+	
+	// cam->vYaw = cam->yaw;
+	// cam->vPitch = cam->pitch;
 	Matrix_RotateY_s(cam->yaw, MTXMODE_APPLY);
 	Matrix_RotateX_s(cam->pitch, MTXMODE_APPLY);
 	Matrix_RotateZ_s(cam->roll, MTXMODE_APPLY);

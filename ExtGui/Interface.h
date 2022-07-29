@@ -29,6 +29,8 @@ typedef struct AppInfo {
 AppInfo* GetAppInfo(void* window);
 void* GetUserCtx(void* window);
 
+extern f64 gFPS;
+
 void* Interface_Init(
 	const char* title,
 	AppInfo* app,
