@@ -4,6 +4,7 @@
 #define NANOVG_GL3_IMPLEMENTATION
 #include <nanovg/src/nanovg_gl.h>
 
+const f64 gNativeFPS = 60;
 f64 gFPS = 70;
 
 AppInfo* GetAppInfo(void* window) {
@@ -14,7 +15,7 @@ void* GetUserCtx(void* window) {
 	return GetAppInfo(window)->context;
 }
 
-static void Interface_Draw(AppInfo* app) {
+static void Interface_Update(AppInfo* app) {
 	Input_Update(app->input);
 	
 	if (!glfwGetWindowAttrib(app->window, GLFW_ICONIFIED))
@@ -48,7 +49,7 @@ static void Interface_FramebufferCallback(GLFWwindow* window, s32 width, s32 hei
 	app->winDim.y = height;
 	app->isResizeCallback = true;
 	
-	Interface_Draw(app);
+	Interface_Update(app);
 }
 
 void* Interface_Init(const char* title, AppInfo* app, Input* input, void* context, CallbackFunc updateCall, CallbackFunc drawCall, DropCallback dropCallback, u32 x, u32 y, u32 samples) {
@@ -113,12 +114,14 @@ void Interface_Main(AppInfo* app) {
 	f64 prev = glfwGetTime();
 	
 	while (!glfwWindowShouldClose(app->window)) {
-		Interface_Draw(app);
+		Time_Start(0xEF);
 		glfwPollEvents();
+		Interface_Update(app);
 		
-		while (glfwGetTime() < prev + 1.0 / gFPS)
-			(void)0;
+		if (glfwGetTime() < prev + 1.0 / gFPS)
+			usleep((prev + 1.0 / gFPS - glfwGetTime()) * (1000.0 * 1000.0));
 		
+		Math_SmoothStepToF(&gDeltaTime, Time_Get(0xEF) / (1.0 / gNativeFPS), 0.25, 0.1f, 0.001f);
 		prev += 1.0 / gFPS;
 	}
 	

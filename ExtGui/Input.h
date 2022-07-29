@@ -161,7 +161,7 @@ typedef struct {
 	};
 	s32   doubleClick;
 	Vec2s pressPos;
-	bool  cursorAction;
+	s32   cursorAction : 1;
 } MouseInput;
 
 typedef struct {
@@ -172,12 +172,6 @@ typedef struct {
 		s32 keyBlock;
 	} state;
 	char buffer[512];
-	
-	struct {
-		s32 mpos;
-		s32 scroll;
-		s32 min;
-	} cbBlock;
 } Input;
 
 #define MOUSE_KEEP_AXIS 0xD0D0CAFE

@@ -79,8 +79,6 @@ void Input_End(Input* input) {
 	
 	while (input->buffer[i] != '\0')
 		input->buffer[i++] = '\0';
-	
-	memset(&input->cbBlock, 0, sizeof(input->cbBlock));
 }
 
 const char* Input_GetClipboardStr(Input* input) {
@@ -133,9 +131,8 @@ f32 Input_GetPressPosDist(Input* input) {
 
 void InputCallback_Key(GLFWwindow* window, s32 key, s32 scancode, s32 action, s32 mods) {
 	Input* input = GetAppInfo(window)->input;
-	int hold = action != GLFW_RELEASE;
 	
-	input->key[key].hold = hold;
+	input->key[key].hold = action != 0;
 }
 
 void InputCallback_Text(GLFWwindow* window, u32 scancode) {
@@ -153,18 +150,17 @@ void InputCallback_Text(GLFWwindow* window, u32 scancode) {
 void InputCallback_Mouse(GLFWwindow* window, s32 button, s32 action, s32 mods) {
 	Input* input = GetAppInfo(window)->input;
 	MouseInput* mouse = &input->mouse;
-	s32 hold = action == GLFW_PRESS;
 	
 	switch (button) {
 		case GLFW_MOUSE_BUTTON_RIGHT:
-			mouse->clickR.hold = hold;
+			mouse->clickR.hold = action != 0;
 			break;
 			
 		case GLFW_MOUSE_BUTTON_LEFT:
-			mouse->clickL.hold = hold;
+			mouse->clickL.hold = action != 0;
 			break;
 		case GLFW_MOUSE_BUTTON_MIDDLE:
-			mouse->clickMid.hold = hold;
+			mouse->clickMid.hold = action != 0;
 	}
 }
 
@@ -172,12 +168,8 @@ void InputCallback_MousePos(GLFWwindow* window, f64 x, f64 y) {
 	Input* input = GetAppInfo(window)->input;
 	MouseInput* mouse = &input->mouse;
 	
-	if (input->cbBlock.mpos++ > 0)
-		return;
-	
-	glfwGetCursorPos(input->app->window, &x, &y);
-	mouse->vel.x = x - mouse->pos.x;
-	mouse->vel.y = y - mouse->pos.y;
+	mouse->vel.x += x - mouse->pos.x;
+	mouse->vel.y += y - mouse->pos.y;
 	mouse->pos.x = x;
 	mouse->pos.y = y;
 }
@@ -186,7 +178,5 @@ void InputCallback_Scroll(GLFWwindow* window, f64 x, f64 y) {
 	Input* input = GetAppInfo(window)->input;
 	MouseInput* mouse = &input->mouse;
 	
-	if (input->cbBlock.scroll++ > 0)
-		return;
-	mouse->scrollY = y;
+	mouse->scrollY += y;
 }

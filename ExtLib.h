@@ -9,6 +9,7 @@ extern "C" {
 #define __CRT__NO_INLINE
 
 #include <ExtTypes.h>
+#include <ExtMath.h>
 #include <math.h>
 #include <time.h>
 #include <unistd.h>
@@ -294,14 +295,7 @@ f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minS
 f32 Math_Spline_Audio(float k, float xm1, float x0, float x1, float x2);
 f32 Math_Spline(f32 k, f32 xm1, f32 x0, f32 x1, f32 x2);
 void Math_ApproachF(f32* pValue, f32 target, f32 fraction, f32 step);
-void Math_ApproachS(s32* pValue, s32 target, s32 scale, s32 step);
-s32 WrapS(s32 x, s32 min, s32 max);
-f32 WrapF(f32 x, f32 min, f32 max);
-s32 PingPongS(s32 v, s32 min, s32 max);
-f32 PingPongF(f32 v, f32 min, f32 max);
-f32 Closest(f32 v, f32 x, f32 y);
-f32 Remap(f32 v, f32 iMin, f32 iMax, f32 oMin, f32 oMax);
-f32 AccuracyF(f32 v, f32 mod);
+void Math_ApproachS(s16* pValue, s16 target, s16 scale, s16 step);
 
 void* Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx);
 void Sound_Free(void* sound);
@@ -417,7 +411,6 @@ void Sound_Xm_Stop();
 #define ClampS32(val) (s32)Clamp(((f32)val), (-__INT32_MAX__ - 1), (f32)__INT32_MAX__)
 
 #define ArrayCount(arr)   (u32)(sizeof(arr) / sizeof(arr[0]))
-#define Lerp(x, min, max) ((min) + ((max) - (min)) * (x))
 
 #define BinToMb(x)        ((f32)(x) / (f32)0x100000)
 #define BinToKb(x)        ((f32)(x) / (f32)0x400)

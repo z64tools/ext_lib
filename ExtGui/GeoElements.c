@@ -780,13 +780,9 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 	f32 step = (this->max - this->min) * 0.5f;
 	
 	if (this->isInt) {
-		f32 mul;
-		mul = rint(Lerp(this->value, this->min, this->max));
+		s32 mul = rint(Remap(this->value, 0, 1, this->min, this->max));
 		
-		mul -= this->min;
-		mul /= this->max;
-		
-		Math_DelSmoothStepToF(&this->vValue, mul, 0.5f, step, 0.0f);
+		Math_DelSmoothStepToF(&this->vValue, Remap(mul, this->min, this->max, 0, 1), 0.5f, step, 0.0f);
 	} else
 		Math_DelSmoothStepToF(&this->vValue, this->value, 0.5f, step, 0.0f);
 	
@@ -1317,10 +1313,8 @@ void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type) {
 }
 
 void Element_Slider_SetValue(ElSlider* this, f64 val) {
-	this->value = val;
-	this->value -= this->min;
-	this->value *= 1.0 / (this->max - this->min);
-	this->vValue = this->value = Clamp(this->value, 0.0f, 1.0f);
+	val = Clamp(val, this->min, this->max);
+	this->vValue = this->value = Normalize(val, this->min, this->max);
 }
 
 void Element_Button_SetValue(ElButton* this, bool toggle, bool state) {

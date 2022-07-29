@@ -116,10 +116,10 @@ Vector_Math(f, f32, Add, +)
 Vector_Math(s, s16, Add, +)
 
 Vector_Math(f, f32, Div, /)
-Vector_Math(s, s16, Div, /)
+Vector_Math(s, f32, Div, /)
 
 Vector_Math(f, f32, Mul, *)
-Vector_Math(s, s16, Mul, *)
+Vector_Math(s, f32, Mul, *)
 
 #undef Vector_New
 #define Vector_New(format, type) \

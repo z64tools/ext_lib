@@ -4419,8 +4419,8 @@ void Math_ApproachF(f32* pValue, f32 target, f32 fraction, f32 step) {
 	}
 }
 
-void Math_ApproachS(s32* pValue, s32 target, s32 scale, s32 step) {
-	s32 diff = target - *pValue;
+void Math_ApproachS(s16* pValue, s16 target, s16 scale, s16 step) {
+	s16 diff = target - *pValue;
 	
 	diff /= scale;
 	
@@ -4431,55 +4431,6 @@ void Math_ApproachS(s32* pValue, s32 target, s32 scale, s32 step) {
 	} else {
 		*pValue += diff;
 	}
-}
-
-s32 WrapS(s32 x, s32 min, s32 max) {
-	s32 range = max - min;
-	
-	if (x < min)
-		x += range * ((min - x) / range + 1);
-	
-	return min + (x - min) % range;
-}
-
-f32 WrapF(f32 x, f32 min, f32 max) {
-	f64 range = max - min;
-	
-	if (x < min)
-		x += range * roundf((min - x) / range + 1);
-	
-	return min + fmodf((x - min), range);
-}
-
-s32 PingPongS(s32 v, s32 min, s32 max) {
-	min = WrapS(v, min, max * 2);
-	if (min < max)
-		return min;
-	else
-		return 2 * max - min;
-}
-
-f32 PingPongF(f32 v, f32 min, f32 max) {
-	min = WrapF(v, min, max * 2);
-	if (min < max)
-		return min;
-	else
-		return 2 * max - min;
-}
-
-f32 Closest(f32 v, f32 x, f32 y) {
-	if ((Min(v, x) - Max(v, x) > Min(v, y) - Max(v, y)))
-		return x;
-	
-	return y;
-}
-
-f32 Remap(f32 v, f32 iMin, f32 iMax, f32 oMin, f32 oMax) {
-	return (v - iMin) / (iMax - iMin) * (oMax - oMin) + oMin;
-}
-
-f32 AccuracyF(f32 v, f32 mod) {
-	return rint(v * mod) / mod;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
