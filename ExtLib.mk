@@ -1,3 +1,6 @@
+CFLAGS      += -I $(PATH_EXTLIB)
+CFLAGS_MAIN += -I $(PATH_EXTLIB)
+
 ExtLib_H  = $(PATH_EXTLIB)/ExtLib.h
 
 ExtLib_C  = ExtLib.c
