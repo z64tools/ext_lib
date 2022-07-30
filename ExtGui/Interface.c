@@ -5,7 +5,8 @@
 #include <nanovg/src/nanovg_gl.h>
 
 const f64 gNativeFPS = 60;
-f64 gFPS = 70;
+static bool gPrevLimitFPS;
+bool gLimitFPS = true;
 
 AppInfo* GetAppInfo(void* window) {
 	return glfwGetWindowUserPointer(window);
@@ -35,6 +36,7 @@ static void Interface_Update(AppInfo* app) {
 	
 	app->isResizeCallback = false;
 	Input_End(app->input);
+	
 	glfwSwapBuffers(app->window);
 }
 
@@ -92,7 +94,7 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
 	glfwSetKeyCallback(app->window, InputCallback_Key);
 	glfwSetCharCallback(app->window, InputCallback_Text);
 	glfwSetScrollCallback(app->window, InputCallback_Scroll);
-	glfwSwapInterval(0);
+	glfwSwapInterval(gLimitFPS);
 	
 	if (dropCallback)
 		glfwSetDropCallback(app->window, (void*)dropCallback);
@@ -111,18 +113,16 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
 }
 
 void Interface_Main(AppInfo* app) {
-	f64 prev = glfwGetTime();
-	
 	while (!glfwWindowShouldClose(app->window)) {
 		Time_Start(0xEF);
 		glfwPollEvents();
 		Interface_Update(app);
 		
-		if (glfwGetTime() < prev + 1.0 / gFPS)
-			usleep((prev + 1.0 / gFPS - glfwGetTime()) * (1000.0 * 1000.0));
+		if (gPrevLimitFPS != gLimitFPS)
+			glfwSwapInterval(gLimitFPS);
+		gPrevLimitFPS = gLimitFPS;
 		
-		Math_SmoothStepToF(&gDeltaTime, Time_Get(0xEF) / (1.0 / gNativeFPS), 0.25, 0.1f, 0.001f);
-		prev += 1.0 / gFPS;
+		gDeltaTime = Time_Get(0xEF) / (1.0 / gNativeFPS);
 	}
 	
 	glfwDestroyWindow(app->window);

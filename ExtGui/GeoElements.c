@@ -195,12 +195,7 @@ static char* PropEnum_Get(PropEnum* this, s32 i) {
 }
 
 static void PropEnum_Set(PropEnum* this, s32 i) {
-	char** list = this->list;
-	
 	this->key = Clamp(i, 0, this->num - 1);
-	printf_info("" PRNT_YELW "%s", __FUNCTION__);
-	printf_info("this->key = %d", this->key);
-	printf_info("\"%s\"", list[this->key]);
 	
 	if (i != this->key)
 		Log("Out of range set!");
@@ -233,9 +228,6 @@ PropEnum* PropEnum_InitList(s32 def, s32 num, ...) {
 void PropEnum_Add(PropEnum* this, char* item) {
 	Realloc(this->list, sizeof(char*) * (this->num + 1));
 	this->list[this->num++] = StrDup(item);
-	
-	printf_info("" PRNT_YELW "%s", __FUNCTION__);
-	printf_info("prop->num = %d", this->num);
 }
 
 void PropEnum_Remove(PropEnum* this, s32 key) {
@@ -245,9 +237,6 @@ void PropEnum_Remove(PropEnum* this, s32 key) {
 	Free(this->list[key]);
 	for (s32 i = key; i < this->num; i++)
 		this->list[i] = this->list[i + 1];
-	
-	printf_info("" PRNT_YELW "%s", __FUNCTION__);
-	printf_info("prop->num = %d", this->num);
 }
 
 void PropEnum_Free(PropEnum* this) {
@@ -1595,33 +1584,49 @@ static void Element_UpdateElement(ElementCallInfo* info) {
 	if (this->press && this->disabled == false)
 		press = 1.2f;
 	
-	if (this->hover && !this->disabled) {
-		Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 1.10f * press),            0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 1.15f * press),            0.25f, 0.35f, 0.001f);
-		
-		if (this->toggle < 3)
-			Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
-	} else {
-		Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 1.00f * press),            0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.00f + toggle) * press), 0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (0.50f + toggle) * press), 0.25f, 0.35f, 0.001f);
-		Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 1.00f * press),            0.25f, 0.35f, 0.001f);
-		
-		if (this->toggle < 3)
-			Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.00f + toggle) * press), 0.25f, 0.35f, 0.001f);
-	}
-	
-	if (this->toggle == 3)
-		Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_PRIM,  255, 0.95f * press), 0.25f, 8.85f, 0.001f);
-	
 	if (this->disabled) {
-		Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), 0.15f, 0.05f, 0.0f);
-		Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), 0.15f, 0.05f, 0.0f);
-		Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), 0.15f, 0.05f, 0.0f);
-		Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), 0.15f, 0.05f, 0.0f);
-		Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), 0.15f, 0.05f, 0.0f);
+		const f32 mix = 0.45;
+		if (this->hover && !this->disabled) {
+			this->prim = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_PRIM,          255, 1.10f * press));
+			this->shadow = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.07f + toggle) * press));
+			this->light = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (1.07f + toggle) * press));
+			this->texcol = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_TEXT,          255, 1.15f * press));
+			
+			if (this->toggle < 3)
+				this->base = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.07f + toggle) * press));
+		} else {
+			this->prim = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_PRIM,          255, 1.00f * press));
+			this->shadow = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.00f + toggle) * press));
+			this->light = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (0.50f + toggle) * press));
+			this->texcol = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_TEXT,          255, 1.00f * press));
+			
+			if (this->toggle < 3)
+				this->base = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.00f + toggle) * press));
+		}
+		
+		if (this->toggle == 3)
+			this->base = Theme_Mix(0.75, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_PRIM,  255, 0.95f * press));
+	} else {
+		if (this->hover && !this->disabled) {
+			Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 1.10f * press),            0.25f, 0.35f, 0.001f);
+			Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
+			Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
+			Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 1.15f * press),            0.25f, 0.35f, 0.001f);
+			
+			if (this->toggle < 3)
+				Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
+		} else {
+			Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 1.00f * press),            0.25f, 0.35f, 0.001f);
+			Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.00f + toggle) * press), 0.25f, 0.35f, 0.001f);
+			Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (0.50f + toggle) * press), 0.25f, 0.35f, 0.001f);
+			Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 1.00f * press),            0.25f, 0.35f, 0.001f);
+			
+			if (this->toggle < 3)
+				Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.00f + toggle) * press), 0.25f, 0.35f, 0.001f);
+		}
+		
+		if (this->toggle == 3)
+			Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_PRIM,  255, 0.95f * press), 0.25f, 8.85f, 0.001f);
 	}
 }
 

@@ -126,6 +126,7 @@ Vec3f* Math_CalcUpFromPitchYawRoll(Vec3f* dest, s16 pitch, s16 yaw, s16 roll) {
 f32 Math_DelSmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep) {
 	step *= gDeltaTime;
 	minStep *= gDeltaTime;
+	fraction *= gDeltaTime;
 	
 	if (*pValue != target) {
 		f32 stepSize = (target - *pValue) * fraction;
@@ -165,6 +166,7 @@ f32 Math_DelSmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 m
 f64 Math_DelSmoothStepToD(f64* pValue, f64 target, f64 fraction, f64 step, f64 minStep) {
 	step *= gDeltaTime;
 	minStep *= gDeltaTime;
+	fraction *= gDeltaTime;
 	
 	if (*pValue != target) {
 		f64 stepSize = (target - *pValue) * fraction;

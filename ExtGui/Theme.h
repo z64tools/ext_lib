@@ -23,5 +23,6 @@ typedef enum {
 void Theme_Init(u32 themeId);
 void Theme_SmoothStepToCol(NVGcolor* src, NVGcolor target, f32 a, f32 b, f32 c);
 NVGcolor Theme_GetColor(ThemeColor, s32, f32);
+NVGcolor Theme_Mix(f32 v, NVGcolor a, NVGcolor b);
 
 #endif

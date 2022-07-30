@@ -22,6 +22,7 @@ typedef struct AppInfo {
 	Input* input;
 	void*  context;
 	Vec2s  winDim;
+	Vec2s  bufDim;
 	Vec2s  prevWinDim;
 	bool   isResizeCallback;
 } AppInfo;
@@ -29,7 +30,8 @@ typedef struct AppInfo {
 AppInfo* GetAppInfo(void* window);
 void* GetUserCtx(void* window);
 
-extern f64 gFPS;
+extern const f64 gNativeFPS;
+extern bool gLimitFPS;
 
 void* Interface_Init(
 	const char* title,

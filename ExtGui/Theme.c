@@ -39,3 +39,12 @@ void Theme_Init(u32 themeId) {
 	{
 	}
 }
+
+NVGcolor Theme_Mix(f32 v, NVGcolor a, NVGcolor b) {
+	return (NVGcolor) {
+		       .r = Lerp(v, a.r, b.r),
+		       .g = Lerp(v, a.g, b.g),
+		       .b = Lerp(v, a.b, b.b),
+		       .a = Lerp(v, a.a, b.a),
+	};
+}

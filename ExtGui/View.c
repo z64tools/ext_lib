@@ -62,6 +62,15 @@ void View_Camera_FlyMode(ViewContext* this, Input* inputCtx) {
 			Math_DelSmoothStepToF(&cam->vel.z, 0, 0.25f, step, min);
 		}
 		
+		if (inputCtx->key[KEY_Q].hold || inputCtx->key[KEY_E].hold) {
+			if (inputCtx->key[KEY_Q].hold)
+				Math_DelSmoothStepToF(&cam->vel.y, -cam->speed, 0.25f, step, min);
+			if (inputCtx->key[KEY_E].hold)
+				Math_DelSmoothStepToF(&cam->vel.y, cam->speed, 0.25f, step, min);
+		} else {
+			Math_DelSmoothStepToF(&cam->vel.y, 0, 0.25f, step, min);
+		}
+		
 		if (Input_GetMouse(inputCtx, MOUSE_L)->hold) {
 			if (init == 0)
 				flip = Abs(cam->pitch - pitch) < DegToBin(0.1) ? 1 : -1;
