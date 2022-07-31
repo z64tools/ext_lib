@@ -1,6 +1,6 @@
 #include <ExtGui/Collision.h>
 
-bool Col3D_LineVsTriangle(Vec3f posA, Vec3f posB, Triangle* tri, Vec3f* out) {
+bool Col3D_LineVsTriangle(Vec3f posA, Vec3f posB, Triangle* tri, Vec3f* out, float* t) {
 	const f32 EPSILON = 0.0000001;
 	Vec3f vertex0 = tri->v[0];
 	Vec3f vertex1 = tri->v[1];
@@ -26,14 +26,14 @@ bool Col3D_LineVsTriangle(Vec3f posA, Vec3f posB, Triangle* tri, Vec3f* out) {
 	if (v < 0.0 || u + v > 1.0)
 		return false;
 	// At this stage we can compute t to find out where the intersection point is on the line.
-	f32 t = f * Math_Vec3f_Dot(edge2, q);
+	*t = f * Math_Vec3f_Dot(edge2, q);
 	
 	// Distance check, if distance is longer than diff between posA posB, return false
-	if (t > dist)
+	if (*t > dist)
 		return false;
 	
-	if (t > EPSILON) { // ray intersection
-		*out = Math_Vec3f_Add(posA, Math_Vec3f_MulVal(dir, t));
+	if (*t > EPSILON) { // ray intersection
+		*out = Math_Vec3f_Add(posA, Math_Vec3f_MulVal(dir, *t));
 		
 		return true;
 	} else                 // This means that there is a line intersection but not a ray intersection.
