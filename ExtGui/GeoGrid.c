@@ -202,17 +202,33 @@ bool Split_CursorInSplit(Split* split) {
 	return Rect_PointIntersect(&r, split->mousePos.x, split->mousePos.y);
 }
 
-static Split* Split_Alloc(const char* name) {
+static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
+	this->taskEnum = PropEnum_Init(this->id);
+	CallocX(this->taskCombo);
+	
+	Assert(this->taskEnum != NULL);
+	Assert(this->taskCombo != NULL);
+	
+	for (s32 i = 0; i < geo->numTaskTable; i++)
+		PropEnum_Add(this->taskEnum, geo->taskTable[i]->taskName);
+	Element_Combo_SetPropEnum(this->taskCombo, this->taskEnum);
+}
+
+static Split* Split_Alloc(GeoGrid* geo, const char* name, s32 id) {
 	Split* split;
 	
 	Calloc(split, sizeof(Split));
 	split->name = name;
+	split->prevId = -1; // Forces init
+	split->id = id;
+	
+	Split_SetupTaskEnum(geo, split);
 	
 	return split;
 }
 
-Split* GeoGrid_AddSplit(GeoGrid* geo, const char* name, Rectf32* rect) {
-	Split* split = Split_Alloc(name);
+Split* GeoGrid_AddSplit(GeoGrid* geo, const char* name, Rectf32* rect, s32 id) {
+	Split* split = Split_Alloc(geo, name, id);
 	
 	split->vtx[VTX_BOT_L] = GeoGrid_AddVtx(geo, rect->x, rect->y + rect->h);
 	split->vtx[VTX_TOP_L] = GeoGrid_AddVtx(geo, rect->x, rect->y);
@@ -306,7 +322,7 @@ static void Split_Split(GeoGrid* geo, Split* split, SplitDir dir) {
 	Split* newSplit;
 	f64 splitPos = (dir == DIR_L || dir == DIR_R) ? geo->input->mouse.pos.x : geo->input->mouse.pos.y;
 	
-	newSplit = Split_Alloc(split->name);
+	newSplit = Split_Alloc(geo, split->name, split->id);
 	Node_Add(geo->splitHead, newSplit);
 	
 	if (dir == DIR_L) {
@@ -419,10 +435,10 @@ static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
 	}
 	
 	split->edge[dir] = killSplit->edge[dir];
+	geo->taskTable[killSplit->id]->destroy(geo->passArg, killSplit->instance, killSplit);
 	
-	if (killSplit->id > 0)
-		geo->taskTable[killSplit->id]->destroy(geo->passArg, geo->taskTable[killSplit->id]->instance, killSplit);
-	
+	PropEnum_Free(killSplit->taskEnum);
+	Free(killSplit->taskCombo);
 	Node_Kill(geo->splitHead, killSplit);
 	GeoGrid_RemoveDuplicates(geo);
 	Split_UpdateRect(split);
@@ -707,9 +723,10 @@ static void Split_UpdateActionSplit(GeoGrid* geo) {
 	if (Input_GetMouse(geo->input, MOUSE_ANY)->hold) {
 		if (split->stateFlag & SPLIT_POINTS) {
 			s32 dist = Math_Vec2s_DistXZ(split->mousePos, split->mousePressPos);
+			SplitDir dir = GeoGrid_GetDir_MouseToPressPos(split);
 			
 			if (dist > 1) {
-				CursorIndex cid = GeoGrid_GetDir_MouseToPressPos(split) + 1;
+				CursorIndex cid = dir + 1;
 				Cursor_SetCursor(cid);
 			}
 			
@@ -717,10 +734,25 @@ static void Split_UpdateActionSplit(GeoGrid* geo) {
 				Split_ClearActionSplit(geo);
 				
 				if (split->mouseInDispRect)
-					Split_Split(geo, split, GeoGrid_GetDir_MouseToPressPos(split));
+					Split_Split(geo, split, dir);
 				
 				else
-					Split_Kill(geo, split, GeoGrid_GetDir_MouseToPressPos(split));
+					Split_Kill(geo, split, dir);
+			} else {
+				SplitEdge* sharedEdge = split->edge[dir];
+				Split* killSplit = geo->splitHead;
+				SplitDir oppositeDir = GeoGrid_GetDir_Opposite(dir);
+				
+				while (killSplit) {
+					if (killSplit->edge[oppositeDir] == sharedEdge) {
+						break;
+					}
+					
+					killSplit = killSplit->next;
+				}
+				
+				if (killSplit)
+					killSplit->stateFlag |= SPLIT_KILL_DIR_L << dir;
 			}
 		}
 		
@@ -741,16 +773,16 @@ static void Split_UpdateRect(Split* split) {
 	);
 	
 	split->rect = split->dispRect;
-	split->rect.h -= SPLIT_ELEM_Y_PADDING;
+	split->rect.h -= SPLIT_ELEM_Y_PADDING + 4;
 	
 	split->headRect.x = split->rect.x;
 	split->headRect.y = split->rect.y + split->rect.h;
-	split->headRect.h = SPLIT_ELEM_Y_PADDING;
+	split->headRect.h = SPLIT_ELEM_Y_PADDING + 4;
 	split->headRect.w = split->rect.w;
 }
 
-#define FreeSplit(id) do { \
-		table[id]->destroy(geo->passArg, table[id]->instance, split); \
+#define Split_FreeInstance(id) do { \
+		table[id]->destroy(geo->passArg, split->instance, split); \
 } while (0)
 
 static void Split_Update(GeoGrid* geo) {
@@ -801,24 +833,25 @@ static void Split_Update(GeoGrid* geo) {
 		
 		u32 id = split->id;
 		SplitTask** table = geo->taskTable;
-		if (split->id > 0) {
-			if (split->id != split->prevId) {
-				if (split->prevId != 0)
-					FreeSplit(split->prevId);
-				
-				Calloc(table[id]->instance, table[id]->size);
-				table[id]->init(geo->passArg, table[id]->instance, split);
-				split->prevId = split->id;
+		
+		split->id = split->taskEnum->key;
+		
+		if (split->id != split->prevId) {
+			if (split->instance) {
+				Log("Swap ID");
+				Split_FreeInstance(split->prevId);
+				Free(split->instance);
 			}
-			Log("Update Split [%s]", split->name);
-			Element_SetContext(geo, split);
-			table[id]->update(geo->passArg, table[id]->instance, split);
-			Log("OK");
-		} else if (split->prevId != 0) {
-			id = split->prevId;
-			FreeSplit(id);
-			split->prevId = 0;
+			
+			id = split->prevId = split->id;
+			Calloc(split->instance, table[id]->size);
+			table[id]->init(geo->passArg, split->instance, split);
 		}
+		
+		Log("Update Split [%s]", split->name);
+		Element_SetContext(geo, split);
+		table[id]->update(geo->passArg, split->instance, split);
+		Log("OK");
 		
 		for (s32 i = 0; i < 4; i++) {
 			Assert(split->edge[i] != NULL);
@@ -929,31 +962,68 @@ static void Split_Draw(GeoGrid* geo) {
 			
 			r.x = r.y = 0;
 			
-			if (split->id > 0) {
-				u32 id = split->id;
-				SplitTask** table = geo->taskTable;
-				
-				nvgBeginPath(vg);
-				nvgRect(vg, 0, 0, split->dispRect.w, split->dispRect.h);
-				if (split->bg.useCustomBG == true) {
-					nvgFillColor(vg, nvgRGBA(split->bg.color.r, split->bg.color.g, split->bg.color.b, 255));
-				} else {
-					// nvgFillColor(vg, Theme_GetColor(THEME_BASE, 255, 1.0f));
-					nvgFillPaint(vg, nvgBoxGradient(vg, UnfoldRect(r), SPLIT_ROUND_R, 8.0f, Theme_GetColor(THEME_BASE, 255, 1.0f), Theme_GetColor(THEME_BASE, 255, 0.8f)));
-				}
-				nvgFill(vg);
-				
-				nvgEndFrame(geo->vg);
-				nvgBeginFrame(geo->vg, split->dispRect.w, split->dispRect.h, gPixelRatio);
-				
-				Element_SetContext(geo, split);
-				table[id]->draw(geo->passArg, geo->taskTable[split->id]->instance, split);
-				Element_Draw(geo, split);
+			u32 id = split->id;
+			SplitTask** table = geo->taskTable;
+			
+			nvgBeginPath(vg);
+			nvgRect(vg, 0, 0, split->dispRect.w, split->dispRect.h);
+			if (split->bg.useCustomBG == true) {
+				nvgFillColor(vg, nvgRGBA(split->bg.color.r, split->bg.color.g, split->bg.color.b, 255));
 			} else {
-				nvgBeginPath(vg);
-				nvgRect(vg, 0, 0, split->dispRect.w, split->dispRect.h);
-				nvgFillColor(vg, Theme_GetColor(THEME_BASE, 255, 1.0f));
-				nvgFill(vg);
+				// nvgFillColor(vg, Theme_GetColor(THEME_BASE, 255, 1.0f));
+				nvgFillPaint(vg, nvgBoxGradient(vg, UnfoldRect(r), SPLIT_ROUND_R, 8.0f, Theme_GetColor(THEME_BASE, 255, 1.0f), Theme_GetColor(THEME_BASE, 255, 0.8f)));
+			}
+			nvgFill(vg);
+			
+			/*
+			 * New frame to make it possible to have
+			 * something drawn from other sources than nvg
+			 */
+			nvgEndFrame(geo->vg);
+			nvgBeginFrame(geo->vg, split->dispRect.w, split->dispRect.h, gPixelRatio);
+			
+			Element_SetContext(geo, split);
+			table[id]->draw(geo->passArg, split->instance, split);
+			Element_Draw(geo, split, false);
+			
+			if (split->stateFlag & SPLIT_KILL_TARGET) {
+				Vec2f arrow[] = {
+					{ 0, 13 }, { 11, 1 }, { 5.6, 1 }, { 5.6, -10 },
+					{ -5.6, -10 }, { -5.6, 1 }, { -10, 1 }, { 0, 13 }
+				};
+				f32 dir;
+				
+				switch (split->stateFlag & SPLIT_KILL_TARGET) {
+					case SPLIT_KILL_DIR_L:
+						dir = -90;
+						break;
+					case SPLIT_KILL_DIR_T:
+						dir = -180;
+						break;
+					case SPLIT_KILL_DIR_R:
+						dir = 90;
+						break;
+					case SPLIT_KILL_DIR_B:
+						dir = 0;
+						break;
+				}
+				
+				nvgBeginPath(geo->vg);
+				nvgRect(geo->vg, -4, -4, split->dispRect.w + 8, split->dispRect.h + 8);
+				nvgShape(
+					geo->vg,
+					Math_Vec2f_New(split->rect.w * 0.5, split->rect.h * 0.5),
+					10.0f,
+					DegToBin(dir),
+					arrow,
+					ArrayCount(arrow)
+				);
+				nvgPathWinding(geo->vg, NVG_HOLE);
+				
+				nvgFillColor(geo->vg, Theme_GetColor(THEME_SHADOW, 125, 1.0f));
+				nvgFill(geo->vg);
+				
+				split->stateFlag &= ~(SPLIT_KILL_TARGET);
 			}
 			
 			r = split->dispRect;
@@ -991,6 +1061,16 @@ static void Split_Draw(GeoGrid* geo) {
 			nvgFillColor(geo->vg, Theme_GetColor(THEME_BASE, 255, 1.25f));
 			nvgFill(geo->vg);
 			nvgResetScissor(vg);
+		} nvgEndFrame(geo->vg);
+		
+		glViewport(
+			split->headRect.x,
+			winDim->y - split->headRect.y - split->headRect.h,
+			split->headRect.w,
+			split->headRect.h
+		);
+		nvgBeginFrame(geo->vg, split->headRect.w, split->headRect.h, gPixelRatio); {
+			Element_Draw(geo, split, true);
 		} nvgEndFrame(geo->vg);
 	}
 }
@@ -1044,6 +1124,12 @@ extern unsigned char gFont_DejaVu[757076];
 
 void GeoGrid_Debug(bool b) {
 	sDebugMode = b;
+}
+
+void GeoGrid_TaskTable(GeoGrid* geo, SplitTask** taskTable, u32 num) {
+	Assert(num != 0);
+	geo->taskTable = taskTable;
+	geo->numTaskTable = num;
 }
 
 void GeoGrid_Init(GeoGrid* geo, Vec2s* winDim, Input* inputCtx, void* vg) {
