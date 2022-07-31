@@ -8,22 +8,6 @@ typedef struct {
 	Vec3f n[3];
 } Triangle;
 
-typedef struct {
-	Vec3f v[3];
-	Vec3f normal;
-} TriPlane;
-
-typedef struct {
-	f32 minX, maxX;
-	f32 minY, maxY;
-	f32 minZ, maxZ;
-} BoundingBox;
-
-typedef struct {
-	Vec3f a;
-	Vec3f b;
-} LineF;
-
-bool Col3D_LineVsPoly(LineF line, Triangle* tri, u32 num, Vec3f* collision);
+bool Col3D_LineVsTriangle(Vec3f posA, Vec3f posB, Triangle* tri, Vec3f* out);
 
 #endif
