@@ -1175,16 +1175,10 @@ queue_element:
 }
 
 s32 Element_Combo(ElCombo* this) {
-	Split* split = gElementState.split;
-	Rect* r = &this->element.rect;
-	
 	Assert(gElementState.geo && gElementState.split);
 	
 	if (this->element.disabled || gElementState.geo->state.noClickInput)
 		goto queue_element;
-	
-	if (this->element.header)
-		r = &split->headRect;
 	
 	Log("PROP %X", this->prop);
 	if (this->prop && this->prop->num) {

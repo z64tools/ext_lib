@@ -8,6 +8,7 @@
 #include <ExtGui/View.h>
 #include <ExtGui/Theme.h>
 #include <ExtGui/GeoGrid.h>
+#include <ExtGui/Collision.h>
 
 struct ViewerContext;
 struct Scene;

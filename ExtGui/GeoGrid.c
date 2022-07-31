@@ -991,7 +991,7 @@ static void Split_Draw(GeoGrid* geo) {
 					{ 0, 13 }, { 11, 1 }, { 5.6, 1 }, { 5.6, -10 },
 					{ -5.6, -10 }, { -5.6, 1 }, { -10, 1 }, { 0, 13 }
 				};
-				f32 dir;
+				f32 dir = 0;
 				
 				switch (split->stateFlag & SPLIT_KILL_TARGET) {
 					case SPLIT_KILL_DIR_L:

@@ -8,6 +8,13 @@ typedef struct {
 	Vec3f n[3];
 } Triangle;
 
-bool Col3D_LineVsTriangle(Vec3f posA, Vec3f posB, Triangle* tri, Vec3f* out, float* t, bool* isBackface);
+typedef struct {
+	Vec3f start;
+	Vec3f end;
+	f32   nearest;
+} RayLine;
+
+RayLine RayLine_New(Vec3f start, Vec3f end);
+bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* out, bool backface);
 
 #endif

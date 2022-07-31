@@ -4,6 +4,7 @@
 #include <ExtGui/Math.h>
 #include <ExtGui/Matrix.h>
 #include <ExtGui/Input.h>
+#include <ExtGui/Collision.h>
 
 typedef struct {
 	Vec3f eye;
@@ -21,8 +22,8 @@ typedef struct {
 	
 	// s16   vYaw;
 	// s16   vPitch;
-	f32   speed;
-	f32   speedMod;
+	f32 speed;
+	f32 speedMod;
 } Camera;
 
 typedef struct {
@@ -57,5 +58,7 @@ void View_Init(ViewContext* view, Input* input);
 void View_Update(ViewContext* viewCtx, Input* inputCtx);
 
 void View_SetProjectionDimensions(ViewContext* viewCtx, Vec2s* dim);
+
+void View_Raycast(ViewContext* this, Vec2s pos, Rect dispRect, RayLine* dst);
 
 #endif
