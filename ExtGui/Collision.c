@@ -6,7 +6,7 @@ RayLine RayLine_New(Vec3f start, Vec3f end) {
 	};
 }
 
-bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* out, bool backface) {
+bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* out, bool cullBackface, bool cullFrontface) {
 	const f32 EPSILON = 0.0000001;
 	Vec3f vertex0 = tri->v[0];
 	Vec3f vertex1 = tri->v[1];
@@ -20,7 +20,7 @@ bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* out, bool backface
 	edge2 = Math_Vec3f_Sub(vertex2, vertex0);
 	h = Math_Vec3f_Cross(dir, edge2);
 	a = Math_Vec3f_Dot(edge1, h);
-	if (!backface && a < 0)
+	if ((cullBackface && a < 0) || (cullFrontface && a > 0))
 		return false;
 	if (a > -EPSILON && a < EPSILON)
 		return false;  // This ray is parallel to this triangle.
