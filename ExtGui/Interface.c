@@ -74,16 +74,10 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
 		glfwWindowHint(GLFW_SAMPLES, samples);
 	
 	Log("Create Window");
-	app->window = glfwCreateWindow(
-		app->winDim.x,
-		app->winDim.y,
-		title,
-		NULL,
-		NULL
-	);
-	if (app->window == NULL) {
+	app->window = glfwCreateWindow(app->winDim.x, app->winDim.y, title, NULL, NULL);
+	
+	if (app->window == NULL)
 		printf_error("Failed to create GLFW window.");
-	}
 	
 	glfwSetWindowUserPointer(app->window, app);
 	Log("Set Callbacks");
@@ -99,9 +93,8 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
 	if (dropCallback)
 		glfwSetDropCallback(app->window, (void*)dropCallback);
 	
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 		printf_error("Failed to initialize GLAD.");
-	}
 	
 	Log("Init Matrix, Input and set Framerate");
 	Matrix_Init();

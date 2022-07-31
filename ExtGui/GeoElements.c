@@ -68,7 +68,7 @@ static const char* sFmt[] = {
 // #                                     #
 // # # # # # # # # # # # # # # # # # # # #
 
-void nvgShape(void* vg, Vec2f center, f32 scale, s16 rot, Vec2f* p, u32 num) {
+void Gfx_Shape(void* vg, Vec2f center, f32 scale, s16 rot, Vec2f* p, u32 num) {
 	for (s32 i = 0; i < num; i++) {
 		s32 wi = WrapS(i, 0, num - 1);
 		Vec2f zero = { 0 };
@@ -89,6 +89,48 @@ void nvgShape(void* vg, Vec2f center, f32 scale, s16 rot, Vec2f* p, u32 num) {
 	}
 }
 
+void Gfx_DrawRounderOutline(void* vg, Rect rect, NVGcolor color) {
+	nvgBeginPath(vg);
+	nvgFillColor(vg, color);
+	nvgRoundedRect(
+		vg,
+		rect.x - 1,
+		rect.y - 1,
+		rect.w + 2,
+		rect.h + 2,
+		SPLIT_ROUND_R
+	);
+	nvgRoundedRect(
+		vg,
+		rect.x,
+		rect.y,
+		rect.w,
+		rect.h,
+		SPLIT_ROUND_R
+	);
+	
+	nvgPathWinding(vg, NVG_HOLE);
+	nvgFill(vg);
+}
+
+void Gfx_DrawRounderRect(void* vg, Rect rect, NVGcolor color) {
+	nvgBeginPath(vg);
+	nvgFillColor(vg, color);
+	nvgRoundedRect(
+		vg,
+		rect.x,
+		rect.y,
+		rect.w,
+		rect.h,
+		SPLIT_ROUND_R
+	);
+	nvgFill(vg);
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+// #                                     #
+// # # # # # # # # # # # # # # # # # # # #
+
 static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, void* arg, const char* elemFunc) {
 	ElementCallInfo* node;
 	
@@ -105,46 +147,8 @@ static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, v
 
 #define Element_QueueElement(geo, split, func, arg) Element_QueueElement(geo, split, func, arg, __FUNCTION__)
 
-static void Element_Draw_RoundedOutline(void* vg, Rect* rect, NVGcolor color) {
-	nvgBeginPath(vg);
-	nvgFillColor(vg, color);
-	nvgRoundedRect(
-		vg,
-		rect->x - 1,
-		rect->y - 1,
-		rect->w + 2,
-		rect->h + 2,
-		SPLIT_ROUND_R
-	);
-	nvgRoundedRect(
-		vg,
-		rect->x,
-		rect->y,
-		rect->w,
-		rect->h,
-		SPLIT_ROUND_R
-	);
-	
-	nvgPathWinding(vg, NVG_HOLE);
-	nvgFill(vg);
-}
-
-static void Element_Draw_RoundedRect(void* vg, Rect* rect, NVGcolor color) {
-	nvgBeginPath(vg);
-	nvgFillColor(vg, color);
-	nvgRoundedRect(
-		vg,
-		rect->x,
-		rect->y,
-		rect->w,
-		rect->h,
-		SPLIT_ROUND_R
-	);
-	nvgFill(vg);
-}
-
 static s32 Element_PressCondition(GeoGrid* geo, Split* split, Element* this) {
-	if (!geo->state.noClickInput &&
+	if (!geo->state.noClickInput &
 		(split->mouseInSplit || this->header) &&
 		!split->blockMouse &&
 		!split->elemBlockMouse) {
@@ -358,11 +362,11 @@ static void DropMenu_Draw_Enum(GeoGrid* geo, DropMenu* this) {
 	
 	this->state.setCondition = false;
 	
-	Element_Draw_RoundedOutline(vg, &this->rect, Theme_GetColor(THEME_ELEMENT_LIGHT, 215, 1.0f));
+	Gfx_DrawRounderOutline(vg, this->rect, Theme_GetColor(THEME_ELEMENT_LIGHT, 215, 1.0f));
 	
 	r.y += this->state.up;
 	r.h++;
-	Element_Draw_RoundedRect(vg, &r, Theme_GetColor(THEME_ELEMENT_DARK, 215, 1.0f));
+	Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_ELEMENT_DARK, 215, 1.0f));
 	
 	for (s32 i = 0; i < prop->num; i++) {
 		r = this->rect;
@@ -379,7 +383,7 @@ static void DropMenu_Draw_Enum(GeoGrid* geo, DropMenu* this) {
 		if (i == this->key) {
 			r.x += 4;
 			r.w -= 8;
-			Element_Draw_RoundedRect(vg, &r, Theme_GetColor(THEME_PRIM, 215, 1.0f));
+			Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_PRIM, 215, 1.0f));
 		}
 		
 		if (prop->get(prop, i)) {
@@ -446,7 +450,7 @@ static void Element_Draw_Button(ElementCallInfo* info) {
 	void* vg = info->geo->vg;
 	ElButton* this = info->arg;
 	
-	Element_Draw_RoundedOutline(vg, &this->element.rect, this->element.light);
+	Gfx_DrawRounderOutline(vg, this->element.rect, this->element.light);
 	
 	nvgBeginPath(vg);
 	nvgFillColor(vg, Theme_Mix(0.10, this->element.base, this->element.light));
@@ -630,7 +634,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 		}
 	} else if (this->isHintText == 2) this->isHintText = 0;
 	
-	Element_Draw_RoundedOutline(vg, &this->element.rect, this->element.light);
+	Gfx_DrawRounderOutline(vg, this->element.rect, this->element.light);
 	
 	nvgBeginPath(vg);
 	nvgFillColor(vg, Theme_GetColor(THEME_ELEMENT_BASE, 255, 0.75f));
@@ -755,8 +759,8 @@ static void Element_Draw_Checkbox(ElementCallInfo* info) {
 	else
 		Math_DelSmoothStepToF(&this->lerp, 0.0f, 0.268f, 0.1f, 0.0f);
 	
-	Element_Draw_RoundedOutline(vg, &this->element.rect, this->element.light);
-	Element_Draw_RoundedRect(vg, &this->element.rect, this->element.base);
+	Gfx_DrawRounderOutline(vg, this->element.rect, this->element.light);
+	Gfx_DrawRounderRect(vg, this->element.rect, this->element.base);
 	
 	NVGcolor col = this->element.base;
 	f32 flipLerp = 1.0f - this->lerp;
@@ -820,8 +824,8 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 	rect.w = ClampMin(rect.w - 4, 0);
 	rect.h = rect.h - 4;
 	
-	Element_Draw_RoundedOutline(vg, &this->element.rect, this->element.light);
-	Element_Draw_RoundedRect(vg, &this->element.rect, this->element.shadow);
+	Gfx_DrawRounderOutline(vg, this->element.rect, this->element.light);
+	Gfx_DrawRounderRect(vg, this->element.rect, this->element.shadow);
 	
 	if (rect.w != 0) {
 		nvgBeginPath(vg);
@@ -884,7 +888,7 @@ static void Element_Draw_Combo(ElementCallInfo* info) {
 		{ -5.0f, -2.5f },
 	};
 	
-	Element_Draw_RoundedOutline(vg, &r, this->element.light);
+	Gfx_DrawRounderOutline(vg, r, this->element.light);
 	
 	// if (&this->element == geo->dropMenu.element) {
 	// 	if (geo->dropMenu.state.up == 1)
@@ -892,7 +896,7 @@ static void Element_Draw_Combo(ElementCallInfo* info) {
 	// 	r.h += 2;
 	// }
 	
-	Element_Draw_RoundedRect(vg, &r, this->element.shadow);
+	Gfx_DrawRounderRect(vg, r, this->element.shadow);
 	
 	r = this->element.rect;
 	
@@ -924,15 +928,15 @@ static void Element_Draw_Combo(ElementCallInfo* info) {
 	
 	nvgBeginPath(vg);
 	nvgFillColor(vg, this->element.light);
-	nvgShape(vg, center, 0.95, 0, arrow, ArrayCount(arrow));
+	Gfx_Shape(vg, center, 0.95, 0, arrow, ArrayCount(arrow));
 	nvgFill(vg);
 }
 
 static void Element_Draw_Line(ElementCallInfo* info) {
 	Element* this = info->arg;
 	
-	Element_Draw_RoundedOutline(info->geo->vg, &this->rect, Theme_GetColor(THEME_SHADOW, 255, 1.0f));
-	Element_Draw_RoundedRect(info->geo->vg, &this->rect, Theme_GetColor(THEME_HIGHLIGHT, 175, 1.0f));
+	Gfx_DrawRounderOutline(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 255, 1.0f));
+	Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 175, 1.0f));
 	
 	Free(this);
 }
@@ -940,8 +944,8 @@ static void Element_Draw_Line(ElementCallInfo* info) {
 static void Element_Draw_Box(ElementCallInfo* info) {
 	Element* this = info->arg;
 	
-	Element_Draw_RoundedOutline(info->geo->vg, &this->rect, Theme_GetColor(THEME_HIGHLIGHT, 45, 1.0f));
-	Element_Draw_RoundedRect(info->geo->vg, &this->rect, Theme_GetColor(THEME_SHADOW, 45, 1.0f));
+	Gfx_DrawRounderOutline(info->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 45, 1.0f));
+	Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 45, 1.0f));
 	
 	Free(this);
 }

@@ -330,7 +330,9 @@ extern Vec2f gZeroVec2f;
 extern Vec2s gZeroVec2s;
 extern Rect gZeroRect;
 
-void nvgShape(void* vg, Vec2f center, f32 scale, s16 rot, Vec2f* p, u32 num);
+void Gfx_Shape(void* vg, Vec2f center, f32 scale, s16 rot, Vec2f* p, u32 num);
+void Gfx_DrawRounderOutline(void* vg, Rect rect, NVGcolor color);
+void Gfx_DrawRounderRect(void* vg, Rect rect, NVGcolor color);
 
 bool Split_CursorInRect(Split* split, Rect* rect);
 bool Split_CursorInSplit(Split* split);

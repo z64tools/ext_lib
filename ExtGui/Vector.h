@@ -10,6 +10,10 @@
 #define VEC_QF static inline
 #endif
 
+#define UnfoldVec2(vec) (vec).x, (vec).y
+#define UnfoldVec3(vec) (vec).x, (vec).y, (vec).z
+#define UnfoldVec4(vec) (vec).x, (vec).y, (vec).z, (vec).w
+
 VEC_QF Vec3f Math_Vec3f_Cross(Vec3f a, Vec3f b) {
 	return (Vec3f) {
 		       (a.y * b.z - b.y * a.z),

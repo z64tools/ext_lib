@@ -1010,7 +1010,7 @@ static void Split_Draw(GeoGrid* geo) {
 				
 				nvgBeginPath(geo->vg);
 				nvgRect(geo->vg, -4, -4, split->dispRect.w + 8, split->dispRect.h + 8);
-				nvgShape(
+				Gfx_Shape(
 					geo->vg,
 					Math_Vec2f_New(split->rect.w * 0.5, split->rect.h * 0.5),
 					10.0f,
