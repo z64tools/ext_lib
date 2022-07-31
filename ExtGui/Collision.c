@@ -1,6 +1,6 @@
 #include <ExtGui/Collision.h>
 
-bool Col3D_LineVsTriangle(Vec3f posA, Vec3f posB, Triangle* tri, Vec3f* out, float* t) {
+bool Col3D_LineVsTriangle(Vec3f posA, Vec3f posB, Triangle* tri, Vec3f* out, float* t, bool* isBackface) {
 	const f32 EPSILON = 0.0000001;
 	Vec3f vertex0 = tri->v[0];
 	Vec3f vertex1 = tri->v[1];
@@ -14,6 +14,7 @@ bool Col3D_LineVsTriangle(Vec3f posA, Vec3f posB, Triangle* tri, Vec3f* out, flo
 	edge2 = Math_Vec3f_Sub(vertex2, vertex0);
 	h = Math_Vec3f_Cross(dir, edge2);
 	a = Math_Vec3f_Dot(edge1, h);
+	*isBackface = a < 0;
 	if (a > -EPSILON && a < EPSILON)
 		return false;  // This ray is parallel to this triangle.
 	f = 1.0 / a;
