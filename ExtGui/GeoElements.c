@@ -14,7 +14,6 @@ struct ElementCallInfo;
 typedef void (* ElementFunc)(struct ElementCallInfo*);
 
 typedef struct ElementCallInfo {
-	struct ElementCallInfo* prev;
 	struct ElementCallInfo* next;
 	
 	void*       arg;

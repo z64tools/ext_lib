@@ -107,14 +107,12 @@ struct Split;
 typedef void (* SplitFunc)(void* a, void* b, struct Split* c);
 
 typedef struct SplitVtx {
-	struct SplitVtx* prev;
 	struct SplitVtx* next;
 	Vec2f pos;
 	u8    killFlag;
 } SplitVtx;
 
 typedef struct SplitEdge {
-	struct SplitEdge* prev;
 	struct SplitEdge* next;
 	SplitVtx* vtx[2];
 	f64 pos;
@@ -137,7 +135,6 @@ typedef struct SplitEdge {
  */
 
 typedef struct Split {
-	struct Split* prev;
 	struct Split* next;
 	SplitState    stateFlag;
 	SplitEdge*    edge[4];

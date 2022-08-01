@@ -318,41 +318,21 @@ void Sound_Xm_Stop();
 #define PRNT_BOLD "\e[1m"
 
 #define Node_Add(head, node) do { \
-		typeof(node) lastNode = head; \
-		if (lastNode == NULL) { \
-			head = node; \
-		} else { \
-			while (lastNode->next) { \
-				lastNode = lastNode->next; \
-			} \
-			lastNode->next = node; \
-			node->prev = lastNode; \
-		} \
-} while (0)
-
-#define Node_Kill(head, node) do { \
-		typeof(node) __kill_nodeExt = node; \
-		if (node->next) { \
-			node->next->prev = node->prev; \
-		} \
-		if (node->prev) { \
-			node->prev->next = node->next; \
-		} else { \
-			head = node->next; \
-		} \
-		Free(__kill_nodeExt); \
+		typeof(node) * n = &head; \
+		while (*n) n = &(*n)->next; \
+		*n = node; \
 } while (0)
 
 #define Node_Remove(head, node) do { \
-		if (node->next) { \
-			node->next->prev = node->prev; \
-		} \
-		if (node->prev) { \
-			node->prev->next = node->next; \
-		} else { \
-			head = node->next; \
-		} \
-		node = NULL; \
+		Log("Node_Remove(%s, %s)", #head, #node); \
+		typeof(node) * n = &head; \
+		while (*n != node) n = &(*n)->next; \
+		*n = node->next; \
+} while (0)
+
+#define Node_Kill(head, node) do { \
+		Node_Remove(head, node); \
+		Free(node); \
 } while (0)
 
 #define Swap(a, b) { \
@@ -410,7 +390,7 @@ void Sound_Xm_Stop();
 #define ClampS16(val) (s16)Clamp(((f32)val), -__INT16_MAX__ - 1, __INT16_MAX__)
 #define ClampS32(val) (s32)Clamp(((f32)val), (-__INT32_MAX__ - 1), (f32)__INT32_MAX__)
 
-#define ArrayCount(arr)   (u32)(sizeof(arr) / sizeof(arr[0]))
+#define ArrayCount(arr) (u32)(sizeof(arr) / sizeof(arr[0]))
 
 #define BinToMb(x)        ((f32)(x) / (f32)0x100000)
 #define BinToKb(x)        ((f32)(x) / (f32)0x400)

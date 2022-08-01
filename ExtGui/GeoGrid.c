@@ -499,6 +499,7 @@ static void Vtx_RemoveDuplicates(GeoGrid* geo, SplitVtx* vtx) {
 
 static void Vtx_Update(GeoGrid* geo) {
 	SplitVtx* vtx = geo->vtxHead;
+	SplitVtx* prv;
 	
 	if (geo->actionEdge != NULL)
 		geo->state.cleanVtx = true;
@@ -520,12 +521,13 @@ static void Vtx_Update(GeoGrid* geo) {
 			
 			if (vtx->killFlag == true) {
 				SplitVtx* killVtx = vtx;
-				vtx = vtx->prev;
+				vtx = prv;
 				Node_Kill(geo->vtxHead, killVtx);
 				continue;
 			}
 		}
 		
+		prv = vtx;
 		vtx = vtx->next;
 		if (vtx == NULL && geo->actionEdge == NULL)
 			geo->state.cleanVtx = false;
