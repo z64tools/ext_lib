@@ -10,7 +10,6 @@
 #include <ExtGui/GeoGrid.h>
 #include <ExtGui/Collision.h>
 
-struct ViewerContext;
 struct Scene;
 
 typedef void (* CallbackFunc)(void*);

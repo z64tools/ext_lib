@@ -13,7 +13,6 @@ typedef struct {
 	
 	Vec3f vel;
 	Vec3f offset;
-	Vec3f pos;
 	f32   dist;
 	f32   targetDist;
 	s16   pitch;
@@ -30,7 +29,11 @@ typedef struct {
 	u8 smoothZoom : 1;
 } CamSettings;
 
-typedef struct ViewContext {
+typedef struct View3D {
+	f32     targetStep;
+	Vec3f   targetPos;
+	u32     moveToTarget;
+	
 	f32     fovy;
 	f32     fovyTarget;
 	f32     near;
@@ -49,16 +52,17 @@ typedef struct ViewContext {
 		u8 setCamMove    : 1;
 		u8 matchDrawDist : 1;
 	};
-} ViewContext;
+} View3D;
 
-void View_Camera_FlyMode(ViewContext* viewCtx, Input* inputCtx);
-void View_Camera_OrbitMode(ViewContext* viewCtx, Input* inputCtx);
+void View_Camera_FlyMode(View3D* viewCtx, Input* inputCtx);
+void View_Camera_OrbitMode(View3D* viewCtx, Input* inputCtx);
 
-void View_Init(ViewContext* view, Input* input);
-void View_Update(ViewContext* viewCtx, Input* inputCtx);
+void View_Init(View3D* view, Input* input);
+void View_Update(View3D* viewCtx, Input* inputCtx);
 
-void View_SetProjectionDimensions(ViewContext* viewCtx, Vec2s* dim);
+void View_SetProjectionDimensions(View3D* viewCtx, Vec2s* dim);
 
-void View_Raycast(ViewContext* this, Vec2s pos, Rect dispRect, RayLine* dst);
+void View_Raycast(View3D* this, Vec2s pos, Rect dispRect, RayLine* dst);
+void View_MoveTo(View3D* this, Vec3f pos);
 
 #endif

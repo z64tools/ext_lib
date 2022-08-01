@@ -1,5 +1,23 @@
 #include <ExtGui/Collision.h>
 
+void TriBuffer_Alloc(TriBuffer* this, u32 num) {
+	this->head = SysCalloc(sizeof(Triangle) * num);
+	this->max = num;
+	this->num = 0;
+	
+	Assert(this->head != NULL);
+}
+
+void TriBuffer_Realloc(TriBuffer* this) {
+	this->max *= 2;
+	this->head = SysRealloc(this->head, sizeof(Triangle) * this->max);
+}
+
+void TriBuffer_Free(TriBuffer* this) {
+	Free(this->head);
+	memset(this, 0, sizeof(*this));
+}
+
 RayLine RayLine_New(Vec3f start, Vec3f end) {
 	return (RayLine) {
 		       start, end, FLT_MAX
@@ -43,4 +61,19 @@ bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* out, bool cullBack
 		return true;
 	} else                 // This means that there is a line intersection but not a ray intersection.
 		return false;
+}
+
+bool Col3D_LineVsTriBuffer(RayLine* ray, TriBuffer* triBuf, Vec3f* out) {
+	Triangle* tri = triBuf->head;
+	s32 r = 0;
+	Vec3f o;
+	
+	for (s32 i = 0; i < triBuf->num; i++, tri++) {
+		if (Col3D_LineVsTriangle(ray, tri, &o, tri->cullBackface, tri->cullFrontface)) {
+			*out = o;
+			r = true;
+		}
+	}
+	
+	return r;
 }

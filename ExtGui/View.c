@@ -26,7 +26,7 @@ static void Camera_CalculateFly(Camera* cam) {
 	Matrix_Pop();
 }
 
-void View_Camera_FlyMode(ViewContext* this, Input* inputCtx) {
+void View_Camera_FlyMode(View3D* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
 	s16 pitch = Math_Vec3f_Pitch(cam->eye, cam->at);
 	static s32 flip;
@@ -117,7 +117,32 @@ static void Camera_CalculateOrbit(Camera* cam) {
 	Matrix_Pop();
 }
 
-void View_Camera_OrbitMode(ViewContext* this, Input* inputCtx) {
+static void Camera_CalculateMove(Camera* cam, f32 x, f32 y, f32 z) {
+	Vec3f zero = Math_Vec3f_New(0, 0, 0);
+	Vec3f upOffset = Math_Vec3f_New(0, 1, 0);
+	Vec3f atOffset = Math_Vec3f_New(0, 0, -cam->dist);
+	
+	Matrix_Push();
+	Matrix_Translate(cam->at.x + x, cam->at.y + y, cam->at.z + z, MTXMODE_NEW);
+	
+	// cam->vYaw = cam->yaw;
+	// cam->vPitch = cam->pitch;
+	Matrix_RotateY_s(cam->yaw, MTXMODE_APPLY);
+	Matrix_RotateX_s(cam->pitch, MTXMODE_APPLY);
+	Matrix_RotateZ_s(cam->roll, MTXMODE_APPLY);
+	
+	Matrix_Translate(cam->offset.x, cam->offset.y, cam->offset.z, MTXMODE_APPLY);
+	cam->offset = Math_Vec3f_New(0, 0, 0);
+	Matrix_MultVec3f(&zero, &cam->at);
+	
+	Matrix_MultVec3f(&upOffset, &cam->up);
+	cam->up = Math_Vec3f_Sub(cam->up, cam->at);
+	Matrix_MultVec3f(&atOffset, &cam->eye);
+	
+	Matrix_Pop();
+}
+
+void View_Camera_OrbitMode(View3D* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
 	f32 distMult = (cam->dist * 0.2);
 	
@@ -165,13 +190,12 @@ void View_Camera_OrbitMode(ViewContext* this, Input* inputCtx) {
 	}
 }
 
-void View_Init(ViewContext* this, Input* inputCtx) {
+void View_Init(View3D* this, Input* inputCtx) {
 	Camera* cam;
 	
 	this->currentCamera = &this->camera[0];
 	cam = this->currentCamera;
 	
-	cam->pos = Math_Vec3f_New(0, 0, -150.0f);
 	cam->dist = cam->targetDist = 300.f;
 	cam->speedMod = 5.0f;
 	
@@ -184,7 +208,7 @@ void View_Init(ViewContext* this, Input* inputCtx) {
 	this->scale = 1;
 }
 
-void View_Update(ViewContext* this, Input* inputCtx) {
+void View_Update(View3D* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
 	
 	Matrix_Projection(
@@ -205,17 +229,33 @@ void View_Update(ViewContext* this, Input* inputCtx) {
 	View_Camera_FlyMode(this, inputCtx);
 	View_Camera_OrbitMode(this, inputCtx);
 	
+	if (this->moveToTarget && inputCtx->mouse.clickL.hold == false) {
+		Vec3f p = this->targetPos;
+		
+		f32 x = Math_DelSmoothStepToF(&this->targetPos.x, 0, 0.25f, this->targetStep, 0.001f);
+		f32 z = Math_DelSmoothStepToF(&this->targetPos.z, 0, 0.25f, this->targetStep, 0.001f);
+		f32 y = Math_DelSmoothStepToF(&this->targetPos.y, 0, 0.25f, this->targetStep, 0.001f);
+		
+		p = Math_Vec3f_Sub(p, this->targetPos);
+		
+		Camera_CalculateMove(cam, p.x, p.y, p.z);
+		
+		if (x + z + y < 0.1f)
+			this->moveToTarget = false;
+	} else
+		this->moveToTarget = false;
+	
 	Matrix_LookAt(&this->viewMtx, cam->eye, cam->at, cam->up);
 	
 	Matrix_Scale(1.0, 1.0, 1.0, MTXMODE_NEW);
 	Matrix_ToMtxF(&this->modelMtx);
 }
 
-void View_SetProjectionDimensions(ViewContext* this, Vec2s* dim) {
+void View_SetProjectionDimensions(View3D* this, Vec2s* dim) {
 	this->projectDim = *dim;
 }
 
-void View_Raycast(ViewContext* this, Vec2s pos, Rect dispRect, RayLine* dst) {
+void View_Raycast(View3D* this, Vec2s pos, Rect dispRect, RayLine* dst) {
 	s32 viewport[] = { 0, 0, dispRect.w, dispRect.h };
 	MtxF modelview;
 	Vec2s mouse = Math_Vec2s_New(pos.x, dispRect.h - pos.y);
@@ -225,6 +265,12 @@ void View_Raycast(ViewContext* this, Vec2s pos, Rect dispRect, RayLine* dst) {
 	glhUnProjectf(mouse.x, mouse.y, 0, (float*)&modelview, (float*)&this->projMtx, viewport, (float*)&a);
 	glhUnProjectf(mouse.x, mouse.y, 1, (float*)&modelview, (float*)&this->projMtx, viewport, (float*)&b);
 	*dst = RayLine_New(a, b);
+}
+
+void View_MoveTo(View3D* this, Vec3f pos) {
+	this->targetPos = Math_Vec3f_Sub(pos, this->currentCamera->at);
+	this->moveToTarget = true;
+	this->targetStep = Math_Vec3f_DistXYZ(pos, this->currentCamera->at) * 0.25f;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
