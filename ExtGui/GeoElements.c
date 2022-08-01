@@ -203,7 +203,7 @@ static bool Element_DisableDraw(Element* element, Split* split) {
 static f32 Element_TextWidth(void* vg, const char* txt) {
 	f32 bounds[4];
 	
-	nvgFontFace(vg, "dejavu");
+	nvgFontFace(vg, "default");
 	nvgFontSize(vg, SPLIT_TEXT);
 	nvgFontBlur(vg, 0.0);
 	nvgTextBounds(vg, 0, 0, txt, 0, bounds);
@@ -312,7 +312,7 @@ static void DropMenu_Init_PropEnum(GeoGrid* geo, DropMenu* this) {
 		}
 	} else {
 		this->rect.w = 0;
-		nvgFontFace(geo->vg, "dejavu");
+		nvgFontFace(geo->vg, "default");
 		nvgFontSize(geo->vg, SPLIT_TEXT);
 		nvgTextAlign(geo->vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
 		for (s32 i = 0; i < prop->num; i++)
@@ -388,7 +388,7 @@ static void DropMenu_Draw_Enum(GeoGrid* geo, DropMenu* this) {
 		if (prop->get(prop, i)) {
 			nvgScissor(vg, UnfoldRect(r));
 			nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
-			nvgFontFace(vg, "dejavu");
+			nvgFontFace(vg, "default");
 			nvgFontSize(vg, SPLIT_TEXT);
 			nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
 			nvgText(
@@ -461,7 +461,7 @@ static void Element_Draw_Button(ElementCallInfo* info) {
 		f32 width;
 		
 		nvgScissor(vg, UnfoldRect(this->element.rect));
-		nvgFontFace(vg, "dejavu");
+		nvgFontFace(vg, "default");
 		nvgFontSize(vg, SPLIT_TEXT);
 		nvgFontBlur(vg, 0.0);
 		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
@@ -515,7 +515,7 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
 		}
 	}
 	
-	nvgFontFace(vg, "dejavu");
+	nvgFontFace(vg, "default");
 	nvgFontSize(vg, SPLIT_TEXT);
 	nvgFontBlur(vg, 0.0);
 	
@@ -699,7 +699,7 @@ static void Element_Draw_Text(ElementCallInfo* info) {
 	// Split* split = info->split;
 	ElText* this = info->arg;
 	
-	nvgFontFace(vg, "dejavu");
+	nvgFontFace(vg, "default");
 	nvgFontSize(vg, SPLIT_TEXT);
 	nvgFontBlur(vg, 0.0);
 	nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
@@ -857,7 +857,7 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
 	}
 	
 	nvgScissor(vg, UnfoldRect(this->element.rect));
-	nvgFontFace(vg, "dejavu");
+	nvgFontFace(vg, "default");
 	nvgFontSize(vg, SPLIT_TEXT);
 	nvgFontBlur(vg, 0.0);
 	nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
@@ -901,7 +901,7 @@ static void Element_Draw_Combo(ElementCallInfo* info) {
 	
 	if (prop && prop->get(prop, prop->key)) {
 		nvgScissor(vg, UnfoldRect(this->element.rect));
-		nvgFontFace(vg, "dejavu");
+		nvgFontFace(vg, "default");
 		nvgFontSize(vg, SPLIT_TEXT);
 		nvgFontBlur(vg, 0.0);
 		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
@@ -970,7 +970,7 @@ s32 Element_Button(ElButton* this) {
 	if (this->autoWidth) {
 		f32 bounds[4] = { 0.0f };
 		
-		nvgFontFace(vg, "dejavu");
+		nvgFontFace(vg, "default");
 		nvgFontSize(vg, SPLIT_TEXT);
 		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
 		nvgTextBounds(vg, 0, 0, this->element.name, NULL, bounds);

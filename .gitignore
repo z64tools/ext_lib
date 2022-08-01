@@ -3,3 +3,4 @@ bin/*
 prvFileList
 .atom/*
 *.sh
+!obj.sh

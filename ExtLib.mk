@@ -5,6 +5,7 @@ ExtLib_H  = $(PATH_EXTLIB)/ExtLib.h
 
 ExtLib_C  = ExtLib.c
 
+Fonts     = $(shell cd $(PATH_EXTLIB) && find ExtGui/fonts/* -type f -name '*.ttf')
 ExtGui_C  = $(shell cd $(PATH_EXTLIB) && find ExtGui/* -type f -name '*.c') \
 			glad/glad.c \
 			nanovg/src/nanovg.c
@@ -39,8 +40,13 @@ Audio_Win32_O   = $(foreach f,$(Audio_C:.c=.o), bin/win32/$f)
 Mp3_Win32_O     = $(foreach f,$(Mp3_C:.c=.o), bin/win32/$f)
 Xm_Win32_O      = $(foreach f,$(Xm_C:.c=.o), bin/win32/$f)
 
+ExtGui_Linux_O  += $(foreach f,$(Fonts:.ttf=.o), bin/linux/$f)
+ExtGui_Win32_O  += $(foreach f,$(Fonts:.ttf=.o), bin/win32/$f)
+
 ExtGui_Linux_Flags = -lGL -lglfw
 ExtGui_Win32_Flags = `i686-w64-mingw32.static-pkg-config --cflags --libs glfw3`
+
+OBJ := $(PATH_EXTLIB)/obj.sh
 
 # Make build directories
 $(shell mkdir -p bin/ $(foreach dir, \
@@ -67,7 +73,16 @@ ExtLib_CFlags = -Wno-unused-result -Wno-format-truncation -Wno-strict-aliasing -
 
 bin/win32/nanovg/%.o: CFLAGS += -Wno-misleading-indentation
 bin/win32/zip/%.o: CFLAGS += -Wno-stringop-truncation
+
+FileName = $(notdir $(basename $<))
+
+bin/win32/%.o: $(PATH_EXTLIB)/%.ttf
+	@echo "$(PRNT_RSET)[$(PRNT_GREN)_g$(FileName)$(PRNT_RSET)]"
+	$(OBJ) objcopy elf32-i386 $< $@ _g$(FileName) _g$(FileName)Size
 	
+bin/linux/%.o: $(PATH_EXTLIB)/%.ttf
+	@echo "$(PRNT_RSET)[$(PRNT_GREN)_g$(FileName)$(PRNT_RSET)]"
+	$(OBJ) objcopy default $< $@ g$(FileName) g$(FileName)Size
 
 bin/win32/ExtLib.o: $(PATH_EXTLIB)/ExtLib.c $(PATH_EXTLIB)/ExtLib.h
 	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
