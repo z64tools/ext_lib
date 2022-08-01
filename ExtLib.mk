@@ -77,12 +77,12 @@ bin/win32/zip/%.o: CFLAGS += -Wno-stringop-truncation
 FileName = $(notdir $(basename $<))
 
 bin/win32/%.o: $(PATH_EXTLIB)/%.ttf
-	@echo "$(PRNT_RSET)[$(PRNT_GREN)_g$(FileName)$(PRNT_RSET)]"
-	$(OBJ) objcopy elf32-i386 $< $@ _g$(FileName) _g$(FileName)Size
+	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(FileName)$(PRNT_RSET)]"
+	@$(OBJ) objcopy elf32-i386 $< $@ _g$(FileName) _g$(FileName)Size
 	
 bin/linux/%.o: $(PATH_EXTLIB)/%.ttf
-	@echo "$(PRNT_RSET)[$(PRNT_GREN)_g$(FileName)$(PRNT_RSET)]"
-	$(OBJ) objcopy default $< $@ g$(FileName) g$(FileName)Size
+	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(FileName)$(PRNT_RSET)]"
+	@$(OBJ) objcopy default $< $@ g$(FileName) g$(FileName)Size
 
 bin/win32/ExtLib.o: $(PATH_EXTLIB)/ExtLib.c $(PATH_EXTLIB)/ExtLib.h
 	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
