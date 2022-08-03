@@ -1845,7 +1845,8 @@ void printf_hex(const char* txt, const void* data, u32 size, u32 dispOffset) {
 	
 	digit = xFmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
 	
-	printf_info("%s", txt);
+	if (txt)
+		printf_info("%s", txt);
 	for (; i < size; i++) {
 		if (i % 16 == 0)
 			printf(digit, i + dispOffset);
@@ -1858,6 +1859,45 @@ void printf_hex(const char* txt, const void* data, u32 size, u32 dispOffset) {
 	}
 	
 	if (i % 16 != 0)
+		printf("\n");
+}
+
+void printf_bit(const char* txt, const void* data, u32 size, u32 dispOffset) {
+	const u8* d = data;
+	s32 s = 0;
+	u32 num = 8;
+	char* digit;
+	
+	if (sEXIT)
+		return;
+	
+	if (gPrintfSuppress >= PSL_NO_INFO)
+		return;
+	
+	for (;; num--)
+		if ((size + dispOffset) >> (num * 4))
+			break;
+	
+	digit = xFmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
+	
+	if (txt)
+		printf_info("%s", txt);
+	for (s32 i = 0; i < size; i++) {
+		if (s % 4 == 0)
+			printf(digit, s + dispOffset);
+		
+		for (s32 j = 7; j >= 0; j--)
+			printf("%d", (d[i] >> j) & 1);
+		
+		printf(" ");
+		
+		if ((s + 1) % 4 == 0)
+			printf("\n");
+		
+		s++;
+	}
+	
+	if (s % 4 != 0)
 		printf("\n");
 }
 

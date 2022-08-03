@@ -222,7 +222,7 @@ typedef struct GeoGrid {
 	SplitEdge* edgeHead;
 	
 	Input*     input;
-	Vec2s*     winDim;
+	Vec2s*     wdim;
 	void*      vg;
 	void*      passArg;
 	
@@ -339,7 +339,7 @@ s32 Split_GetCursor(GeoGrid* geo, Split* split, s32 result);
 
 void GeoGrid_Debug(bool b);
 void GeoGrid_TaskTable(GeoGrid* geo, SplitTask** taskTable, u32 num);
-void GeoGrid_Init(GeoGrid* geo, Vec2s* winDim, Input* input, void* vg);
+void GeoGrid_Init(GeoGrid* geo, Vec2s* wdim, Input* input, void* vg);
 void GeoGrid_Update(GeoGrid* geo);
 void GeoGrid_Draw(GeoGrid* geo);
 

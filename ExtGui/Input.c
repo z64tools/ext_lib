@@ -6,7 +6,7 @@ void Input_Init(Input* input, AppInfo* app) {
 
 void Input_Update(Input* input) {
 	MouseInput* mouse = &input->mouse;
-	static u32 timer;
+	ThreadLocal static u32 timer;
 	
 	for (s32 i = 0; i < KEY_MAX; i++) {
 		input->key[i].press = (input->key[i].prev == 0 && input->key[i].hold);

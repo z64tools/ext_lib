@@ -137,6 +137,7 @@ void printf_getchar(const char* txt);
 void printf_lock(const char* fmt, ...);
 void printf_WinFix(void);
 void printf_hex(const char* txt, const void* data, u32 size, u32 dispOffset);
+void printf_bit(const char* txt, const void* data, u32 size, u32 dispOffset);
 void printf_nl(void);
 
 void __Assert(s32 expression, const char* msg, ...);

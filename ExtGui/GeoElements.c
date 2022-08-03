@@ -306,7 +306,7 @@ static void DropMenu_Init_PropEnum(GeoGrid* geo, DropMenu* this) {
 		this->rect.x = this->rectOrigin.x;
 		this->rect.w = this->rectOrigin.w;
 		
-		if (this->pos.y > geo->winDim->y * 0.5) {
+		if (this->pos.y > geo->wdim->y * 0.5) {
 			this->rect.y -= this->rect.h + this->rectOrigin.h;
 			this->state.up = 1;
 		}
@@ -420,10 +420,10 @@ void DropMenu_Draw(GeoGrid* geo) {
 	glViewport(
 		0,
 		0,
-		geo->winDim->x,
-		geo->winDim->y
+		geo->wdim->x,
+		geo->wdim->y
 	);
-	nvgBeginFrame(geo->vg, geo->winDim->x, geo->winDim->y, gPixelRatio); {
+	nvgBeginFrame(geo->vg, geo->wdim->x, geo->wdim->y, gPixelRatio); {
 		sDropMenuDraw[this->type](geo, this);
 	} nvgEndFrame(geo->vg);
 	

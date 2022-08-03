@@ -869,10 +869,10 @@ static void Split_DrawDebug(GeoGrid* geo) {
 	SplitVtx* vtx = geo->vtxHead;
 	Split* split = geo->splitHead;
 	s32 num = 0;
-	Vec2s* winDim = geo->winDim;
+	Vec2s* wdim = geo->wdim;
 	
-	glViewport(0, 0, winDim->x, winDim->y);
-	nvgBeginFrame(geo->vg, winDim->x, winDim->y, gPixelRatio); {
+	glViewport(0, 0, wdim->x, wdim->y);
+	nvgBeginFrame(geo->vg, wdim->x, wdim->y, gPixelRatio); {
 		while (split) {
 			nvgBeginPath(geo->vg);
 			nvgLineCap(geo->vg, NVG_ROUND);
@@ -915,13 +915,13 @@ static void Split_DrawDebug(GeoGrid* geo) {
 			char buf[128];
 			Vec2f pos = {
 				vtx->pos.x + Clamp(
-					winDim->x * 0.5 - vtx->pos.x,
+					wdim->x * 0.5 - vtx->pos.x,
 					-150.0f,
 					150.0f
 				) *
 				0.1f,
 				vtx->pos.y + Clamp(
-					winDim->y * 0.5 - vtx->pos.y,
+					wdim->y * 0.5 - vtx->pos.y,
 					-150.0f,
 					150.0f
 				) *
@@ -947,14 +947,14 @@ static void Split_DrawDebug(GeoGrid* geo) {
 
 static void Split_Draw(GeoGrid* geo) {
 	Split* split = geo->splitHead;
-	Vec2s* winDim = geo->winDim;
+	Vec2s* wdim = geo->wdim;
 	
 	for (; split != NULL; split = split->next) {
 		Split_UpdateRect(split);
 		
 		glViewport(
 			split->dispRect.x,
-			winDim->y - split->dispRect.y - split->dispRect.h,
+			wdim->y - split->dispRect.y - split->dispRect.h,
 			split->dispRect.w,
 			split->dispRect.h
 		);
@@ -1067,7 +1067,7 @@ static void Split_Draw(GeoGrid* geo) {
 		
 		glViewport(
 			split->headRect.x,
-			winDim->y - split->headRect.y - split->headRect.h,
+			wdim->y - split->headRect.y - split->headRect.h,
 			split->headRect.w,
 			split->headRect.h
 		);
@@ -1095,25 +1095,25 @@ static void GeoGrid_RemoveDuplicates(GeoGrid* geo) {
 }
 
 static void GeoGrid_UpdateWorkRect(GeoGrid* geo) {
-	Vec2s* winDim = geo->winDim;
+	Vec2s* wdim = geo->wdim;
 	
-	geo->workRect = (Rect) { 0, 0 + geo->bar[BAR_TOP].rect.h, winDim->x,
-				 winDim->y - geo->bar[BAR_BOT].rect.h -
+	geo->workRect = (Rect) { 0, 0 + geo->bar[BAR_TOP].rect.h, wdim->x,
+				 wdim->y - geo->bar[BAR_BOT].rect.h -
 				 geo->bar[BAR_TOP].rect.h };
 }
 
 static void GeoGrid_SetTopBarHeight(GeoGrid* geo, s32 h) {
 	geo->bar[BAR_TOP].rect.x = 0;
 	geo->bar[BAR_TOP].rect.y = 0;
-	geo->bar[BAR_TOP].rect.w = geo->winDim->x;
+	geo->bar[BAR_TOP].rect.w = geo->wdim->x;
 	geo->bar[BAR_TOP].rect.h = h;
 	GeoGrid_UpdateWorkRect(geo);
 }
 
 static void GeoGrid_SetBotBarHeight(GeoGrid* geo, s32 h) {
 	geo->bar[BAR_BOT].rect.x = 0;
-	geo->bar[BAR_BOT].rect.y = geo->winDim->y - h;
-	geo->bar[BAR_BOT].rect.w = geo->winDim->x;
+	geo->bar[BAR_BOT].rect.y = geo->wdim->y - h;
+	geo->bar[BAR_BOT].rect.w = geo->wdim->x;
 	geo->bar[BAR_BOT].rect.h = h;
 	GeoGrid_UpdateWorkRect(geo);
 }
@@ -1135,8 +1135,8 @@ extern u8 gMenloRegularSize;
 extern u8 gMenloBold;
 extern u8 gMenloBoldSize;
 
-void GeoGrid_Init(GeoGrid* geo, Vec2s* winDim, Input* inputCtx, void* vg) {
-	geo->winDim = winDim;
+void GeoGrid_Init(GeoGrid* geo, Vec2s* wdim, Input* inputCtx, void* vg) {
+	geo->wdim = wdim;
 	geo->input = inputCtx;
 	geo->vg = vg;
 	
@@ -1160,13 +1160,13 @@ void GeoGrid_Update(GeoGrid* geo) {
 }
 
 void GeoGrid_Draw(GeoGrid* geo) {
-	Vec2s* winDim = geo->winDim;
+	Vec2s* wdim = geo->wdim;
 	
 	// Draw Bars
 	for (s32 i = 0; i < 2; i++) {
 		glViewport(
 			geo->bar[i].rect.x,
-			winDim->y - geo->bar[i].rect.y - geo->bar[i].rect.h,
+			wdim->y - geo->bar[i].rect.y - geo->bar[i].rect.h,
 			geo->bar[i].rect.w,
 			geo->bar[i].rect.h
 		);
