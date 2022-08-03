@@ -29,6 +29,12 @@ typedef struct {
 	u8 smoothZoom : 1;
 } CamSettings;
 
+typedef enum {
+	CAM_MODE_FLY,
+	CAM_MODE_ORBIT,
+	CAM_MODE_ALL
+} CamMode;
+
 typedef struct View3D {
 	f32     targetStep;
 	Vec3f   targetPos;
@@ -47,10 +53,10 @@ typedef struct View3D {
 	Camera* currentCamera;
 	Camera  camera[4];
 	Vec2s   projectDim;
+	CamMode mode;
 	struct {
 		u8 cameraControl : 1;
 		u8 setCamMove    : 1;
-		u8 matchDrawDist : 1;
 	};
 } View3D;
 

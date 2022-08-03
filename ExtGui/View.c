@@ -206,10 +206,16 @@ void View_Init(View3D* this, Input* inputCtx) {
 	this->near = 10.0;
 	this->far = 12800.0;
 	this->scale = 1;
+	this->mode = CAM_MODE_ALL;
 }
 
 void View_Update(View3D* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
+	
+	void (*camMode[])(View3D*, Input*) = {
+		View_Camera_FlyMode,
+		View_Camera_OrbitMode,
+	};
 	
 	Matrix_Projection(
 		&this->projMtx,
@@ -226,8 +232,12 @@ void View_Update(View3D* this, Input* inputCtx) {
 	if (inputCtx->mouse.cursorAction == 0)
 		this->setCamMove = 0;
 	
-	View_Camera_FlyMode(this, inputCtx);
-	View_Camera_OrbitMode(this, inputCtx);
+	if (this->mode == CAM_MODE_ALL)
+		for (s32 i = 0; i < ArrayCount(camMode); i++)
+			camMode[i](this, inputCtx);
+	
+	else
+		camMode[this->mode](this, inputCtx);
 	
 	if (this->moveToTarget && inputCtx->mouse.clickL.hold == false) {
 		Vec3f p = this->targetPos;
