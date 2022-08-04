@@ -7,7 +7,7 @@
 #include <pthread.h>
 
 #pragma GCC diagnostic ignored "-Wscalar-storage-order"
-#define StructBE __attribute__((scalar_storage_order("big-endian")))
+#define StructBE    __attribute__((scalar_storage_order("big-endian")))
 #define ThreadLocal _Thread_local
 
 typedef signed char s8;
@@ -126,9 +126,9 @@ typedef enum {
 
 typedef struct MemFile {
 	union {
-		void* data;
+		void*       data;
 		PointerCast cast;
-		char* str;
+		char*       str;
 	};
 	u32 memSize;
 	u32 size;
@@ -172,7 +172,7 @@ typedef struct FilterNode {
 	struct FilterNode* prev;
 	struct FilterNode* next;
 	ListFilter type;
-	char* txt;
+	char*      txt;
 } FilterNode;
 
 typedef struct ItemList {

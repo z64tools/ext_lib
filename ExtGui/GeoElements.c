@@ -31,28 +31,28 @@ ThreadLocal struct {
 	ElementCallInfo* head;
 	
 	ElTextbox* curTextbox;
-	Split*   curSplitTextbox;
-	s32      posText;
-	s32      posSel;
-	char*    storeA;
-	s32      ctrlA;
+	Split*     curSplitTextbox;
+	s32   posText;
+	s32   posSel;
+	char* storeA;
+	s32   ctrlA;
 	
-	s32      flickTimer;
-	s32      flickFlag;
+	s32 flickTimer;
+	s32 flickFlag;
 	
-	s16      breathYaw;
-	f32      breath;
+	s16 breathYaw;
+	f32 breath;
 	
 	GeoGrid* geo;
 	Split*   split;
 	
-	f32      rowY;
-	f32      rowX;
+	f32 rowY;
+	f32 rowX;
 	
-	s32      timerTextbox;
-	s32      blockerTextbox;
+	s32 timerTextbox;
+	s32 blockerTextbox;
 	
-	s32      pushToHeader : 1;
+	s32 pushToHeader : 1;
 } gElementState = {
 	.posSel = -1,
 	.flickFlag = 1,
@@ -276,6 +276,8 @@ void PropEnum_Remove(PropEnum* this, s32 key) {
 }
 
 void PropEnum_Free(PropEnum* this) {
+	if (!this)
+		return;
 	for (s32 i = 0; i < this->num; i++)
 		Free(this->list[i]);
 	Free(this->list);

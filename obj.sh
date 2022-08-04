@@ -18,8 +18,6 @@ FILE_SYM=${FILE_SYM//\//_}
 START_SYM_DFLT=_binary_${FILE_SYM}_start
 SIZE_SYM_DFLT=_binary_${FILE_SYM}_size
 
-echo $FILE_SYM
-
 ${OBJCOPY} -I binary -O ${OFORMAT} ${FILE} ${OFILE}  \
     --redefine-sym ${START_SYM_DFLT}=${START_SYM} \
     --redefine-sym ${SIZE_SYM_DFLT}=${SIZE_SYM}

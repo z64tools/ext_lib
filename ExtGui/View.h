@@ -36,24 +36,24 @@ typedef enum {
 } CamMode;
 
 typedef struct View3D {
-	f32     targetStep;
-	Vec3f   targetPos;
-	u32     moveToTarget;
+	f32   targetStep;
+	Vec3f targetPos;
+	u32   moveToTarget;
 	
-	f32     fovy;
-	f32     fovyTarget;
-	f32     near;
-	f32     far;
-	f32     scale;
-	f32     aspect;
-	MtxF    modelMtx;
-	MtxF    viewMtx;
-	MtxF    projMtx;
+	f32  fovy;
+	f32  fovyTarget;
+	f32  near;
+	f32  far;
+	f32  scale;
+	f32  aspect;
+	MtxF modelMtx;
+	MtxF viewMtx;
+	MtxF projMtx;
 	CamSettings settings;
-	Camera* currentCamera;
-	Camera  camera[4];
-	Vec2s   projectDim;
-	CamMode mode;
+	Camera*     currentCamera;
+	Camera      camera[4];
+	Vec2s       projectDim;
+	CamMode     mode;
 	struct {
 		u8 cameraControl : 1;
 		u8 setCamMove    : 1;

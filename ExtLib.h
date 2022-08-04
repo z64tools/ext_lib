@@ -393,6 +393,8 @@ void Sound_Xm_Stop();
 
 #define ArrayCount(arr) (u32)(sizeof(arr) / sizeof(arr[0]))
 
+#define FieldData(data, bitCount, shift) (((data) >> (shift)) & ((1 << (bitCount)) - 1))
+
 #define BinToMb(x)        ((f32)(x) / (f32)0x100000)
 #define BinToKb(x)        ((f32)(x) / (f32)0x400)
 #define MbToBin(x)        (u32)(0x100000 * (x))
