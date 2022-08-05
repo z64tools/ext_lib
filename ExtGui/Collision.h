@@ -11,8 +11,8 @@ typedef struct {
 
 typedef struct {
 	Triangle* head;
-	u32 max;
-	u32 num;
+	u32       max;
+	u32       num;
 } TriBuffer;
 
 typedef struct {
@@ -25,7 +25,7 @@ void TriBuffer_Alloc(TriBuffer* this, u32 num);
 void TriBuffer_Realloc(TriBuffer* this);
 void TriBuffer_Free(TriBuffer* this);
 RayLine RayLine_New(Vec3f start, Vec3f end);
-bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* out, bool cullBackface, bool cullFrontface);
-bool Col3D_LineVsTriBuffer(RayLine* ray, TriBuffer* triBuf, Vec3f* out);
+bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* outPos, Vec3f* outNor, bool cullBackface, bool cullFrontface);
+bool Col3D_LineVsTriBuffer(RayLine* ray, TriBuffer* triBuf, Vec3f* outPos, Vec3f* outNor);
 
 #endif

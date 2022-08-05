@@ -24,7 +24,7 @@ RayLine RayLine_New(Vec3f start, Vec3f end) {
 	};
 }
 
-bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* out, bool cullBackface, bool cullFrontface) {
+bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* outPos, Vec3f* outNor, bool cullBackface, bool cullFrontface) {
 	const f32 EPSILON = 0.0000001;
 	Vec3f vertex0 = tri->v[0];
 	Vec3f vertex1 = tri->v[1];
@@ -55,7 +55,10 @@ bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* out, bool cullBack
 	f32 t = f * Math_Vec3f_Dot(edge2, q);
 	
 	if (t > EPSILON && t < dist && t < ray->nearest) { // ray intersection
-		*out = Math_Vec3f_Add(ray->start, Math_Vec3f_MulVal(dir, t));
+		if (outPos)
+			*outPos = Math_Vec3f_Add(ray->start, Math_Vec3f_MulVal(dir, t));
+		if (outNor)
+			*outNor = h;
 		ray->nearest = t;
 		
 		return true;
@@ -63,16 +66,13 @@ bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* out, bool cullBack
 		return false;
 }
 
-bool Col3D_LineVsTriBuffer(RayLine* ray, TriBuffer* triBuf, Vec3f* out) {
+bool Col3D_LineVsTriBuffer(RayLine* ray, TriBuffer* triBuf, Vec3f* outPos, Vec3f* outNor) {
 	Triangle* tri = triBuf->head;
 	s32 r = 0;
-	Vec3f o;
 	
 	for (s32 i = 0; i < triBuf->num; i++, tri++) {
-		if (Col3D_LineVsTriangle(ray, tri, &o, tri->cullBackface, tri->cullFrontface)) {
-			*out = o;
+		if (Col3D_LineVsTriangle(ray, tri, outPos, outNor, tri->cullBackface, tri->cullFrontface))
 			r = true;
-		}
 	}
 	
 	return r;
