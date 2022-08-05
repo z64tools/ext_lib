@@ -265,7 +265,7 @@ void View_SetProjectionDimensions(View3D* this, Vec2s* dim) {
 	this->projectDim = *dim;
 }
 
-void View_Raycast(View3D* this, Vec2s pos, Rect dispRect, RayLine* dst) {
+RayLine View_Raycast(View3D* this, Vec2s pos, Rect dispRect) {
 	s32 viewport[] = { 0, 0, dispRect.w, dispRect.h };
 	MtxF modelview;
 	Vec2s mouse = Math_Vec2s_New(pos.x, dispRect.h - pos.y);
@@ -274,7 +274,8 @@ void View_Raycast(View3D* this, Vec2s pos, Rect dispRect, RayLine* dst) {
 	Matrix_MtxFMtxFMult(&this->modelMtx, &this->viewMtx, &modelview);
 	glhUnProjectf(mouse.x, mouse.y, 0, (float*)&modelview, (float*)&this->projMtx, viewport, (float*)&a);
 	glhUnProjectf(mouse.x, mouse.y, 1, (float*)&modelview, (float*)&this->projMtx, viewport, (float*)&b);
-	*dst = RayLine_New(a, b);
+	
+	return RayLine_New(a, b);
 }
 
 void View_MoveTo(View3D* this, Vec3f pos) {

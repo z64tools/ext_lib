@@ -68,7 +68,7 @@ void View_Update(View3D* viewCtx, Input* inputCtx);
 
 void View_SetProjectionDimensions(View3D* viewCtx, Vec2s* dim);
 
-void View_Raycast(View3D* this, Vec2s pos, Rect dispRect, RayLine* dst);
+RayLine View_Raycast(View3D* this, Vec2s pos, Rect dispRect);
 void View_MoveTo(View3D* this, Vec3f pos);
 
 #endif

@@ -77,3 +77,21 @@ bool Col3D_LineVsTriBuffer(RayLine* ray, TriBuffer* triBuf, Vec3f* outPos, Vec3f
 	
 	return r;
 }
+
+bool Col3D_LineVsCylinder(RayLine* ray, Cylinder* cyl, Vec3f* outPos) {
+	return false;
+}
+
+bool Col3D_LineVsSphere(RayLine* ray, Sphere* sph) {
+	Vec3f dir = Math_Vec3f_Normalize(Math_Vec3f_Sub(ray->end, ray->start));
+	f32 rayCylLen = Math_Vec3f_DistXYZ(ray->start, sph->pos);
+	Vec3f npos = Math_Vec3f_MulVal(dir, rayCylLen);
+	f32 dist = Math_Vec3f_DistXYZ(sph->pos, Math_Vec3f_Add(npos, ray->start));
+	
+	if (dist > sph->r || dist > ray->nearest)
+		return false;
+	
+	ray->nearest = dist;
+	
+	return true;
+}
