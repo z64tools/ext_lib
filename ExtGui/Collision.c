@@ -78,7 +78,7 @@ bool Col3D_LineVsTriBuffer(RayLine* ray, TriBuffer* triBuf, Vec3f* outPos, Vec3f
 	return r;
 }
 
-bool Col3D_LineVsCylinder(RayLine* ray, Cylinder* cyl, Vec3f* outPos) {
+bool Col3D_LineVsCylinder(RayLine* ray, Cylinder* cyl) {
 	return false;
 }
 

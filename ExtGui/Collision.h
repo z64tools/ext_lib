@@ -38,7 +38,7 @@ void TriBuffer_Free(TriBuffer* this);
 RayLine RayLine_New(Vec3f start, Vec3f end);
 bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* outPos, Vec3f* outNor, bool cullBackface, bool cullFrontface);
 bool Col3D_LineVsTriBuffer(RayLine* ray, TriBuffer* triBuf, Vec3f* outPos, Vec3f* outNor);
-bool Col3D_LineVsCylinder(RayLine* ray, Cylinder* cyl, Vec3f* outPos);
+bool Col3D_LineVsCylinder(RayLine* ray, Cylinder* cyl);
 bool Col3D_LineVsSphere(RayLine* ray, Sphere* sph);
 
 #endif
