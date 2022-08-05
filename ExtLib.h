@@ -332,8 +332,9 @@ void Sound_Xm_Stop();
 } while (0)
 
 #define Node_Kill(head, node) do { \
+		typeof(node) killNode = node; \
 		Node_Remove(head, node); \
-		Free(node); \
+		Free(killNode); \
 } while (0)
 
 #define Swap(a, b) { \

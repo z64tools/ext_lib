@@ -236,13 +236,11 @@ typedef enum {
 } StatFlag;
 
 typedef struct StrNode {
-	struct StrNode* prev;
 	struct StrNode* next;
 	char* txt;
 } StrNode;
 
 typedef struct PtrNode {
-	struct PtrNode* prev;
 	struct PtrNode* next;
 	void* ptr;
 } PtrNode;
