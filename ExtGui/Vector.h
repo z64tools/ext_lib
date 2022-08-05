@@ -518,4 +518,28 @@ VEC_QF Vec4s Math_Vec4s_Normalize(Vec4s a) {
 		return Math_Vec4s_DivVal(a, mgn);
 }
 
+VEC_QF Vec2f Math_Vec2f_LineSegDir(Vec2f a, Vec2f b) {
+	return Math_Vec2f_Normalize(Math_Vec2f_Sub(b, a));
+}
+
+VEC_QF Vec3f Math_Vec3f_LineSegDir(Vec3f a, Vec3f b) {
+	return Math_Vec3f_Normalize(Math_Vec3f_Sub(b, a));
+}
+
+VEC_QF Vec4f Math_Vec4f_LineSegDir(Vec4f a, Vec4f b) {
+	return Math_Vec4f_Normalize(Math_Vec4f_Sub(b, a));
+}
+
+VEC_QF Vec2s Math_Vec2s_LineSegDir(Vec2s a, Vec2s b) {
+	return Math_Vec2s_Normalize(Math_Vec2s_Sub(b, a));
+}
+
+VEC_QF Vec3s Math_Vec3s_LineSegDir(Vec3s a, Vec3s b) {
+	return Math_Vec3s_Normalize(Math_Vec3s_Sub(b, a));
+}
+
+VEC_QF Vec4s Math_Vec4s_LineSegDir(Vec4s a, Vec4s b) {
+	return Math_Vec4s_Normalize(Math_Vec4s_Sub(b, a));
+}
+
 #endif

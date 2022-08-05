@@ -61,6 +61,7 @@ void Matrix_Projection(MtxF* mtx, f32 fovy, f32 aspect, f32 near, f32 far, f32 s
 void Matrix_LookAt(MtxF* mf, Vec3f eye, Vec3f at, Vec3f up);
 
 void Matrix_TranslateRotateZYX(Vec3f* translation, Vec3s* rotation);
+void Matrix_RotateAToB(Vec3f* a, Vec3f* b, u8 mode);
 
 #define Matrix_RotateX_s(x, mode) Matrix_RotateX(BinToRad(x), mode)
 #define Matrix_RotateY_s(x, mode) Matrix_RotateY(BinToRad(x), mode)
