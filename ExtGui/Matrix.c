@@ -814,38 +814,40 @@ void Matrix_RotateAToB(Vec3f* a, Vec3f* b, u8 mode) {
 	// preliminary calculations
 	aN = Math_Vec3f_Normalize(*a);
 	bN = Math_Vec3f_Normalize(*b);
-	
 	c = Math_Vec3f_Dot(aN, bN);
 	
 	if (fabsf(1.0f + c) < EPSILON) {
 		// The vectors are parallel and opposite. The transformation does not work for
 		// this case, but simply inverting scale is sufficient in this situation.
-		Matrix_Scale(-1.0f, -1.0f, -1.0f, mode);
+		f32 d = Math_Vec3f_DistXYZ(aN, bN);
 		
-		return;
+		if (d > 1.0f)
+			Matrix_Scale(1.0f, 1.0f, 1.0f, mode);
+		else
+			Matrix_Scale(-1.0f, -1.0f, -1.0f, mode);
+	} else {
+		frac = 1.0f / (1.0f + c);
+		v = Math_Vec3f_Cross(aN, bN);
+		
+		// fill mtx
+		mtx.xx = 1.0f - frac * (SQ(v.y) + SQ(v.z));
+		mtx.xy = v.z + frac * v.x * v.y;
+		mtx.xz = -v.y + frac * v.x * v.z;
+		mtx.xw = 0.0f;
+		mtx.yx = -v.z + frac * v.x * v.y;
+		mtx.yy = 1.0f - frac * (SQ(v.x) + SQ(v.z));
+		mtx.yz = v.x + frac * v.y * v.z;
+		mtx.yw = 0.0f;
+		mtx.zx = v.y + frac * v.x * v.z;
+		mtx.zy = -v.x + frac * v.y * v.z;
+		mtx.zz = 1.0f - frac * (SQ(v.y) + SQ(v.x));
+		mtx.zw = 0.0f;
+		mtx.wx = 0.0f;
+		mtx.wy = 0.0f;
+		mtx.wz = 0.0f;
+		mtx.ww = 1.0f;
+		
+		// apply to stack
+		Matrix_Mult(&mtx, mode);
 	}
-	
-	frac = 1.0f / (1.0f + c);
-	v = Math_Vec3f_Cross(aN, bN);
-	
-	// fill mtx
-	mtx.xx = 1.0f - frac * (SQ(v.y) + SQ(v.z));
-	mtx.xy = v.z + frac * v.x * v.y;
-	mtx.xz = -v.y + frac * v.x * v.z;
-	mtx.xw = 0.0f;
-	mtx.yx = -v.z + frac * v.x * v.y;
-	mtx.yy = 1.0f - frac * (SQ(v.x) + SQ(v.z));
-	mtx.yz = v.x + frac * v.y * v.z;
-	mtx.yw = 0.0f;
-	mtx.zx = v.y + frac * v.x * v.z;
-	mtx.zy = -v.x + frac * v.y * v.z;
-	mtx.zz = 1.0f - frac * (SQ(v.y) + SQ(v.x));
-	mtx.zw = 0.0f;
-	mtx.wx = 0.0f;
-	mtx.wy = 0.0f;
-	mtx.wz = 0.0f;
-	mtx.ww = 1.0f;
-	
-	// apply to stack
-	Matrix_Mult(&mtx, mode);
 }

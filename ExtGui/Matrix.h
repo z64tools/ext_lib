@@ -67,4 +67,8 @@ void Matrix_RotateAToB(Vec3f* a, Vec3f* b, u8 mode);
 #define Matrix_RotateY_s(x, mode) Matrix_RotateY(BinToRad(x), mode)
 #define Matrix_RotateZ_s(x, mode) Matrix_RotateZ(BinToRad(x), mode)
 
+#define Matrix_RotateX_d(x, mode) Matrix_RotateX(DegToRad(x), mode)
+#define Matrix_RotateY_d(x, mode) Matrix_RotateY(DegToRad(x), mode)
+#define Matrix_RotateZ_d(x, mode) Matrix_RotateZ(DegToRad(x), mode)
+
 #endif

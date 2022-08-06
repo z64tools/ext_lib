@@ -542,4 +542,78 @@ VEC_QF Vec4s Math_Vec4s_LineSegDir(Vec4s a, Vec4s b) {
 	return Math_Vec4s_Normalize(Math_Vec4s_Sub(b, a));
 }
 
+VEC_QF Vec2f Math_Vec2f_Project(Vec2f a, Vec2f b) {
+	f32 ls = Math_Vec2f_MagnitudeSQ(b);
+	
+	return Math_Vec2f_MulVal(b, Math_Vec2f_Dot(b, a) / ls);
+}
+
+VEC_QF Vec3f Math_Vec3f_Project(Vec3f a, Vec3f b) {
+	f32 ls = Math_Vec3f_MagnitudeSQ(b);
+	
+	return Math_Vec3f_MulVal(b, Math_Vec3f_Dot(b, a) / ls);
+}
+
+VEC_QF Vec4f Math_Vec4f_Project(Vec4f a, Vec4f b) {
+	f32 ls = Math_Vec4f_MagnitudeSQ(b);
+	
+	return Math_Vec4f_MulVal(b, Math_Vec4f_Dot(b, a) / ls);
+}
+
+VEC_QF Vec2s Math_Vec2s_Project(Vec2s a, Vec2s b) {
+	f32 ls = Math_Vec2s_MagnitudeSQ(b);
+	
+	return Math_Vec2s_MulVal(b, Math_Vec2s_Dot(b, a) / ls);
+}
+
+VEC_QF Vec3s Math_Vec3s_Project(Vec3s a, Vec3s b) {
+	f32 ls = Math_Vec3s_MagnitudeSQ(b);
+	
+	return Math_Vec3s_MulVal(b, Math_Vec3s_Dot(b, a) / ls);
+}
+
+VEC_QF Vec4s Math_Vec4s_Project(Vec4s a, Vec4s b) {
+	f32 ls = Math_Vec4s_MagnitudeSQ(b);
+	
+	return Math_Vec4s_MulVal(b, Math_Vec4s_Dot(b, a) / ls);
+}
+
+VEC_QF Vec3f Math_Vec3f_ClosestPointOfLine(Vec3f rayStart, Vec3f rayEnd, Vec3f lineStart, Vec3f lineEnd) {
+	Vec3f rayNorm = Math_Vec3f_LineSegDir(rayStart, rayEnd);
+	Vec3f lineNorm = Math_Vec3f_LineSegDir(lineStart, lineEnd);
+	Vec3f startDiff = Math_Vec3f_Sub(lineStart, rayStart);
+	Vec3f crossNorm = Math_Vec3f_Normalize(Math_Vec3f_Cross(lineNorm, rayNorm));
+	Vec3f rejection = Math_Vec3f_Sub(
+		Math_Vec3f_Sub(startDiff, Math_Vec3f_Project(startDiff, rayNorm)),
+		Math_Vec3f_Project(startDiff, crossNorm)
+	);
+	f32 distToLinePos = Math_Vec3f_Magnitude(rejection) / Math_Vec3f_Dot(lineNorm, Math_Vec3f_Normalize(rejection));
+	
+	return Math_Vec3f_Sub(lineStart, Math_Vec3f_MulVal(lineNorm, distToLinePos));
+}
+
+VEC_QF Vec2f Math_Vec2f_Invert(Vec2f a) {
+	return Math_Vec2f_MulVal(a, -1);
+}
+
+VEC_QF Vec3f Math_Vec3f_Invert(Vec3f a) {
+	return Math_Vec3f_MulVal(a, -1);
+}
+
+VEC_QF Vec4f Math_Vec4f_Invert(Vec4f a) {
+	return Math_Vec4f_MulVal(a, -1);
+}
+
+VEC_QF Vec2s Math_Vec2s_Invert(Vec2s a) {
+	return Math_Vec2s_MulVal(a, -1);
+}
+
+VEC_QF Vec3s Math_Vec3s_Invert(Vec3s a) {
+	return Math_Vec3s_MulVal(a, -1);
+}
+
+VEC_QF Vec4s Math_Vec4s_Invert(Vec4s a) {
+	return Math_Vec4s_MulVal(a, -1);
+}
+
 #endif

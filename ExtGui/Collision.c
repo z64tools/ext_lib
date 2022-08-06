@@ -84,25 +84,21 @@ bool Col3D_LineVsCylinder(RayLine* ray, Cylinder* cyl, Vec3f* outPos) {
 	Vec3f cA, cB;
 	Vec3f cyln = Math_Vec3f_LineSegDir(cyl->start, cyl->end);
 	Vec3f up = { 0, 1, 0 };
-	f32 dist;
-	Vec3f rn;
 	Vec3f ip;
 	Vec3f o;
 	
 	Matrix_Push();
-	Matrix_RotateAToB(&cyln, &up, MTXMODE_NEW);
 	
+	Matrix_RotateAToB(&cyln, &up, MTXMODE_NEW);
 	Matrix_MultVec3f(&ray->start, &rA);
 	Matrix_MultVec3f(&ray->end, &rB);
 	Matrix_MultVec3f(&cyl->start, &cA);
 	Matrix_MultVec3f(&cyl->end, &cB);
+	
 	Matrix_Pop();
 	
-	dist = Math_Vec3f_DistXYZ(rA, cA);
-	rn = Math_Vec3f_LineSegDir(rA, rB);
-	ip = Math_Vec3f_Add(rA, Math_Vec3f_MulVal(rn, dist));
-	
-	if (!IsBetween(ip.y, Min(cA.y, cB.y), Max(cA.y, cB.y)))
+	ip = Math_Vec3f_ClosestPointOfLine(rA, rB, cA, cB);
+	if (ip.y < fminf(cA.y, cB.y) || ip.y > fmaxf(cA.y, cB.y))
 		return false;
 	
 	Sphere s = {
@@ -121,8 +117,16 @@ bool Col3D_LineVsCylinder(RayLine* ray, Cylinder* cyl, Vec3f* outPos) {
 	
 	ray->nearest = r.nearest;
 	if (outPos) {
-		*outPos = o;
-		outPos->y = ip.y;
+		Vec3f out;
+		
+		out = o;
+		out.y = ip.y;
+		
+		cyln = Math_Vec3f_Invert(cyln);
+		Matrix_Push();
+		Matrix_RotateAToB(&cyln, &up, MTXMODE_NEW);
+		Matrix_MultVec3f(&out, outPos);
+		Matrix_Pop();
 	}
 	
 	return true;
