@@ -8,14 +8,6 @@
 
 extern f32 gPixelRatio;
 
-#define DefineTask(name, x) { \
-		name, \
-		(void*)x ## _Init, \
-		(void*)x ## _Destroy, \
-		(void*)x ## _Update, \
-		(void*)x ## _Draw, \
-		sizeof(x) }
-
 #define SPLIT_GRAB_DIST  4
 #define SPLIT_CTXM_DIST  32
 #define SPLIT_BAR_HEIGHT 26
