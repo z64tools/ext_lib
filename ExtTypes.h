@@ -10,23 +10,23 @@
 #define StructBE    __attribute__((scalar_storage_order("big-endian")))
 #define ThreadLocal _Thread_local
 
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short int s16;
-typedef unsigned short int u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef signed long long int s64;
+typedef signed char            s8;
+typedef unsigned char          u8;
+typedef signed short int       s16;
+typedef unsigned short int     u16;
+typedef signed int             s32;
+typedef unsigned int           u32;
+typedef signed long long int   s64;
 typedef unsigned long long int u64;
-typedef float f32;
-typedef double f64;
-typedef uintptr_t uptr;
-typedef intptr_t sptr;
-typedef u32 void32;
-typedef time_t Time;
-typedef pthread_t Thread;
-typedef size_t Size;
-typedef wchar_t wchar;
+typedef float                  f32;
+typedef double                 f64;
+typedef uintptr_t              uptr;
+typedef intptr_t               sptr;
+typedef u32                    void32;
+typedef time_t                 Time;
+typedef pthread_t              Thread;
+typedef size_t                 Size;
+typedef wchar_t                wchar;
 
 typedef struct {
 	f32 h;
@@ -208,7 +208,7 @@ typedef enum {
 	DIR__MAKE_ON_ENTER = (1) << 0,
 } DirParam;
 
-typedef void (* SoundCallback)(void*, void*, u32);
+typedef void (*SoundCallback)(void*, void*, u32);
 
 typedef enum {
 	SOUND_S16 = 2,

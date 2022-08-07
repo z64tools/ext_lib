@@ -96,11 +96,11 @@ s32 Thread_Join(Thread* thread) {
 typedef struct ThreadPoolNode {
 	struct ThreadPoolNode* prev;
 	struct ThreadPoolNode* next;
-	void (* func)(void*);
+	void (*func)(void*);
 	void*  arg;
 	Thread thd;
-	s8 init;
-	s8 done;
+	s8     init;
+	s8     done;
 } ThreadPoolNode;
 
 ThreadPoolNode* sThrdPoolNodeHead;
@@ -353,8 +353,8 @@ ItemList gList_SortError;
 
 typedef struct {
 	StrNode* node;
-	u32 len;
-	u32 num;
+	u32      len;
+	u32      num;
 	ListFlag flags;
 } WalkInfo;
 
@@ -3299,9 +3299,9 @@ s32 Value_ValidateFloat(const char* str) {
 ValueType Value_Type(const char* variable) {
 	ValueType type = {
 		.isFloat = true,
-		.isHex = true,
-		.isDec = true,
-		.isBool = false,
+		.isHex   = true,
+		.isDec   = true,
+		.isBool  = false,
 	};
 	
 	if (!strcmp(variable, "true") || !strcmp(variable, "false")) {

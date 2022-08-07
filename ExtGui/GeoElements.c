@@ -11,7 +11,7 @@
 
 struct ElementCallInfo;
 
-typedef void (* ElementFunc)(struct ElementCallInfo*);
+typedef void (*ElementFunc)(struct ElementCallInfo*);
 
 typedef struct ElementCallInfo {
 	struct ElementCallInfo* next;
@@ -54,7 +54,7 @@ ThreadLocal struct {
 	
 	s32 pushToHeader : 1;
 } gElementState = {
-	.posSel = -1,
+	.posSel    = -1,
 	.flickFlag = 1,
 };
 
@@ -883,10 +883,10 @@ static void Element_Draw_Combo(ElementCallInfo* info) {
 	Rect r = this->element.rect;
 	Vec2f center;
 	Vec2f arrow[] = {
-		{ -5.0f, -2.5f },
-		{ 0.0f,   2.5f },
-		{ 5.0f,  -2.5f },
-		{ -5.0f, -2.5f },
+		{ -5.0f, -2.5f  },
+		{ 0.0f,  2.5f   },
+		{ 5.0f,  -2.5f  },
+		{ -5.0f, -2.5f  },
 	};
 	
 	Gfx_DrawRounderOutline(vg, r, this->element.light);

@@ -131,24 +131,24 @@ static s32 Split_CursorDistToFlagPos(SplitState flag, Split* split) {
 	 * one axis that makes sense for the direction of that side.
 	 */
 	Vec2s mouse[] = {
-		/* SPLIT_POINT_BL */ { split->mousePos.x, split->mousePos.y },
-		/* SPLIT_POINT_TL */ { split->mousePos.x, split->mousePos.y },
-		/* SPLIT_POINT_TR */ { split->mousePos.x, split->mousePos.y },
-		/* SPLIT_POINT_BR */ { split->mousePos.x, split->mousePos.y },
-		/* SPLIT_SIDE_L   */ { split->mousePos.x, 0 },
-		/* SPLIT_SIDE_T   */ { 0,                 split->mousePos.y },
-		/* SPLIT_SIDE_R   */ { split->mousePos.x, 0 },
-		/* SPLIT_SIDE_B   */ { 0,                 split->mousePos.y }
+		{ split->mousePos.x, split->mousePos.y                 }, /* SPLIT_POINT_BL */
+		{ split->mousePos.x, split->mousePos.y                 }, /* SPLIT_POINT_TL */
+		{ split->mousePos.x, split->mousePos.y                 }, /* SPLIT_POINT_TR */
+		{ split->mousePos.x, split->mousePos.y                 }, /* SPLIT_POINT_BR */
+		{ split->mousePos.x, 0                                 }, /* SPLIT_SIDE_L   */
+		{ 0,                 split->mousePos.y                 }, /* SPLIT_SIDE_T   */
+		{ split->mousePos.x, 0                                 }, /* SPLIT_SIDE_R   */
+		{ 0,                 split->mousePos.y                 }, /* SPLIT_SIDE_B   */
 	};
 	Vec2s pos[] = {
-		/* SPLIT_POINT_BL */ { 0,                 split->dispRect.h, },
-		/* SPLIT_POINT_TL */ { 0,                 0,                 },
-		/* SPLIT_POINT_TR */ { split->dispRect.w, 0,                 },
-		/* SPLIT_POINT_BR */ { split->dispRect.w, split->dispRect.h, },
-		/* SPLIT_SIDE_L   */ { 0,                 0,                 },
-		/* SPLIT_SIDE_T   */ { 0,                 0,                 },
-		/* SPLIT_SIDE_R   */ { split->dispRect.w, 0,                 },
-		/* SPLIT_SIDE_B   */ { 0,                 split->dispRect.h, },
+		{ 0,                 split->dispRect.h                 }, /* SPLIT_POINT_BL */
+		{ 0,                 0                                 }, /* SPLIT_POINT_TL */
+		{ split->dispRect.w, 0                                 }, /* SPLIT_POINT_TR */
+		{ split->dispRect.w, split->dispRect.h                 }, /* SPLIT_POINT_BR */
+		{ 0,                 0                                 }, /* SPLIT_SIDE_L   */
+		{ 0,                 0                                 }, /* SPLIT_SIDE_T   */
+		{ split->dispRect.w, 0                                 }, /* SPLIT_SIDE_R   */
+		{ 0,                 split->dispRect.h                 }, /* SPLIT_SIDE_B   */
 	};
 	s32 i;
 	
@@ -988,8 +988,8 @@ static void Split_Draw(GeoGrid* geo) {
 			
 			if (split->stateFlag & SPLIT_KILL_TARGET) {
 				Vec2f arrow[] = {
-					{ 0, 13 }, { 11, 1 }, { 5.6, 1 }, { 5.6, -10 },
-					{ -5.6, -10 }, { -5.6, 1 }, { -10, 1 }, { 0, 13 }
+					{ 0,    13    }, { 11,   1   }, { 5.6, 1 }, { 5.6, -10  },
+					{ -5.6, -10   }, { -5.6, 1   }, { -10, 1 }, { 0,   13   }
 				};
 				f32 dir = 0;
 				
