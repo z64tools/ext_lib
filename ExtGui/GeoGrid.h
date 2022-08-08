@@ -96,7 +96,7 @@ typedef enum {
 
 struct GeoGrid;
 struct Split;
-typedef void (* SplitFunc)(void* a, void* b, struct Split* c);
+typedef void (*SplitFunc)(void* a, void* b, struct Split* c);
 
 typedef struct SplitVtx {
 	struct SplitVtx* next;
@@ -107,7 +107,7 @@ typedef struct SplitVtx {
 typedef struct SplitEdge {
 	struct SplitEdge* next;
 	SplitVtx* vtx[2];
-	f64 pos;
+	f64       pos;
 	EdgeState state;
 	u8 killFlag;
 } SplitEdge;
@@ -130,7 +130,7 @@ typedef struct Split {
 	struct Split* next;
 	SplitState    stateFlag;
 	SplitEdge*    edge[4];
-	SplitVtx* vtx[4];
+	SplitVtx*     vtx[4];
 	Rect  rect; // Absolute XY, relative WH
 	Rect  headRect;
 	Rect  dispRect;
@@ -139,6 +139,7 @@ typedef struct Split {
 	bool  mouseInSplit;
 	bool  mouseInHeader;
 	bool  mouseInDispRect;
+	bool  inputAccess;
 	u32   id;
 	u32   prevId;
 	bool  blockMouse;
@@ -148,7 +149,7 @@ typedef struct Split {
 		RGB8 color;
 	} bg;
 	
-	const char* name;
+	const char*      name;
 	struct PropEnum* taskEnum;
 	struct ElCombo*  taskCombo;
 	void* instance;
@@ -159,12 +160,12 @@ typedef struct {
 } StatusBar;
 
 typedef struct {
-	char* taskName;
+	char*     taskName;
 	SplitFunc init;
 	SplitFunc destroy;
 	SplitFunc update;
 	SplitFunc draw;
-	s32 size;
+	s32       size;
 } SplitTask;
 
 typedef struct {
@@ -182,10 +183,10 @@ typedef struct {
 	struct Element* element;
 	void*    prop;
 	PropType type;
-	Rect  rectOrigin;
-	Rect  rect;
-	Vec2s pos;
-	s32   key;
+	Rect     rectOrigin;
+	Rect     rect;
+	Vec2s    pos;
+	s32      key;
 	struct {
 		s32 init         : 1;
 		s32 setCondition : 1;
@@ -195,31 +196,31 @@ typedef struct {
 
 typedef struct GeoGrid {
 	StatusBar bar[2];
-	Rect prevWorkRect;
-	Rect workRect;
+	Rect      prevWorkRect;
+	Rect      workRect;
 	
 	struct {
 		f64 clampMax;
 		f64 clampMin;
 	} slide;
 	
-	Split* actionSplit;
-	SplitEdge*  actionEdge;
+	Split*     actionSplit;
+	SplitEdge* actionEdge;
 	
 	SplitTask** taskTable;
-	u32        numTaskTable;
+	u32 numTaskTable;
 	
 	Split*     splitHead;
 	SplitVtx*  vtxHead;
 	SplitEdge* edgeHead;
 	
-	Input*     input;
-	Vec2s*     wdim;
-	void*      vg;
-	void*      passArg;
+	Input* input;
+	Vec2s* wdim;
+	void*  vg;
+	void*  passArg;
 	
-	GeoState   state;
-	DropMenu   dropMenu;
+	GeoState state;
+	DropMenu dropMenu;
 } GeoGrid;
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -231,8 +232,8 @@ struct PropEnum;
 typedef struct PropEnum {
 	void*  argument;
 	char** list;
-	char* (* get)(struct PropEnum*, s32);
-	void (* set)(struct PropEnum*, s32);
+	char* (*get)(struct PropEnum*, s32);
+	void (*set)(struct PropEnum*, s32);
 	s32 num;
 	s32 key;
 } PropEnum;
@@ -240,8 +241,8 @@ typedef struct PropEnum {
 typedef struct PropColor {
 	void* argument;
 	void* color;
-	char* (* get)(struct PropColor*);
-	void (* set)(struct PropColor*);
+	char* (*get)(struct PropColor*);
+	void (*set)(struct PropColor*);
 } PropColor;
 
 typedef struct Element {
@@ -265,16 +266,16 @@ typedef struct Element {
 
 typedef struct {
 	Element element;
-	u8 state;
-	u8 autoWidth;
+	u8      state;
+	u8      autoWidth;
 } ElButton;
 
 typedef struct {
-	Element element;
-	char txt[128];
-	s32 size;
-	u8 isNumBox   : 1;
-	u8 isHintText : 2;
+	Element   element;
+	char      txt[128];
+	s32       size;
+	u8        isNumBox   : 1;
+	u8        isHintText : 2;
 	TextAlign align;
 	struct {
 		u8  isInt : 1;
@@ -291,7 +292,7 @@ typedef struct {
 
 typedef struct {
 	Element element;
-	f32 lerp;
+	f32     lerp;
 } ElCheckbox;
 
 typedef struct {
@@ -302,11 +303,11 @@ typedef struct {
 	f32 min;
 	f32 max;
 	
-	u8  isSliding : 1;
-	u8  isInt     : 1;
-	u8  holdState : 1;
+	u8 isSliding : 1;
+	u8 isInt     : 1;
+	u8 holdState : 1;
 	
-	s32 isTextbox;
+	s32       isTextbox;
 	ElTextbox textBox;
 } ElSlider;
 

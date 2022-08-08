@@ -22,8 +22,6 @@ typedef struct {
 	s16   yaw;
 	s16   roll;
 	
-	// s16   vYaw;
-	// s16   vPitch;
 	f32 speed;
 	f32 speedMod;
 } Camera;
@@ -63,6 +61,9 @@ typedef struct View3D {
 		bool isControlled;
 		bool usePreCalcRay;
 	};
+	
+	bool  flagSwapTo;
+	Vec3s rotSwapTo;
 } View3D;
 
 void View_Camera_FlyMode(View3D* viewCtx, Input* inputCtx);
@@ -76,7 +77,7 @@ RayLine View_GetPointRayLine(View3D* this, Vec2f point);
 RayLine View_GetCursorRayLine(View3D* this);
 void View_MoveTo(View3D* this, Vec3f pos);
 Vec3f View_OrientDirToView(View3D* this, Vec3f dir);
-Vec2f View_Vec3fToScreenSpace(View3D* this, Vec3f point);
+Vec2f View_GetScreenPos(View3D* this, Vec3f point);
 f32 View_DepthFactor(View3D* this, Vec3f point);
 f32 View_DimFactor(View3D* this);
 

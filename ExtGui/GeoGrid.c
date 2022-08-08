@@ -831,6 +831,8 @@ static void Split_Update(GeoGrid* geo) {
 		if (split->stateFlag != 0)
 			split->blockMouse = true;
 		
+		split->inputAccess = split->mouseInSplit && !geo->state.noClickInput && !split->blockMouse;
+		
 		u32 id = split->id;
 		SplitTask** table = geo->taskTable;
 		

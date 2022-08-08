@@ -1,5 +1,9 @@
 #include "Interface.h"
 
+// # # # # # # # # # # # # # # # # # # # #
+// # FLY                                 #
+// # # # # # # # # # # # # # # # # # # # #
+
 static void Camera_CalculateFly(Camera* cam) {
 	Vec3f zero = Math_Vec3f_New(0, 0, 0);
 	Vec3f upOffset = Math_Vec3f_New(0, 1, 0);
@@ -27,7 +31,7 @@ static void Camera_CalculateFly(Camera* cam) {
 	Matrix_Pop();
 }
 
-void View_Camera_FlyMode(View3D* this, Input* inputCtx) {
+static void Camera_FlyMode(View3D* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
 	s16 pitch = Math_Vec3f_Pitch(cam->eye, cam->at);
 	static s32 flip;
@@ -93,6 +97,10 @@ void View_Camera_FlyMode(View3D* this, Input* inputCtx) {
 	Camera_CalculateFly(cam);
 }
 
+// # # # # # # # # # # # # # # # # # # # #
+// # ORBIT                               #
+// # # # # # # # # # # # # # # # # # # # #
+
 static void Camera_CalculateOrbit(Camera* cam) {
 	Vec3f zero = Math_Vec3f_New(0, 0, 0);
 	Vec3f upOffset = Math_Vec3f_New(0, 1, 0);
@@ -121,36 +129,7 @@ static void Camera_CalculateOrbit(Camera* cam) {
 	Matrix_Pop();
 }
 
-static void Camera_CalculateMove(Camera* cam, f32 x, f32 y, f32 z) {
-	Vec3f zero = Math_Vec3f_New(0, 0, 0);
-	Vec3f upOffset = Math_Vec3f_New(0, 1, 0);
-	Vec3f rOffset = Math_Vec3f_New(1, 0, 0);
-	Vec3f atOffset = Math_Vec3f_New(0, 0, -cam->dist);
-	
-	Matrix_Push();
-	Matrix_Translate(cam->at.x + x, cam->at.y + y, cam->at.z + z, MTXMODE_NEW);
-	
-	// cam->vYaw = cam->yaw;
-	// cam->vPitch = cam->pitch;
-	Matrix_RotateY_s(cam->yaw, MTXMODE_APPLY);
-	Matrix_RotateX_s(cam->pitch, MTXMODE_APPLY);
-	Matrix_RotateZ_s(cam->roll, MTXMODE_APPLY);
-	
-	Matrix_Translate(cam->offset.x, cam->offset.y, cam->offset.z, MTXMODE_APPLY);
-	cam->offset = Math_Vec3f_New(0, 0, 0);
-	Matrix_MultVec3f(&zero, &cam->at);
-	
-	Matrix_MultVec3f(&upOffset, &cam->up);
-	Matrix_MultVec3f(&rOffset, &cam->right);
-	
-	cam->up = Math_Vec3f_Sub(cam->up, cam->at);
-	cam->right = Math_Vec3f_Sub(cam->right, cam->at);
-	Matrix_MultVec3f(&atOffset, &cam->eye);
-	
-	Matrix_Pop();
-}
-
-void View_Camera_OrbitMode(View3D* this, Input* inputCtx) {
+static void Camera_OrbitMode(View3D* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
 	f32 distMult = (cam->dist * 0.2);
 	f32 disdiff = fabsf(cam->dist - cam->targetDist);
@@ -197,6 +176,147 @@ void View_Camera_OrbitMode(View3D* this, Input* inputCtx) {
 	Camera_CalculateOrbit(cam);
 }
 
+// # # # # # # # # # # # # # # # # # # # #
+// #  MoveTo                             #
+// # # # # # # # # # # # # # # # # # # # #
+
+static void Camera_CalculateMove(Camera* cam, f32 x, f32 y, f32 z) {
+	Vec3f zero = Math_Vec3f_New(0, 0, 0);
+	Vec3f upOffset = Math_Vec3f_New(0, 1, 0);
+	Vec3f rOffset = Math_Vec3f_New(1, 0, 0);
+	Vec3f atOffset = Math_Vec3f_New(0, 0, -cam->dist);
+	
+	Matrix_Push();
+	Matrix_Translate(cam->at.x + x, cam->at.y + y, cam->at.z + z, MTXMODE_NEW);
+	
+	// cam->vYaw = cam->yaw;
+	// cam->vPitch = cam->pitch;
+	Matrix_RotateY_s(cam->yaw, MTXMODE_APPLY);
+	Matrix_RotateX_s(cam->pitch, MTXMODE_APPLY);
+	Matrix_RotateZ_s(cam->roll, MTXMODE_APPLY);
+	
+	Matrix_Translate(cam->offset.x, cam->offset.y, cam->offset.z, MTXMODE_APPLY);
+	cam->offset = Math_Vec3f_New(0, 0, 0);
+	Matrix_MultVec3f(&zero, &cam->at);
+	
+	Matrix_MultVec3f(&upOffset, &cam->up);
+	Matrix_MultVec3f(&rOffset, &cam->right);
+	
+	cam->up = Math_Vec3f_Sub(cam->up, cam->at);
+	cam->right = Math_Vec3f_Sub(cam->right, cam->at);
+	Matrix_MultVec3f(&atOffset, &cam->eye);
+	
+	Matrix_Pop();
+}
+
+static void Camera_UpdateMoveTo(View3D* this, Input* input) {
+	Camera* cam = this->currentCamera;
+	
+	if (this->moveToTarget && input->mouse.clickL.hold == false) {
+		Vec3f p = this->targetPos;
+		
+		f32 x = Math_DelSmoothStepToF(&this->targetPos.x, 0, 0.25f, this->targetStep, 0.001f);
+		f32 z = Math_DelSmoothStepToF(&this->targetPos.z, 0, 0.25f, this->targetStep, 0.001f);
+		f32 y = Math_DelSmoothStepToF(&this->targetPos.y, 0, 0.25f, this->targetStep, 0.001f);
+		
+		p = Math_Vec3f_Sub(p, this->targetPos);
+		
+		Camera_CalculateMove(cam, p.x, p.y, p.z);
+		
+		if (x + z + y < 0.1f)
+			this->moveToTarget = false;
+	} else
+		this->moveToTarget = false;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+// #  SwapTo                             #
+// # # # # # # # # # # # # # # # # # # # #
+
+static void Camera_UpdateSwapTo(View3D* this, Input* input) {
+	Camera* cam = this->currentCamera;
+	u8 isSwapping = this->flagSwapTo;
+	
+	if (this->cameraControl) {
+		s32 pass = -1;
+		s32 key[] = {
+			KEY_KP_1,
+			KEY_KP_3,
+			KEY_KP_7,
+		};
+		Vec3f target[] = {
+			{ 0,  0,   0   },
+			{ 0,  90,  0   },
+			{ 90, 0,   0   },
+		};
+		
+		for (s32 i = 0; i < ArrayCount(key); i++) {
+			if (Input_GetKey(input, key[i])->press) {
+				pass = i;
+				break;
+			}
+		}
+		
+		if (pass > -1) {
+			this->flagSwapTo = true;
+			
+			for (s32 i = 0; i < 3; i++)
+				this->rotSwapTo.axis[i] = DegToBin(target[pass].axis[i]);
+		} else {
+			if (Input_GetKey(input, KEY_KP_9)->press) {
+				// Invert
+				Vec3f zero = {};
+				Vec3f infn = Math_Vec3f_Invert(Math_Vec3f_LineSegDir(cam->eye, cam->at));
+				
+				this->flagSwapTo = true;
+				this->rotSwapTo.x = Math_Vec3f_Pitch(zero, infn);
+				this->rotSwapTo.y = Math_Vec3f_Yaw(zero, infn);
+				this->rotSwapTo.z = cam->roll;
+			} else {
+				Vec3s r = Math_Vec3s_New(cam->pitch, cam->yaw, cam->roll);
+				Vec3s p =  { 0, 0, 0 };
+				
+				if (Input_GetKey(input, KEY_KP_4)->press || Input_GetKey(input, KEY_KP_6)->press) {
+					s32 m = Input_GetKey(input, KEY_KP_4)->press ? -1 : 1;
+					
+					// Sideways
+					this->flagSwapTo = true;
+					p.y += DegToBin(15) * m;
+				}
+				
+				if (Input_GetKey(input, KEY_KP_2)->press || Input_GetKey(input, KEY_KP_8)->press) {
+					s32 m = Input_GetKey(input, KEY_KP_2)->press ? -1 : 1;
+					
+					// Sideways
+					this->flagSwapTo = true;
+					p.x += DegToBin(15) * m;
+				}
+				
+				if (isSwapping)
+					p = Math_Vec3s_Add(p, Math_Vec3s_Sub(this->rotSwapTo, r));
+				
+				this->rotSwapTo = Math_Vec3s_Add(r, p);
+			}
+		}
+	}
+	
+	if (this->flagSwapTo && input->mouse.click.hold == false) {
+		s16 x = Math_SmoothStepToS(&cam->pitch, this->rotSwapTo.x, 3, DegToBin(45), 1);
+		s16 z = Math_SmoothStepToS(&cam->yaw, this->rotSwapTo.y, 3, DegToBin(45), 1);
+		s16 y = Math_SmoothStepToS(&cam->roll, this->rotSwapTo.z, 3, DegToBin(45), 1);
+		
+		Camera_CalculateOrbit(cam);
+		
+		if (!x && !y && !z)
+			this->flagSwapTo = false;
+	} else
+		this->flagSwapTo = false;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+// #                                     #
+// # # # # # # # # # # # # # # # # # # # #
+
 void View_Init(View3D* this, Input* inputCtx) {
 	Camera* cam;
 	
@@ -218,8 +338,8 @@ void View_Init(View3D* this, Input* inputCtx) {
 
 void View_Update(View3D* this, Input* inputCtx, Split* split) {
 	void (*camMode[])(View3D*, Input*) = {
-		View_Camera_FlyMode,
-		View_Camera_OrbitMode,
+		Camera_FlyMode,
+		Camera_OrbitMode,
 	};
 	Camera* cam = this->currentCamera;
 	
@@ -243,21 +363,8 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
 	else
 		camMode[this->mode](this, inputCtx);
 	
-	if (this->moveToTarget && inputCtx->mouse.clickL.hold == false) {
-		Vec3f p = this->targetPos;
-		
-		f32 x = Math_DelSmoothStepToF(&this->targetPos.x, 0, 0.25f, this->targetStep, 0.001f);
-		f32 z = Math_DelSmoothStepToF(&this->targetPos.z, 0, 0.25f, this->targetStep, 0.001f);
-		f32 y = Math_DelSmoothStepToF(&this->targetPos.y, 0, 0.25f, this->targetStep, 0.001f);
-		
-		p = Math_Vec3f_Sub(p, this->targetPos);
-		
-		Camera_CalculateMove(cam, p.x, p.y, p.z);
-		
-		if (x + z + y < 0.1f)
-			this->moveToTarget = false;
-	} else
-		this->moveToTarget = false;
+	Camera_UpdateMoveTo(this, inputCtx);
+	Camera_UpdateSwapTo(this, inputCtx);
 	
 	Matrix_LookAt(&this->viewMtx, cam->eye, cam->at, cam->up);
 	
@@ -276,6 +383,10 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
 	}
 }
 
+// # # # # # # # # # # # # # # # # # # # #
+// #                                     #
+// # # # # # # # # # # # # # # # # # # # #
+
 bool View_CheckControlKeys(Input* input) {
 	if (Input_GetMouse(input, MOUSE_L)->press)
 		return true;
@@ -289,6 +400,9 @@ bool View_CheckControlKeys(Input* input) {
 		return true;
 	if (Input_GetKey(input, KEY_D)->press)
 		return true;
+	for (s32 i = KEY_KP_0; i <= KEY_KP_9; i++)
+		if (Input_GetKey(input, i)->press)
+			return true;
 	if (input->mouse.scrollY)
 		return true;
 	
@@ -337,18 +451,18 @@ Vec3f View_OrientDirToView(View3D* this, Vec3f dir) {
 	return pos;
 }
 
-Vec2f View_Vec3fToScreenSpace(View3D* this, Vec3f point) {
-	MtxF modelview;
-	Vec4f sp;
-	f32 wh = this->split->dispRect.w / 2.0;
-	f32 hh = this->split->dispRect.h / 2.0;
+Vec2f View_GetScreenPos(View3D* this, Vec3f point) {
+	MtxF modelView;
+	f32 w = this->split->dispRect.w * 0.5f;
+	f32 h = this->split->dispRect.h * 0.5f;
+	Vec4f pos;
 	
-	Matrix_MtxFMtxFMult(&this->projMtx, &this->viewMtx, &modelview);
-	Matrix_MultVec3fToVec4f_Ext(&point, &sp, &modelview);
+	Matrix_MtxFMtxFMult(&this->projMtx, &this->viewMtx, &modelView);
+	Matrix_MultVec3fToVec4f_Ext(&point, &pos, &modelView);
 	
 	return Math_Vec2f_New(
-		wh + (sp.x / sp.w) * wh,
-		hh - (sp.y / sp.w) * hh
+		w + (pos.x / pos.w) * w,
+		h - (pos.y / pos.w) * h
 	);
 }
 
