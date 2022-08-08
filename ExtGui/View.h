@@ -72,11 +72,12 @@ void View_Init(View3D* view, Input* input);
 void View_Update(View3D* viewCtx, Input* inputCtx, struct Split* split);
 
 bool View_CheckControlKeys(Input* input);
+RayLine View_GetPointRayLine(View3D* this, Vec2f point);
 RayLine View_GetCursorRayLine(View3D* this);
 void View_MoveTo(View3D* this, Vec3f pos);
-Vec3f View_OrientDirToView(View3D* this, Vec3f* dir);
-Vec2f View_Vec3fToScreenSpace(View3D* this, Vec3f* point);
-f32 View_DepthFactor(View3D* this, Vec3f* point);
+Vec3f View_OrientDirToView(View3D* this, Vec3f dir);
+Vec2f View_Vec3fToScreenSpace(View3D* this, Vec3f point);
+f32 View_DepthFactor(View3D* this, Vec3f point);
 f32 View_DimFactor(View3D* this);
 
 #endif
