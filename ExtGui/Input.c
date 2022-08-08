@@ -7,11 +7,21 @@ void Input_Init(Input* input, AppInfo* app) {
 void Input_Update(Input* input) {
 	MouseInput* mouse = &input->mouse;
 	ThreadLocal static u32 timer;
+	f64 x, y;
 	
+	glfwGetCursorPos(input->app->window, &x, &y);
+	mouse->vel.x = x - mouse->pos.x;
+	mouse->vel.y = y - mouse->pos.y;
+	mouse->pos.x = x;
+	mouse->pos.y = y;
+	
+	input->keyAction = false;
 	for (s32 i = 0; i < KEY_MAX; i++) {
 		input->key[i].press = (input->key[i].prev == 0 && input->key[i].hold);
 		input->key[i].release = (input->key[i].prev && input->key[i].hold == 0);
 		input->key[i].prev = input->key[i].hold;
+		if (input->key[i].hold)
+			input->keyAction = true;
 	}
 	
 	for (s32 i = 0; i < 3; i++) {
@@ -63,7 +73,7 @@ void Input_Update(Input* input) {
 		timer = 30;
 	}
 	
-	if (glfwGetKey(input->app->window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+	if (Input_GetKey(input, KEY_ESCAPE)->release)
 		glfwSetWindowShouldClose(input->app->window, true);
 	
 	if (mouse->click.press)
@@ -168,10 +178,10 @@ void InputCallback_MousePos(GLFWwindow* window, f64 x, f64 y) {
 	Input* input = GetAppInfo(window)->input;
 	MouseInput* mouse = &input->mouse;
 	
-	mouse->vel.x += x - mouse->pos.x;
-	mouse->vel.y += y - mouse->pos.y;
-	mouse->pos.x = x;
-	mouse->pos.y = y;
+	// mouse->vel.x += x - mouse->pos.x;
+	// mouse->vel.y += y - mouse->pos.y;
+	// mouse->pos.x = x;
+	// mouse->pos.y = y;
 }
 
 void InputCallback_Scroll(GLFWwindow* window, f64 x, f64 y) {

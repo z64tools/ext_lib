@@ -5,6 +5,7 @@ static int glhUnProjectf(float winx, float winy, float winz, float* modelview, f
 static void Camera_CalculateFly(Camera* cam) {
 	Vec3f zero = Math_Vec3f_New(0, 0, 0);
 	Vec3f upOffset = Math_Vec3f_New(0, 1, 0);
+	Vec3f rOffset = Math_Vec3f_New(1, 0, 0);
 	Vec3f atOffset = Math_Vec3f_New(0, 0, cam->dist);
 	
 	Matrix_Push();
@@ -20,7 +21,9 @@ static void Camera_CalculateFly(Camera* cam) {
 	Matrix_MultVec3f(&zero, &cam->eye);
 	
 	Matrix_MultVec3f(&upOffset, &cam->up);
+	Matrix_MultVec3f(&rOffset, &cam->right);
 	cam->up = Math_Vec3f_Sub(cam->up, cam->eye);
+	cam->right = Math_Vec3f_Sub(cam->right, cam->eye);
 	Matrix_MultVec3f(&atOffset, &cam->at);
 	
 	Matrix_Pop();
@@ -95,6 +98,7 @@ void View_Camera_FlyMode(View3D* this, Input* inputCtx) {
 static void Camera_CalculateOrbit(Camera* cam) {
 	Vec3f zero = Math_Vec3f_New(0, 0, 0);
 	Vec3f upOffset = Math_Vec3f_New(0, 1, 0);
+	Vec3f rOffset = Math_Vec3f_New(1, 0, 0);
 	Vec3f atOffset = Math_Vec3f_New(0, 0, -cam->dist);
 	
 	Matrix_Push();
@@ -111,7 +115,9 @@ static void Camera_CalculateOrbit(Camera* cam) {
 	Matrix_MultVec3f(&zero, &cam->at);
 	
 	Matrix_MultVec3f(&upOffset, &cam->up);
+	Matrix_MultVec3f(&rOffset, &cam->right);
 	cam->up = Math_Vec3f_Sub(cam->up, cam->at);
+	cam->right = Math_Vec3f_Sub(cam->right, cam->at);
 	Matrix_MultVec3f(&atOffset, &cam->eye);
 	
 	Matrix_Pop();
@@ -120,6 +126,7 @@ static void Camera_CalculateOrbit(Camera* cam) {
 static void Camera_CalculateMove(Camera* cam, f32 x, f32 y, f32 z) {
 	Vec3f zero = Math_Vec3f_New(0, 0, 0);
 	Vec3f upOffset = Math_Vec3f_New(0, 1, 0);
+	Vec3f rOffset = Math_Vec3f_New(1, 0, 0);
 	Vec3f atOffset = Math_Vec3f_New(0, 0, -cam->dist);
 	
 	Matrix_Push();
@@ -136,7 +143,10 @@ static void Camera_CalculateMove(Camera* cam, f32 x, f32 y, f32 z) {
 	Matrix_MultVec3f(&zero, &cam->at);
 	
 	Matrix_MultVec3f(&upOffset, &cam->up);
+	Matrix_MultVec3f(&rOffset, &cam->right);
+	
 	cam->up = Math_Vec3f_Sub(cam->up, cam->at);
+	cam->right = Math_Vec3f_Sub(cam->right, cam->at);
 	Matrix_MultVec3f(&atOffset, &cam->eye);
 	
 	Matrix_Pop();
@@ -145,13 +155,12 @@ static void Camera_CalculateMove(Camera* cam, f32 x, f32 y, f32 z) {
 void View_Camera_OrbitMode(View3D* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
 	f32 distMult = (cam->dist * 0.2);
+	f32 disdiff = fabsf(cam->dist - cam->targetDist);
+	f32 fovDiff = fabsf(this->fovy - this->fovyTarget);
 	
 	if (this->cameraControl) {
 		if (inputCtx->key[KEY_LEFT_CONTROL].hold && inputCtx->mouse.clickMid.hold && inputCtx->mouse.scrollY == 0)
 			cam->targetDist += inputCtx->mouse.vel.y;
-		
-		f32 disdiff = fabsf(cam->dist - cam->targetDist);
-		f32 fovDiff = fabsf(this->fovy - this->fovyTarget);
 		
 		if (inputCtx->mouse.clickMid.hold || inputCtx->mouse.scrollY || disdiff || fovDiff) {
 			if (inputCtx->key[KEY_LEFT_CONTROL].hold && inputCtx->mouse.scrollY) {
@@ -164,15 +173,6 @@ void View_Camera_OrbitMode(View3D* this, Input* inputCtx) {
 				}
 				
 				cam->targetDist = ClampMin(cam->targetDist, 1.0f);
-				Math_DelSmoothStepToF(&cam->dist, cam->targetDist, 0.25f, 5.0f * distMult, 0.01f * distMult);
-			}
-			
-			if (fovDiff) {
-				f32 f = -this->fovy;
-				Math_DelSmoothStepToF(&this->fovy, this->fovyTarget, 0.25, 5.25f, 0.0f);
-				f += this->fovy;
-				
-				cam->offset.z += f * 8.f * (1.0f - this->fovy / 150);
 			}
 			
 			if (inputCtx->mouse.clickMid.hold) {
@@ -184,10 +184,19 @@ void View_Camera_OrbitMode(View3D* this, Input* inputCtx) {
 					cam->pitch += inputCtx->mouse.vel.y * 67;
 				}
 			}
-			
-			Camera_CalculateOrbit(cam);
 		}
 	}
+	
+	Math_DelSmoothStepToF(&cam->dist, cam->targetDist, 0.25f, 5.0f * distMult, 0.01f * distMult);
+	if (fovDiff) {
+		f32 f = -this->fovy;
+		Math_DelSmoothStepToF(&this->fovy, this->fovyTarget, 0.25, 5.25f, 0.0f);
+		f += this->fovy;
+		
+		cam->offset.z += f * 8.f * (1.0f - this->fovy / 150);
+	}
+	
+	Camera_CalculateOrbit(cam);
 }
 
 void View_Init(View3D* this, Input* inputCtx) {
@@ -209,28 +218,25 @@ void View_Init(View3D* this, Input* inputCtx) {
 	this->mode = CAM_MODE_ALL;
 }
 
-void View_Update(View3D* this, Input* inputCtx) {
-	Camera* cam = this->currentCamera;
-	
+void View_Update(View3D* this, Input* inputCtx, Split* split) {
 	void (*camMode[])(View3D*, Input*) = {
 		View_Camera_FlyMode,
 		View_Camera_OrbitMode,
 	};
+	Camera* cam = this->currentCamera;
+	
+	this->split = split;
+	this->usePreCalcRay = false;
+	this->isControlled = false;
 	
 	Matrix_Projection(
 		&this->projMtx,
 		this->fovy,
-		(f32)this->projectDim.x / (f32)this->projectDim.y,
+		(f32)this->split->rect.w / (f32)this->split->rect.h,
 		this->near,
 		this->far,
 		this->scale
 	);
-	
-	if (inputCtx->mouse.click.press || inputCtx->mouse.scrollY)
-		this->setCamMove = 1;
-	
-	if (inputCtx->mouse.cursorAction == 0)
-		this->setCamMove = 0;
 	
 	if (this->mode == CAM_MODE_ALL)
 		for (s32 i = 0; i < ArrayCount(camMode); i++)
@@ -259,29 +265,102 @@ void View_Update(View3D* this, Input* inputCtx) {
 	
 	Matrix_Scale(1.0, 1.0, 1.0, MTXMODE_NEW);
 	Matrix_ToMtxF(&this->modelMtx);
+	
+	if (this->cameraControl) {
+		s32 keyList[] = {
+			KEY_W, KEY_A, KEY_S, KEY_D
+		};
+		
+		for (s32 i = 0; i < ArrayCount(keyList); i++) {
+			if (Input_GetKey(inputCtx, keyList[i])->hold)
+				this->isControlled = true;
+		}
+	}
 }
 
-void View_SetProjectionDimensions(View3D* this, Vec2s* dim) {
-	this->projectDim = *dim;
+bool View_CheckControlKeys(Input* input) {
+	if (Input_GetMouse(input, MOUSE_L)->press)
+		return true;
+	if (Input_GetMouse(input, MOUSE_M)->press)
+		return true;
+	if (Input_GetKey(input, KEY_W)->press)
+		return true;
+	if (Input_GetKey(input, KEY_A)->press)
+		return true;
+	if (Input_GetKey(input, KEY_S)->press)
+		return true;
+	if (Input_GetKey(input, KEY_D)->press)
+		return true;
+	if (input->mouse.scrollY)
+		return true;
+	
+	return false;
 }
 
-RayLine View_Raycast(View3D* this, Vec2s pos, Rect dispRect) {
+RayLine View_GetCursorRayLine(View3D* this) {
+	if (this->usePreCalcRay)
+		return this->ray;
+	
+	Rect dispRect = this->split->dispRect;
 	s32 viewport[] = { 0, 0, dispRect.w, dispRect.h };
 	MtxF modelview;
-	Vec2s mouse = Math_Vec2s_New(pos.x, dispRect.h - pos.y);
+	Vec2s mouse = Math_Vec2s_New(this->split->mousePos.x, dispRect.h - this->split->mousePos.y);
 	Vec3f a, b;
 	
 	Matrix_MtxFMtxFMult(&this->modelMtx, &this->viewMtx, &modelview);
 	glhUnProjectf(mouse.x, mouse.y, 0, (float*)&modelview, (float*)&this->projMtx, viewport, (float*)&a);
 	glhUnProjectf(mouse.x, mouse.y, 1, (float*)&modelview, (float*)&this->projMtx, viewport, (float*)&b);
+	this->usePreCalcRay = true;
 	
-	return RayLine_New(a, b);
+	return this->ray = RayLine_New(a, b);
 }
 
 void View_MoveTo(View3D* this, Vec3f pos) {
 	this->targetPos = Math_Vec3f_Sub(pos, this->currentCamera->at);
 	this->moveToTarget = true;
 	this->targetStep = Math_Vec3f_DistXYZ(pos, this->currentCamera->at) * 0.25f;
+}
+
+Vec3f View_OrientDirToView(View3D* this, Vec3f* dir) {
+	Vec3f pos;
+	
+	Matrix_Push();
+	Matrix_RotateY_s(this->currentCamera->yaw, MTXMODE_APPLY);
+	Matrix_RotateX_s(this->currentCamera->pitch, MTXMODE_APPLY);
+	Matrix_RotateZ_s(this->currentCamera->roll, MTXMODE_APPLY);
+	Matrix_MultVec3f(dir, &pos);
+	Matrix_Pop();
+	
+	return pos;
+}
+
+Vec2f View_Vec3fToScreenSpace(View3D* this, Vec3f* point) {
+	MtxF modelview;
+	Vec4f sp;
+	f32 wh = this->split->dispRect.w / 2.0;
+	f32 hh = this->split->dispRect.h / 2.0;
+	
+	Matrix_MtxFMtxFMult(&this->projMtx, &this->viewMtx, &modelview);
+	Matrix_MultVec4fExt(point, &sp, &modelview);
+	
+	return Math_Vec2f_New(
+		wh + (sp.x / sp.w) * wh,
+		hh - (sp.y / sp.w) * hh
+	);
+}
+
+f32 View_DepthFactor(View3D* this, Vec3f* point) {
+	MtxF modelview;
+	Vec4f sp;
+	
+	Matrix_MtxFMtxFMult(&this->projMtx, &this->viewMtx, &modelview);
+	Matrix_MultVec4fExt(point, &sp, &modelview);
+	
+	return sp.w;
+}
+
+f32 View_DimFactor(View3D* this) {
+	return sqrtf(this->split->rect.w * this->split->rect.h);
 }
 
 // # # # # # # # # # # # # # # # # # # # #

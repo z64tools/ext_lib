@@ -79,7 +79,7 @@ void Matrix_OrientVec3f(Vec3f* src, Vec3f* dest, MtxF* mf) {
 	dest->z = mf->zx * src->x + mf->zy * src->y + mf->zz * src->z;
 }
 
-void Matrix_MultVec4fExt(Vec4f* src, Vec4f* dest, MtxF* mf) {
+void Matrix_MultVec4fExt(Vec3f* src, Vec4f* dest, MtxF* mf) {
 	dest->x = mf->xw + (mf->xx * src->x + mf->xy * src->y + mf->xz * src->z);
 	dest->y = mf->yw + (mf->yx * src->x + mf->yy * src->y + mf->yz * src->z);
 	dest->z = mf->zw + (mf->zx * src->x + mf->zy * src->y + mf->zz * src->z);
@@ -803,7 +803,6 @@ void Matrix_TranslateRotateZYX(Vec3f* translation, Vec3s* rotation) {
 }
 
 void Matrix_RotateAToB(Vec3f* a, Vec3f* b, u8 mode) {
-	const f32 EPSILON = 0.0000001;
 	MtxF mtx;
 	Vec3f v;
 	f32 frac;

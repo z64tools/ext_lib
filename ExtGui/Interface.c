@@ -105,6 +105,7 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
 	glfwSetKeyCallback(app->window, InputCallback_Key);
 	glfwSetCharCallback(app->window, InputCallback_Text);
 	glfwSetScrollCallback(app->window, InputCallback_Scroll);
+	glfwSetWindowFocusCallback(app->window, NULL);
 	glfwSwapInterval(gLimitFPS);
 	
 	if (dropCallback)

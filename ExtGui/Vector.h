@@ -14,6 +14,8 @@
 #define UnfoldVec3(vec) (vec).x, (vec).y, (vec).z
 #define UnfoldVec4(vec) (vec).x, (vec).y, (vec).z, (vec).w
 
+static const f32 EPSILON = 0.0000001;
+
 VEC_QF Vec3f Math_Vec3f_Cross(Vec3f a, Vec3f b) {
 	return (Vec3f) {
 		       (a.y * b.z - b.y * a.z),
@@ -614,6 +616,108 @@ VEC_QF Vec3s Math_Vec3s_Invert(Vec3s a) {
 
 VEC_QF Vec4s Math_Vec4s_Invert(Vec4s a) {
 	return Math_Vec4s_MulVal(a, -1);
+}
+
+VEC_QF f32 Math_Vec2f_Cos(Vec2f a, Vec2f b) {
+	f32 mp = Math_Vec2f_Magnitude(a) * Math_Vec2f_Magnitude(b);
+	
+	if (fabsf(mp) < EPSILON) return 0.0f;
+	
+	return Math_Vec2f_Dot(a, b) / mp;
+}
+
+VEC_QF f32 Math_Vec3f_Cos(Vec3f a, Vec3f b) {
+	f32 mp = Math_Vec3f_Magnitude(a) * Math_Vec3f_Magnitude(b);
+	
+	if (fabsf(mp) < EPSILON) return 0.0f;
+	
+	return Math_Vec3f_Dot(a, b) / mp;
+}
+
+VEC_QF f32 Math_Vec4f_Cos(Vec4f a, Vec4f b) {
+	f32 mp = Math_Vec4f_Magnitude(a) * Math_Vec4f_Magnitude(b);
+	
+	if (fabsf(mp) < EPSILON) return 0.0f;
+	
+	return Math_Vec4f_Dot(a, b) / mp;
+}
+
+VEC_QF f32 Math_Vec2s_Cos(Vec2s a, Vec2s b) {
+	f32 mp = Math_Vec2s_Magnitude(a) * Math_Vec2s_Magnitude(b);
+	
+	if (fabsf(mp) < EPSILON) return 0.0f;
+	
+	return Math_Vec2s_Dot(a, b) / mp;
+}
+
+VEC_QF f32 Math_Vec3s_Cos(Vec3s a, Vec3s b) {
+	f32 mp = Math_Vec3s_Magnitude(a) * Math_Vec3s_Magnitude(b);
+	
+	if (fabsf(mp) < EPSILON) return 0.0f;
+	
+	return Math_Vec3s_Dot(a, b) / mp;
+}
+
+VEC_QF f32 Math_Vec4s_Cos(Vec4s a, Vec4s b) {
+	f32 mp = Math_Vec4s_Magnitude(a) * Math_Vec4s_Magnitude(b);
+	
+	if (fabsf(mp) < EPSILON) return 0.0f;
+	
+	return Math_Vec4s_Dot(a, b) / mp;
+}
+
+VEC_QF Vec2f Math_Vec2f_Reflect(Vec2f vec, Vec2f normal) {
+	Vec2f negVec = Math_Vec2f_Invert(vec);
+	f32 vecDotNormal = Math_Vec2f_Cos(negVec, normal);
+	Vec2f normalScale = Math_Vec2f_MulVal(normal, vecDotNormal);
+	Vec2f nsVec = Math_Vec2f_Add(normalScale, vec);
+	
+	return Math_Vec2f_Add(negVec, Math_Vec2f_MulVal(nsVec, 2.0f));
+}
+
+VEC_QF Vec3f Math_Vec3f_Reflect(Vec3f vec, Vec3f normal) {
+	Vec3f negVec = Math_Vec3f_Invert(vec);
+	f32 vecDotNormal = Math_Vec3f_Cos(negVec, normal);
+	Vec3f normalScale = Math_Vec3f_MulVal(normal, vecDotNormal);
+	Vec3f nsVec = Math_Vec3f_Add(normalScale, vec);
+	
+	return Math_Vec3f_Add(negVec, Math_Vec3f_MulVal(nsVec, 2.0f));
+}
+
+VEC_QF Vec4f Math_Vec4f_Reflect(Vec4f vec, Vec4f normal) {
+	Vec4f negVec = Math_Vec4f_Invert(vec);
+	f32 vecDotNormal = Math_Vec4f_Cos(negVec, normal);
+	Vec4f normalScale = Math_Vec4f_MulVal(normal, vecDotNormal);
+	Vec4f nsVec = Math_Vec4f_Add(normalScale, vec);
+	
+	return Math_Vec4f_Add(negVec, Math_Vec4f_MulVal(nsVec, 2.0f));
+}
+
+VEC_QF Vec2s Math_Vec2s_Reflect(Vec2s vec, Vec2s normal) {
+	Vec2s negVec = Math_Vec2s_Invert(vec);
+	f32 vecDotNormal = Math_Vec2s_Cos(negVec, normal);
+	Vec2s normalScale = Math_Vec2s_MulVal(normal, vecDotNormal);
+	Vec2s nsVec = Math_Vec2s_Add(normalScale, vec);
+	
+	return Math_Vec2s_Add(negVec, Math_Vec2s_MulVal(nsVec, 2.0f));
+}
+
+VEC_QF Vec3s Math_Vec3s_Reflect(Vec3s vec, Vec3s normal) {
+	Vec3s negVec = Math_Vec3s_Invert(vec);
+	f32 vecDotNormal = Math_Vec3s_Cos(negVec, normal);
+	Vec3s normalScale = Math_Vec3s_MulVal(normal, vecDotNormal);
+	Vec3s nsVec = Math_Vec3s_Add(normalScale, vec);
+	
+	return Math_Vec3s_Add(negVec, Math_Vec3s_MulVal(nsVec, 2.0f));
+}
+
+VEC_QF Vec4s Math_Vec4s_Reflect(Vec4s vec, Vec4s normal) {
+	Vec4s negVec = Math_Vec4s_Invert(vec);
+	f32 vecDotNormal = Math_Vec4s_Cos(negVec, normal);
+	Vec4s normalScale = Math_Vec4s_MulVal(normal, vecDotNormal);
+	Vec4s nsVec = Math_Vec4s_Add(normalScale, vec);
+	
+	return Math_Vec4s_Add(negVec, Math_Vec4s_MulVal(nsVec, 2.0f));
 }
 
 #endif

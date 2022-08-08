@@ -26,7 +26,6 @@ RayLine RayLine_New(Vec3f start, Vec3f end) {
 }
 
 bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* outPos, Vec3f* outNor, bool cullBackface, bool cullFrontface) {
-	const f32 EPSILON = 0.0000001;
 	Vec3f vertex0 = tri->v[0];
 	Vec3f vertex1 = tri->v[1];
 	Vec3f vertex2 = tri->v[2];

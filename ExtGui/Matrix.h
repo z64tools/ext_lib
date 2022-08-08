@@ -47,7 +47,7 @@ void Matrix_RotateY(f32 y, MtxMode mode);
 void Matrix_RotateZ(f32 z, MtxMode mode);
 
 void Matrix_MultVec3fExt(Vec3f* src, Vec3f* dest, MtxF* mf);
-void Matrix_MultVec4fExt(Vec4f* src, Vec4f* dest, MtxF* mf);
+void Matrix_MultVec4fExt(Vec3f* src, Vec4f* dest, MtxF* mf);
 void Matrix_OrientVec3f(Vec3f* src, Vec3f* dest, MtxF* mf);
 void Matrix_Mult(MtxF* mf, MtxMode mode);
 void Matrix_MtxFCopy(MtxF* dest, MtxF* src);

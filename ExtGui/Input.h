@@ -161,13 +161,14 @@ typedef struct {
 	};
 	s32   doubleClick;
 	Vec2s pressPos;
-	s32   cursorAction : 1;
+	bool  cursorAction;
 } MouseInput;
 
 typedef struct {
 	struct AppInfo* app;
-	MouseInput mouse;
-	InputType  key[KEY_MAX];
+	MouseInput      mouse;
+	InputType       key[KEY_MAX];
+	bool keyAction;
 	struct {
 		s32 keyBlock;
 	} state;

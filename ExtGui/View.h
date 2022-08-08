@@ -6,10 +6,13 @@
 #include <ExtGui/Input.h>
 #include <ExtGui/Collision.h>
 
+struct Split;
+
 typedef struct {
 	Vec3f eye;
 	Vec3f at;
 	Vec3f up;
+	Vec3f right;
 	
 	Vec3f vel;
 	Vec3f offset;
@@ -49,14 +52,16 @@ typedef struct View3D {
 	MtxF modelMtx;
 	MtxF viewMtx;
 	MtxF projMtx;
-	CamSettings settings;
-	Camera*     currentCamera;
-	Camera      camera[4];
-	Vec2s       projectDim;
-	CamMode     mode;
+	CamSettings   settings;
+	Camera*       currentCamera;
+	Camera        camera[4];
+	CamMode       mode;
+	RayLine       ray;
+	struct Split* split;
 	struct {
-		u8 cameraControl : 1;
-		u8 setCamMove    : 1;
+		bool cameraControl;
+		bool isControlled;
+		bool usePreCalcRay;
 	};
 } View3D;
 
@@ -64,11 +69,14 @@ void View_Camera_FlyMode(View3D* viewCtx, Input* inputCtx);
 void View_Camera_OrbitMode(View3D* viewCtx, Input* inputCtx);
 
 void View_Init(View3D* view, Input* input);
-void View_Update(View3D* viewCtx, Input* inputCtx);
+void View_Update(View3D* viewCtx, Input* inputCtx, struct Split* split);
 
-void View_SetProjectionDimensions(View3D* viewCtx, Vec2s* dim);
-
-RayLine View_Raycast(View3D* this, Vec2s pos, Rect dispRect);
+bool View_CheckControlKeys(Input* input);
+RayLine View_GetCursorRayLine(View3D* this);
 void View_MoveTo(View3D* this, Vec3f pos);
+Vec3f View_OrientDirToView(View3D* this, Vec3f* dir);
+Vec2f View_Vec3fToScreenSpace(View3D* this, Vec3f* point);
+f32 View_DepthFactor(View3D* this, Vec3f* point);
+f32 View_DimFactor(View3D* this);
 
 #endif
