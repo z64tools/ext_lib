@@ -36,8 +36,6 @@ static void Interface_Update(AppInfo* app) {
 	
 	app->state &= ~APP_RESIZE_CALLBACK;
 	Input_End(app->input);
-	
-	glfwSwapBuffers(app->window);
 }
 
 static void Interface_ManageMsgWindow(AppInfo* app) {
@@ -125,17 +123,21 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
 
 void Interface_Main(AppInfo* app) {
 	while (!glfwWindowShouldClose(app->window)) {
-		Time_Start(0xEF);
+		Profiler_I(0xF0);
+		Time_Start(0xF0);
 		glfwPollEvents();
 		Interface_Update(app);
 		if (app->state & APP_MAIN)
 			Interface_ManageMsgWindow(app);
 		
+		Profiler_O(0xF0);
+		
+		glfwSwapBuffers(app->window);
 		if (gPrevLimitFPS != gLimitFPS)
 			glfwSwapInterval(gLimitFPS);
 		gPrevLimitFPS = gLimitFPS;
 		
-		gDeltaTime = Time_Get(0xEF) / (1.0 / gNativeFPS);
+		gDeltaTime = Time_Get(0xF0) / (1.0 / gNativeFPS);
 	}
 	
 	app->state |= APP_CLOSED;

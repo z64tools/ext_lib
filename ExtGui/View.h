@@ -82,4 +82,6 @@ Vec2f View_GetScreenPos(View3D* this, Vec3f point);
 f32 View_DepthFactor(View3D* this, Vec3f point);
 f32 View_DimFactor(View3D* this);
 
+void View_ClipPointIntoView(View3D* this, Vec3f* a, Vec3f normal);
+
 #endif

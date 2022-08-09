@@ -426,6 +426,10 @@ bool View_CheckControlKeys(Input* input) {
 		return true;
 	if (Input_GetKey(input, KEY_D)->press)
 		return true;
+	if (Input_GetKey(input, KEY_Q)->press)
+		return true;
+	if (Input_GetKey(input, KEY_E)->press)
+		return true;
 	for (s32 i = KEY_KP_0; i <= KEY_KP_9; i++)
 		if (Input_GetKey(input, i)->press)
 			return true;
@@ -490,6 +494,20 @@ Vec2f View_GetScreenPos(View3D* this, Vec3f point) {
 		w + (pos.x / pos.w) * w,
 		h - (pos.y / pos.w) * h
 	);
+}
+
+void View_ClipPointIntoView(View3D* this, Vec3f* a, Vec3f normal) {
+	MtxF modelView;
+	Vec4f test;
+	f32 dot;
+	
+	Matrix_MtxFMtxFMult(&this->projMtx, &this->viewMtx, &modelView);
+	Matrix_MultVec3fToVec4f_Ext(a, &test, &modelView);
+	
+	if (test.w <= 0.0f) {
+		dot = Math_Vec3f_Dot(normal, Math_Vec3f_LineSegDir(this->currentCamera->eye, this->currentCamera->at));
+		*a = Math_Vec3f_Add(*a, Math_Vec3f_MulVal(normal, -test.w / dot + 1.0f));
+	}
 }
 
 f32 View_DepthFactor(View3D* this, Vec3f point) {
