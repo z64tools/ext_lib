@@ -60,6 +60,7 @@ typedef struct View3D {
 		bool cameraControl;
 		bool isControlled;
 		bool usePreCalcRay;
+		bool ortho;
 	};
 	
 	bool  flagSwapTo;

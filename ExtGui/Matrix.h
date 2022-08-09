@@ -58,6 +58,7 @@ void Matrix_MtxToMtxF(Mtx* src, MtxF* dest);
 Mtx* Matrix_MtxFToMtx(MtxF* src, Mtx* dest);
 void Matrix_MtxFMtxFMult(MtxF* mfA, MtxF* mfB, MtxF* dest);
 void Matrix_Projection(MtxF* mtx, f32 fovy, f32 aspect, f32 near, f32 far, f32 scale);
+void Matrix_Ortho(MtxF* mtx, f32 fovy, f32 aspect, f32 near, f32 far);
 void Matrix_LookAt(MtxF* mf, Vec3f eye, Vec3f at, Vec3f up);
 
 void Matrix_TranslateRotateZYX(Vec3f* translation, Vec3s* rotation);

@@ -265,13 +265,27 @@ static void Camera_UpdateSwapTo(View3D* this, Input* input) {
 		} else {
 			if (Input_GetKey(input, KEY_KP_9)->press) {
 				// Invert
-				Vec3f zero = {};
-				Vec3f infn = Math_Vec3f_Invert(Math_Vec3f_LineSegDir(cam->eye, cam->at));
+				Vec3f front;
+				Vec3f up;
+				f32 fdot;
 				
 				this->flagSwapTo = true;
-				this->rotSwapTo.x = Math_Vec3f_Pitch(zero, infn);
-				this->rotSwapTo.y = Math_Vec3f_Yaw(zero, infn);
-				this->rotSwapTo.z = cam->roll;
+				if (isSwapping)
+					front = Math_Vec3f_New(SinS(this->rotSwapTo.y), SinS(-this->rotSwapTo.x), CosS(this->rotSwapTo.y));
+				
+				else
+					front = Math_Vec3f_LineSegDir(cam->eye, cam->at);
+				
+				up = Math_Vec3f_New(0, 1, 0);
+				fdot = fabsf(Math_Vec3f_Dot(front, up));
+				
+				printf_info("Dot: %f", fdot);
+				
+				if (fdot < 0.9995f) {
+					this->rotSwapTo.y += DegToBin(180);
+				} else {
+					this->rotSwapTo.x += DegToBin(180);
+				}
 			} else {
 				Vec3s r = Math_Vec3s_New(cam->pitch, cam->yaw, cam->roll);
 				Vec3s p =  { 0, 0, 0 };
@@ -298,6 +312,9 @@ static void Camera_UpdateSwapTo(View3D* this, Input* input) {
 				this->rotSwapTo = Math_Vec3s_Add(r, p);
 			}
 		}
+		
+		if (Input_GetKey(input, KEY_KP_5)->press)
+			this->ortho ^= true;
 	}
 	
 	if (this->flagSwapTo && input->mouse.click.hold == false) {
@@ -347,14 +364,23 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
 	this->usePreCalcRay = false;
 	this->isControlled = false;
 	
-	Matrix_Projection(
-		&this->projMtx,
-		this->fovy,
-		(f32)this->split->rect.w / (f32)this->split->rect.h,
-		this->near,
-		this->far,
-		this->scale
-	);
+	if (this->ortho)
+		Matrix_Ortho(
+			&this->projMtx,
+			cam->dist,
+			(f32)this->split->rect.w / (f32)this->split->rect.h,
+			this->near,
+			this->far
+		);
+	else
+		Matrix_Projection(
+			&this->projMtx,
+			this->fovy,
+			(f32)this->split->rect.w / (f32)this->split->rect.h,
+			this->near,
+			this->far,
+			this->scale
+		);
 	
 	if (this->mode == CAM_MODE_ALL)
 		for (s32 i = 0; i < ArrayCount(camMode); i++)
@@ -410,15 +436,15 @@ bool View_CheckControlKeys(Input* input) {
 }
 
 RayLine View_GetPointRayLine(View3D* this, Vec2f point) {
-	MtxF modelview;
+	MtxF modelView;
 	Rect dispRect = this->split->dispRect;
 	Vec3f projA = Math_Vec3f_New(point.x, point.y, 0.0f);
 	Vec3f projB = Math_Vec3f_New(point.x, point.y, 1.0f);
 	Vec3f rayA, rayB;
 	
-	Matrix_MtxFMtxFMult(&this->modelMtx, &this->viewMtx, &modelview);
-	Matrix_Unproject(&modelview, &this->projMtx, &projA, &rayA, dispRect.w, dispRect.h);
-	Matrix_Unproject(&modelview, &this->projMtx, &projB, &rayB, dispRect.w, dispRect.h);
+	Matrix_MtxFMtxFMult(&this->modelMtx, &this->viewMtx, &modelView);
+	Matrix_Unproject(&modelView, &this->projMtx, &projA, &rayA, dispRect.w, dispRect.h);
+	Matrix_Unproject(&modelView, &this->projMtx, &projB, &rayB, dispRect.w, dispRect.h);
 	
 	return RayLine_New(rayA, rayB);
 }

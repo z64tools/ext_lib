@@ -120,13 +120,19 @@ s32 Input_GetShortcut(Input* input, KeyMap mod, KeyMap key) {
 }
 
 void Input_SetMousePos(Input* input, s32 x, s32 y) {
+	f64 gx, gy;
+	
 	if (x == MOUSE_KEEP_AXIS)
 		x = input->mouse.pos.x;
 	
 	if (y == MOUSE_KEEP_AXIS)
 		y = input->mouse.pos.y;
 	
-	glfwSetCursorPos(input->app->window, x, y);
+	do {
+		glfwSetCursorPos(input->app->window, x, y);
+		glfwGetCursorPos(input->app->window, &gx, &gy);
+	} while (x != gx || y != gy);
+	
 	input->mouse.pos.x = x;
 	input->mouse.pos.y = y;
 }
@@ -175,8 +181,8 @@ void InputCallback_Mouse(GLFWwindow* window, s32 button, s32 action, s32 mods) {
 }
 
 void InputCallback_MousePos(GLFWwindow* window, f64 x, f64 y) {
-	Input* input = GetAppInfo(window)->input;
-	MouseInput* mouse = &input->mouse;
+	// Input* input = GetAppInfo(window)->input;
+	// MouseInput* mouse = &input->mouse;
 	
 	// mouse->vel.x += x - mouse->pos.x;
 	// mouse->vel.y += y - mouse->pos.y;

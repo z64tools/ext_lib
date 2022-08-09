@@ -668,6 +668,30 @@ void Matrix_Projection(MtxF* mtx, f32 fovy, f32 aspect, f32 near, f32 far, f32 s
 	}
 }
 
+static void Matrix_OrthoImpl(MtxF* mtx, f32 l, f32 r, f32 t, f32 b, f32 near, f32 far) {
+	f32 rl = r - l;
+	f32 tb = t - b;
+	f32 fn = far - near;
+	
+	Matrix_Clear(mtx);
+	
+	mtx->xx = 2.0f / rl;
+	mtx->yy = 2.0f / tb;
+	mtx->zz = -2.0f / fn;
+	
+	mtx->xw = -(l + r) / rl;
+	mtx->yw = -(t + b) / tb;
+	mtx->zw = -(far + near) / fn;
+	mtx->ww = 1.0f;
+}
+
+void Matrix_Ortho(MtxF* mtx, f32 fovy, f32 aspect, f32 near, f32 far) {
+	f32 t = fovy/2.0f;
+	f32 r = t*aspect;
+	
+	Matrix_OrthoImpl(mtx, -r, r, t, -t, near, far);
+}
+
 void Matrix_LookAt(MtxF* mf, Vec3f eye, Vec3f at, Vec3f up) {
 	f32 length;
 	Vec3f look;
