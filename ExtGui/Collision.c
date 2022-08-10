@@ -96,7 +96,7 @@ bool Col3D_LineVsCylinder(RayLine* ray, Cylinder* cyl, Vec3f* outPos) {
 	
 	Matrix_Pop();
 	
-	ip = Math_Vec3f_ClosestPointOfLine(rA, rB, cA, cB);
+	ip = Math_Vec3f_ClosestPointOnRay(rA, rB, cA, cB);
 	if (ip.y < fminf(cA.y, cB.y) || ip.y > fmaxf(cA.y, cB.y))
 		return false;
 	

@@ -407,6 +407,8 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
 				this->isControlled = true;
 		}
 	}
+	
+	Matrix_MtxFMtxFMult(&this->projMtx, &this->viewMtx, &this->projViewMtx);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -414,24 +416,24 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
 // # # # # # # # # # # # # # # # # # # # #
 
 bool View_CheckControlKeys(Input* input) {
-	if (Input_GetMouse(input, MOUSE_L)->press)
+	if (Input_GetMouse(input, MOUSE_L)->hold)
 		return true;
-	if (Input_GetMouse(input, MOUSE_M)->press)
+	if (Input_GetMouse(input, MOUSE_M)->hold)
 		return true;
-	if (Input_GetKey(input, KEY_W)->press)
+	if (Input_GetKey(input, KEY_W)->hold)
 		return true;
-	if (Input_GetKey(input, KEY_A)->press)
+	if (Input_GetKey(input, KEY_A)->hold)
 		return true;
-	if (Input_GetKey(input, KEY_S)->press)
+	if (Input_GetKey(input, KEY_S)->hold)
 		return true;
-	if (Input_GetKey(input, KEY_D)->press)
+	if (Input_GetKey(input, KEY_D)->hold)
 		return true;
-	if (Input_GetKey(input, KEY_Q)->press)
+	if (Input_GetKey(input, KEY_Q)->hold)
 		return true;
-	if (Input_GetKey(input, KEY_E)->press)
+	if (Input_GetKey(input, KEY_E)->hold)
 		return true;
 	for (s32 i = KEY_KP_0; i <= KEY_KP_9; i++)
-		if (Input_GetKey(input, i)->press)
+		if (Input_GetKey(input, i)->hold)
 			return true;
 	if (input->mouse.scrollY)
 		return true;
@@ -440,15 +442,13 @@ bool View_CheckControlKeys(Input* input) {
 }
 
 RayLine View_GetPointRayLine(View3D* this, Vec2f point) {
-	MtxF modelView;
 	Rect dispRect = this->split->dispRect;
 	Vec3f projA = Math_Vec3f_New(point.x, point.y, 0.0f);
 	Vec3f projB = Math_Vec3f_New(point.x, point.y, 1.0f);
 	Vec3f rayA, rayB;
 	
-	Matrix_MtxFMtxFMult(&this->modelMtx, &this->viewMtx, &modelView);
-	Matrix_Unproject(&modelView, &this->projMtx, &projA, &rayA, dispRect.w, dispRect.h);
-	Matrix_Unproject(&modelView, &this->projMtx, &projB, &rayB, dispRect.w, dispRect.h);
+	Matrix_Unproject(&this->viewMtx, &this->projMtx, &projA, &rayA, dispRect.w, dispRect.h);
+	Matrix_Unproject(&this->viewMtx, &this->projMtx, &projB, &rayB, dispRect.w, dispRect.h);
 	
 	return RayLine_New(rayA, rayB);
 }
@@ -482,13 +482,11 @@ Vec3f View_OrientDirToView(View3D* this, Vec3f dir) {
 }
 
 Vec2f View_GetScreenPos(View3D* this, Vec3f point) {
-	MtxF modelView;
 	f32 w = this->split->dispRect.w * 0.5f;
 	f32 h = this->split->dispRect.h * 0.5f;
 	Vec4f pos;
 	
-	Matrix_MtxFMtxFMult(&this->projMtx, &this->viewMtx, &modelView);
-	Matrix_MultVec3fToVec4f_Ext(&point, &pos, &modelView);
+	Matrix_MultVec3fToVec4f_Ext(&point, &pos, &this->projViewMtx);
 	
 	return Math_Vec2f_New(
 		w + (pos.x / pos.w) * w,
@@ -497,12 +495,10 @@ Vec2f View_GetScreenPos(View3D* this, Vec3f point) {
 }
 
 void View_ClipPointIntoView(View3D* this, Vec3f* a, Vec3f normal) {
-	MtxF modelView;
 	Vec4f test;
 	f32 dot;
 	
-	Matrix_MtxFMtxFMult(&this->projMtx, &this->viewMtx, &modelView);
-	Matrix_MultVec3fToVec4f_Ext(a, &test, &modelView);
+	Matrix_MultVec3fToVec4f_Ext(a, &test, &this->projViewMtx);
 	
 	if (test.w <= 0.0f) {
 		dot = Math_Vec3f_Dot(normal, Math_Vec3f_LineSegDir(this->currentCamera->eye, this->currentCamera->at));
@@ -511,11 +507,9 @@ void View_ClipPointIntoView(View3D* this, Vec3f* a, Vec3f normal) {
 }
 
 f32 View_DepthFactor(View3D* this, Vec3f point) {
-	MtxF modelview;
 	Vec4f sp;
 	
-	Matrix_MtxFMtxFMult(&this->projMtx, &this->viewMtx, &modelview);
-	Matrix_MultVec3fToVec4f_Ext(&point, &sp, &modelview);
+	Matrix_MultVec3fToVec4f_Ext(&point, &sp, &this->projViewMtx);
 	
 	return sp.w;
 }

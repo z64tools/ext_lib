@@ -50,6 +50,7 @@ typedef struct View3D {
 	MtxF modelMtx;
 	MtxF viewMtx;
 	MtxF projMtx;
+	MtxF projViewMtx;
 	CamSettings   settings;
 	Camera*       currentCamera;
 	Camera        camera[4];

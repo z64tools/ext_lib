@@ -162,6 +162,7 @@ typedef struct {
 	s32   doubleClick;
 	Vec2s pressPos;
 	bool  cursorAction;
+	u8 __setCounter;
 } MouseInput;
 
 typedef struct {

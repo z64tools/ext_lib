@@ -1,6 +1,7 @@
 #ifndef __VECTOR_H__
 #define __VECTOR_H__
 #include <ExtGui/Math.h>
+#include <ExtGui/Matrix.h>
 
 #ifdef __IDE_FLAG__
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -580,20 +581,6 @@ VEC_QF Vec4s Math_Vec4s_Project(Vec4s a, Vec4s b) {
 	return Math_Vec4s_MulVal(b, Math_Vec4s_Dot(b, a) / ls);
 }
 
-VEC_QF Vec3f Math_Vec3f_ClosestPointOfLine(Vec3f rayStart, Vec3f rayEnd, Vec3f lineStart, Vec3f lineEnd) {
-	Vec3f rayNorm = Math_Vec3f_LineSegDir(rayStart, rayEnd);
-	Vec3f lineNorm = Math_Vec3f_LineSegDir(lineStart, lineEnd);
-	Vec3f startDiff = Math_Vec3f_Sub(lineStart, rayStart);
-	Vec3f crossNorm = Math_Vec3f_Normalize(Math_Vec3f_Cross(lineNorm, rayNorm));
-	Vec3f rejection = Math_Vec3f_Sub(
-		Math_Vec3f_Sub(startDiff, Math_Vec3f_Project(startDiff, rayNorm)),
-		Math_Vec3f_Project(startDiff, crossNorm)
-	);
-	f32 distToLinePos = Math_Vec3f_Magnitude(rejection) / Math_Vec3f_Dot(lineNorm, Math_Vec3f_Normalize(rejection));
-	
-	return Math_Vec3f_Sub(lineStart, Math_Vec3f_MulVal(lineNorm, distToLinePos));
-}
-
 VEC_QF Vec2f Math_Vec2f_Invert(Vec2f a) {
 	return Math_Vec2f_MulVal(a, -1);
 }
@@ -616,6 +603,54 @@ VEC_QF Vec3s Math_Vec3s_Invert(Vec3s a) {
 
 VEC_QF Vec4s Math_Vec4s_Invert(Vec4s a) {
 	return Math_Vec4s_MulVal(a, -1);
+}
+
+VEC_QF Vec2f Math_Vec2f_InvMod(Vec2f a) {
+	Vec2f r;
+	
+	for (s32 i = 0; i < ArrayCount(a.axis); i++)
+		r.axis[i] = 1.0f - fabsf(a.axis[i]);
+	
+	return r;
+}
+
+VEC_QF Vec3f Math_Vec3f_InvMod(Vec3f a) {
+	Vec3f r;
+	
+	for (s32 i = 0; i < ArrayCount(a.axis); i++)
+		r.axis[i] = 1.0f - fabsf(a.axis[i]);
+	
+	return r;
+}
+
+VEC_QF Vec4f Math_Vec4f_InvMod(Vec4f a) {
+	Vec4f r;
+	
+	for (s32 i = 0; i < ArrayCount(a.axis); i++)
+		r.axis[i] = 1.0f - fabsf(a.axis[i]);
+	
+	return r;
+}
+
+VEC_QF bool Math_Vec2f_IsNaN(Vec2f a) {
+	for (s32 i = 0; i < ArrayCount(a.axis); i++)
+		if (isnan(a.axis[i])) true;
+	
+	return false;
+}
+
+VEC_QF bool Math_Vec3f_IsNaN(Vec3f a) {
+	for (s32 i = 0; i < ArrayCount(a.axis); i++)
+		if (isnan(a.axis[i])) true;
+	
+	return false;
+}
+
+VEC_QF bool Math_Vec4f_IsNaN(Vec4f a) {
+	for (s32 i = 0; i < ArrayCount(a.axis); i++)
+		if (isnan(a.axis[i])) true;
+	
+	return false;
 }
 
 VEC_QF f32 Math_Vec2f_Cos(Vec2f a, Vec2f b) {
@@ -718,6 +753,42 @@ VEC_QF Vec4s Math_Vec4s_Reflect(Vec4s vec, Vec4s normal) {
 	Vec4s nsVec = Math_Vec4s_Add(normalScale, vec);
 	
 	return Math_Vec4s_Add(negVec, Math_Vec4s_MulVal(nsVec, 2.0f));
+}
+
+VEC_QF Vec3f Math_Vec3f_ClosestPointOnRay(Vec3f rayStart, Vec3f rayEnd, Vec3f lineStart, Vec3f lineEnd) {
+	Vec3f rayNorm = Math_Vec3f_LineSegDir(rayStart, rayEnd);
+	Vec3f lineNorm = Math_Vec3f_LineSegDir(lineStart, lineEnd);
+	f32 ndot = Math_Vec3f_Dot(rayNorm, lineNorm);
+	
+	if (fabsf(ndot) >= 1.0f - EPSILON) {
+		// parallel
+		
+		return lineStart;
+	} else if (fabsf(ndot) <= EPSILON) {
+		// perpendicular
+		Vec3f mod = Math_Vec3f_InvMod(rayNorm);
+		Vec3f ls = Math_Vec3f_Mul(lineStart, mod);
+		Vec3f rs = Math_Vec3f_Mul(rayStart, mod);
+		Vec3f side = Math_Vec3f_Project(Math_Vec3f_Sub(rs, ls), lineNorm);
+		
+		return Math_Vec3f_Add(lineStart, side);
+	} else {
+		Vec3f startDiff = Math_Vec3f_Sub(lineStart, rayStart);
+		Vec3f crossNorm = Math_Vec3f_Normalize(Math_Vec3f_Cross(lineNorm, rayNorm));
+		Vec3f rejection = Math_Vec3f_Sub(
+			Math_Vec3f_Sub(startDiff, Math_Vec3f_Project(startDiff, rayNorm)),
+			Math_Vec3f_Project(startDiff, crossNorm)
+		);
+		f32 rejDot = Math_Vec3f_Dot(lineNorm, Math_Vec3f_Normalize(rejection));
+		f32 distToLinePos;
+		
+		if (rejDot == 0.0f)
+			return lineStart;
+		
+		distToLinePos = Math_Vec3f_Magnitude(rejection) / rejDot;
+		
+		return Math_Vec3f_Sub(lineStart, Math_Vec3f_MulVal(lineNorm, distToLinePos));
+	}
 }
 
 #endif

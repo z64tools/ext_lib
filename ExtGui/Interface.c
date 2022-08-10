@@ -125,6 +125,7 @@ void Interface_Main(AppInfo* app) {
 	while (!glfwWindowShouldClose(app->window)) {
 		Profiler_I(0xF0);
 		Time_Start(0xF0);
+		
 		glfwPollEvents();
 		Interface_Update(app);
 		if (app->state & APP_MAIN)
