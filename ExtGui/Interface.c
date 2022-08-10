@@ -66,6 +66,7 @@ static void Interface_FramebufferCallback(GLFWwindow* window, s32 width, s32 hei
 	app->state |= APP_RESIZE_CALLBACK;
 	
 	Interface_Update(app);
+	glfwSwapBuffers(app->window);
 }
 
 void* Interface_Init(const char* title, AppInfo* app, Input* input, void* context, CallbackFunc updateCall, CallbackFunc drawCall, DropCallback dropCallback, u32 x, u32 y, u32 samples) {
