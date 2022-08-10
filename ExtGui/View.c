@@ -33,9 +33,6 @@ static void Camera_CalculateFly(Camera* cam) {
 
 static void Camera_FlyMode(View3D* this, Input* inputCtx) {
 	Camera* cam = this->currentCamera;
-	s16 pitch = Math_Vec3f_Pitch(cam->eye, cam->at);
-	static s32 flip;
-	static s32 init;
 	
 	if (this->cameraControl) {
 		f32 step = 1.0f * cam->speedMod;
@@ -79,15 +76,16 @@ static void Camera_FlyMode(View3D* this, Input* inputCtx) {
 		}
 		
 		if (Input_GetMouse(inputCtx, MOUSE_L)->hold) {
-			if (init == 0)
-				flip = Abs(cam->pitch - pitch) < DegToBin(0.1) ? 1 : -1;
-			init = 1;
+			const Vec3f up = { 0, 1, 0 };
+			f32 dot = Math_Vec3f_Dot(cam->up, up);
+			s32 s = dot >= 0.0f ? 1 : -1;
+			
+			dot = powf(fabsf(dot), 0.5f) * s;
+			
 			cam->pitch = (s32)(cam->pitch + inputCtx->mouse.vel.y * 55.5f);
-			cam->yaw = (s32)(cam->yaw - inputCtx->mouse.vel.x * 55.5f * flip);
-		} else
-			init = 0;
+			cam->yaw = (s32)(cam->yaw - inputCtx->mouse.vel.x * 55.5f * dot);
+		}
 	} else {
-		init = 0;
 		Math_DelSmoothStepToF(&cam->speed, 0.5f, 0.5f, 1.00f, 0.1f);
 		Math_DelSmoothStepToF(&cam->vel.x, 0.0f, 0.5f, 1.00f, 0.1f);
 		Math_DelSmoothStepToF(&cam->vel.z, 0.0f, 0.5f, 1.00f, 0.1f);
@@ -278,8 +276,6 @@ static void Camera_UpdateSwapTo(View3D* this, Input* input) {
 				
 				up = Math_Vec3f_New(0, 1, 0);
 				fdot = fabsf(Math_Vec3f_Dot(front, up));
-				
-				printf_info("Dot: %f", fdot);
 				
 				if (fdot < 0.9995f) {
 					this->rotSwapTo.y += DegToBin(180);
@@ -494,6 +490,26 @@ Vec2f View_GetScreenPos(View3D* this, Vec3f point) {
 	);
 }
 
+bool View_PointInScreen(View3D* this, Vec3f point) {
+	Vec4f pos;
+	Vec2f p2;
+	Rect r = {
+		0, 0, this->split->dispRect.w, this->split->dispRect.h
+	};
+	
+	Matrix_MultVec3fToVec4f_Ext(&point, &pos, &this->projViewMtx);
+	
+	if (pos.z <= 0)
+		return false;
+	
+	// p2 = View_GetScreenPos(this, point);
+	//
+	// if (!Rect_PointIntersect(&r, p2.x, p2.y))
+	// 	return false;
+	
+	return true;
+}
+
 void View_ClipPointIntoView(View3D* this, Vec3f* a, Vec3f normal) {
 	Vec4f test;
 	f32 dot;
@@ -517,3 +533,7 @@ f32 View_DepthFactor(View3D* this, Vec3f point) {
 f32 View_DimFactor(View3D* this) {
 	return sqrtf(this->split->rect.w * this->split->rect.h);
 }
+
+// # # # # # # # # # # # # # # # # # # # #
+// #                                     #
+// # # # # # # # # # # # # # # # # # # # #

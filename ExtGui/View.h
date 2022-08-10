@@ -80,6 +80,7 @@ RayLine View_GetCursorRayLine(View3D* this);
 void View_MoveTo(View3D* this, Vec3f pos);
 Vec3f View_OrientDirToView(View3D* this, Vec3f dir);
 Vec2f View_GetScreenPos(View3D* this, Vec3f point);
+bool View_PointInScreen(View3D* this, Vec3f point);
 f32 View_DepthFactor(View3D* this, Vec3f point);
 f32 View_DimFactor(View3D* this);
 
