@@ -1,10 +1,6 @@
 #ifndef __EXTLIB_H__
 #define __EXTLIB_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define _GNU_SOURCE
 #define __CRT__NO_INLINE
 
@@ -164,6 +160,7 @@ s32 ParseArgs(char* argv[], char* arg, u32* parArg);
 void SlashAndPoint(const char* src, s32* slash, s32* point);
 char* Path(const char* src);
 char* PathSlot(const char* src, s32 num);
+char* StrChrAcpt(const char* str, char* c);
 char* Basename(const char* src);
 char* Filename(const char* src);
 char* Line(const char* str, s32 line);
@@ -480,9 +477,5 @@ void Sound_Xm_Stop();
 
 int stricmp(const char* a, const char* b);
 int strnicmp(const char* a, const char* b, Size size);
-
-#ifdef __cplusplus
-};
-#endif
 
 #endif /* __EXTLIB_H__ */

@@ -497,6 +497,9 @@ bool View_PointInScreen(View3D* this, Vec3f point) {
 		0, 0, this->split->dispRect.w, this->split->dispRect.h
 	};
 	
+	if (this->ortho)
+		return true;
+	
 	Matrix_MultVec3fToVec4f_Ext(&point, &pos, &this->projViewMtx);
 	
 	if (pos.z <= 0)

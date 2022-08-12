@@ -256,13 +256,10 @@ char* xStrDup(const char* str) {
 }
 
 char* xMemDup(const char* data, Size size) {
-	char* ret = xAlloc(size);
-	
-	if (ret == NULL)
+	if (!data || !size)
 		return NULL;
-	memcpy(ret, data, size);
 	
-	return ret;
+	return memcpy(xAlloc(size), data, size);
 }
 
 char* xFmt(const char* fmt, ...) {
@@ -2248,85 +2245,50 @@ char* PathSlot(const char* src, s32 num) {
 	return buffer;
 }
 
+char* StrChrAcpt(const char* str, char* c) {
+	char* v = (char*)str;
+	u32 an = strlen(c);
+	
+	if (!v) return NULL;
+	else v = strchr(str, '\0');
+	
+	while (--v >= str)
+		for (s32 i = 0; i < an; i++)
+			if (*v == c[i])
+				return v;
+	
+	return NULL;
+}
+
 char* Basename(const char* src) {
-	char* buffer;
-	s32 point;
-	s32 slash;
+	char* ls = StrChrAcpt(src, "\\/");
 	
-	if (src == NULL)
-		return NULL;
+	if (!ls++)
+		ls = (char*)src;
 	
-	SlashAndPoint(src, &slash, &point);
-	
-	// Offset away from the slash
-	if (slash > 0)
-		slash++;
-	
-	if (point < slash || slash + point == 0) {
-		point = slash + 1;
-		while (src[point] > ' ') point++;
-	}
-	
-	buffer = xAlloc(point - slash + 1);
-	
-	memcpy(buffer, &src[slash], point - slash);
-	buffer[point - slash] = '\0';
-	
-	return buffer;
+	return xMemDup(ls, strcspn(ls, "."));
 }
 
 char* Filename(const char* src) {
-	char* buffer;
-	s32 point;
-	s32 slash;
-	s32 ext = 0;
+	char* ls = StrChrAcpt(src, "\\/");
 	
-	if (src == NULL)
-		return NULL;
+	if (!ls++)
+		ls = (char*)src;
 	
-	SlashAndPoint(src, &slash, &point);
-	
-	// Offset away from the slash
-	if (slash > 0)
-		slash++;
-	
-	if (src[point + ext] == '.') {
-		ext++;
-		while (isalnum(src[point + ext])) ext++;
-	}
-	
-	if (point < slash || slash + point == 0) {
-		point = slash + 1;
-		while (src[point] > ' ') point++;
-	}
-	
-	buffer = xAlloc(point - slash + ext + 1);
-	
-	memcpy(buffer, &src[slash], point - slash + ext);
-	buffer[point - slash + ext] = '\0';
-	
-	return buffer;
+	return xStrDup(ls);
 }
 
 char* Line(const char* str, s32 line) {
-	const char* r = str;
-	s32 curline = 0;
-	s32 i = 0;
+	const char* ln = str;
 	
-	while (line > curline) {
-		while (str[i] != '\n' && str[i] != '\r') {
-			i++;
-			if (str[i] == '\0') {
-				return (char*)r;
-			}
-		}
-		i++;
-		curline++;
+	while (line--) {
+		ln = strpbrk(ln, "\n\r");
 		
-		r = &str[i];
+		if (!ln++)
+			return NULL;
 	}
 	
-	return (char*)r;
+	return (char*)ln;
 }
 
 char* LineHead(const char* str, const char* head) {
@@ -2341,33 +2303,16 @@ char* LineHead(const char* str, const char* head) {
 }
 
 char* Word(const char* str, s32 word) {
-	s32 iWord = -1;
-	s32 i = 0;
-	s32 j = 0;
-	
-	if (str == NULL)
+	if (!str)
 		return NULL;
 	
-	while (str[i] != '\0') {
-		j = 0;
-		if (str[i + j] > ' ') {
-			while (str[i + j] > ' ') {
-				j++;
-			}
-			
-			iWord++;
-			
-			if (iWord == word) {
-				break;
-			}
-			
-			i += j;
-		} else {
-			i++;
-		}
+	while (!isgraph(*str)) str++;
+	while (word--) {
+		if (!(str = strpbrk(str, " \t\n\r"))) return NULL;
+		while (!isgraph(*str)) str++;
 	}
 	
-	return (char*)&str[i];
+	return (char*)str;
 }
 
 char* FileExtension(const char* str) {
@@ -2426,75 +2371,15 @@ s32 PathNum(const char* src) {
 }
 
 char* CopyLine(const char* str, s32 line) {
-	char* buffer;
-	s32 iLine = -1;
-	s32 i = 0;
-	s32 j = 0;
+	if (!(str = Line(str, line))) return NULL;
 	
-	if (str == NULL)
-		return NULL;
-	
-	while (str[i] != '\0') {
-		j = 0;
-		if (str[i] != '\n' && str[i] != '\r') {
-			while (str[i + j] != '\n' && str[i + j] != '\r' && str[i + j] != '\0') {
-				j++;
-			}
-			
-			iLine++;
-			
-			if (iLine == line) {
-				break;
-			}
-			
-			i += j;
-		} else {
-			i++;
-		}
-	}
-	
-	buffer = xAlloc(j + 1);
-	
-	memcpy(buffer, &str[i], j);
-	buffer[j] = '\0';
-	
-	return buffer;
+	return xMemDup(str, strcspn(str, "\n\r"));
 }
 
 char* CopyWord(const char* str, s32 word) {
-	char* buffer;
-	s32 iWord = -1;
-	s32 i = 0;
-	s32 j = 0;
+	if (!(str = Word(str, word))) return NULL;
 	
-	if (str == NULL)
-		return NULL;
-	
-	while (str[i] != '\0') {
-		j = 0;
-		if (str[i + j] > ' ') {
-			while (str[i + j] > ' ') {
-				j++;
-			}
-			
-			iWord++;
-			
-			if (iWord == word) {
-				break;
-			}
-			
-			i += j;
-		} else {
-			i++;
-		}
-	}
-	
-	buffer = xAlloc(j + 1);
-	
-	memcpy(buffer, &str[i], j);
-	buffer[j] = '\0';
-	
-	return buffer;
+	return xMemDup(str, strcspn(str, " \t\n\r"));
 }
 
 char* PathRel_From(const char* from, const char* item) {
