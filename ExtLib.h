@@ -182,12 +182,6 @@ s32 PathIsRel(const char* item);
 
 void* qFree(const void* ptr);
 
-char* AllcPath(const char* src);
-char* AllcBasename(const char* src);
-char* AllcFilename(const char* src);
-char* AllcLine(const char* str, s32 line);
-char* AllcWord(const char* str, s32 word);
-
 void Color_ToHSL(HSL8* hsl, RGB8* rgb);
 void Color_ToRGB(RGB8* rgb, HSL8* hsl);
 
@@ -453,9 +447,6 @@ void Sound_Xm_Stop();
 #define Main(y1, y2) main(y1, y2)
 #define Arg(arg)     ParseArgs(argv, arg, &parArg)
 #define SEG_FAULT ((u32*)0)[0] = 0
-
-#define AttPacked __attribute__ ((packed))
-#define AttAligned(x) __attribute__((aligned(x)))
 
 #define SleepF(sec)            usleep((u32)((f32)(sec) * 1000 * 1000))
 #define SleepS(sec)            sleep(sec)

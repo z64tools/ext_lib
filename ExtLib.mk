@@ -46,7 +46,8 @@ ExtGui_Win32_O  += $(foreach f,$(Fonts:.ttf=.o), bin/win32/$f)
 ExtGui_Linux_Flags = -lGL -lglfw
 ExtGui_Win32_Flags = `i686-w64-mingw32.static-pkg-config --cflags --libs glfw3`
 
-OBJ := $(PATH_EXTLIB)/obj.sh
+OBJ  := $(PATH_EXTLIB)/obj.sh
+ObjC := $(PATH_EXTLIB)/tools/objectc
 
 # Make build directories
 $(shell mkdir -p bin/ $(foreach dir, \
@@ -76,13 +77,18 @@ bin/win32/zip/%.o: CFLAGS += -Wno-stringop-truncation
 
 FileName = $(notdir $(basename $<))
 
-bin/win32/%.o: $(PATH_EXTLIB)/%.ttf
+# Binary file compiler
+$(ObjC): $(PATH_EXTLIB)/tools/objectc.c bin/linux/ExtLib.o
+	@echo "$(PRNT_RSET)[$(PRNT_YELW)$(FileName)$(PRNT_RSET)]"
+	@gcc -o $@ $^ -pthread $(CFLAGS_MAIN) $(ExtLib_CFlags)
+
+bin/win32/%.o: $(PATH_EXTLIB)/%.ttf $(ObjC)
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(FileName)$(PRNT_RSET)]"
-	@$(OBJ) objcopy elf32-i386 $< $@ _g$(FileName) _g$(FileName)Size
+	@$(ObjC) --cc i686-w64-mingw32.static-gcc --i $< --o $@
 	
-bin/linux/%.o: $(PATH_EXTLIB)/%.ttf
+bin/linux/%.o: $(PATH_EXTLIB)/%.ttf $(ObjC)
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(FileName)$(PRNT_RSET)]"
-	@$(OBJ) objcopy default $< $@ g$(FileName) g$(FileName)Size
+	@$(ObjC) --cc gcc --i $< --o $@
 
 bin/win32/ExtLib.o: $(PATH_EXTLIB)/ExtLib.c $(PATH_EXTLIB)/ExtLib.h
 	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"

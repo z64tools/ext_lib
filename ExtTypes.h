@@ -7,8 +7,10 @@
 #include <pthread.h>
 
 #pragma GCC diagnostic ignored "-Wscalar-storage-order"
-#define StructBE    __attribute__((scalar_storage_order("big-endian")))
-#define ThreadLocal _Thread_local
+#define StructBE     __attribute__((scalar_storage_order("big-endian")))
+#define StructPacked __attribute__ ((packed))
+#define ThreadLocal  _Thread_local
+#define StructAligned(x) __attribute__((aligned(x)))
 
 typedef signed char            s8;
 typedef unsigned char          u8;

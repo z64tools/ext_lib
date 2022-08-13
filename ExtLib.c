@@ -223,32 +223,37 @@ void32 VirtualToSegmented(const u8 id, void* ptr) {
 // # TMP                                 #
 // # # # # # # # # # # # # # # # # # # # #
 
-static ThreadLocal u8 sTempHeap[MbToBin(4)];
-static ThreadLocal u32 sPosTempHeap = 0;
-static const u32 sSizeTempHeap = MbToBin(4);
+static ThreadLocal struct {
+	u8*  head;
+	Size offset;
+	
+	// Maybe expandable in the future?
+	Size max;
+} sBufferX = {
+	.max = MbToBin(4)
+};
 
 void* xAlloc(Size size) {
+#pragma GCC diagnostic push
+#ifndef __IDE_FLAG__
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 	u8* ret;
 	
-	if (size < 1)
+	if (size <= 0)
 		return NULL;
 	
-	if (size >= sSizeTempHeap / 2)
-		printf_error("Can't fit %fMb into the Tmp", BinToMb(size));
+	if (!sBufferX.head)
+		qFree(sBufferX.head = malloc(sBufferX.max));
 	
-	if (size == 0)
-		return NULL;
+	if (sBufferX.offset + size + 1 >= sBufferX.max)
+		sBufferX.offset = 0;
 	
-	if (sPosTempHeap + size + 0x10 > sSizeTempHeap) {
-		Log("" PRNT_PRPL "xAlloc: " PRNT_YELW "rewind\a");
-		sPosTempHeap = 0;
-	}
+	ret = &sBufferX.head[sBufferX.offset];
+	sBufferX.offset += size + 1;
 	
-	ret = &sTempHeap[sPosTempHeap];
-	memset(ret, 0, size + 1);
-	sPosTempHeap = sPosTempHeap + size + 1;
-	
-	return ret;
+	return memset(ret, 0, size + 1);
+#pragma GCC diagnostic pop
 }
 
 char* xStrDup(const char* str) {
@@ -488,14 +493,14 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
 			} else {
 				if (!containFlag || (containFlag && contains)) {
 					if ((info->flags & 0xF) == LIST_FILES) {
-						StrNode* node;
+						StrNode* node2;
 						
-						Calloc(node, sizeof(StrNode));
-						asprintf(&node->txt, "%s%s", entryPath, entry->d_name);
-						info->len += strlen(node->txt) + 1;
+						Calloc(node2, sizeof(StrNode));
+						asprintf(&node2->txt, "%s%s", entryPath, entry->d_name);
+						info->len += strlen(node2->txt) + 1;
 						info->num++;
 						
-						Node_Add(info->node, node);
+						Node_Add(info->node, node2);
 					}
 				}
 			}
@@ -2494,158 +2499,6 @@ void* qFree(const void* ptr) {
 	Node_Add(sPostFreeHead, node);
 	
 	return (void*)ptr;
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # Allocated String functions          #
-// # # # # # # # # # # # # # # # # # # # #
-
-char* AllcPath(const char* src) {
-	char* buffer;
-	s32 point;
-	s32 slash;
-	
-	if (src == NULL)
-		return NULL;
-	
-	SlashAndPoint(src, &slash, &point);
-	
-	if (slash == 0)
-		slash = -1;
-	
-	Calloc(buffer, slash + 1 + 1);
-	memcpy(buffer, src, slash + 1);
-	buffer[slash + 1] = '\0';
-	
-	return buffer;
-}
-
-char* AllcBasename(const char* src) {
-	char* buffer;
-	s32 point;
-	s32 slash;
-	
-	if (src == NULL)
-		return NULL;
-	
-	SlashAndPoint(src, &slash, &point);
-	
-	// Offset away from the slash
-	if (slash > 0)
-		slash++;
-	
-	if (point < slash || slash + point == 0) {
-		point = slash + 1;
-		while (src[point] > ' ') point++;
-	}
-	
-	Calloc(buffer, point - slash + 1);
-	memcpy(buffer, &src[slash], point - slash);
-	buffer[point - slash] = '\0';
-	
-	return buffer;
-}
-
-char* AllcFilename(const char* src) {
-	char* buffer;
-	s32 point;
-	s32 slash;
-	s32 ext = 0;
-	
-	if (src == NULL)
-		return NULL;
-	
-	SlashAndPoint(src, &slash, &point);
-	
-	// Offset away from the slash
-	if (slash > 0)
-		slash++;
-	
-	if (src[point + ext] == '.') {
-		ext++;
-		while (isalnum(src[point + ext])) ext++;
-	}
-	
-	if (point < slash || slash + point == 0) {
-		point = slash + 1;
-		while (src[point] > ' ') point++;
-	}
-	
-	Calloc(buffer, point - slash + ext + 1);
-	memcpy(buffer, &src[slash], point - slash + ext);
-	buffer[point - slash + ext] = '\0';
-	
-	return buffer;
-}
-
-char* AllcLine(const char* str, s32 line) {
-	char* buffer;
-	s32 iLine = -1;
-	s32 i = 0;
-	s32 j = 0;
-	
-	if (str == NULL)
-		return NULL;
-	
-	while (str[i] != '\0') {
-		j = 0;
-		if (str[i] != '\n') {
-			while (str[i + j] != '\n' && str[i + j] != '\0') {
-				j++;
-			}
-			
-			iLine++;
-			
-			if (iLine == line) {
-				break;
-			}
-			
-			i += j;
-		} else {
-			i++;
-		}
-	}
-	
-	Calloc(buffer, j + 1);
-	memcpy(buffer, &str[i], j);
-	buffer[j] = '\0';
-	
-	return buffer;
-}
-
-char* AllcWord(const char* str, s32 word) {
-	char* buffer;
-	s32 iWord = -1;
-	s32 i = 0;
-	s32 j = 0;
-	
-	if (str == NULL)
-		return NULL;
-	
-	while (str[i] != '\0') {
-		j = 0;
-		if (str[i + j] > ' ') {
-			while (str[i + j] > ' ') {
-				j++;
-			}
-			
-			iWord++;
-			
-			if (iWord == word) {
-				break;
-			}
-			
-			i += j;
-		} else {
-			i++;
-		}
-	}
-	
-	Calloc(buffer, j + 1);
-	memcpy(buffer, &str[i], j);
-	buffer[j] = '\0';
-	
-	return buffer;
 }
 
 // # # # # # # # # # # # # # # # # # # # #

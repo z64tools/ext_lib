@@ -4,3 +4,4 @@ prvFileList
 .atom/*
 *.sh
 !obj.sh
+tools/objectc
