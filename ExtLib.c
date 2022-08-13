@@ -1468,8 +1468,6 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 	
 	strln = tmp;
 	
-	va_start(args, fmt);
-	
 	printf(PRNT_GRAY "[>]--");
 	for (s32 i = 0; i < strln; i++)
 		printf("-");
@@ -1484,15 +1482,19 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 		printf("-");
 	printf("------[>]\n" PRNT_RSET);
 	printf("     ");
-	vprintf(
-		fmt,
-		args
-	);
-	va_end(args);
-	printf("\n");
 	
-	if (strlen(fmt) > 1)
-		printf("\n");
+	if (fmt) {
+		va_start(args, fmt);
+		vprintf(
+			fmt,
+			args
+		);
+		va_end(args);
+		if (strlen(fmt) > 1)
+			printf("\n");
+	}
+	printf("\n" PRNT_RSET);
+	
 }
 
 static void __printf_call(u32 type, FILE* file) {
@@ -1589,14 +1591,14 @@ void printf_error(const char* fmt, ...) {
 	Log_Free();
 	if (gPrintfSuppress < PSL_NO_ERROR) {
 		if (gPrintfProgressing) {
-			printf("\n");
+			fprintf(stderr, "\n");
 			gPrintfProgressing = false;
 		}
 		
 		va_list args;
 		
 		va_start(args, fmt);
-		__printf_call(2, stdout);
+		__printf_call(2, stderr);
 		if (___sExt_ThreadInit)
 			fprintf(stderr, "[>]: ");
 		vasprintf(
@@ -1630,14 +1632,14 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 	Log_Free();
 	if (gPrintfSuppress < PSL_NO_ERROR) {
 		if (gPrintfProgressing) {
-			printf("\n");
+			fprintf(stderr, "\n");
 			gPrintfProgressing = false;
 		}
 		
 		va_list args;
 		
 		va_start(args, fmt);
-		__printf_call(2, stdout);
+		__printf_call(2, stderr);
 		if (___sExt_ThreadInit)
 			fprintf(stderr, "[>]: ");
 		asprintf(

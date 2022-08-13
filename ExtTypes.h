@@ -191,6 +191,11 @@ typedef struct ItemList {
 } ItemList;
 
 typedef struct {
+	u32 size;
+	u8  data[];
+} DataFile;
+
+typedef struct {
 	s32 year;
 	s32 month;
 	s32 day;

@@ -296,18 +296,21 @@ void Sound_Xm_Stop();
 
 #define PRNT_DGRY "\e[90;2m"
 #define PRNT_DRED "\e[91;2m"
-#define PRNT_GRAY "\e[0;90m"
-#define PRNT_REDD "\e[0;91m"
-#define PRNT_GREN "\e[0;92m"
-#define PRNT_YELW "\e[0;93m"
-#define PRNT_BLUE "\e[0;94m"
-#define PRNT_PRPL "\e[0;95m"
-#define PRNT_CYAN "\e[0;96m"
+#define PRNT_GRAY "\e[90m"
+#define PRNT_REDD "\e[91m"
+#define PRNT_GREN "\e[92m"
+#define PRNT_YELW "\e[93m"
+#define PRNT_BLUE "\e[94m"
+#define PRNT_PRPL "\e[95m"
+#define PRNT_CYAN "\e[96m"
+#define PRNT_DARK "\e[2m"
+#define PRNT_ITLN "\e[3m"
+#define PRNT_UNDL "\e[4m"
+#define PRNT_BLNK "\e[5m"
 #define PRNT_RSET "\e[m"
 #define PRNT_NL   "\n"
 #define PRNT_RNL  PRNT_RSET PRNT_NL
 #define PRNT_TODO "\e[91;2m" "TODO"
-#define PRNT_BOLD "\e[1m"
 
 #define Node_Add(head, node) do { \
 		typeof(node) * n = &head; \
