@@ -1,7 +1,15 @@
 #include <ExtLib.h>
 
-char* FormatName(const char* name) {
-	return xFmt("%c%s", toupper(*name), name + 1);
+s32 GCC(char* cmd, char* input) {
+	FILE* gcc = popen(cmd, "w");
+	
+	if (gcc == NULL)
+		printf_error("Failed to popen GCC!");
+	
+	if (fwrite(input, 1, strlen(input), gcc) != strlen(input))
+		printf_error("Error feeding input to GCC!");
+	
+	return pclose(gcc);
 }
 
 s32 Main(s32 argc, char** argv) {
@@ -9,7 +17,6 @@ s32 Main(s32 argc, char** argv) {
 	MemFile c_mem = MemFile_Initialize();
 	const char* name = NULL;
 	const char* output = NULL;
-	const char* c_filename = NULL;
 	const char* gcc = NULL;
 	u32 parArg;
 	
@@ -20,7 +27,7 @@ s32 Main(s32 argc, char** argv) {
 			MemFile_LoadFile(&input, argv[parArg]);
 	if (Arg("o")) {
 		output = argv[parArg];
-		name = FormatName(Basename(argv[parArg]));
+		name = Basename(argv[parArg]);
 	}
 	if (Arg("cc"))
 		gcc = argv[parArg];
@@ -36,28 +43,24 @@ s32 Main(s32 argc, char** argv) {
 			PRNT_GREN " --n " PRNT_GRAY "<override_variable_name>"
 		);
 	
-	c_filename = xFmt("%s.tmp.c", input.info.name);
 	MemFile_Alloc(&c_mem, input.size * 3);
 	MemFile_Params(&c_mem, MEM_REALLOC, true, MEM_END);
 	
-	MemFile_Printf(&c_mem, "unsigned char g%s[] = {\n\t", name);
+	MemFile_Printf(&c_mem, "unsigned char g%s[]={\n", name);
 	for (u32 i = 0; i < input.size; i++) {
 		if (i % 8 == 0 && i != 0)
-			MemFile_Printf(&c_mem, "\n\t", input.cast.u8[i]);
+			MemFile_Printf(&c_mem, "\n");
 		
-		if (!MemFile_Printf(&c_mem, "0x%02X, ", input.cast.u8[i]))
+		if (!MemFile_Printf(&c_mem, "0x%02X,", input.cast.u8[i]))
 			printf_error("Failed to form C file...");
 	}
-	MemFile_Printf(&c_mem, "\n};\n\nunsigned int g%sSize = sizeof(g%s);\n", name, name);
-	if (MemFile_SaveFile_String(&c_mem, c_filename))
-		printf_error("Exiting!");
+	MemFile_Printf(&c_mem, "\n};\nunsigned int g%sSize=sizeof(g%s);", name, name);
+	
+	if (GCC(xFmt("%s -c -o %s -x c - ", gcc, output), c_mem.str))
+		printf_error("Error compiling data-file [%s]", input.info.name);
+	
 	MemFile_Free(&c_mem);
 	MemFile_Free(&input);
-	
-	if (SysExe(xFmt("%s -c %s -o %s", gcc, c_filename, output)))
-		return 1;
-	
-	Sys_Delete(c_filename);
 	Log_Free();
 	
 	return 0;

@@ -1130,10 +1130,10 @@ void GeoGrid_TaskTable(GeoGrid* geo, SplitTask** taskTable, u32 num) {
 	geo->numTaskTable = num;
 }
 
-extern u8 gMenloRegular;
-extern u8 gMenloRegularSize;
-extern u8 gMenloBold;
-extern u8 gMenloBoldSize;
+extern u8 gMenloRegular[];
+extern unsigned int gMenloRegularSize;
+extern u8 gMenloBold[];
+extern unsigned int gMenloBoldSize;
 
 void GeoGrid_Init(GeoGrid* geo, Vec2s* wdim, Input* inputCtx, void* vg) {
 	geo->wdim = wdim;
@@ -1143,8 +1143,8 @@ void GeoGrid_Init(GeoGrid* geo, Vec2s* wdim, Input* inputCtx, void* vg) {
 	GeoGrid_SetTopBarHeight(geo, SPLIT_BAR_HEIGHT);
 	GeoGrid_SetBotBarHeight(geo, SPLIT_BAR_HEIGHT);
 	
-	nvgCreateFontMem(vg, "default", &gMenloRegular, (int)&gMenloRegularSize, 0);
-	nvgCreateFontMem(vg, "default-bold", &gMenloBold, (int)&gMenloBoldSize, 0);
+	nvgCreateFontMem(vg, "default", gMenloRegular, gMenloRegularSize, 0);
+	nvgCreateFontMem(vg, "default-bold", gMenloBold, gMenloBoldSize, 0);
 	
 	geo->prevWorkRect = geo->workRect;
 }
