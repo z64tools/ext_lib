@@ -46,8 +46,7 @@ ExtGui_Win32_O  += $(foreach f,$(Fonts:.ttf=.o), bin/win32/$f)
 ExtGui_Linux_Flags = -lGL -lglfw
 ExtGui_Win32_Flags = `i686-w64-mingw32.static-pkg-config --cflags --libs glfw3`
 
-OBJ  := $(PATH_EXTLIB)/obj.sh
-DataFileCompiler := $(PATH_EXTLIB)/tools/objectc
+DataFileCompiler := $(PATH_EXTLIB)/tools/dfc
 
 # Make build directories
 $(shell mkdir -p bin/ $(foreach dir, \
@@ -75,19 +74,19 @@ ExtLib_CFlags = -Wno-unused-result -Wno-format-truncation -Wno-strict-aliasing -
 bin/win32/nanovg/%.o: CFLAGS += -Wno-misleading-indentation
 bin/win32/zip/%.o: CFLAGS += -Wno-stringop-truncation
 
-FileName = $(notdir $(basename $<))
+ASSET_FILENAME = $(notdir $(basename $<))
 
 # Binary file compiler
 $(DataFileCompiler): $(PATH_EXTLIB)/tools/dfc.c bin/linux/ExtLib.o
-	@echo "$(PRNT_RSET)[$(PRNT_YELW)$(FileName)$(PRNT_RSET)]"
+	@echo "$(PRNT_RSET)[$(PRNT_YELW)$(ASSET_FILENAME)$(PRNT_RSET)]"
 	@gcc -o $@ $^ -pthread $(CFLAGS_MAIN) $(ExtLib_CFlags)
 
 bin/win32/%.o: $(PATH_EXTLIB)/%.ttf $(DataFileCompiler)
-	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(FileName)$(PRNT_RSET)]"
+	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
 	@$(DataFileCompiler) --cc i686-w64-mingw32.static-gcc --i $< --o $@
 	
 bin/linux/%.o: $(PATH_EXTLIB)/%.ttf $(DataFileCompiler)
-	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(FileName)$(PRNT_RSET)]"
+	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
 	@$(DataFileCompiler) --cc gcc --i $< --o $@
 
 bin/win32/ExtLib.o: $(PATH_EXTLIB)/ExtLib.c $(PATH_EXTLIB)/ExtLib.h
