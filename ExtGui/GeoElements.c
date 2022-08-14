@@ -126,6 +126,22 @@ void Gfx_DrawRounderRect(void* vg, Rect rect, NVGcolor color) {
 	nvgFill(vg);
 }
 
+void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* txt) {
+	nvgFontFace(vg, "default");
+	nvgFontSize(vg, SPLIT_TEXT);
+	nvgFontBlur(vg, 0.0);
+	nvgTextAlign(vg, align);
+	nvgFillColor(vg, col);
+	
+	nvgText(
+		vg,
+		r.x + SPLIT_ELEM_X_PADDING,
+		r.y + r.h * 0.5 + 1,
+		txt,
+		NULL
+	);
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // #                                     #
 // # # # # # # # # # # # # # # # # # # # #
@@ -191,15 +207,6 @@ static void Element_Slider_SetTextbox(Split* split, ElSlider* this) {
 	gElementState.posSel = strlen(this->textBox.txt);
 }
 
-static bool Element_DisableDraw(Element* element, Split* split) {
-	if (element->rect.w < 1)
-		return true;
-	if (element->rect.x >= split->rect.w || element->rect.y >= split->rect.h)
-		return true;
-	
-	return false;
-}
-
 static f32 Element_TextWidth(void* vg, const char* txt) {
 	f32 bounds[4];
 	
@@ -209,6 +216,15 @@ static f32 Element_TextWidth(void* vg, const char* txt) {
 	nvgTextBounds(vg, 0, 0, txt, 0, bounds);
 	
 	return bounds[2];
+}
+
+static Rect Container_GetPropRect(ElContainer* container, s32 i) {
+	Rect r = container->element.rect;
+	
+	return Rect_New(
+		r.x, r.y + SPLIT_TEXT_H * i - rint(container->scroll.voffset),
+		r.w, SPLIT_TEXT_H
+	);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -221,8 +237,13 @@ static char* PropEnum_Get(PropEnum* this, s32 i) {
 	char** list = this->list;
 	
 	if (i >= this->num) {
-		printf_info("" PRNT_YELW "%s", __FUNCTION__);
-		printf_warning("OOB Access %d / %d", i, this->num);
+		Log("OOB Access %d / %d", i, this->num);
+		
+		return NULL;
+	}
+	
+	if (list == NULL) {
+		Log("NULL List");
 		
 		return NULL;
 	}
@@ -704,7 +725,6 @@ static void Element_Draw_Text(ElementCallInfo* info) {
 	nvgFontFace(vg, "default");
 	nvgFontSize(vg, SPLIT_TEXT);
 	nvgFontBlur(vg, 0.0);
-	nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
 	
 	if (this->element.disabled == false)
 		nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
@@ -717,6 +737,7 @@ static void Element_Draw_Text(ElementCallInfo* info) {
 		r.x = this->element.posTxt.x;
 		r.w = this->element.rect.x - r.x - SPLIT_ELEM_X_PADDING;
 		
+		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
 		nvgScissor(vg, UnfoldRect(r));
 		nvgText(
 			vg,
@@ -726,6 +747,7 @@ static void Element_Draw_Text(ElementCallInfo* info) {
 			NULL
 		);
 	} else {
+		nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
 		nvgScissor(vg, UnfoldRect(this->element.rect));
 		nvgText(
 			vg,
@@ -890,13 +912,6 @@ static void Element_Draw_Combo(ElementCallInfo* info) {
 	};
 	
 	Gfx_DrawRounderOutline(vg, r, this->element.light);
-	
-	// if (&this->element == geo->dropMenu.element) {
-	// 	if (geo->dropMenu.state.up == 1)
-	// 		r.y -= 2;
-	// 	r.h += 2;
-	// }
-	
 	Gfx_DrawRounderRect(vg, r, this->element.shadow);
 	
 	r = this->element.rect;
@@ -949,6 +964,59 @@ static void Element_Draw_Box(ElementCallInfo* info) {
 	Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 45, 1.0f));
 	
 	Free(this);
+}
+
+static void Element_Draw_Container(ElementCallInfo* info) {
+	ElContainer* this = info->arg;
+	GeoGrid* geo = info->geo;
+	void* vg = geo->vg;
+	PropEnum* prop = this->prop;
+	Rect r = this->element.rect;
+	Rect scissor = this->element.rect;
+	NVGcolor cornerCol = this->element.shadow;
+	SplitScroll* scroll = &this->scroll;
+	
+	cornerCol.a = 2.5f;
+	Gfx_DrawRounderOutline(vg, r, cornerCol);
+	Gfx_DrawRounderRect(vg, r, this->element.shadow);
+	
+	Math_SmoothStepToF(
+		&scroll->voffset, scroll->offset,
+		0.25f, fabsf(scroll->offset - scroll->voffset) * 0.5f, 0.1f
+	);
+	
+	if (!prop)
+		return;
+	
+	scissor.x += 1;
+	scissor.y += 1;
+	scissor.w -= 2;
+	scissor.h -= 2;
+	
+	nvgScissor(vg, UnfoldRect(scissor));
+	for (s32 i = 0; i < prop->num; i++) {
+		Rect tr = Container_GetPropRect(this, i);
+		
+		if (prop->key == i) {
+			Rect vt = tr;
+			NVGcolor col = this->element.prim;
+			
+			vt.x += 1; vt.w -= 2;
+			vt.y += 1; vt.h -= 2;
+			col.a = 0.85f;
+			
+			Gfx_DrawRounderRect(
+				vg, vt, col
+			);
+		}
+		
+		Gfx_Text(
+			vg, tr, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE,
+			this->element.texcol,
+			prop->get(prop, i)
+		);
+	}
+	nvgResetScissor(vg);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1226,6 +1294,55 @@ queue_element:
 	
 	if (this->prop)
 		return this->prop->key;
+	
+	else
+		return 0;
+}
+
+s32 Element_Container(ElContainer* this) {
+	SplitScroll* scroll = &this->scroll;
+	
+	Assert(gElementState.geo && gElementState.split);
+	
+	if (this->prop && this->prop->num) {
+		MouseInput* mouse = &gElementState.geo->input->mouse;
+		s32 val = Clamp(mouse->scrollY, -1, 1);
+		
+		scroll->max = SPLIT_TEXT_H * this->prop->num - this->element.rect.h;
+		scroll->max = ClampMin(scroll->max, 0);
+		
+		if (this->element.disabled || gElementState.geo->state.noClickInput)
+			goto queue_element;
+		if (!Element_PressCondition(gElementState.geo, gElementState.split, &this->element))
+			goto queue_element;
+		
+		scroll->offset += (SPLIT_TEXT_H) *-val;
+		
+		if (!Input_GetMouse(gElementState.geo->input, MOUSE_L)->press)
+			goto queue_element;
+		
+		for (s32 i = 0; i < this->prop->num; i++) {
+			Rect r = Container_GetPropRect(this, i);
+			
+			if (Rect_PointIntersect(&r, UnfoldVec2(gElementState.split->mousePos)))
+				this->prop->set(this->prop, i);
+		}
+	}
+	
+queue_element:
+	
+	scroll->offset = Clamp(scroll->offset, 0, scroll->max);
+	
+	Element_QueueElement(
+		gElementState.geo,
+		gElementState.split,
+		Element_Draw_Container,
+		this
+	);
+	
+	if (this->prop)
+		return this->prop->key;
+	
 	else
 		return 0;
 }
@@ -1302,7 +1419,7 @@ void Element_DisplayName(Element* this) {
 	Assert(gElementState.geo && gElementState.split);
 	
 	this->posTxt.x = this->rect.x;
-	this->posTxt.y = this->rect.y + this->rect.h * 0.5 + 1;
+	this->posTxt.y = this->rect.y + SPLIT_TEXT_PADDING - 1;
 	
 	this->rect.x += w;
 	this->rect.w -= w;
@@ -1346,6 +1463,11 @@ void Element_Combo_SetPropEnum(ElCombo* this, PropEnum* prop) {
 	this->prop = prop;
 }
 
+void Element_Container_SetPropEnumAndHeight(ElContainer* this, PropEnum* prop, u32 num) {
+	this->prop = prop;
+	this->element.heightAdd = SPLIT_TEXT_H * ClampMin(num - 3, 0);
+}
+
 void Element_Name(Element* this, const char* name) {
 	this->name = name;
 }
@@ -1362,11 +1484,11 @@ void Element_Condition(Element* element, s32 condition) {
 	element->disabled = !condition;
 }
 
-static void Element_SetRectImpl(Rect* rect, f32 x, f32 y, f32 w) {
+static void Element_SetRectImpl(Rect* rect, f32 x, f32 y, f32 w, f32 hAdd) {
 	rect->x = x;
 	rect->y = y;
 	rect->w = w;
-	rect->h = SPLIT_TEXT_H;
+	rect->h = SPLIT_TEXT_H + hAdd;
 }
 
 void Element_RowY(f32 y) {
@@ -1375,6 +1497,7 @@ void Element_RowY(f32 y) {
 
 void Element_Row(Split* split, s32 rectNum, ...) {
 	f32 x = SPLIT_ELEM_X_PADDING + gElementState.rowX;
+	f32 yadd = 0;
 	f32 width;
 	va_list va;
 	
@@ -1392,14 +1515,28 @@ void Element_Row(Split* split, s32 rectNum, ...) {
 			Rect* rect = &this->rect;
 			Log("[%d]: %s", i, this->name);
 			
-			if (rect)
-				Element_SetRectImpl(rect, x + SPLIT_ELEM_X_PADDING, gElementState.rowY, width - SPLIT_ELEM_X_PADDING);
+			if (this->heightAdd && yadd == 0)
+				yadd = this->heightAdd;
+			
+			if (rect) {
+				Element_SetRectImpl(
+					rect,
+					x + SPLIT_ELEM_X_PADDING, rint(gElementState.rowY - split->scroll.voffset),
+					width - SPLIT_ELEM_X_PADDING, yadd
+				);
+			}
 		}
 		
 		x += width;
 	}
 	
-	gElementState.rowY += SPLIT_ELEM_Y_PADDING;
+	gElementState.rowY += SPLIT_ELEM_Y_PADDING + yadd;
+	
+	if (gElementState.rowY >= split->rect.h) {
+		split->scroll.enabled = true;
+		split->scroll.max = gElementState.rowY - split->rect.h;
+	} else
+		split->scroll.enabled = false;
 	
 	va_end(va);
 }
@@ -1420,7 +1557,7 @@ void Element_Header(Split* split, s32 num, ...) {
 		this->header = true;
 		
 		if (rect)
-			Element_SetRectImpl(rect, x + SPLIT_ELEM_X_PADDING, 4, w);
+			Element_SetRectImpl(rect, x + SPLIT_ELEM_X_PADDING, 4, w, 0);
 		x += w;
 	}
 	
@@ -1691,6 +1828,21 @@ static void Element_UpdateElement(ElementCallInfo* info) {
 	}
 }
 
+static bool Element_DisableDraw(Element* element, Split* split) {
+	if (element->rect.w < 1)
+		return true;
+	
+	if (
+		element->rect.x >= split->rect.w
+		|| element->rect.x + element->rect.w < 0
+		|| element->rect.y >= split->rect.h
+		|| element->rect.y + element->rect.h < 0
+	)
+		return true;
+	
+	return false;
+}
+
 void Element_Draw(GeoGrid* geo, Split* split, bool header) {
 	ElementCallInfo* elem = gElementState.head;
 	Element* this;
@@ -1700,14 +1852,15 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
 		this = elem->arg;
 		
 		if (this->header == header && elem->split == split) {
-			Log("ElemFunc: " PRNT_PRPL "%s", elem->elemFunc);
+			Log("[%d][%s] ElemFunc: " PRNT_PRPL "%s", header, split->name, elem->elemFunc);
 			
 			if (elem->update)
 				Element_UpdateElement(elem);
 			
 			if (header || !Element_DisableDraw(elem->arg, elem->split))
 				elem->func(elem);
-			Node_Kill(gElementState.head, elem);
+			Node_Remove(gElementState.head, elem);
+			SysFree(elem);
 		}
 		
 		elem = next;

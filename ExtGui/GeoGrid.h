@@ -126,33 +126,48 @@ typedef struct SplitEdge {
  *
  */
 
+typedef struct {
+	bool enabled;
+	f32  voffset;
+	s32  offset;
+	s32  max;
+} SplitScroll;
+
 typedef struct Split {
-	struct Split* next;
-	SplitState    stateFlag;
-	SplitEdge*    edge[4];
-	SplitVtx*     vtx[4];
-	Rect  rect; // Absolute XY, relative WH
+	struct Split*    next;
+	const char*      name;
+	struct PropEnum* taskEnum;
+	struct ElCombo*  taskCombo;
+	
+	u32 id;
+	u32 prevId;
+	SplitState  state;
+	SplitScroll scroll;
+	SplitEdge*  edge[4];
+	SplitVtx*   vtx[4];
+	
+	Rect  rect;            // Absolute XY, relative WH
 	Rect  headRect;
 	Rect  dispRect;
-	Vec2s mousePos; // relative
+	Vec2s mousePos;        // relative
 	Vec2s mousePressPos;
-	bool  mouseInSplit;
-	bool  mouseInHeader;
-	bool  mouseInDispRect;
-	bool  inputAccess;
-	u32   id;
-	u32   prevId;
-	bool  blockMouse;
-	s32   elemBlockMouse;
+	
 	struct {
 		u32  useCustomBG : 1;
 		RGB8 color;
 	} bg;
 	
-	const char*      name;
-	struct PropEnum* taskEnum;
-	struct ElCombo*  taskCombo;
 	void* instance;
+	
+	// Incrementable blocker
+	s32 elemBlockMouse;
+	struct {
+		bool mouseInSplit    : 1;
+		bool mouseInHeader   : 1;
+		bool mouseInDispRect : 1;
+		bool inputAccess     : 1;
+		bool blockMouse      : 1;
+	};
 } Split;
 
 typedef struct {
@@ -254,6 +269,7 @@ typedef struct Element {
 	NVGcolor    base;
 	NVGcolor    light;
 	NVGcolor    texcol;
+	u32 heightAdd;
 	u32 disabled : 1;
 	u32 hover    : 1;
 	u32 press    : 1;
@@ -316,6 +332,12 @@ typedef struct ElCombo {
 	PropEnum* prop;
 } ElCombo;
 
+typedef struct {
+	Element     element;
+	PropEnum*   prop;
+	SplitScroll scroll;
+} ElContainer;
+
 extern Vec2f gZeroVec2f;
 extern Vec2s gZeroVec2s;
 extern Rect gZeroRect;
@@ -346,6 +368,8 @@ ElText* Element_Text(const char* txt);
 s32 Element_Checkbox(ElCheckbox* this);
 f32 Element_Slider(ElSlider* this);
 s32 Element_Combo(ElCombo* this);
+s32 Element_Container(ElContainer* this);
+
 void Element_Separator(bool drawLine);
 typedef enum {
 	BOX_START,
@@ -358,6 +382,8 @@ void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type);
 void Element_Slider_SetValue(ElSlider* this, f64 val);
 void Element_Button_SetValue(ElButton* this, bool toggle, bool state);
 void Element_Combo_SetPropEnum(ElCombo* this, PropEnum* prop);
+void Element_Container_SetPropEnumAndHeight(ElContainer* this, PropEnum* prop, u32 num);
+
 void Element_Name(Element* this, const char* name);
 void Element_Disable(Element* element);
 void Element_Enable(Element* element);

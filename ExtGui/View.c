@@ -492,10 +492,10 @@ Vec2f View_GetScreenPos(View3D* this, Vec3f point) {
 
 bool View_PointInScreen(View3D* this, Vec3f point) {
 	Vec4f pos;
-	Vec2f p2;
-	Rect r = {
-		0, 0, this->split->dispRect.w, this->split->dispRect.h
-	};
+	// Vec2f p2;
+	// Rect r = {
+	// 	0, 0, this->split->dispRect.w, this->split->dispRect.h
+	// };
 	
 	if (this->ortho)
 		return true;
