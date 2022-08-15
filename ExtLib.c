@@ -3469,7 +3469,7 @@ static u32 DecodeU8(const char* utf8, Size len, Size* index) {
 	return codepoint;
 }
 
-static u32 DecodeU16(const u16* utf16, Size len, Size* index) {
+static u32 DecodeU16(const wchar* utf16, Size len, Size* index) {
 	u16 high = utf16[*index];
 	
 	if ((high & GENERIC_SURROGATE_MASK) != GENERIC_SURROGATE_VALUE)
