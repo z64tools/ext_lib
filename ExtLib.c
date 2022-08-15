@@ -15,7 +15,7 @@
 #ifdef _WIN32
 #undef _WIN32
 #endif
-void readlink(char*, char*, int);
+void readlink(char*, char*, s32);
 void chdir(const char*);
 void gettimeofday(void*, void*);
 #endif
@@ -1169,7 +1169,7 @@ s32 Sys_Rename(const char* input, const char* output) {
 	return rename(input, output);
 }
 
-static int __rm_func(const char* item, const struct stat* bug, int type, struct FTW* ftw) {
+static s32 __rm_func(const char* item, const struct stat* bug, s32 type, struct FTW* ftw) {
 	if (Sys_Delete(item))
 		printf_error_align("Delete", "%s", item);
 	
@@ -1570,7 +1570,7 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
 	va_end(args);
 }
 
-static void Log_Signal(int arg);
+static void Log_Signal(s32 arg);
 
 static void printf_MuteOutput(FILE* output) {
 #ifdef _WIN32
@@ -1955,7 +1955,7 @@ void* MemMem(const void* haystack, Size haystacklen, const void* needle, Size ne
 		return NULL;
 	
 	while ((haystacklen - (p - bf)) >= needlelen) {
-		if (NULL != (p = memchr(p, (int)(*pt), haystacklen - (p - bf)))) {
+		if (NULL != (p = memchr(p, (s32)(*pt), haystacklen - (p - bf)))) {
 			if (!memcmp(p, needle, needlelen))
 				return p;
 			++p;
@@ -2003,8 +2003,8 @@ void* StrStrCase(const char* haystack, const char* needle) {
 	while (needlelen <= (haystacklen - (p - bf))) {
 		char* a, * b;
 		
-		a = memchr(p, tolower((int)(*pt)), haystacklen - (p - bf));
-		b = memchr(p, toupper((int)(*pt)), haystacklen - (p - bf));
+		a = memchr(p, tolower((s32)(*pt)), haystacklen - (p - bf));
+		b = memchr(p, toupper((s32)(*pt)), haystacklen - (p - bf));
 		
 		if (a == NULL)
 			p = b;
@@ -2035,8 +2035,8 @@ void* MemStrCase(const char* haystack, u32 haystacklen, const char* needle) {
 	while (needlelen <= (haystacklen - (p - bf))) {
 		char* a, * b;
 		
-		a = memchr(p, tolower((int)(*pt)), haystacklen - (p - bf));
-		b = memchr(p, toupper((int)(*pt)), haystacklen - (p - bf));
+		a = memchr(p, tolower((s32)(*pt)), haystacklen - (p - bf));
+		b = memchr(p, toupper((s32)(*pt)), haystacklen - (p - bf));
 		
 		if (a == NULL)
 			p = b;
@@ -3164,6 +3164,7 @@ void StrIns(char* point, const char* insert) {
 	insEnd[remLen] = 0;
 	memcpy(point, insert, insLen);
 }
+
 // Insert
 void StrIns2(char* origin, const char* insert, s32 pos, s32 size) {
 	s32 inslen = strlen(insert);
@@ -3178,6 +3179,7 @@ void StrIns2(char* origin, const char* insert, s32 pos, s32 size) {
 		origin[pos] = insert[j];
 	}
 }
+
 // Remove
 void StrRem(char* point, s32 amount) {
 	char* get = point + amount;
@@ -3187,6 +3189,7 @@ void StrRem(char* point, s32 amount) {
 		memcpy(point, get, strlen(get));
 	point[len] = 0;
 }
+
 // Replace
 s32 StrRep(char* src, const char* word, const char* replacement) {
 	u32 repLen = strlen(replacement);
@@ -3235,22 +3238,7 @@ s32 StrRepWhole(char* src, const char* word, const char* replacement) {
 	
 	return diff;
 }
-// utf8
-wchar* StrU8(const char* str) {
-	char* out = NULL;
-	
-#ifdef _WIN32
-	u32 ln = MultiByteToWideChar(CP_UTF8, 0, str, strlen(str), 0, 0);
-	out = xAlloc(ln + 1);
-	if (!out)
-		printf_error("Failed to convert UTF8 to WCHAR");
-	MultiByteToWideChar(CP_UTF8, 0, str, strlen(str), (void*)out, ln);
-#else
-	out = (void*)str;
-#endif
-	
-	return (wchar*)out;
-}
+
 // Unquote
 char* StrUnq(const char* str) {
 	char* new = xStrDup(str);
@@ -3280,7 +3268,8 @@ char* StrStripIllegalChar(char* t) {
 	
 	return t;
 }
-// Common lenght
+
+// Common length
 s32 StrComLen(const char* a, const char* b) {
 	s32 s = 0;
 	
@@ -3328,6 +3317,221 @@ char* StrLower(char* str) {
 	str[i] = tolower(str[i]);
 	
 	return str;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+// # utf8 <-> utf16                      #
+// # # # # # # # # # # # # # # # # # # # #
+// https://github.com/Davipb/utf8-utf16-converter
+
+typedef enum {
+	BMP_END                          = 0xFFFF,
+	UNICODE_MAX                      = 0x10FFFF,
+	INVALID_CODEPOINT                = 0xFFFD,
+	GENERIC_SURROGATE_VALUE          = 0xD800,
+	GENERIC_SURROGATE_MASK           = 0xF800,
+	HIGH_SURROGATE_VALUE             = 0xD800,
+	LOW_SURROGATE_VALUE              = 0xDC00,
+	SURROGATE_MASK                   = 0xFC00,
+	SURROGATE_CODEPOINT_OFFSET       = 0x10000,
+	SURROGATE_CODEPOINT_MASK         = 0x03FF,
+	SURROGATE_CODEPOINT_BITS         = 10,
+	UTF8_1_MAX                       = 0x7F,
+	UTF8_2_MAX                       = 0x7FF,
+	UTF8_3_MAX                       = 0xFFFF,
+	UTF8_4_MAX                       = 0x10FFFF,
+	UTF8_CONTINUATION_VALUE          = 0x80,
+	UTF8_CONTINUATION_MASK           = 0xC0,
+	UTF8_CONTINUATION_CODEPOINT_BITS = 6,
+	UTF8_LEADING_BYTES_LEN           = 4,
+} __utf8_define_t;
+
+typedef struct {
+	u8 mask;
+	u8 value;
+} utf8_pattern;
+
+static const utf8_pattern utf8_leading_bytes[] = {
+	{ 0x80, 0x00 }, // 0xxxxxxx
+	{ 0xE0, 0xC0 }, // 110xxxxx
+	{ 0xF0, 0xE0 }, // 1110xxxx
+	{ 0xF8, 0xF0 }, // 11110xxx
+};
+
+static s32 CalcLenU8(u32 codepoint) {
+	if (codepoint <= UTF8_1_MAX)
+		return 1;
+	
+	if (codepoint <= UTF8_2_MAX)
+		return 2;
+	
+	if (codepoint <= UTF8_3_MAX)
+		return 3;
+	
+	return 4;
+}
+
+static s32 CalcLenU16(u32 codepoint) {
+	if (codepoint <= BMP_END)
+		return 1;
+	
+	return 2;
+}
+
+static Size EncodeU8(u32 codepoint, char* utf8, Size index) {
+	s32 size = CalcLenU8(codepoint);
+	
+	// Write the continuation bytes in reverse order first
+	for (s32 cont_index = size - 1; cont_index > 0; cont_index--) {
+		u8 cont = codepoint & ~UTF8_CONTINUATION_MASK;
+		cont |= UTF8_CONTINUATION_VALUE;
+		
+		utf8[index + cont_index] = cont;
+		codepoint >>= UTF8_CONTINUATION_CODEPOINT_BITS;
+	}
+	
+	utf8_pattern pattern = utf8_leading_bytes[size - 1];
+	
+	u8 lead = codepoint & ~(pattern.mask);
+	
+	lead |= pattern.value;
+	
+	utf8[index] = lead;
+	
+	return size;
+}
+
+static Size EncodeU16(u32 codepoint, wchar* utf16, Size index) {
+	if (codepoint <= BMP_END) {
+		utf16[index] = codepoint;
+		
+		return 1;
+	}
+	
+	codepoint -= SURROGATE_CODEPOINT_OFFSET;
+	
+	u16 low = LOW_SURROGATE_VALUE;
+	low |= codepoint & SURROGATE_CODEPOINT_MASK;
+	
+	codepoint >>= SURROGATE_CODEPOINT_BITS;
+	
+	u16 high = HIGH_SURROGATE_VALUE;
+	high |= codepoint & SURROGATE_CODEPOINT_MASK;
+	
+	utf16[index] = high;
+	utf16[index + 1] = low;
+	
+	return 2;
+}
+
+static u32 DecodeU8(const char* utf8, Size len, Size* index) {
+	u8 leading = utf8[*index];
+	s32 encoding_len = 0;
+	utf8_pattern leading_pattern;
+	bool matches = false;
+	
+	do {
+		encoding_len++;
+		leading_pattern = utf8_leading_bytes[encoding_len - 1];
+		
+		matches = (leading & leading_pattern.mask) == leading_pattern.value;
+		
+	} while (!matches && encoding_len < UTF8_LEADING_BYTES_LEN);
+	
+	if (!matches)
+		return INVALID_CODEPOINT;
+	
+	u32 codepoint = leading & ~leading_pattern.mask;
+	
+	for (s32 i = 0; i < encoding_len - 1; i++) {
+		if (*index + 1 >= len)
+			return INVALID_CODEPOINT;
+		
+		u8 continuation = utf8[*index + 1];
+		if ((continuation & UTF8_CONTINUATION_MASK) != UTF8_CONTINUATION_VALUE)
+			return INVALID_CODEPOINT;
+		
+		codepoint <<= UTF8_CONTINUATION_CODEPOINT_BITS;
+		codepoint |= continuation & ~UTF8_CONTINUATION_MASK;
+		
+		(*index)++;
+	}
+	
+	s32 proper_len = CalcLenU8(codepoint);
+	
+	if (proper_len != encoding_len)
+		return INVALID_CODEPOINT;
+	if (codepoint < BMP_END && (codepoint & GENERIC_SURROGATE_MASK) == GENERIC_SURROGATE_VALUE)
+		return INVALID_CODEPOINT;
+	if (codepoint > UNICODE_MAX)
+		return INVALID_CODEPOINT;
+	
+	return codepoint;
+}
+
+static u32 DecodeU16(const u16* utf16, Size len, Size* index) {
+	u16 high = utf16[*index];
+	
+	if ((high & GENERIC_SURROGATE_MASK) != GENERIC_SURROGATE_VALUE)
+		return high;
+	if ((high & SURROGATE_MASK) != HIGH_SURROGATE_VALUE)
+		return INVALID_CODEPOINT;
+	if (*index == len - 1)
+		return INVALID_CODEPOINT;
+	
+	u16 low = utf16[*index + 1];
+	
+	if ((low & SURROGATE_MASK) != LOW_SURROGATE_VALUE)
+		return INVALID_CODEPOINT;
+	(*index)++;
+	u32 result = high & SURROGATE_CODEPOINT_MASK;
+	
+	result <<= SURROGATE_CODEPOINT_BITS;
+	result |= low & SURROGATE_CODEPOINT_MASK;
+	result += SURROGATE_CODEPOINT_OFFSET;
+	
+	return result;
+}
+
+Size StrU8(const wchar* src, char* dst) {
+	Size utf8_index = 0;
+	Size len = strwlen(src) + 1;
+	
+	for (Size utf16_index = 0; utf16_index < len; utf16_index++) {
+		u32 codepoint = DecodeU16(src, len, &utf16_index);
+		
+		if (dst == NULL)
+			utf8_index += CalcLenU8(codepoint);
+		else
+			utf8_index += EncodeU8(codepoint, dst, utf8_index);
+	}
+	
+	return utf8_index;
+}
+
+Size StrU16(const char* src, wchar* dst) {
+	Size utf16_index = 0;
+	Size len = strlen(src) + 1;
+	
+	for (Size utf8_index = 0; utf8_index < len; utf8_index++) {
+		u32 codepoint = DecodeU8(src, len, &utf8_index);
+		
+		if (dst == NULL)
+			utf16_index += CalcLenU16(codepoint);
+		else
+			utf16_index += EncodeU16(codepoint, dst, utf16_index);
+	}
+	
+	return utf16_index;
+}
+
+Size strwlen(const wchar* s) {
+	Size len = 0;
+	
+	while (s[len] != L'\0')
+		len++;
+	
+	return len;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -3910,7 +4114,7 @@ void Log_NoOutput(void) {
 	sLogOutput = false;
 }
 
-static void Log_Signal_PrintTitle(int arg, FILE* file) {
+static void Log_Signal_PrintTitle(s32 arg, FILE* file) {
 	const char* errorMsg[] = {
 		"\a0",
 		"\a1 - Hang Up",
@@ -3942,7 +4146,7 @@ static void Log_Signal_PrintTitle(int arg, FILE* file) {
 		fprintf(file, "\n" PRNT_DGRY "[" PRNT_REDD "!" PRNT_DGRY "]:" PRNT_DGRY " [ " PRNT_REDD "LOG " PRNT_DGRY "]");
 }
 
-static void Log_Printinf(int arg, FILE* file) {
+static void Log_Printinf(s32 arg, FILE* file) {
 	u32 msgsNum = 0;
 	u32 repeat = 0;
 	
@@ -4011,7 +4215,7 @@ static void Log_Printinf(int arg, FILE* file) {
 	}
 }
 
-static void Log_Signal(int arg) {
+static void Log_Signal(s32 arg) {
 	static volatile bool ran = 0;
 	FILE* file;
 	
