@@ -241,8 +241,8 @@ char* String_GetSpacedArg(char* argv[], s32 cur);
 char* StrUpper(char* str);
 char* StrLower(char* str);
 
-Size StrU8(const wchar* src, char* dst);
-Size StrU16(const char* src, wchar* dst);
+char* StrU8(const wchar* src, char* dst);
+wchar* StrU16(const char* src, wchar* dst);
 Size strwlen(const wchar* s);
 
 char* Config_Variable(const char* str, const char* name);

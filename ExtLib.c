@@ -3371,12 +3371,14 @@ static s32 CalcLenU8(u32 codepoint) {
 	return 4;
 }
 
+#if 0
 static s32 CalcLenU16(u32 codepoint) {
 	if (codepoint <= BMP_END)
 		return 1;
 	
 	return 2;
 }
+#endif
 
 static Size EncodeU8(u32 codepoint, char* utf8, Size index) {
 	s32 size = CalcLenU8(codepoint);
@@ -3493,36 +3495,30 @@ static u32 DecodeU16(const wchar* utf16, Size len, Size* index) {
 	return result;
 }
 
-Size StrU8(const wchar* src, char* dst) {
-	Size utf8_index = 0;
+char* StrU8(const wchar* src, char* dst) {
+	Size dstIndex = 0;
 	Size len = strwlen(src) + 1;
 	
-	for (Size utf16_index = 0; utf16_index < len; utf16_index++) {
-		u32 codepoint = DecodeU16(src, len, &utf16_index);
-		
-		if (dst == NULL)
-			utf8_index += CalcLenU8(codepoint);
-		else
-			utf8_index += EncodeU8(codepoint, dst, utf8_index);
-	}
+	if (!dst)
+		dst = xAlloc(len);
 	
-	return utf8_index;
+	for (Size indexSrc = 0; indexSrc < len; indexSrc++)
+		dstIndex += EncodeU8(DecodeU16(src, len, &indexSrc), dst, dstIndex);
+	
+	return dst;
 }
 
-Size StrU16(const char* src, wchar* dst) {
-	Size utf16_index = 0;
+wchar* StrU16(const char* src, wchar* dst) {
+	Size dstIndex = 0;
 	Size len = strlen(src) + 1;
 	
-	for (Size utf8_index = 0; utf8_index < len; utf8_index++) {
-		u32 codepoint = DecodeU8(src, len, &utf8_index);
-		
-		if (dst == NULL)
-			utf16_index += CalcLenU16(codepoint);
-		else
-			utf16_index += EncodeU16(codepoint, dst, utf16_index);
-	}
+	if (!dst)
+		dst = xAlloc(len * 3);
 	
-	return utf16_index;
+	for (Size srcIndex = 0; srcIndex < len; srcIndex++)
+		dstIndex += EncodeU16(DecodeU8(src, len, &srcIndex), dst, dstIndex);
+	
+	return dst;
 }
 
 Size strwlen(const wchar* s) {
