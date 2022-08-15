@@ -15,7 +15,7 @@
 #ifdef _WIN32
 #undef _WIN32
 #endif
-void readlink(char*, char*, s32);
+void readlink(char*, char*, int);
 void chdir(const char*);
 void gettimeofday(void*, void*);
 #endif
