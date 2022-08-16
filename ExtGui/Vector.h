@@ -14,6 +14,7 @@
 #define UnfoldVec2(vec) (vec).x, (vec).y
 #define UnfoldVec3(vec) (vec).x, (vec).y, (vec).z
 #define UnfoldVec4(vec) (vec).x, (vec).y, (vec).z, (vec).w
+#define IsZero(f32)     ((fabsf(f32) < EPSILON))
 
 static const f32 EPSILON = 0.0000001;
 
@@ -656,7 +657,7 @@ VEC_QF bool Math_Vec4f_IsNaN(Vec4f a) {
 VEC_QF f32 Math_Vec2f_Cos(Vec2f a, Vec2f b) {
 	f32 mp = Math_Vec2f_Magnitude(a) * Math_Vec2f_Magnitude(b);
 	
-	if (fabsf(mp) < EPSILON) return 0.0f;
+	if (IsZero(mp)) return 0.0f;
 	
 	return Math_Vec2f_Dot(a, b) / mp;
 }
@@ -664,7 +665,7 @@ VEC_QF f32 Math_Vec2f_Cos(Vec2f a, Vec2f b) {
 VEC_QF f32 Math_Vec3f_Cos(Vec3f a, Vec3f b) {
 	f32 mp = Math_Vec3f_Magnitude(a) * Math_Vec3f_Magnitude(b);
 	
-	if (fabsf(mp) < EPSILON) return 0.0f;
+	if (IsZero(mp)) return 0.0f;
 	
 	return Math_Vec3f_Dot(a, b) / mp;
 }
@@ -672,7 +673,7 @@ VEC_QF f32 Math_Vec3f_Cos(Vec3f a, Vec3f b) {
 VEC_QF f32 Math_Vec4f_Cos(Vec4f a, Vec4f b) {
 	f32 mp = Math_Vec4f_Magnitude(a) * Math_Vec4f_Magnitude(b);
 	
-	if (fabsf(mp) < EPSILON) return 0.0f;
+	if (IsZero(mp)) return 0.0f;
 	
 	return Math_Vec4f_Dot(a, b) / mp;
 }
@@ -680,7 +681,7 @@ VEC_QF f32 Math_Vec4f_Cos(Vec4f a, Vec4f b) {
 VEC_QF f32 Math_Vec2s_Cos(Vec2s a, Vec2s b) {
 	f32 mp = Math_Vec2s_Magnitude(a) * Math_Vec2s_Magnitude(b);
 	
-	if (fabsf(mp) < EPSILON) return 0.0f;
+	if (IsZero(mp)) return 0.0f;
 	
 	return Math_Vec2s_Dot(a, b) / mp;
 }
@@ -688,7 +689,7 @@ VEC_QF f32 Math_Vec2s_Cos(Vec2s a, Vec2s b) {
 VEC_QF f32 Math_Vec3s_Cos(Vec3s a, Vec3s b) {
 	f32 mp = Math_Vec3s_Magnitude(a) * Math_Vec3s_Magnitude(b);
 	
-	if (fabsf(mp) < EPSILON) return 0.0f;
+	if (IsZero(mp)) return 0.0f;
 	
 	return Math_Vec3s_Dot(a, b) / mp;
 }
@@ -696,7 +697,7 @@ VEC_QF f32 Math_Vec3s_Cos(Vec3s a, Vec3s b) {
 VEC_QF f32 Math_Vec4s_Cos(Vec4s a, Vec4s b) {
 	f32 mp = Math_Vec4s_Magnitude(a) * Math_Vec4s_Magnitude(b);
 	
-	if (fabsf(mp) < EPSILON) return 0.0f;
+	if (IsZero(mp)) return 0.0f;
 	
 	return Math_Vec4s_Dot(a, b) / mp;
 }
@@ -764,7 +765,7 @@ VEC_QF Vec3f Math_Vec3f_ClosestPointOnRay(Vec3f rayStart, Vec3f rayEnd, Vec3f li
 		// parallel
 		
 		return lineStart;
-	} else if (fabsf(ndot) <= EPSILON) {
+	} else if (IsZero(ndot)) {
 		// perpendicular
 		Vec3f mod = Math_Vec3f_InvMod(rayNorm);
 		Vec3f ls = Math_Vec3f_Mul(lineStart, mod);

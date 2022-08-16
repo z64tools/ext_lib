@@ -214,11 +214,10 @@ static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
 	Element_Combo_SetPropEnum(this->taskCombo, this->taskEnum);
 }
 
-static Split* Split_Alloc(GeoGrid* geo, const char* name, s32 id) {
+static Split* Split_Alloc(GeoGrid* geo, s32 id) {
 	Split* split;
 	
 	Calloc(split, sizeof(Split));
-	split->name = name;
 	split->prevId = -1; // Forces init
 	split->id = id;
 	
@@ -227,8 +226,8 @@ static Split* Split_Alloc(GeoGrid* geo, const char* name, s32 id) {
 	return split;
 }
 
-Split* GeoGrid_AddSplit(GeoGrid* geo, const char* name, Rectf32* rect, s32 id) {
-	Split* split = Split_Alloc(geo, name, id);
+Split* GeoGrid_AddSplit(GeoGrid* geo, Rectf32* rect, s32 id) {
+	Split* split = Split_Alloc(geo, id);
 	
 	split->vtx[VTX_BOT_L] = GeoGrid_AddVtx(geo, rect->x, rect->y + rect->h);
 	split->vtx[VTX_TOP_L] = GeoGrid_AddVtx(geo, rect->x, rect->y);
@@ -322,7 +321,7 @@ static void Split_Split(GeoGrid* geo, Split* split, SplitDir dir) {
 	Split* newSplit;
 	f64 splitPos = (dir == DIR_L || dir == DIR_R) ? geo->input->mouse.pos.x : geo->input->mouse.pos.y;
 	
-	newSplit = Split_Alloc(geo, split->name, split->id);
+	newSplit = Split_Alloc(geo, split->id);
 	Node_Add(geo->splitHead, newSplit);
 	
 	if (dir == DIR_L) {
@@ -449,10 +448,12 @@ static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
 }
 
 s32 Split_GetCursor(GeoGrid* geo, Split* split, s32 result) {
-	if (geo->state.noClickInput ||
+	if (
+		geo->state.noClickInput ||
 		!split->mouseInSplit ||
 		split->blockMouse ||
-		split->elemBlockMouse)
+		split->elemBlockMouse
+	)
 		return 0;
 	
 	return result;
@@ -880,7 +881,7 @@ static void Split_Update(GeoGrid* geo) {
 		if (split->id != split->prevId)
 			Split_SwapInstance(geo, split);
 		
-		Log("Run Split [%s] Update Func", split->name);
+		Log("Run Split ID %d Update Func", split->id);
 		Element_SetContext(geo, split);
 		table[split->id]->update(geo->passArg, split->instance, split);
 		
@@ -974,6 +975,48 @@ static void Split_DrawDebug(GeoGrid* geo) {
 	} nvgEndFrame(geo->vg);
 }
 
+static void Split_Draw_KillArrow(Split* this, void* vg) {
+	if (this->state & SPLIT_KILL_TARGET) {
+		Vec2f arrow[] = {
+			{ 0,    13    }, { 11,   1   }, { 5.6, 1 }, { 5.6, -10  },
+			{ -5.6, -10   }, { -5.6, 1   }, { -10, 1 }, { 0,   13   }
+		};
+		f32 dir = 0;
+		
+		switch (this->state & SPLIT_KILL_TARGET) {
+			case SPLIT_KILL_DIR_L:
+				dir = -90;
+				break;
+			case SPLIT_KILL_DIR_T:
+				dir = -180;
+				break;
+			case SPLIT_KILL_DIR_R:
+				dir = 90;
+				break;
+			case SPLIT_KILL_DIR_B:
+				dir = 0;
+				break;
+		}
+		
+		nvgBeginPath(vg);
+		nvgRect(vg, -4, -4, this->dispRect.w + 8, this->dispRect.h + 8);
+		Gfx_Shape(
+			vg,
+			Math_Vec2f_New(this->rect.w * 0.5, this->rect.h * 0.5),
+			10.0f,
+			DegToBin(dir),
+			arrow,
+			ArrayCount(arrow)
+		);
+		nvgPathWinding(vg, NVG_HOLE);
+		
+		nvgFillColor(vg, Theme_GetColor(THEME_SHADOW, 125, 1.0f));
+		nvgFill(vg);
+		
+		this->state &= ~(SPLIT_KILL_TARGET);
+	}
+}
+
 static void Split_Draw(GeoGrid* geo) {
 	Split* split = geo->splitHead;
 	Vec2s* wdim = geo->wdim;
@@ -990,20 +1033,19 @@ static void Split_Draw(GeoGrid* geo) {
 		nvgBeginFrame(geo->vg, split->dispRect.w, split->dispRect.h, gPixelRatio); {
 			void* vg = geo->vg;
 			Rect r = split->dispRect;
-			
-			r.x = r.y = 0;
-			
 			u32 id = split->id;
 			SplitTask** table = geo->taskTable;
 			
+			r.x = r.y = 0;
 			nvgBeginPath(vg);
 			nvgRect(vg, 0, 0, split->dispRect.w, split->dispRect.h);
-			if (split->bg.useCustomBG == true) {
+			
+			if (split->bg.useCustomBG == true)
 				nvgFillColor(vg, nvgRGBA(split->bg.color.r, split->bg.color.g, split->bg.color.b, 255));
-			} else {
-				// nvgFillColor(vg, Theme_GetColor(THEME_BASE, 255, 1.0f));
+			
+			else
 				nvgFillPaint(vg, nvgBoxGradient(vg, UnfoldRect(r), SPLIT_ROUND_R, 8.0f, Theme_GetColor(THEME_BASE, 255, 1.0f), Theme_GetColor(THEME_BASE, 255, 0.8f)));
-			}
+			
 			nvgFill(vg);
 			
 			/*
@@ -1018,46 +1060,7 @@ static void Split_Draw(GeoGrid* geo) {
 			Math_SmoothStepToF(&split->scroll.voffset, split->scroll.offset, 0.25f, fabsf(split->scroll.offset - split->scroll.voffset) * 0.5f, 0.1f);
 			table[id]->draw(geo->passArg, split->instance, split);
 			Element_Draw(geo, split, false);
-			
-			if (split->state & SPLIT_KILL_TARGET) {
-				Vec2f arrow[] = {
-					{ 0,    13    }, { 11,   1   }, { 5.6, 1 }, { 5.6, -10  },
-					{ -5.6, -10   }, { -5.6, 1   }, { -10, 1 }, { 0,   13   }
-				};
-				f32 dir = 0;
-				
-				switch (split->state & SPLIT_KILL_TARGET) {
-					case SPLIT_KILL_DIR_L:
-						dir = -90;
-						break;
-					case SPLIT_KILL_DIR_T:
-						dir = -180;
-						break;
-					case SPLIT_KILL_DIR_R:
-						dir = 90;
-						break;
-					case SPLIT_KILL_DIR_B:
-						dir = 0;
-						break;
-				}
-				
-				nvgBeginPath(geo->vg);
-				nvgRect(geo->vg, -4, -4, split->dispRect.w + 8, split->dispRect.h + 8);
-				Gfx_Shape(
-					geo->vg,
-					Math_Vec2f_New(split->rect.w * 0.5, split->rect.h * 0.5),
-					10.0f,
-					DegToBin(dir),
-					arrow,
-					ArrayCount(arrow)
-				);
-				nvgPathWinding(geo->vg, NVG_HOLE);
-				
-				nvgFillColor(geo->vg, Theme_GetColor(THEME_SHADOW, 125, 1.0f));
-				nvgFill(geo->vg);
-				
-				split->state &= ~(SPLIT_KILL_TARGET);
-			}
+			Split_Draw_KillArrow(split, geo->vg);
 			
 			r = split->dispRect;
 			r.x = 1;
@@ -1076,12 +1079,6 @@ static void Split_Draw(GeoGrid* geo) {
 			
 			nvgFillColor(geo->vg, Theme_GetColor(THEME_SHADOW, 255, 1.0f));
 			nvgFill(geo->vg);
-			
-			r = split->dispRect;
-			r.x = 1;
-			r.y = 1;
-			r.w -= 3;
-			r.h -= 3;
 			
 			Rect sc = Rect_SubPos(split->headRect, split->dispRect);
 			nvgScissor(vg, UnfoldRect(sc));

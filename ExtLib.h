@@ -116,46 +116,26 @@ void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b);
 
 #endif
 
-void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
-void printf_SetPrefix(char* fmt);
-void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i);
-void printf_toolinfo(const char* toolname, const char* fmt, ...);
-void printf_warning(const char* fmt, ...);
-void printf_warning_align(const char* info, const char* fmt, ...);
-void printf_error(const char* fmt, ...);
-void printf_error_align(const char* info, const char* fmt, ...);
-void printf_info(const char* fmt, ...);
-void printf_info_align(const char* info, const char* fmt, ...);
-void printf_prog_align(const char* info, const char* fmt, const char* color);
-void printf_progressFst(const char* info, u32 a, u32 b);
-void printf_progress(const char* info, u32 a, u32 b);
-void printf_getchar(const char* txt);
-void printf_lock(const char* fmt, ...);
-void printf_WinFix(void);
-void printf_hex(const char* txt, const void* data, u32 size, u32 dispOffset);
-void printf_bit(const char* txt, const void* data, u32 size, u32 dispOffset);
-void printf_nl(void);
-
-void __Assert(s32 expression, const char* msg, ...);
 #define Assert(expression) \
 	__Assert((s32)(expression), "" PRNT_DGRY "[" PRNT_REDD "%s" PRNT_DGRY "]:[" PRNT_YELW "%s" PRNT_DGRY "]:[" PRNT_BLUE "%d" PRNT_DGRY "]", #expression, __FUNCTION__, __LINE__)
+void __Assert(s32 expression, const char* msg, ...);
 f32 RandF();
-void* MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
+void* MemMem(const void* haystack, Size haystacklen, const void* needle, Size needlelen);
 void* StrStr(const char* haystack, const char* needle);
 void* StrStrWhole(const char* haystack, const char* needle);
-void* StrStrCase(const char* strA, const char* strB);
+void* StrStrCase(const char* haystack, const char* needle);
 void* MemStrCase(const char* haystack, u32 haystacklen, const char* needle);
-void* MemMemAlign(u32 val, const void* haystack, size_t haySize, const void* needle, size_t needleSize);
+void* MemMemAlign(u32 val, const void* haystack, Size haystacklen, const void* needle, Size needlelen);
 char* StrEnd(const char* src, const char* ext);
 char* StrEndCase(const char* src, const char* ext);
+void ByteSwap(void* src, s32 size);
 void* SysAlloc(s32 size);
 void* SysCalloc(s32 size);
 void* SysRealloc(const void* data, s32 size);
+void* SysFree(const void* data);
 void* MemDup(const void* src, Size size);
 char* StrDup(const char* src);
 char* StrDupX(const char* src, Size size);
-void* SysFree(const void* data);
-void ByteSwap(void* src, s32 size);
 s32 ParseArgs(char* argv[], char* arg, u32* parArg);
 void SlashAndPoint(const char* src, s32* slash, s32* point);
 char* Path(const char* src);
@@ -163,9 +143,11 @@ char* PathSlot(const char* src, s32 num);
 char* StrChrAcpt(const char* str, char* c);
 char* Basename(const char* src);
 char* Filename(const char* src);
-char* Line(const char* str, s32 line);
 char* LineHead(const char* str, const char* head);
+char* Line(const char* str, s32 line);
 char* Word(const char* str, s32 word);
+Size LineLen(const char* str);
+Size WordLen(const char* str);
 char* FileExtension(const char* str);
 void CaseToLow(char* s, s32 i);
 void CaseToUp(char* s, s32 i);
@@ -175,7 +157,7 @@ char* CopyLine(const char* str, s32 line);
 char* CopyWord(const char* str, s32 word);
 char* PathRel_From(const char* from, const char* item);
 char* PathAbs_From(const char* from, const char* item);
-char* PathRel(const char* file);
+char* PathRel(const char* item);
 char* PathAbs(const char* item);
 s32 PathIsAbs(const char* item);
 s32 PathIsRel(const char* item);
@@ -241,8 +223,8 @@ char* String_GetSpacedArg(char* argv[], s32 cur);
 char* StrUpper(char* str);
 char* StrLower(char* str);
 
-char* StrU8(const wchar* src, char* dst);
-wchar* StrU16(const char* src, wchar* dst);
+char* StrU8(char* dst, const wchar* src);
+wchar* StrU16(wchar* dst, const char* src);
 Size strwlen(const wchar* s);
 
 char* Config_Variable(const char* str, const char* name);
@@ -285,6 +267,26 @@ void __Log_ItemList(ItemList* list, const char* function, s32 line);
 void __Log(const char* func, u32 line, const char* txt, ...);
 #define Log(...)           __Log(__FUNCTION__, __LINE__, __VA_ARGS__)
 #define Log_ItemList(list) __Log_ItemList(list, __FUNCTION__, __LINE__)
+
+void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
+void printf_SetPrefix(char* fmt);
+void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i);
+void printf_toolinfo(const char* toolname, const char* fmt, ...);
+void printf_warning(const char* fmt, ...);
+void printf_warning_align(const char* info, const char* fmt, ...);
+void printf_error(const char* fmt, ...);
+void printf_error_align(const char* info, const char* fmt, ...);
+void printf_info(const char* fmt, ...);
+void printf_info_align(const char* info, const char* fmt, ...);
+void printf_prog_align(const char* info, const char* fmt, const char* color);
+void printf_progressFst(const char* info, u32 a, u32 b);
+void printf_progress(const char* info, u32 a, u32 b);
+void printf_getchar(const char* txt);
+void printf_lock(const char* fmt, ...);
+void printf_WinFix(void);
+void printf_hex(const char* txt, const void* data, u32 size, u32 dispOffset);
+void printf_bit(const char* txt, const void* data, u32 size, u32 dispOffset);
+void printf_nl(void);
 
 f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep);
 f32 Math_Spline_Audio(float k, float xm1, float x0, float x1, float x2);
@@ -454,16 +456,46 @@ void Sound_Xm_Stop();
 #define Arg(arg)     ParseArgs(argv, arg, &parArg)
 #define SEG_FAULT ((u32*)0)[0] = 0
 
+#if defined(_WIN32) && defined(UNICODE)
+#define XMain(count, args) \
+	__x_main(int count, char** args); \
+	int wmain(int count, wchar * *args) { \
+		char** nargv = SysAlloc(sizeof(char*) * count); \
+		for (s32 i = 0; i < count; i++) { \
+			nargv[i] = SysCalloc(strwlen(args[i])); \
+			StrU8(nargv[i], args[i]); \
+		} \
+		return __x_main(count, nargv); \
+	} \
+	int __x_main(int count, char** args)
+#else
+#define XMain(count, args) main(int count, char** args)
+#endif
+
 #define SleepF(sec)            usleep((u32)((f32)(sec) * 1000 * 1000))
 #define SleepS(sec)            sleep(sec)
 #define ParseArg(xarg)         ParseArgs(argv, xarg, &parArg)
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>]: " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
 
-#define foreach(var, arr)        for (s32 var = 0; var < ArrayCount(arr); var++)
-#define forlist(var, list)       for (s32 var = 0; var < (list).num; var++)
+#define foreach(var, arr)        for (int var = 0; var < ArrayCount(arr); var++)
+#define forlist(var, list)       for (int var = 0; var < (list).num; var++)
 #define fornode(type, var, head) for (type* var = head; var != NULL; var = var->next)
-#define forstr(var, str)         for (s32 var = 0; var < strlen(str); var++)
+#define forstr(var, str)         for (int var = 0; var < strlen(str); var++)
+
+#define ArrMoveR(arr, start, count) do { \
+		typeof((arr)[0]) v = (arr)[(start) + (count) - 1]; \
+		for (int i = (count) + (start) - 1; i > (start); i--) \
+		(arr)[i] = (arr)[i - 1]; \
+		(arr)[(start)] = v; \
+} while (0)
+
+#define ArrMoveL(arr, start, count) do { \
+		typeof((arr)[0]) v = (arr)[(start)]; \
+		for (int i = (start); i < (count) + (start); i++) \
+		(arr)[i] = (arr)[i + 1]; \
+		(arr)[(count) + (start) - 1] = v; \
+} while (0)
 
 #ifndef _WIN32
 #ifndef __IDE_FLAG__

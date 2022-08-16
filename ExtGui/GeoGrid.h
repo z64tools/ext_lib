@@ -135,7 +135,6 @@ typedef struct {
 
 typedef struct Split {
 	struct Split*    next;
-	const char*      name;
 	struct PropEnum* taskEnum;
 	struct ElCombo*  taskCombo;
 	
@@ -336,6 +335,10 @@ typedef struct {
 	Element     element;
 	PropEnum*   prop;
 	SplitScroll scroll;
+	
+	struct {
+		bool pressed : 1;
+	};
 } ElContainer;
 
 extern Vec2f gZeroVec2f;
@@ -348,7 +351,7 @@ void Gfx_DrawRounderRect(void* vg, Rect rect, NVGcolor color);
 
 bool Split_CursorInRect(Split* split, Rect* rect);
 bool Split_CursorInSplit(Split* split);
-Split* GeoGrid_AddSplit(GeoGrid* geo, const char* name, Rectf32* rect, s32 id);
+Split* GeoGrid_AddSplit(GeoGrid* geo, Rectf32* rect, s32 id);
 
 s32 Split_GetCursor(GeoGrid* geo, Split* split, s32 result);
 
@@ -406,6 +409,7 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header);
 PropEnum* PropEnum_Init(s32 defaultVal);
 PropEnum* PropEnum_InitList(s32 def, s32 num, ...);
 void PropEnum_Add(PropEnum* this, char* item);
+void PropEnum_Insert(PropEnum* this, char* item, s32 slot);
 void PropEnum_Remove(PropEnum* this, s32 key);
 void PropEnum_Free(PropEnum* this);
 

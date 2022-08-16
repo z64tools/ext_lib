@@ -61,4 +61,8 @@ static inline f32 AccuracyF(f32 v, f32 mod) {
 	return rint(rint(v * mod) / mod);
 }
 
+static inline f32 logfx(f32 value, f32 x) {
+	return logf(value) / logf(x);
+}
+
 #pragma GCC diagnostic pop

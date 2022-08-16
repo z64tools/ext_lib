@@ -163,10 +163,12 @@ static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, v
 #define Element_QueueElement(geo, split, func, arg) Element_QueueElement(geo, split, func, arg, __FUNCTION__)
 
 static s32 Element_PressCondition(GeoGrid* geo, Split* split, Element* this) {
-	if (!geo->state.noClickInput &
+	if (
+		!geo->state.noClickInput &
 		(split->mouseInSplit || this->header) &&
 		!split->blockMouse &&
-		!split->elemBlockMouse) {
+		!split->elemBlockMouse
+	) {
 		if (this->header) {
 			Rect r = Rect_AddPos(this->rect, split->headRect);
 			
@@ -285,6 +287,12 @@ PropEnum* PropEnum_InitList(s32 def, s32 num, ...) {
 void PropEnum_Add(PropEnum* this, char* item) {
 	Realloc(this->list, sizeof(char*) * (this->num + 1));
 	this->list[this->num++] = StrDup(item);
+}
+
+void PropEnum_Insert(PropEnum* this, char* item, s32 slot) {
+	Realloc(this->list, sizeof(char*) * (this->num + 1));
+	ArrMoveR(this->list, slot, this->num - slot);
+	this->list[slot] = StrDup(item);
 }
 
 void PropEnum_Remove(PropEnum* this, s32 key) {
@@ -1313,14 +1321,23 @@ s32 Element_Container(ElContainer* this) {
 		
 		if (this->element.disabled || gElementState.geo->state.noClickInput)
 			goto queue_element;
-		if (!Element_PressCondition(gElementState.geo, gElementState.split, &this->element))
+		if (!Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
+			this->pressed = false;
+			
 			goto queue_element;
+		}
 		
 		scroll->offset += (SPLIT_TEXT_H) *-val;
 		
 		if (!Input_GetMouse(gElementState.geo->input, MOUSE_L)->press)
+			if (!this->pressed)
+				goto queue_element;
+		
+		this->pressed = true;
+		if (!Input_GetMouse(gElementState.geo->input, MOUSE_L)->release)
 			goto queue_element;
 		
+		this->pressed = false;
 		for (s32 i = 0; i < this->prop->num; i++) {
 			Rect r = Container_GetPropRect(this, i);
 			
@@ -1503,7 +1520,7 @@ void Element_Row(Split* split, s32 rectNum, ...) {
 	
 	va_start(va, rectNum);
 	
-	Log("Setting [%d] Elements for Split [%s]", rectNum, split->name);
+	Log("Setting [%d] Elements for Split ID %d", rectNum, split->id);
 	
 	for (s32 i = 0; i < rectNum; i++) {
 		Element* this = va_arg(va, void*);
@@ -1852,7 +1869,7 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
 		this = elem->arg;
 		
 		if (this->header == header && elem->split == split) {
-			Log("[%d][%s] ElemFunc: " PRNT_PRPL "%s", header, split->name, elem->elemFunc);
+			Log("[%d][Split ID %d] ElemFunc: " PRNT_PRPL "%s", header, split->id, elem->elemFunc);
 			
 			if (elem->update)
 				Element_UpdateElement(elem);

@@ -1398,524 +1398,6 @@ char Terminal_GetChar() {
 }
 
 // # # # # # # # # # # # # # # # # # # # #
-// # PRINTF                              #
-// # # # # # # # # # # # # # # # # # # # #
-
-static char* sPrintfPrefix = "";
-static u8 sPrintfType = 1;
-static char* sPrintfPreType[][4] = {
-	{
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-	},
-	{
-		">",
-		">",
-		">",
-		">"
-	}
-};
-PrintfSuppressLevel gPrintfSuppress = 0;
-u8 gPrintfProgressing;
-
-void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
-	gPrintfSuppress = lvl;
-}
-
-void printf_SetPrefix(char* fmt) {
-	sPrintfPrefix = fmt;
-}
-
-void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i) {
-	sPrintfType = 0;
-	sPrintfPreType[sPrintfType][0] = StrDup(d);
-	sPrintfPreType[sPrintfType][1] = StrDup(w);
-	sPrintfPreType[sPrintfType][2] = StrDup(e);
-	sPrintfPreType[sPrintfType][3] = StrDup(i);
-}
-
-void printf_toolinfo(const char* toolname, const char* fmt, ...) {
-	static u32 printed = 0;
-	
-	if (gPrintfSuppress >= PSL_NO_INFO)
-		return;
-	
-	if (printed != 0) return;
-	printed++;
-	
-	u32 strln = strlen(toolname);
-	u32 rmv = 0;
-	u32 tmp = strln;
-	va_list args;
-	
-	for (s32 i = 0; i < strln; i++) {
-		if (rmv) {
-			if (toolname[i] != 'm') {
-				tmp--;
-			} else {
-				tmp -= 2;
-				rmv = false;
-			}
-		} else {
-			if (toolname[i] == '\e' && toolname[i + 1] == '[') {
-				rmv = true;
-				strln--;
-			}
-		}
-	}
-	
-	strln = tmp;
-	
-	printf(PRNT_GRAY "[>]--");
-	for (s32 i = 0; i < strln; i++)
-		printf("-");
-	printf("------[>]\n");
-	
-	printf(" |   ");
-	printf(PRNT_CYAN "%s" PRNT_GRAY, toolname);
-	printf("       |\n");
-	
-	printf("[>]--");
-	for (s32 i = 0; i < strln; i++)
-		printf("-");
-	printf("------[>]\n" PRNT_RSET);
-	printf("     ");
-	
-	if (fmt) {
-		va_start(args, fmt);
-		vprintf(
-			fmt,
-			args
-		);
-		va_end(args);
-		if (strlen(fmt) > 1)
-			printf("\n");
-	}
-	printf("\n" PRNT_RSET);
-	
-}
-
-static void __printf_call(u32 type, FILE* file) {
-	char* color[4] = {
-		PRNT_PRPL,
-		PRNT_REDD,
-		PRNT_REDD,
-		PRNT_BLUE
-	};
-	
-	fprintf(
-		file,
-		"%s"
-		PRNT_GRAY "["
-		"%s%s"
-		PRNT_GRAY "]: "
-		PRNT_RSET,
-		sPrintfPrefix,
-		color[type],
-		sPrintfPreType[sPrintfType][type]
-	);
-}
-
-void printf_warning(const char* fmt, ...) {
-	if (gPrintfSuppress >= PSL_NO_WARNING)
-		return;
-	
-	if (sEXIT)
-		return;
-	
-	if (gPrintfProgressing) {
-		printf("\n");
-		gPrintfProgressing = false;
-	}
-	
-	va_list args;
-	
-	va_start(args, fmt);
-	__printf_call(1, stdout);
-	vprintf(
-		fmt,
-		args
-	);
-	printf("\n");
-	va_end(args);
-}
-
-void printf_warning_align(const char* info, const char* fmt, ...) {
-	if (gPrintfSuppress >= PSL_NO_WARNING)
-		return;
-	
-	if (sEXIT)
-		return;
-	
-	if (gPrintfProgressing) {
-		printf("\n");
-		gPrintfProgressing = false;
-	}
-	
-	va_list args;
-	
-	va_start(args, fmt);
-	__printf_call(1, stdout);
-	printf(
-		"%-16s " PRNT_RSET,
-		info
-	);
-	vprintf(
-		fmt,
-		args
-	);
-	printf(PRNT_RSET "\n");
-	va_end(args);
-}
-
-static void Log_Signal(s32 arg);
-
-static void printf_MuteOutput(FILE* output) {
-#ifdef _WIN32
-	freopen ("NUL", "w", output);
-#else
-	freopen ("/dev/null", "w", output);
-#endif
-}
-
-void printf_error(const char* fmt, ...) {
-	char* msg;
-	
-	sEXIT = 1;
-	if (___sExt_ThreadInit)
-		printf_MuteOutput(stdout);
-	
-	Log_Signal(16);
-	Log_Free();
-	if (gPrintfSuppress < PSL_NO_ERROR) {
-		if (gPrintfProgressing) {
-			fprintf(stderr, "\n");
-			gPrintfProgressing = false;
-		}
-		
-		va_list args;
-		
-		va_start(args, fmt);
-		__printf_call(2, stderr);
-		if (___sExt_ThreadInit)
-			fprintf(stderr, "[>]: ");
-		vasprintf(
-			&msg,
-			fmt,
-			args
-		);
-		
-		fprintf(stderr, "%s\n", msg);
-		
-		va_end(args);
-	}
-	
-#ifdef _WIN32
-	if (___sExt_ThreadInit)
-		fprintf(stderr, "[<]: Press enter to exit");
-	Terminal_GetChar();
-#endif
-	
-	exit(EXIT_FAILURE);
-}
-
-void printf_error_align(const char* info, const char* fmt, ...) {
-	char* msg[2];
-	
-	sEXIT = 1;
-	if (___sExt_ThreadInit)
-		printf_MuteOutput(stdout);
-	
-	Log_Signal(16);
-	Log_Free();
-	if (gPrintfSuppress < PSL_NO_ERROR) {
-		if (gPrintfProgressing) {
-			fprintf(stderr, "\n");
-			gPrintfProgressing = false;
-		}
-		
-		va_list args;
-		
-		va_start(args, fmt);
-		__printf_call(2, stderr);
-		if (___sExt_ThreadInit)
-			fprintf(stderr, "[>]: ");
-		asprintf(
-			&msg[0],
-			"%-16s " PRNT_RSET,
-			info
-		);
-		vasprintf(
-			&msg[1],
-			fmt,
-			args
-		);
-		
-		fprintf(stderr, "%s%s\n", msg[0], msg[1]);
-		
-		va_end(args);
-	}
-	
-#ifdef _WIN32
-	if (___sExt_ThreadInit)
-		fprintf(stderr, "[<]: Press enter to exit");
-	Terminal_GetChar();
-#endif
-	
-	exit(EXIT_FAILURE);
-}
-
-void printf_info(const char* fmt, ...) {
-	char* buf = NULL;
-	
-	if (sEXIT)
-		return;
-	
-	if (gPrintfSuppress >= PSL_NO_INFO)
-		return;
-	
-	if (gPrintfProgressing) {
-		printf("\n");
-		gPrintfProgressing = false;
-	}
-	va_list args;
-	
-	va_start(args, fmt);
-	__printf_call(3, stdout);
-	vasprintf(
-		&buf,
-		fmt,
-		args
-	);
-	va_end(args);
-	
-	printf("%s" PRNT_RSET "\n", buf);
-	Free(buf);
-}
-
-void printf_info_align(const char* info, const char* fmt, ...) {
-	char* buf = NULL;
-	
-	if (sEXIT)
-		return;
-	
-	if (gPrintfSuppress >= PSL_NO_INFO)
-		return;
-	
-	if (gPrintfProgressing) {
-		printf("\n");
-		gPrintfProgressing = false;
-	}
-	va_list args;
-	
-	va_start(args, fmt);
-	__printf_call(3, stdout);
-	vasprintf(
-		&buf,
-		fmt,
-		args
-	);
-	va_end(args);
-	
-	printf("%-16s%s" PRNT_RSET "\n", info, buf);
-	Free(buf);
-}
-
-void printf_prog_align(const char* info, const char* fmt, const char* color) {
-	if (sEXIT)
-		return;
-	
-	if (gPrintfSuppress >= PSL_NO_INFO)
-		return;
-	
-	if (gPrintfProgressing) {
-		printf("\n");
-		gPrintfProgressing = false;
-	}
-	
-	printf("\n");
-	Terminal_ClearLines(2);
-	__printf_call(3, stdout);
-	printf("%-16s%s%s", info, color ? color : "", fmt);
-}
-
-void printf_progressFst(const char* info, u32 a, u32 b) {
-	if (gPrintfSuppress >= PSL_NO_INFO) {
-		return;
-	}
-	
-	if (sEXIT)
-		return;
-	
-	printf("\r");
-	__printf_call(3, stdout);
-	printf(
-		// "%-16s" PRNT_RSET "[%4d / %-4d]",
-		xFmt("%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
-		info,
-		a,
-		b
-	);
-	gPrintfProgressing = true;
-	
-	if (a == b) {
-		gPrintfProgressing = false;
-		printf("\n");
-	}
-	fflush(stdout);
-}
-
-void printf_progress(const char* info, u32 a, u32 b) {
-	if (gPrintfSuppress >= PSL_NO_INFO) {
-		return;
-	}
-	
-	if (sEXIT)
-		return;
-	
-	static f32 lstPrcnt;
-	f32 prcnt = (f32)a / (f32)b;
-	
-	if (lstPrcnt > prcnt)
-		lstPrcnt = 0;
-	
-	if (prcnt - lstPrcnt > 0.125) {
-		lstPrcnt = prcnt;
-	} else {
-		if (a != b && a > 1) {
-			return;
-		}
-	}
-	
-	printf("\r");
-	__printf_call(3, stdout);
-	printf(
-		// "%-16s" PRNT_RSET "[%4d / %-4d]",
-		xFmt("%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
-		info,
-		a,
-		b
-	);
-	gPrintfProgressing = true;
-	
-	if (a == b) {
-		gPrintfProgressing = false;
-		printf("\n");
-	}
-	fflush(stdout);
-}
-
-void printf_getchar(const char* txt) {
-	printf_info("%s", txt);
-	Terminal_GetChar();
-}
-
-void printf_lock(const char* fmt, ...) {
-	va_list va;
-	
-	if (sEXIT)
-		return;
-	
-	va_start(va, fmt);
-	ThreadLock_Lock();
-	vprintf(fmt, va);
-	ThreadLock_Unlock();
-	va_end(va);
-}
-
-void printf_WinFix(void) {
-#ifdef _WIN32
-	system("\0");
-#endif
-}
-
-void printf_hex(const char* txt, const void* data, u32 size, u32 dispOffset) {
-	const u8* d = data;
-	u32 num = 8;
-	char* digit;
-	s32 i = 0;
-	
-	if (sEXIT)
-		return;
-	
-	if (gPrintfSuppress >= PSL_NO_INFO)
-		return;
-	
-	for (;; num--)
-		if ((size + dispOffset) >> (num * 4))
-			break;
-	
-	digit = xFmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
-	
-	if (txt)
-		printf_info("%s", txt);
-	for (; i < size; i++) {
-		if (i % 16 == 0)
-			printf(digit, i + dispOffset);
-		
-		printf("%02X", d[i]);
-		if ((i + 1) % 4 == 0)
-			printf(" ");
-		if ((i + 1) % 16 == 0)
-			printf("\n");
-	}
-	
-	if (i % 16 != 0)
-		printf("\n");
-}
-
-void printf_bit(const char* txt, const void* data, u32 size, u32 dispOffset) {
-	const u8* d = data;
-	s32 s = 0;
-	u32 num = 8;
-	char* digit;
-	
-	if (sEXIT)
-		return;
-	
-	if (gPrintfSuppress >= PSL_NO_INFO)
-		return;
-	
-	for (;; num--)
-		if ((size + dispOffset) >> (num * 4))
-			break;
-	
-	digit = xFmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
-	
-	if (txt)
-		printf_info("%s", txt);
-	for (s32 i = 0; i < size; i++) {
-		if (s % 4 == 0)
-			printf(digit, s + dispOffset);
-		
-		for (s32 j = 7; j >= 0; j--)
-			printf("%d", (d[i] >> j) & 1);
-		
-		printf(" ");
-		
-		if ((s + 1) % 4 == 0)
-			printf("\n");
-		
-		s++;
-	}
-	
-	if (s % 4 != 0)
-		printf("\n");
-}
-
-void printf_nl(void) {
-	if (sEXIT)
-		return;
-	
-	if (gPrintfSuppress >= PSL_NO_INFO)
-		return;
-	
-	printf("\n");
-}
-
-// # # # # # # # # # # # # # # # # # # # #
 // # VARIOUS                             #
 // # # # # # # # # # # # # # # # # # # # #
 
@@ -2285,6 +1767,17 @@ char* Filename(const char* src) {
 	return xStrDup(ls);
 }
 
+char* LineHead(const char* str, const char* head) {
+	s32 i = 1;
+	
+	for (;; i--) {
+		if (&str[i] == head)
+			return (char*)&str[i];
+		if (str[i - 1] == '\n' || str[i - 1] == '\r')
+			return (char*)&str[i];
+	}
+}
+
 char* Line(const char* str, s32 line) {
 	const char* ln = str;
 	
@@ -2298,17 +1791,6 @@ char* Line(const char* str, s32 line) {
 	return (char*)ln;
 }
 
-char* LineHead(const char* str, const char* head) {
-	s32 i = 1;
-	
-	for (;; i--) {
-		if (&str[i] == head)
-			return (char*)&str[i];
-		if (str[i - 1] == '\n' || str[i - 1] == '\r')
-			return (char*)&str[i];
-	}
-}
-
 char* Word(const char* str, s32 word) {
 	if (!str)
 		return NULL;
@@ -2320,6 +1802,14 @@ char* Word(const char* str, s32 word) {
 	}
 	
 	return (char*)str;
+}
+
+Size LineLen(const char* str) {
+	return strcspn(str, "\n\r");
+}
+
+Size WordLen(const char* str) {
+	return strcspn(str, " \t\n\r");
 }
 
 char* FileExtension(const char* str) {
@@ -2354,16 +1844,15 @@ void CaseToUp(char* s, s32 i) {
 }
 
 s32 LineNum(const char* str) {
-	s32 line = 1;
-	s32 i = 0;
+	s32 num = 1;
 	
-	while (str[i] != '\0') {
-		if (str[i] == '\n' || str[i] == '\r')
-			line++;
-		i++;
+	while (*str != '\0') {
+		if (*str == '\n' || *str == '\r')
+			num++;
+		str++;
 	}
 	
-	return line;
+	return num;
 }
 
 s32 PathNum(const char* src) {
@@ -2380,13 +1869,13 @@ s32 PathNum(const char* src) {
 char* CopyLine(const char* str, s32 line) {
 	if (!(str = Line(str, line))) return NULL;
 	
-	return xMemDup(str, strcspn(str, "\n\r"));
+	return xMemDup(str, LineLen(str));
 }
 
 char* CopyWord(const char* str, s32 word) {
 	if (!(str = Word(str, word))) return NULL;
 	
-	return xMemDup(str, strcspn(str, " \t\n\r"));
+	return xMemDup(str, WordLen(str));
 }
 
 char* PathRel_From(const char* from, const char* item) {
@@ -2445,12 +1934,10 @@ s32 PathIsAbs(const char* item) {
 		item++;
 	
 	if (isalpha(item[0]) && item[1] == ':' && (item[2] == '/' || item[2] == '\\')) {
-		Log("Abs1");
 		
 		return 1;
 	}
 	if (item[0] == '/' || item[0] == '\\') {
-		Log("Abs2");
 		
 		return 1;
 	}
@@ -3495,7 +2982,7 @@ static u32 DecodeU16(const wchar* utf16, Size len, Size* index) {
 	return result;
 }
 
-char* StrU8(const wchar* src, char* dst) {
+char* StrU8(char* dst, const wchar* src) {
 	Size dstIndex = 0;
 	Size len = strwlen(src) + 1;
 	
@@ -3508,7 +2995,7 @@ char* StrU8(const wchar* src, char* dst) {
 	return dst;
 }
 
-wchar* StrU16(const char* src, wchar* dst) {
+wchar* StrU16(wchar* dst, const char* src) {
 	Size dstIndex = 0;
 	Size len = strlen(src) + 1;
 	
@@ -4324,6 +3811,522 @@ void __Log(const char* func, u32 line, const char* txt, ...) {
 	strcpy(sLogFunc[0], func);
 	sLogLine[0] = line;
 	ThreadLock_Unlock();
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+// # PRINTF                              #
+// # # # # # # # # # # # # # # # # # # # #
+
+static char* sPrintfPrefix = "";
+static u8 sPrintfType = 1;
+static const char* sPrintfPreType[][4] = {
+	{
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+	},
+	{
+		">",
+		">",
+		">",
+		">"
+	}
+};
+PrintfSuppressLevel gPrintfSuppress = 0;
+u8 gPrintfProgressing;
+
+void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
+	gPrintfSuppress = lvl;
+}
+
+void printf_SetPrefix(char* fmt) {
+	sPrintfPrefix = fmt;
+}
+
+void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i) {
+	sPrintfType = 0;
+	sPrintfPreType[sPrintfType][0] = d;
+	sPrintfPreType[sPrintfType][1] = w;
+	sPrintfPreType[sPrintfType][2] = e;
+	sPrintfPreType[sPrintfType][3] = i;
+}
+
+void printf_toolinfo(const char* toolname, const char* fmt, ...) {
+	static u32 printed = 0;
+	
+	if (gPrintfSuppress >= PSL_NO_INFO)
+		return;
+	
+	if (printed != 0) return;
+	printed++;
+	
+	u32 strln = strlen(toolname);
+	u32 rmv = 0;
+	u32 tmp = strln;
+	va_list args;
+	
+	for (s32 i = 0; i < strln; i++) {
+		if (rmv) {
+			if (toolname[i] != 'm') {
+				tmp--;
+			} else {
+				tmp -= 2;
+				rmv = false;
+			}
+		} else {
+			if (toolname[i] == '\e' && toolname[i + 1] == '[') {
+				rmv = true;
+				strln--;
+			}
+		}
+	}
+	
+	strln = tmp;
+	
+	printf(PRNT_GRAY "[>]--");
+	for (s32 i = 0; i < strln; i++)
+		printf("-");
+	printf("------[>]\n");
+	
+	printf(" |   ");
+	printf(PRNT_CYAN "%s" PRNT_GRAY, toolname);
+	printf("       |\n");
+	
+	printf("[>]--");
+	for (s32 i = 0; i < strln; i++)
+		printf("-");
+	printf("------[>]\n" PRNT_RSET);
+	printf("     ");
+	
+	if (fmt) {
+		va_start(args, fmt);
+		vprintf(
+			fmt,
+			args
+		);
+		va_end(args);
+		if (strlen(fmt) > 1)
+			printf("\n");
+	}
+	printf("\n" PRNT_RSET);
+	
+}
+
+static void __printf_call(u32 type, FILE* file) {
+	char* color[4] = {
+		PRNT_PRPL,
+		PRNT_REDD,
+		PRNT_REDD,
+		PRNT_BLUE
+	};
+	
+	fprintf(
+		file,
+		"%s"
+		PRNT_GRAY "["
+		"%s%s"
+		PRNT_GRAY "]: "
+		PRNT_RSET,
+		sPrintfPrefix,
+		color[type],
+		sPrintfPreType[sPrintfType][type]
+	);
+}
+
+void printf_warning(const char* fmt, ...) {
+	if (gPrintfSuppress >= PSL_NO_WARNING)
+		return;
+	
+	if (sEXIT)
+		return;
+	
+	if (gPrintfProgressing) {
+		printf("\n");
+		gPrintfProgressing = false;
+	}
+	
+	va_list args;
+	
+	va_start(args, fmt);
+	__printf_call(1, stdout);
+	vprintf(
+		fmt,
+		args
+	);
+	printf("\n");
+	va_end(args);
+}
+
+void printf_warning_align(const char* info, const char* fmt, ...) {
+	if (gPrintfSuppress >= PSL_NO_WARNING)
+		return;
+	
+	if (sEXIT)
+		return;
+	
+	if (gPrintfProgressing) {
+		printf("\n");
+		gPrintfProgressing = false;
+	}
+	
+	va_list args;
+	
+	va_start(args, fmt);
+	__printf_call(1, stdout);
+	printf(
+		"%-16s " PRNT_RSET,
+		info
+	);
+	vprintf(
+		fmt,
+		args
+	);
+	printf(PRNT_RSET "\n");
+	va_end(args);
+}
+
+static void printf_MuteOutput(FILE* output) {
+#ifdef _WIN32
+	freopen ("NUL", "w", output);
+#else
+	freopen ("/dev/null", "w", output);
+#endif
+}
+
+void printf_error(const char* fmt, ...) {
+	char* msg;
+	
+	sEXIT = 1;
+	if (___sExt_ThreadInit)
+		printf_MuteOutput(stdout);
+	
+	Log_Signal(16);
+	Log_Free();
+	if (gPrintfSuppress < PSL_NO_ERROR) {
+		if (gPrintfProgressing) {
+			fprintf(stderr, "\n");
+			gPrintfProgressing = false;
+		}
+		
+		va_list args;
+		
+		va_start(args, fmt);
+		__printf_call(2, stderr);
+		if (___sExt_ThreadInit)
+			fprintf(stderr, "[>]: ");
+		vasprintf(
+			&msg,
+			fmt,
+			args
+		);
+		
+		fprintf(stderr, "%s\n", msg);
+		
+		va_end(args);
+	}
+	
+#ifdef _WIN32
+	if (___sExt_ThreadInit)
+		fprintf(stderr, "[<]: Press enter to exit");
+	Terminal_GetChar();
+#endif
+	
+	exit(EXIT_FAILURE);
+}
+
+void printf_error_align(const char* info, const char* fmt, ...) {
+	char* msg[2];
+	
+	sEXIT = 1;
+	if (___sExt_ThreadInit)
+		printf_MuteOutput(stdout);
+	
+	Log_Signal(16);
+	Log_Free();
+	if (gPrintfSuppress < PSL_NO_ERROR) {
+		if (gPrintfProgressing) {
+			fprintf(stderr, "\n");
+			gPrintfProgressing = false;
+		}
+		
+		va_list args;
+		
+		va_start(args, fmt);
+		__printf_call(2, stderr);
+		if (___sExt_ThreadInit)
+			fprintf(stderr, "[>]: ");
+		asprintf(
+			&msg[0],
+			"%-16s " PRNT_RSET,
+			info
+		);
+		vasprintf(
+			&msg[1],
+			fmt,
+			args
+		);
+		
+		fprintf(stderr, "%s%s\n", msg[0], msg[1]);
+		
+		va_end(args);
+	}
+	
+#ifdef _WIN32
+	if (___sExt_ThreadInit)
+		fprintf(stderr, "[<]: Press enter to exit");
+	Terminal_GetChar();
+#endif
+	
+	exit(EXIT_FAILURE);
+}
+
+void printf_info(const char* fmt, ...) {
+	char* buf = NULL;
+	
+	if (sEXIT)
+		return;
+	
+	if (gPrintfSuppress >= PSL_NO_INFO)
+		return;
+	
+	if (gPrintfProgressing) {
+		printf("\n");
+		gPrintfProgressing = false;
+	}
+	va_list args;
+	
+	va_start(args, fmt);
+	__printf_call(3, stdout);
+	vasprintf(
+		&buf,
+		fmt,
+		args
+	);
+	va_end(args);
+	
+	printf("%s" PRNT_RSET "\n", buf);
+	Free(buf);
+}
+
+void printf_info_align(const char* info, const char* fmt, ...) {
+	char* buf = NULL;
+	
+	if (sEXIT)
+		return;
+	
+	if (gPrintfSuppress >= PSL_NO_INFO)
+		return;
+	
+	if (gPrintfProgressing) {
+		printf("\n");
+		gPrintfProgressing = false;
+	}
+	va_list args;
+	
+	va_start(args, fmt);
+	__printf_call(3, stdout);
+	vasprintf(
+		&buf,
+		fmt,
+		args
+	);
+	va_end(args);
+	
+	printf("%-16s%s" PRNT_RSET "\n", info, buf);
+	Free(buf);
+}
+
+void printf_prog_align(const char* info, const char* fmt, const char* color) {
+	if (sEXIT)
+		return;
+	
+	if (gPrintfSuppress >= PSL_NO_INFO)
+		return;
+	
+	if (gPrintfProgressing) {
+		printf("\n");
+		gPrintfProgressing = false;
+	}
+	
+	printf("\n");
+	Terminal_ClearLines(2);
+	__printf_call(3, stdout);
+	printf("%-16s%s%s", info, color ? color : "", fmt);
+}
+
+void printf_progressFst(const char* info, u32 a, u32 b) {
+	if (gPrintfSuppress >= PSL_NO_INFO) {
+		return;
+	}
+	
+	if (sEXIT)
+		return;
+	
+	printf("\r");
+	__printf_call(3, stdout);
+	printf(
+		// "%-16s" PRNT_RSET "[%4d / %-4d]",
+		xFmt("%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
+		info,
+		a,
+		b
+	);
+	gPrintfProgressing = true;
+	
+	if (a == b) {
+		gPrintfProgressing = false;
+		printf("\n");
+	}
+	fflush(stdout);
+}
+
+void printf_progress(const char* info, u32 a, u32 b) {
+	if (gPrintfSuppress >= PSL_NO_INFO) {
+		return;
+	}
+	
+	if (sEXIT)
+		return;
+	
+	static f32 lstPrcnt;
+	f32 prcnt = (f32)a / (f32)b;
+	
+	if (lstPrcnt > prcnt)
+		lstPrcnt = 0;
+	
+	if (prcnt - lstPrcnt > 0.125) {
+		lstPrcnt = prcnt;
+	} else {
+		if (a != b && a > 1) {
+			return;
+		}
+	}
+	
+	printf("\r");
+	__printf_call(3, stdout);
+	printf(
+		// "%-16s" PRNT_RSET "[%4d / %-4d]",
+		xFmt("%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
+		info,
+		a,
+		b
+	);
+	gPrintfProgressing = true;
+	
+	if (a == b) {
+		gPrintfProgressing = false;
+		printf("\n");
+	}
+	fflush(stdout);
+}
+
+void printf_getchar(const char* txt) {
+	printf_info("%s", txt);
+	Terminal_GetChar();
+}
+
+void printf_lock(const char* fmt, ...) {
+	va_list va;
+	
+	if (sEXIT)
+		return;
+	
+	va_start(va, fmt);
+	ThreadLock_Lock();
+	vprintf(fmt, va);
+	ThreadLock_Unlock();
+	va_end(va);
+}
+
+void printf_WinFix(void) {
+#ifdef _WIN32
+	system("\0");
+#endif
+}
+
+void printf_hex(const char* txt, const void* data, u32 size, u32 dispOffset) {
+	const u8* d = data;
+	u32 num = 8;
+	char* digit;
+	s32 i = 0;
+	
+	if (sEXIT)
+		return;
+	
+	if (gPrintfSuppress >= PSL_NO_INFO)
+		return;
+	
+	for (;; num--)
+		if ((size + dispOffset) >> (num * 4))
+			break;
+	
+	digit = xFmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
+	
+	if (txt)
+		printf_info("%s", txt);
+	for (; i < size; i++) {
+		if (i % 16 == 0)
+			printf(digit, i + dispOffset);
+		
+		printf("%02X", d[i]);
+		if ((i + 1) % 4 == 0)
+			printf(" ");
+		if ((i + 1) % 16 == 0)
+			printf("\n");
+	}
+	
+	if (i % 16 != 0)
+		printf("\n");
+}
+
+void printf_bit(const char* txt, const void* data, u32 size, u32 dispOffset) {
+	const u8* d = data;
+	s32 s = 0;
+	u32 num = 8;
+	char* digit;
+	
+	if (sEXIT)
+		return;
+	
+	if (gPrintfSuppress >= PSL_NO_INFO)
+		return;
+	
+	for (;; num--)
+		if ((size + dispOffset) >> (num * 4))
+			break;
+	
+	digit = xFmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
+	
+	if (txt)
+		printf_info("%s", txt);
+	for (s32 i = 0; i < size; i++) {
+		if (s % 4 == 0)
+			printf(digit, s + dispOffset);
+		
+		for (s32 j = 7; j >= 0; j--)
+			printf("%d", (d[i] >> j) & 1);
+		
+		printf(" ");
+		
+		if ((s + 1) % 4 == 0)
+			printf("\n");
+		
+		s++;
+	}
+	
+	if (s % 4 != 0)
+		printf("\n");
+}
+
+void printf_nl(void) {
+	if (sEXIT)
+		return;
+	
+	if (gPrintfSuppress >= PSL_NO_INFO)
+		return;
+	
+	printf("\n");
 }
 
 // # # # # # # # # # # # # # # # # # # # #
