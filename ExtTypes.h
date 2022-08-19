@@ -14,8 +14,8 @@
 
 typedef signed char            s8;
 typedef unsigned char          u8;
-typedef signed short int       s16;
-typedef unsigned short int     u16;
+typedef signed short           s16;
+typedef unsigned short         u16;
 typedef signed int             s32;
 typedef unsigned int           u32;
 typedef signed long long int   s64;
@@ -29,6 +29,7 @@ typedef time_t                 Time;
 typedef pthread_t              Thread;
 typedef size_t                 Size;
 typedef wchar_t                wchar;
+// #define val __auto_type
 
 typedef struct {
 	f32 h;
