@@ -39,6 +39,22 @@ void gettimeofday(void*, void*);
 #endif
 
 // # # # # # # # # # # # # # # # # # # # #
+// # ExtLib Construct Destruct           #
+// # # # # # # # # # # # # # # # # # # # #
+
+__attribute__ ((constructor)) void ExtLib_Init(void) {
+	Log_Init();
+	
+#ifdef _WIN32
+	SetConsoleOutputCP(CP_UTF8);
+#endif
+}
+
+__attribute__ ((destructor)) void ExtLib_Destroy(void) {
+	Log_Free();
+}
+
+// # # # # # # # # # # # # # # # # # # # #
 // # THREAD                              #
 // # # # # # # # # # # # # # # # # # # # #
 
@@ -278,7 +294,7 @@ char* xFmt(const char* fmt, ...) {
 	va_end(args);
 	
 	r = xStrDup(tempBuf);
-	Free(tempBuf);
+	tempBuf = SysFree(tempBuf);
 	
 	return r;
 }
@@ -1459,13 +1475,8 @@ void* StrStrWhole(const char* haystack, const char* needle) {
 	char* p = StrStr(haystack, needle);
 	
 	while (p) {
-		if (p > haystack) {
-			if (!isalnum(p[-1]) && !isalnum(p[strlen(needle)]))
-				return p;
-		} else {
-			if (!isalnum(p[strlen(p)]))
-				return p;
-		}
+		if (!isgraph(p[-1]) && !isgraph(p[strlen(needle)]))
+			return p;
 		
 		p = StrStr(p + 1, needle);
 	}
@@ -1637,6 +1648,25 @@ char* StrDupX(const char* src, Size size) {
 	return strcpy(SysAlloc(Max(size, strlen(src) + 1)), src);
 }
 
+char* StrDupClp(const char* str, u32 max) {
+	char* r = MemDup(str, max + 1);
+	
+	r[max] = '\0';
+	
+	return r;
+}
+
+char* Fmt(const char* fmt, ...) {
+	char* s;
+	va_list va;
+	
+	va_start(va, fmt);
+	vasprintf(&s, fmt, va);
+	va_end(va);
+	
+	return s;
+}
+
 s32 ParseArgs(char* argv[], char* arg, u32* parArg) {
 	char* s = xFmt("%s", arg);
 	char* ss = xFmt("-%s", arg);
@@ -1780,6 +1810,9 @@ char* LineHead(const char* str, const char* head) {
 
 char* Line(const char* str, s32 line) {
 	const char* ln = str;
+	
+	if (!str)
+		return NULL;
 	
 	while (line--) {
 		ln = strpbrk(ln, "\n\r");
@@ -2049,6 +2082,18 @@ void Color_ToRGB(RGB8* dest, HSL8* src) {
 // # MEMFILE                             #
 // # # # # # # # # # # # # # # # # # # # #
 
+static FILE* MemFOpen(const char* name, const char* mode) {
+	FILE* file;
+	
+#if _WIN32
+	file = _wfopen(StrU16(0, name), StrU16(0, mode));
+#else
+	file = fopen(name, mode);
+#endif
+	
+	return file;
+}
+
 void MemFile_Validate(MemFile* mem) {
 	if (mem->param.initKey == 0xD0E0A0D0B0E0E0F0) {
 		MemFile_Reset(mem);
@@ -2250,8 +2295,8 @@ void MemFile_LoadMem(MemFile* mem, void* data, Size size) {
 }
 
 s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
+	FILE* file = MemFOpen(filepath, "rb");
 	u32 tempSize;
-	FILE* file = fopen(filepath, "rb");
 	
 	if (file == NULL) {
 		printf_warning("Failed to open file [%s]", filepath);
@@ -2289,8 +2334,8 @@ s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
 }
 
 s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath) {
+	FILE* file = MemFOpen(filepath, "r");
 	u32 tempSize;
-	FILE* file = fopen(filepath, "r");
 	
 	if (file == NULL) {
 		printf_warning("Failed to open file [%s]", filepath);
@@ -2329,27 +2374,7 @@ s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath) {
 }
 
 s32 MemFile_SaveFile(MemFile* memFile, const char* filepath) {
-#ifdef _WIN32
-	char* filename = Filename(filepath);
-	
-	for (s32 i = 0; i < strlen(filename); i++) {
-		switch (filename[i]) {
-			case ':':
-			case '*':
-			case '?':
-			case '"':
-			case '<':
-			case '>':
-			case '|':
-				printf_error("SaveFile: Can't save a file with illegal character! '%s'", filename);
-				break;
-			default:
-				break;
-		}
-	}
-#endif
-	
-	FILE* file = fopen(filepath, "wb");
+	FILE* file = MemFOpen(filepath, "wb");
 	
 	if (file == NULL) {
 		printf_warning("Failed to fopen file [%s] for writing.", filepath);
@@ -2365,27 +2390,7 @@ s32 MemFile_SaveFile(MemFile* memFile, const char* filepath) {
 }
 
 s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath) {
-#ifdef _WIN32
-	char* filename = Filename(filepath);
-	
-	for (s32 i = 0; i < strlen(filename); i++) {
-		switch (filename[i]) {
-			case ':':
-			case '*':
-			case '?':
-			case '"':
-			case '<':
-			case '>':
-			case '|':
-				printf_error("SaveFile: Can't save a file with illegal character! '%s'", filename);
-				break;
-			default:
-				break;
-		}
-	}
-#endif
-	
-	FILE* file = fopen(filepath, "w");
+	FILE* file = MemFOpen(filepath, "w");
 	
 	if (file == NULL) {
 		printf_warning("Failed to fopen file [%s] for writing.", filepath);
@@ -3757,29 +3762,6 @@ void Log_Print() {
 		Log_Signal(0xDEADBEEF);
 }
 
-void Log_Unlocked(const char* func, u32 line, const char* txt, ...) {
-	if (!sLogInit)
-		return;
-	
-	va_list args;
-	
-	if (sLogMsg[0] == NULL)
-		return;
-	
-	for (s32 i = FAULT_LOG_NUM - 1; i > 0; i--) {
-		strcpy(sLogMsg[i], sLogMsg[i - 1]);
-		strcpy(sLogFunc[i], sLogFunc[i - 1]);
-		sLogLine[i] = sLogLine[i - 1];
-	}
-	
-	va_start(args, txt);
-	vsnprintf(sLogMsg[0], FAULT_BUFFER_SIZE, txt, args);
-	va_end(args);
-	
-	strcpy(sLogFunc[0], func);
-	sLogLine[0] = line;
-}
-
 void __Log_ItemList(ItemList* list, const char* function, s32 line) {
 	if (!sLogInit)
 		return;
@@ -4475,36 +4457,30 @@ static u32 Sha_Major(u32 x, u32 y, u32 z) {
 }
 
 static u8 Sha_CreateCompleteScheduleArray(u8* Data, u64 DataSizeByte, u64* RemainingDataSizeByte, u32* W) {
-	//Checking for file/data size limit
+	u8 TmpBlock[64];
+	u8 IsFinishedFlag = 0;
+	static u8 SetEndOnNextBlockFlag = 0;
+	
 	if ((0xFFFFFFFFFFFFFFFF / 8) < DataSizeByte) {
 		printf("Error! File/Data exceeds size limit of 20097152 TiB");
 		exit(EXIT_FAILURE);
 	}
 	
-	//Starting with all data + 1 ending byte + 8 size byte
-	u8 TmpBlock[64];
-	u8 IsFinishedFlag = 0;
-	static u8 SetEndOnNextBlockFlag = 0;
-	
-	//Clear schedule array before use
 	for (u8 i = 0; i < 64; i++) {
 		W[i] = 0x0;
-		TmpBlock[i] = 0x0; //Necessary for 0 padding on last block
+		TmpBlock[i] = 0x0;
 	}
 	
-	//Creating 512 bits (64 bytes, 16 u32) block with ending byte, padding
-	// and data size
 	for (u8 i = 0; i < 64; i++) {
 		if (*RemainingDataSizeByte > 0) {
 			TmpBlock[i] = Data[DataSizeByte - *RemainingDataSizeByte];
 			*RemainingDataSizeByte = *RemainingDataSizeByte - 1;
 			
-			if (*RemainingDataSizeByte == 0) { //Data ends before the end of the block
+			if (*RemainingDataSizeByte == 0) {
 				if (i < 63) {
 					i++;
 					TmpBlock[i] = 0x80;
 					if (i < 56) {
-						//64 bits data size in bits with big endian representation
 						u64 DataSizeBits = DataSizeByte * 8;
 						TmpBlock[56] = (DataSizeBits >> 56) & 0x00000000000000FF;
 						TmpBlock[57] = (DataSizeBits >> 48) & 0x00000000000000FF;
@@ -4516,9 +4492,11 @@ static u8 Sha_CreateCompleteScheduleArray(u8* Data, u64 DataSizeByte, u64* Remai
 						TmpBlock[63] = DataSizeBits & 0x00000000000000FF;
 						IsFinishedFlag = 1;
 						goto outside1;
-					} else //Block canot hold 64 bits data size value
+						
+					} else
 						goto outside1;
-				} else {       //Last element of data is the last element on block
+					
+				} else {
 					SetEndOnNextBlockFlag = 1;
 				}
 			}
@@ -4542,7 +4520,6 @@ static u8 Sha_CreateCompleteScheduleArray(u8* Data, u64 DataSizeByte, u64* Remai
 	}
 outside1:
 	
-	//Filling the schedule array
 	for (u8 i = 0; i < 64; i += 4) {
 		W[i / 4] = (((u32)TmpBlock[i]) << 24) |
 			(((u32)TmpBlock[i + 1]) << 16) |
@@ -4557,15 +4534,14 @@ outside1:
 }
 
 static void Sha_CompleteScheduleArray(u32* W) {
-	//add more 48 words of 32bit [w16 to w63]
-	for (u8 i = 16; i < 64; i++) {
+	for (u8 i = 16; i < 64; i++)
 		W[i] = Sha_Sgima1(W[i - 2]) + W[i - 7] + Sha_Sgima0(W[i - 15]) + W[i - 16];
-	}
 }
 
 static void Sha_Compression(u32* Hash, u32* W) {
 	enum TmpH {a, b, c, d, e, f, g, h};
-	//create round constants (K)
+	u32 TmpHash[8] = { 0 };
+	u32 Temp1 = 0, Temp2 = 0;
 	const u32 K_const[64] = {
 		0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
 		0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -4585,10 +4561,6 @@ static void Sha_Compression(u32* Hash, u32* W) {
 		0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 	};
 	
-	u32 TmpHash[8] = { 0 };
-	u32 Temp1 = 0, Temp2 = 0;
-	
-	//inicialize variables a, b, c, d, e, f, g, h to h[0::7] respectively
 	TmpHash[a] = Hash[0];
 	TmpHash[b] = Hash[1];
 	TmpHash[c] = Hash[2];
@@ -4598,7 +4570,6 @@ static void Sha_Compression(u32* Hash, u32* W) {
 	TmpHash[g] = Hash[6];
 	TmpHash[h] = Hash[7];
 	
-	//Compression of the message schedule (W[0::63]) -----------------------
 	for (u32 i = 0; i < 64; i++) {
 		Temp1 = Sha_BigSigma1(TmpHash[e]) + Sha_Choice(TmpHash[e], TmpHash[f], TmpHash[g]) +
 			K_const[i] + W[i] + TmpHash[h];
@@ -4613,7 +4584,7 @@ static void Sha_Compression(u32* Hash, u32* W) {
 		TmpHash[b] = TmpHash[a];
 		TmpHash[a] = Temp1 + Temp2;
 	}
-	//Update hash values for current block
+	
 	Hash[0] += TmpHash[a];
 	Hash[1] += TmpHash[b];
 	Hash[2] += TmpHash[c];
@@ -4625,12 +4596,8 @@ static void Sha_Compression(u32* Hash, u32* W) {
 }
 
 static u8* Sha_ExtractDigest(u32* Hash) {
-	u8* Digest;
+	u8* Digest = (u8*)malloc(32 * sizeof(u8));
 	
-	//Allocate memory for digest pointer
-	Digest = (u8*)malloc(32 * sizeof(u8));
-	
-	//Prepare digest for return
 	for (u32 i = 0; i < 32; i += 4) {
 		Digest[i] = (u8)((Hash[i / 4] >> 24) & 0x000000FF);
 		Digest[i + 1] = (u8)((Hash[i / 4] >> 16) & 0x000000FF);
@@ -4642,19 +4609,12 @@ static u8* Sha_ExtractDigest(u32* Hash) {
 }
 
 u8* Sys_Sha256(u8* data, u64 size) {
-	//schedule array
 	u32 W[64];
-	
-	//H -> Block hash ; TmpH -> temporary hash in Sha_Compression loop
-	//Temp1 and Temp2 are auxiliar variable to calculate TmpH[]
 	u32 Hash[8] = {
 		0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
 		0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
 	};
-	
-	//Hashed data
 	u8* Digest;
-	
 	u64 RemainingDataSizeByte = size;
 	
 	while (Sha_CreateCompleteScheduleArray(data, size, &RemainingDataSizeByte, W) == 1) {

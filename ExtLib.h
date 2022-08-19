@@ -117,7 +117,7 @@ void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b);
 #endif
 
 #define Assert(expression) \
-	__Assert((s32)(expression), "" PRNT_DGRY "[" PRNT_REDD "%s" PRNT_DGRY "]:[" PRNT_YELW "%s" PRNT_DGRY "]:[" PRNT_BLUE "%d" PRNT_DGRY "]", #expression, __FUNCTION__, __LINE__)
+	__Assert((s32)(expression), "" PRNT_GRAY "[" PRNT_REDD "%s" PRNT_GRAY "]:[" PRNT_YELW "%s" PRNT_GRAY "]:[" PRNT_BLUE "%d" PRNT_GRAY "]", #expression, __FUNCTION__, __LINE__)
 void __Assert(s32 expression, const char* msg, ...);
 f32 RandF();
 void* MemMem(const void* haystack, Size haystacklen, const void* needle, Size needlelen);
@@ -136,6 +136,8 @@ void* SysFree(const void* data);
 void* MemDup(const void* src, Size size);
 char* StrDup(const char* src);
 char* StrDupX(const char* src, Size size);
+char* StrDupClp(const char* str, u32 max);
+char* Fmt(const char* fmt, ...);
 s32 ParseArgs(char* argv[], char* arg, u32* parArg);
 void SlashAndPoint(const char* src, s32* slash, s32* point);
 char* Path(const char* src);
@@ -262,7 +264,6 @@ void Log_NoOutput(void);
 void Log_Init();
 void Log_Free();
 void Log_Print();
-void Log_Unlocked(const char* func, u32 line, const char* txt, ...);
 void __Log_ItemList(ItemList* list, const char* function, s32 line);
 void __Log(const char* func, u32 line, const char* txt, ...);
 #define Log(...)           __Log(__FUNCTION__, __LINE__, __VA_ARGS__)
@@ -324,7 +325,6 @@ void Sound_Xm_Stop();
 } while (0)
 
 #define Node_Remove(head, node) do { \
-		Log("Node_Remove(%s, %s)", #head, #node); \
 		typeof(node) * n = &head; \
 		while (*n != node) n = &(*n)->next; \
 		*n = node->next; \
@@ -391,9 +391,10 @@ void Sound_Xm_Stop();
 #define ClampS16(val) (s16)Clamp(((f32)val), -__INT16_MAX__ - 1, __INT16_MAX__)
 #define ClampS32(val) (s32)Clamp(((f32)val), (-__INT32_MAX__ - 1), (f32)__INT32_MAX__)
 
-#define ArrayCount(arr) (u32)(sizeof(arr) / sizeof(arr[0]))
-
-#define FieldData(data, bitCount, shift) (((data) >> (shift)) & ((1 << (bitCount)) - 1))
+#define ArrayCount(arr)                  (u32)(sizeof(arr) / sizeof(arr[0]))
+#define BitNumMask(bitNum)               ((1 << (bitNum)) - 1)
+#define SizeMask(size)                   BitNumMask(size * 8)
+#define FieldData(data, bitCount, shift) (((data) >> (shift)) & BitNumMask(bitCount))
 
 #define BinToMb(x)        ((f32)(x) / (f32)0x100000)
 #define BinToKb(x)        ((f32)(x) / (f32)0x400)
@@ -457,7 +458,7 @@ void Sound_Xm_Stop();
 #define SEG_FAULT ((u32*)0)[0] = 0
 
 #if defined(_WIN32) && defined(UNICODE)
-#define XMain(count, args) \
+#define UnicodeMain(count, args) \
 	__x_main(int count, char** args); \
 	int wmain(int count, wchar * *args) { \
 		char** nargv = SysAlloc(sizeof(char*) * count); \
@@ -465,11 +466,12 @@ void Sound_Xm_Stop();
 			nargv[i] = SysCalloc(strwlen(args[i])); \
 			StrU8(nargv[i], args[i]); \
 		} \
+		Log("run " PRNT_YELW "main"); \
 		return __x_main(count, nargv); \
 	} \
 	int __x_main(int count, char** args)
 #else
-#define XMain(count, args) main(int count, char** args)
+#define UnicodeMain(count, args) main(int count, char** args)
 #endif
 
 #define SleepF(sec)            usleep((u32)((f32)(sec) * 1000 * 1000))
