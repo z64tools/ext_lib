@@ -11,23 +11,11 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <stdarg.h>
-#include <stdbool.h>
 #include <string.h>
 #include <float.h>
 
 extern PrintfSuppressLevel gPrintfSuppress;
-extern pthread_mutex_t gMutexLock;
 extern u8 gPrintfProgressing;
-
-void ThreadLock_Init(void);
-void ThreadLock_Free(void);
-void ThreadLock_Lock(void);
-void ThreadLock_Unlock(void);
-void ThreadLock_Create(Thread* thread, void* func, void* arg);
-s32 ThreadLock_Join(Thread* thread);
-
-void Thread_Create(Thread* thread, void* func, void* arg);
-s32 Thread_Join(Thread* thread);
 
 void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
@@ -125,8 +113,11 @@ void* MemMemAlign(u32 val, const void* haystack, Size haystacklen, const void* n
 char* StrEnd(const char* src, const char* ext);
 char* StrEndCase(const char* src, const char* ext);
 void ByteSwap(void* src, s32 size);
+__attribute__ ((warn_unused_result))
 void* Alloc(s32 size);
+__attribute__ ((warn_unused_result))
 void* Calloc(s32 size);
+__attribute__ ((warn_unused_result))
 void* Realloc(const void* data, s32 size);
 void* Free(const void* data);
 void* MemDup(const void* src, Size size);
@@ -469,5 +460,54 @@ void Sound_Xm_Stop();
 
 int stricmp(const char* a, const char* b);
 int strnicmp(const char* a, const char* b, Size size);
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+
+extern bool gThreadMode;
+extern Mutex gThreadMutex;
+
+static inline void ThreadLock_Init(void) {
+	pthread_mutex_init(&gThreadMutex, NULL);
+	gThreadMode = true;
+}
+
+static inline void ThreadLock_Free(void) {
+	pthread_mutex_destroy(&gThreadMutex);
+	gThreadMode = false;
+}
+
+static inline void ThreadLock_Lock(void) {
+	if (gThreadMode)
+		pthread_mutex_lock(&gThreadMutex);
+}
+
+static inline void ThreadLock_Unlock(void) {
+	if (gThreadMode)
+		pthread_mutex_unlock(&gThreadMutex);
+}
+
+static inline void ThreadLock_Create(Thread* thread, void* func, void* arg) {
+	if (gThreadMode == false) printf_error("Thread not Initialized");
+	pthread_create(thread, NULL, (void*)func, (void*)(arg));
+}
+
+static inline s32 ThreadLock_Join(Thread* thread) {
+	return pthread_join(*thread, NULL);
+}
+
+static inline void Thread_Create(Thread* thread, void* func, void* arg) {
+	pthread_create(thread, NULL, (void*)func, (void*)(arg));
+}
+
+static inline s32 Thread_Join(Thread* thread) {
+	u32 r = pthread_join(*thread, NULL);
+	
+	memset(thread, 0, sizeof(Thread));
+	
+	return r;
+}
+
+#pragma GCC diagnostic pop
 
 #endif /* __EXTLIB_H__ */

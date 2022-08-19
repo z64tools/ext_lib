@@ -78,7 +78,7 @@ print:
 	@echo $(ExtGui_H)
 
 CFLAGS += -Wno-missing-braces
-ExtLib_CFlags = -Wno-unused-result -Wno-format-truncation -Wno-strict-aliasing -Wno-implicit-function-declaration -DNDEBUG
+ExtLib_CFlags = -DNDEBUG
 
 bin/win32/nanovg/%.o: CFLAGS += -Wno-misleading-indentation
 bin/win32/zip/%.o: CFLAGS += -Wno-stringop-truncation

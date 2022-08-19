@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <stdbool.h>
 
 #pragma GCC diagnostic ignored "-Wscalar-storage-order"
 #define StructBE     __attribute__((scalar_storage_order("big-endian")))
@@ -27,9 +28,20 @@ typedef intptr_t               sptr;
 typedef u32                    void32;
 typedef time_t                 Time;
 typedef pthread_t              Thread;
+typedef pthread_mutex_t        Mutex;
 typedef size_t                 Size;
 typedef wchar_t                wchar;
 #define var __auto_type
+
+typedef volatile signed char            vs8;
+typedef volatile unsigned char          vu8;
+typedef volatile signed short           vs16;
+typedef volatile unsigned short         vu16;
+typedef volatile signed int             vs32;
+typedef volatile unsigned int           vu32;
+typedef volatile signed long long int   vs64;
+typedef volatile unsigned long long int vu64;
+typedef volatile bool                   vbool;
 
 typedef struct {
 	f32 h;
