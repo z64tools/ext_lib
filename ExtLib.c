@@ -437,7 +437,7 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags
 	ItemList_Walk(target, path, path, 0, depth, &info);
 	
 	target->buffer = Alloc(info.len);
-	target->buffer = Alloc(info.len);
+	target->item = Alloc(sizeof(char*) * info.num);
 	target->num = info.num;
 	
 	for (s32 i = 0; i < info.num; i++) {
