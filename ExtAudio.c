@@ -18,7 +18,7 @@ static void __Sound_Callback(ma_device* dev, void* output, const void* input, ma
 void* Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx) {
 	SoundCtx* soundCtx;
 	
-	Calloc(soundCtx, sizeof(SoundCtx));
+	soundCtx = Calloc(sizeof(SoundCtx));
 	soundCtx->uctx = uCtx;
 	
 	soundCtx->deviceConfig = ma_device_config_init(ma_device_type_playback);

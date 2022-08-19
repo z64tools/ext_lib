@@ -1,6 +1,15 @@
 CFLAGS      += -I $(PATH_EXTLIB)
 CFLAGS_MAIN += -I $(PATH_EXTLIB)
 
+PRNT_GRAY := \e[0;90m
+PRNT_REDD := \e[0;91m
+PRNT_GREN := \e[0;92m
+PRNT_YELW := \e[0;93m
+PRNT_BLUE := \e[0;94m
+PRNT_PRPL := \e[0;95m
+PRNT_CYAN := \e[0;96m
+PRNT_RSET := \e[m
+
 ExtLib_H  = $(PATH_EXTLIB)/ExtLib.h
 
 ExtLib_C  = ExtLib.c

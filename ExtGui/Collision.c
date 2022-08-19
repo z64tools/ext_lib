@@ -2,7 +2,7 @@
 #include <ExtGui/Matrix.h>
 
 void TriBuffer_Alloc(TriBuffer* this, u32 num) {
-	this->head = SysCalloc(sizeof(Triangle) * num);
+	this->head = Calloc(sizeof(Triangle) * num);
 	this->max = num;
 	this->num = 0;
 	
@@ -11,7 +11,7 @@ void TriBuffer_Alloc(TriBuffer* this, u32 num) {
 
 void TriBuffer_Realloc(TriBuffer* this) {
 	this->max *= 2;
-	this->head = SysRealloc(this->head, sizeof(Triangle) * this->max);
+	this->head = Realloc(this->head, sizeof(Triangle) * this->max);
 }
 
 void TriBuffer_Free(TriBuffer* this) {

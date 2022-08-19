@@ -29,7 +29,7 @@ typedef time_t                 Time;
 typedef pthread_t              Thread;
 typedef size_t                 Size;
 typedef wchar_t                wchar;
-// #define val __auto_type
+#define var __auto_type
 
 typedef struct {
 	f32 h;

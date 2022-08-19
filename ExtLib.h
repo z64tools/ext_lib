@@ -29,10 +29,6 @@ s32 ThreadLock_Join(Thread* thread);
 void Thread_Create(Thread* thread, void* func, void* arg);
 s32 Thread_Join(Thread* thread);
 
-void ThreadPool_Add(void* func, void* arg, Size argSize);
-void ThreadPool_UserFree(void (*free)(void*), void* ptr);
-void ThreadPool_Run(s32 num);
-
 void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
@@ -129,10 +125,10 @@ void* MemMemAlign(u32 val, const void* haystack, Size haystacklen, const void* n
 char* StrEnd(const char* src, const char* ext);
 char* StrEndCase(const char* src, const char* ext);
 void ByteSwap(void* src, s32 size);
-void* SysAlloc(s32 size);
-void* SysCalloc(s32 size);
-void* SysRealloc(const void* data, s32 size);
-void* SysFree(const void* data);
+void* Alloc(s32 size);
+void* Calloc(s32 size);
+void* Realloc(const void* data, s32 size);
+void* Free(const void* data);
 void* MemDup(const void* src, Size size);
 char* StrDup(const char* src);
 char* StrDupX(const char* src, Size size);
@@ -336,11 +332,11 @@ void Sound_Xm_Stop();
 		Free(killNode); \
 } while (0)
 
-#define Swap(a, b) { \
-		typeof(a) y = a; \
+#define Swap(a, b) do { \
+		var y = a; \
 		a = b; \
 		b = y; \
-}
+} while (0)
 
 // Checks endianess with tst & tstP
 #define ReadBE(in) ({ \
@@ -400,7 +396,7 @@ void Sound_Xm_Stop();
 #define BinToKb(x)        ((f32)(x) / (f32)0x400)
 #define MbToBin(x)        (u32)(0x100000 * (x))
 #define KbToBin(x)        (u32)(0x400 * (x))
-#define Align(var, align) ((((var) % (align)) != 0) ? (var) + (align) - ((var) % (align)) : (var))
+#define Align(val, align) ((((val) % (align)) != 0) ? (val) + (align) - ((val) % (align)) : (val))
 
 #define bitscan32(u32) __builtin_ctz(u32)
 
@@ -418,41 +414,6 @@ void Sound_Xm_Stop();
 #define NARGS(...) \
 	NARGS_SEQ(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
 
-#define Alloc(data, size) do { \
-		Log("Alloc(%s); %.2f Kb", #data, BinToKb(size)); \
-		data = SysAlloc(size); \
-		Assert(data != NULL); \
-} while (0)
-
-#define Calloc(data, size) do { \
-		Log("Calloc(%s); %.2f Kb", #data, BinToKb(size)); \
-		data = SysCalloc(size); \
-		Assert(data != NULL); \
-} while (0)
-
-#define Realloc(data, size) do { \
-		Log("Realloc(%s); %.2f Kb", #data, BinToKb(size)); \
-		data = SysRealloc(data, size); \
-		Assert(data != NULL); \
-} while (0)
-
-#define AllocX(data) do { \
-		Log("Alloc(%s); %.2f Kb", # data, BinToKb(sizeof(*data))); \
-		data = SysAlloc(sizeof(*data)); \
-		Assert(data != NULL); \
-} while (0)
-
-#define CallocX(data) do { \
-		Log("Calloc(%s); %.2f Kb", # data, BinToKb(sizeof(*data))); \
-		data = SysCalloc(sizeof(*data)); \
-		Assert(data != NULL); \
-} while (0)
-
-#define Free(data) do { \
-		Log("Free(%s);", #data ); \
-		data = SysFree(data); \
-} while (0)
-
 #define Main(y1, y2) main(y1, y2)
 #define Arg(arg)     ParseArgs(argv, arg, &parArg)
 #define SEG_FAULT ((u32*)0)[0] = 0
@@ -461,9 +422,9 @@ void Sound_Xm_Stop();
 #define UnicodeMain(count, args) \
 	__x_main(int count, char** args); \
 	int wmain(int count, wchar * *args) { \
-		char** nargv = SysAlloc(sizeof(char*) * count); \
+		char** nargv = Alloc(sizeof(char*) * count); \
 		for (s32 i = 0; i < count; i++) { \
-			nargv[i] = SysCalloc(strwlen(args[i])); \
+			nargv[i] = Calloc(strwlen(args[i])); \
 			StrU8(nargv[i], args[i]); \
 		} \
 		Log("run " PRNT_YELW "main"); \
@@ -480,20 +441,20 @@ void Sound_Xm_Stop();
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>]: " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
 
-#define foreach(var, arr)        for (int var = 0; var < ArrayCount(arr); var++)
-#define forlist(var, list)       for (int var = 0; var < (list).num; var++)
-#define fornode(type, var, head) for (type* var = head; var != NULL; var = var->next)
-#define forstr(var, str)         for (int var = 0; var < strlen(str); var++)
+#define foreach(val, arr)        for (int val = 0; val < ArrayCount(arr); val++)
+#define forlist(val, list)       for (int val = 0; val < (list).num; val++)
+#define fornode(type, val, head) for (type* val = head; val != NULL; val = val->next)
+#define forstr(val, str)         for (int val = 0; val < strlen(str); val++)
 
 #define ArrMoveR(arr, start, count) do { \
-		typeof((arr)[0]) v = (arr)[(start) + (count) - 1]; \
+		var v = (arr)[(start) + (count) - 1]; \
 		for (int i = (count) + (start) - 1; i > (start); i--) \
 		(arr)[i] = (arr)[i - 1]; \
 		(arr)[(start)] = v; \
 } while (0)
 
 #define ArrMoveL(arr, start, count) do { \
-		typeof((arr)[0]) v = (arr)[(start)]; \
+		var v = (arr)[(start)]; \
 		for (int i = (start); i < (count) + (start); i++) \
 		(arr)[i] = (arr)[i + 1]; \
 		(arr)[(count) + (start) - 1] = v; \

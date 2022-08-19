@@ -59,7 +59,7 @@ static SplitVtx* GeoGrid_AddVtx(GeoGrid* geo, f64 x, f64 y) {
 		head = head->next;
 	}
 	
-	Calloc(vtx, sizeof(SplitVtx));
+	vtx = Calloc(sizeof(SplitVtx));
 	
 	vtx->pos.x = x;
 	vtx->pos.y = y;
@@ -93,7 +93,7 @@ static SplitEdge* GeoGrid_AddEdge(GeoGrid* geo, SplitVtx* v1, SplitVtx* v2) {
 	}
 	
 	if (edge == NULL) {
-		Calloc(edge, sizeof(SplitEdge));
+		edge = Calloc(sizeof(SplitEdge));
 		
 		edge->vtx[0] = v1;
 		edge->vtx[1] = v2;
@@ -204,7 +204,7 @@ bool Split_CursorInSplit(Split* split) {
 
 static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
 	this->taskEnum = PropEnum_Init(this->id);
-	CallocX(this->taskCombo);
+	this->taskCombo = Calloc(sizeof(*this->taskCombo));
 	
 	Assert(this->taskEnum != NULL);
 	Assert(this->taskCombo != NULL);
@@ -217,7 +217,7 @@ static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
 static Split* Split_Alloc(GeoGrid* geo, s32 id) {
 	Split* split;
 	
-	Calloc(split, sizeof(Split));
+	split = Calloc(sizeof(Split));
 	split->prevId = -1; // Forces init
 	split->id = id;
 	
@@ -801,7 +801,7 @@ static void Split_SwapInstance(GeoGrid* geo, Split* split) {
 	}
 	
 	split->prevId = split->id;
-	Calloc(split->instance, geo->taskTable[split->id]->size);
+	split->instance = Calloc(geo->taskTable[split->id]->size);
 	geo->taskTable[split->id]->init(geo->passArg, split->instance, split);
 }
 

@@ -1,6 +1,6 @@
 #define __EXTLIB_C__
 
-#define THIS_EXTLIB_VERSION 200
+#define THIS_EXTLIB_VERSION 201
 
 #ifndef EXTLIB
 #error ExtLib Version not defined
@@ -109,111 +109,6 @@ s32 Thread_Join(Thread* thread) {
 	return r;
 }
 
-typedef struct ThreadPoolNode {
-	struct ThreadPoolNode* prev;
-	struct ThreadPoolNode* next;
-	void (*func)(void*);
-	void*  arg;
-	Thread thd;
-	s8     init;
-	s8     done;
-} ThreadPoolNode;
-
-ThreadPoolNode* sThrdPoolNodeHead;
-ThreadPoolNode* sThrdPoolFreeNodeHead;
-volatile s32 sThdPoolNum;
-
-void ThreadPool_Add(void* func, void* arg, Size argSize) {
-	ThreadPoolNode* node;
-	
-	Calloc(node, sizeof(struct ThreadPoolNode));
-	node->func = func;
-	
-	if (arg) {
-		node->arg = MemDup(arg, argSize);
-		Assert(node->arg != NULL);
-	}
-	
-	Node_Add(sThrdPoolNodeHead, node);
-	sThdPoolNum++;
-}
-
-#ifndef __IDE_FLAG__
-#ifdef _WIN32
-#define Thread_TryJoin(thread, ret) _pthread_tryjoin(thread, ret)
-#else // _WIN32
-#define Thread_TryJoin(thread, ret) pthread_tryjoin_np(thread, ret)
-#endif // _WIN32
-#else // __IDE_FLAG__
-#define Thread_TryJoin(thread, ret) _pthread_tryjoin(thread, ret)
-#endif // __IDE_FLAG__
-
-void ThreadPool_UserFree(void (*free)(void*), void* ptr) {
-	ThreadPoolNode* node;
-	
-	Calloc(node, sizeof(struct ThreadPoolNode));
-	node->func = free;
-	node->arg = ptr;
-	
-	Node_Add(sThrdPoolFreeNodeHead, node);
-}
-
-void ThreadPool_Run(s32 max) {
-	s32 runningNum = 0;
-	
-	while (sThdPoolNum) {
-		ThreadPoolNode* node = sThrdPoolNodeHead;
-		
-		if (runningNum) {
-			u32 id = 0;
-			while (node) {
-				if (node->init && node->done == false) {
-					if (!Thread_TryJoin(node->thd, NULL)) {
-						node->done = true;
-						runningNum--;
-						sThdPoolNum--;
-						Log("Thread Done %d, %d left", id, sThdPoolNum);
-					}
-				}
-				
-				id++;
-				node = node->next;
-			}
-			
-			if (runningNum == max)
-				continue;
-		}
-		
-		if (sThdPoolNum == 0)
-			break;
-		
-		node = sThrdPoolNodeHead;
-		
-		while (node) {
-			if (node->init == 0) {
-				ThreadLock_Create(&node->thd, node->func, node->arg);
-				runningNum++;
-				node->init = true;
-				if (runningNum == max)
-					break;
-			}
-			
-			node = node->next;
-		}
-	}
-	
-	Log("Free");
-	while (sThrdPoolNodeHead) {
-		Free(sThrdPoolNodeHead->arg);
-		Node_Kill(sThrdPoolNodeHead, sThrdPoolNodeHead);
-	}
-	
-	while (sThrdPoolFreeNodeHead) {
-		sThrdPoolFreeNodeHead->func(sThrdPoolFreeNodeHead->arg);
-		Node_Kill(sThrdPoolFreeNodeHead, sThrdPoolFreeNodeHead);
-	}
-}
-
 // # # # # # # # # # # # # # # # # # # # #
 // # SEGMENT                             #
 // # # # # # # # # # # # # # # # # # # # #
@@ -294,7 +189,7 @@ char* xFmt(const char* fmt, ...) {
 	va_end(args);
 	
 	r = xStrDup(tempBuf);
-	tempBuf = SysFree(tempBuf);
+	tempBuf = Free(tempBuf);
 	
 	return r;
 }
@@ -401,7 +296,7 @@ void ItemList_SetFilter(ItemList* list, u32 filterNum, ...) {
 	for (s32 i = 0; i < filterNum * 0.5; i++) {
 		FilterNode* node;
 		
-		Calloc(node, sizeof(FilterNode));
+		node = Calloc(sizeof(FilterNode));
 		node->type = va_arg(va, ListFilter);
 		node->txt = StrDup(va_arg(va, char*));
 		Assert(node->txt != NULL);
@@ -499,7 +394,7 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
 					ItemList_Walk(list, base, path, level + 1, max, info);
 				
 				if ((info->flags & 0xF) == LIST_FOLDERS) {
-					Calloc(node, sizeof(StrNode));
+					node = Calloc(sizeof(StrNode));
 					asprintf(&node->txt, "%s%s/", entryPath, entry->d_name);
 					info->len += strlen(node->txt) + 1;
 					info->num++;
@@ -511,7 +406,7 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
 					if ((info->flags & 0xF) == LIST_FILES) {
 						StrNode* node2;
 						
-						Calloc(node2, sizeof(StrNode));
+						node2 = Calloc(sizeof(StrNode));
 						asprintf(&node2->txt, "%s%s", entryPath, entry->d_name);
 						info->len += strlen(node2->txt) + 1;
 						info->num++;
@@ -541,8 +436,8 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags
 	
 	ItemList_Walk(target, path, path, 0, depth, &info);
 	
-	Alloc(target->buffer, info.len);
-	Alloc(target->item, sizeof(char*) * info.num);
+	target->buffer = Alloc(info.len);
+	target->buffer = Alloc(info.len);
 	target->num = info.num;
 	
 	for (s32 i = 0; i < info.num; i++) {
@@ -602,8 +497,8 @@ void ItemList_Separated(ItemList* list, const char* str, const char separator) {
 		
 		if (isString && (str[b] == '\"' || str[b] == '\'')) {
 			Log("Empty String");
-			Calloc(node, sizeof(StrNode));
-			Calloc(node->txt, 2);
+			node = Calloc(sizeof(StrNode));
+			node->txt = Calloc(2);
 			Node_Add(nodeHead, node);
 			
 			b++;
@@ -633,8 +528,8 @@ void ItemList_Separated(ItemList* list, const char* str, const char separator) {
 		if (brk)
 			break;
 		
-		Calloc(node, sizeof(StrNode));
-		Calloc(node->txt, b - a + strcompns + 1);
+		node = Calloc(sizeof(StrNode));
+		node->txt = Calloc(b - a + strcompns + 1);
 		memcpy(node->txt, &str[a], b - a + strcompns);
 		Log("%d [%s]", b - a + 1, node->txt);
 		Node_Add(nodeHead, node);
@@ -653,8 +548,8 @@ write:
 	
 	Log("Building List");
 	
-	Calloc(list->buffer, list->writePoint);
-	Calloc(list->item, sizeof(char*) * list->num);
+	list->buffer = Calloc(list->writePoint);
+	list->item = Calloc(sizeof(char*) * list->num);
 	list->writePoint = 0;
 	
 	for (s32 i = 0; i < list->num; i++) {
@@ -730,8 +625,8 @@ void ItemList_NumericalSort(ItemList* list) {
 		return;
 	}
 	
-	Calloc(sorted.buffer, list->writePoint * 4);
-	Calloc(sorted.item, sizeof(char*) * (highestNum + 1));
+	sorted.buffer = Calloc(list->writePoint * 4);
+	sorted.item = Calloc(sizeof(char*) * (highestNum + 1));
 	
 	for (s32 i = 0; i <= highestNum; i++) {
 		u32 null = true;
@@ -869,8 +764,8 @@ void ItemList_Alloc(ItemList* list, u32 num, Size size) {
 	if (num == 0 || size == 0)
 		return;
 	
-	Calloc(list->item, sizeof(char*) * num);
-	Calloc(list->buffer, size);
+	list->item = Calloc(sizeof(char*) * num);
+	list->buffer = Calloc(size);
 	list->alnum = num;
 }
 
@@ -1251,7 +1146,7 @@ char* SysExeO(const char* cmd) {
 	MemFile_Params(&mem, MEM_REALLOC, true, MEM_END);
 	MemFile_Alloc(&mem, MbToBin(1.0));
 	
-	Alloc(result, 1024);
+	result = Alloc(1025);
 	while (fgets(result, 1024, file))
 		MemFile_Write(&mem, result, strlen(result));
 	Free(result);
@@ -1608,19 +1503,19 @@ void ByteSwap(void* src, s32 size) {
 	}
 }
 
-void* SysAlloc(s32 size) {
+void* Alloc(s32 size) {
 	return malloc(size);
 }
 
-void* SysCalloc(s32 size) {
+void* Calloc(s32 size) {
 	return calloc(1, size);
 }
 
-void* SysRealloc(const void* data, s32 size) {
+void* Realloc(const void* data, s32 size) {
 	return realloc((void*)data, size);
 }
 
-void* SysFree(const void* data) {
+void* Free(const void* data) {
 	if (data)
 		free((void*)data);
 	
@@ -1631,7 +1526,7 @@ void* MemDup(const void* src, Size size) {
 	if (src == NULL)
 		return NULL;
 	
-	return memcpy(SysAlloc(size), src, size);
+	return memcpy(Alloc(size), src, size);
 }
 
 char* StrDup(const char* src) {
@@ -1645,7 +1540,7 @@ char* StrDupX(const char* src, Size size) {
 	if (src == NULL)
 		return NULL;
 	
-	return strcpy(SysAlloc(Max(size, strlen(src) + 1)), src);
+	return strcpy(Alloc(Max(size, strlen(src) + 1)), src);
 }
 
 char* StrDupClp(const char* str, u32 max) {
@@ -2015,7 +1910,7 @@ void* qFree(const void* ptr) {
 			printf_error("Could not init OnExit");
 	}
 	
-	Calloc(node, sizeof(struct PostFreeNode));
+	node = Calloc(sizeof(struct PostFreeNode));
 	node->ptr = (void*)ptr;
 	
 	Node_Add(sPostFreeHead, node);
@@ -2151,7 +2046,7 @@ void MemFile_Alloc(MemFile* memFile, u32 size) {
 		MemFile_Free(memFile);
 	}
 	
-	Calloc(memFile->data, size);
+	memFile->data = Calloc(size);
 	
 	if (memFile->data == NULL)
 		printf_error("Failed to malloc [0x%X] bytes.", size);
@@ -2170,7 +2065,7 @@ void MemFile_Realloc(MemFile* memFile, u32 size) {
 	if (memFile->memSize > size)
 		return;
 	
-	Realloc(memFile->data, size);
+	memFile->data = Realloc(memFile->data, size);
 	memFile->memSize = size;
 }
 
@@ -2407,7 +2302,7 @@ s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath) {
 
 void MemFile_Free(MemFile* memFile) {
 	if (memFile->param.initKey == 0xD0E0A0D0B0E0E0F0) {
-		SysFree(memFile->data);
+		Free(memFile->data);
 	}
 	
 	*memFile = MemFile_Initialize();
@@ -3165,7 +3060,7 @@ void Config_ProcessIncludes(MemFile* mem) {
 	StrNode* strNodeHead = NULL;
 	StrNode* strNode = NULL;
 	
-	Calloc(strNode, sizeof(StrNode));
+	strNode = Calloc(sizeof(StrNode));
 	strNode->txt = xStrDup(mem->info.name);
 	Node_Add(strNodeHead, strNode);
 	
@@ -3197,7 +3092,7 @@ reprocess:
 		char* name;
 		MemFile in = MemFile_Initialize();
 		
-		Calloc(name, ln + 1);
+		name = Calloc(ln + 1);
 		memcpy(name, line, ln);
 		
 		FileSys_Path(Path(mem->info.name));
@@ -3214,7 +3109,7 @@ reprocess:
 		if (!StrRep(mem->str, head, in.str))
 			printf_error("Replacing Failed: [%s] [%X]", head, (u32) * head);
 		
-		Calloc(strNode, sizeof(StrNode));
+		strNode = Calloc(sizeof(StrNode));
 		strNode->txt = FileSys_File(name);
 		Node_Add(strNodeHead, strNode);
 		
@@ -3260,7 +3155,7 @@ void Config_GetArray(MemFile* mem, const char* variable, ItemList* list) {
 	
 	if (size > 1) {
 		tmp = array;
-		Calloc(array, size);
+		array = Calloc(size);
 		memcpy(array, tmp + 1, size - 1);
 		
 		ItemList_Separated(list, array, ',');
@@ -3736,8 +3631,8 @@ void Log_Init() {
 		signal(i, Log_Signal);
 	
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-		sLogMsg[i] = SysCalloc(FAULT_BUFFER_SIZE);
-		sLogFunc[i] = SysCalloc(FAULT_BUFFER_SIZE * 0.25);
+		sLogMsg[i] = Calloc(FAULT_BUFFER_SIZE);
+		sLogFunc[i] = Calloc(FAULT_BUFFER_SIZE * 0.25);
 	}
 	
 	sLogInit = true;
@@ -3748,8 +3643,8 @@ void Log_Free() {
 		return;
 	sLogInit = 0;
 	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-		SysFree(sLogMsg[i]);
-		SysFree(sLogFunc[i]);
+		Free(sLogMsg[i]);
+		Free(sLogFunc[i]);
 	}
 }
 

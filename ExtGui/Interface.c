@@ -174,10 +174,8 @@ static void MessageWindow_Thread(MessageWindow* this) {
 }
 
 SubWindow* Interface_MessageWindow(AppInfo* parentApp, const char* title, const char* message) {
-	MessageWindow* this;
+	MessageWindow* this = Calloc(sizeof(*this));
 	Thread thd;
-	
-	CallocX(this);
 	
 	{
 		s32 x, y;

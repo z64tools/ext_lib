@@ -149,7 +149,7 @@ void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* t
 static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, void* arg, const char* elemFunc) {
 	ElementCallInfo* node;
 	
-	Calloc(node, sizeof(ElementCallInfo));
+	node = Calloc(sizeof(ElementCallInfo));
 	Node_Add(gElementState.head, node);
 	node->geo = geo;
 	node->split = split;
@@ -261,7 +261,7 @@ static void PropEnum_Set(PropEnum* this, s32 i) {
 }
 
 PropEnum* PropEnum_Init(s32 defaultVal) {
-	PropEnum* this = SysCalloc(sizeof(PropEnum));
+	PropEnum* this = Calloc(sizeof(PropEnum));
 	
 	this->get = PropEnum_Get;
 	this->set = PropEnum_Set;
@@ -285,12 +285,12 @@ PropEnum* PropEnum_InitList(s32 def, s32 num, ...) {
 }
 
 void PropEnum_Add(PropEnum* this, char* item) {
-	Realloc(this->list, sizeof(char*) * (this->num + 1));
+	this->list = Realloc(this->list, sizeof(char*) * (this->num + 1));
 	this->list[this->num++] = StrDup(item);
 }
 
 void PropEnum_Insert(PropEnum* this, char* item, s32 slot) {
-	Realloc(this->list, sizeof(char*) * (this->num + 1));
+	this->list = Realloc(this->list, sizeof(char*) * (this->num + 1));
 	ArrMoveR(this->list, slot, this->num - slot);
 	this->list[slot] = StrDup(item);
 }
@@ -1108,7 +1108,7 @@ queue_element:
 
 // Returns text width
 ElText* Element_Text(const char* txt) {
-	ElText* this = SysCalloc(sizeof(ElText));
+	ElText* this = Calloc(sizeof(ElText));
 	
 	Assert(gElementState.geo && gElementState.split);
 	this->element.name = txt;
@@ -1370,7 +1370,7 @@ void Element_Separator(bool drawLine) {
 	Assert(gElementState.geo && gElementState.split);
 	
 	if (drawLine) {
-		CallocX(this);
+		this = Calloc(sizeof(*this));
 		
 		gElementState.rowY += SPLIT_ELEM_X_PADDING;
 		
@@ -1402,7 +1402,7 @@ void Element_Box(BoxInit io) {
 	if (io == BOX_START) {
 		ROW_Y = gElementState.rowY;
 		
-		CallocX(THIS);
+		THIS = Calloc(sizeof(*THIS));
 		Element_Row(gElementState.split, 1, THIS, 1.0);
 		gElementState.rowY = ROW_Y + SPLIT_ELEM_X_PADDING;
 		
@@ -1443,7 +1443,7 @@ void Element_DisplayName(Element* this) {
 	
 	this->dispText = true;
 	
-	Calloc(node, sizeof(ElementCallInfo));
+	node = Calloc(sizeof(ElementCallInfo));
 	Node_Add(gElementState.head, node);
 	node->geo = gElementState.geo;
 	node->split = gElementState.split;
@@ -1877,7 +1877,7 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
 			if (header || !Element_DisableDraw(elem->arg, elem->split))
 				elem->func(elem);
 			Node_Remove(gElementState.head, elem);
-			SysFree(elem);
+			Free(elem);
 		}
 		
 		elem = next;

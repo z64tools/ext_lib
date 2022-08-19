@@ -82,7 +82,7 @@ s32 ZipFile_ReadEntries_Path(ZipFile* zip, const char* path, s32 (*callback)(con
 		
 		if (memcmp(path, name, strlen(path))) {
 			zip_entry_close(zip->pkg);
-			Free(name);
+			LogFree(name);
 			continue;
 		}
 		zip_entry_close(zip->pkg);
@@ -96,7 +96,7 @@ s32 ZipFile_ReadEntries_Path(ZipFile* zip, const char* path, s32 (*callback)(con
 			brk = true;
 		
 		MemFile_Free(&mem);
-		Free(name);
+		LogFree(name);
 		
 		if (brk)
 			break;
@@ -150,17 +150,17 @@ static s32 ZipFile_Extract_Callback(ZipFile* zip, MemFile* mem, u32 i, f32 prcnt
 	if (!callback(name, prcnt)) {
 		if (isDir) {
 			Sys_MakeDir(FileSys_File(name));
-			Free(name);
+			LogFree(name);
 			
 			return 0;
 		}
 		
-		Free(name);
+		LogFree(name);
 		
 		return ZipFile_Extract_NoCallback(zip, mem, i);
 	}
 	
-	Free(name);
+	LogFree(name);
 	
 	return 0;
 }
@@ -182,6 +182,6 @@ s32 ZipFile_Extract(ZipFile* zip, const char* path, s32 (*callback)(const char* 
 }
 
 void ZipFile_Free(ZipFile* zip) {
-	Free(zip->filename);
+	LogFree(zip->filename);
 	zip_close(zip->pkg);
 }
