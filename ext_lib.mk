@@ -39,7 +39,7 @@ All_Win32_O      = $(ExtLib_Win32_O) $(ExtGui_Win32_O) $(Zip_Win32_O) $(Audio_Wi
 ExtGui_Linux_O  += $(foreach f,$(Fonts:.ttf=.o), bin/linux/$f)
 ExtGui_Win32_O  += $(foreach f,$(Fonts:.ttf=.o), bin/win32/$f)
 
-DataFileCompiler := $(PATH_EXTLIB)/tools/dfc
+DataFileCompiler := $(PATH_EXTLIB)tools/dfc
 
 # Make build directories
 $(shell mkdir -p bin/ $(foreach dir, \
@@ -84,7 +84,7 @@ endef
 # Binary file compiler
 $(DataFileCompiler): $(PATH_EXTLIB)tools/dfc.c $(PATH_EXTLIB)src/ext_lib.c
 	@echo "$(PRNT_RSET)[$(PRNT_YELW)$(ASSET_FILENAME)$(PRNT_RSET)]"
-	@gcc -o $@ $^ -pthread $(CFLAGS_MAIN)
+	@gcc -o $@ $^ -pthread -lm $(CFLAGS) -DEXTLIB_PERMISSIVE
 
 bin/win32/%.o: $(PATH_EXTLIB)%.ttf $(DataFileCompiler)
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"

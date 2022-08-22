@@ -4,12 +4,14 @@
 #pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
 
 #ifndef EXTLIB
-#error ext_lib Version not defined
-#else
+#ifndef EXTLIB_PERMISSIVE
+#error EXTLIB not defined
+#endif
+#else // EXTLIB
 #if EXTLIB > THIS_EXTLIB_VERSION
 #error Your local ext_lib copy seems to be old. Please update it!
 #endif
-#endif
+#endif // EXTLIB
 
 #ifdef __clang__
 
@@ -2891,7 +2893,7 @@ char* Config_Variable(const char* str, const char* name) {
 			continue;
 		if (line[0] == '[')
 			break;
-		if (StrMtch(line, name)) {
+		if (!strncmp(line, name, strlen(name))) {
 			char* p = line + strlen(name);
 			
 			while (p[0] == ' ' || p[0] == '\t') {
@@ -2936,7 +2938,7 @@ char* Config_GetVariable(const char* str, const char* name) {
 			continue;
 		if (line[0] == '[')
 			break;
-		if (StrMtch(line, name)) {
+		if (!strncmp(line, name, strlen(name))) {
 			s32 isString = 0;
 			char* buf;
 			char* p = line + strlen(name);
