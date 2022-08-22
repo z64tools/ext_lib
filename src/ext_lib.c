@@ -1,17 +1,5 @@
-#define THIS_EXTLIB_VERSION 201
-
 #pragma GCC diagnostic ignored "-Wunused-result"
 #pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
-
-#ifndef EXTLIB
-#ifndef EXTLIB_PERMISSIVE
-#error EXTLIB not defined
-#endif
-#else // EXTLIB
-#if EXTLIB > THIS_EXTLIB_VERSION
-#error Your local ext_lib copy seems to be old. Please update it!
-#endif
-#endif // EXTLIB
 
 #ifdef __clang__
 
@@ -36,6 +24,16 @@ void gettimeofday(void*, void*);
 #include <unistd.h>
 #include <ftw.h>
 #include <time.h>
+
+//crustify
+#ifndef EXTLIB_PERMISSIVE
+	#ifdef EXTLIB
+		#if EXTLIB < THIS_EXTLIB_VERSION
+			#warning ExtLib copy is newer than the project its used with
+		#endif
+	#endif
+#endif
+//uncrustify
 
 #ifdef _WIN32
 #include <windows.h>

@@ -1,6 +1,20 @@
 #ifndef EXT_LIB_H
 #define EXT_LIB_H
 
+#define THIS_EXTLIB_VERSION 210
+
+//crustify
+#ifndef EXTLIB_PERMISSIVE
+	#ifndef EXTLIB
+		#error EXTLIB not defined
+	#else
+		#if EXTLIB > THIS_EXTLIB_VERSION
+			#error ExtLib copy is older than the project its used with
+		#endif
+	#endif
+#endif
+//uncrustify
+
 #define _GNU_SOURCE
 #define __CRT__NO_INLINE
 
