@@ -32,6 +32,15 @@
 extern PrintfSuppressLevel gPrintfSuppress;
 extern u8 gPrintfProgressing;
 
+void* qFree(const void* ptr);
+void* PostFree_Queue(void* ptr);
+void* PostFree_QueueCallback(void* callback, void* ptr);
+void PostFree_Free(void);
+
+void ThdPool_Add(void* function, void* arg, u32 n, ...);
+void ThdPool_Exec(u32 max, bool mutex);
+#define ThdPool_Add(function, arg, ...) ThdPool_Add(function, arg, NARGS(__VA_ARGS__), __VA_ARGS__)
+
 void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
@@ -161,8 +170,6 @@ char* PathRel(const char* item);
 char* PathAbs(const char* item);
 s32 PathIsAbs(const char* item);
 s32 PathIsRel(const char* item);
-
-void* qFree(const void* ptr);
 
 void Color_ToHSL(HSL8* hsl, RGB8* rgb);
 void Color_ToRGB(RGB8* rgb, HSL8* hsl);

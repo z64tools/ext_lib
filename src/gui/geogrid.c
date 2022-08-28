@@ -131,24 +131,24 @@ static s32 Split_CursorDistToFlagPos(SplitState flag, Split* split) {
 	 * one axis that makes sense for the direction of that side.
 	 */
 	Vec2s mouse[] = {
-		{ split->mousePos.x, split->mousePos.y                 }, /* SPLIT_POINT_BL */
-		{ split->mousePos.x, split->mousePos.y                 }, /* SPLIT_POINT_TL */
-		{ split->mousePos.x, split->mousePos.y                 }, /* SPLIT_POINT_TR */
-		{ split->mousePos.x, split->mousePos.y                 }, /* SPLIT_POINT_BR */
-		{ split->mousePos.x, 0                                 }, /* SPLIT_SIDE_L   */
-		{ 0,                 split->mousePos.y                 }, /* SPLIT_SIDE_T   */
-		{ split->mousePos.x, 0                                 }, /* SPLIT_SIDE_R   */
-		{ 0,                 split->mousePos.y                 }, /* SPLIT_SIDE_B   */
+		{ split->mousePos.x, split->mousePos.y, }, /* SPLIT_POINT_BL */
+		{ split->mousePos.x, split->mousePos.y, }, /* SPLIT_POINT_TL */
+		{ split->mousePos.x, split->mousePos.y, }, /* SPLIT_POINT_TR */
+		{ split->mousePos.x, split->mousePos.y, }, /* SPLIT_POINT_BR */
+		{ split->mousePos.x, 0,                 }, /* SPLIT_SIDE_L   */
+		{ 0,                 split->mousePos.y, }, /* SPLIT_SIDE_T   */
+		{ split->mousePos.x, 0,                 }, /* SPLIT_SIDE_R   */
+		{ 0,                 split->mousePos.y, }, /* SPLIT_SIDE_B   */
 	};
 	Vec2s pos[] = {
-		{ 0,                 split->dispRect.h                 }, /* SPLIT_POINT_BL */
-		{ 0,                 0                                 }, /* SPLIT_POINT_TL */
-		{ split->dispRect.w, 0                                 }, /* SPLIT_POINT_TR */
-		{ split->dispRect.w, split->dispRect.h                 }, /* SPLIT_POINT_BR */
-		{ 0,                 0                                 }, /* SPLIT_SIDE_L   */
-		{ 0,                 0                                 }, /* SPLIT_SIDE_T   */
-		{ split->dispRect.w, 0                                 }, /* SPLIT_SIDE_R   */
-		{ 0,                 split->dispRect.h                 }, /* SPLIT_SIDE_B   */
+		{ 0,                 split->dispRect.h, }, /* SPLIT_POINT_BL */
+		{ 0,                 0,                 }, /* SPLIT_POINT_TL */
+		{ split->dispRect.w, 0,                 }, /* SPLIT_POINT_TR */
+		{ split->dispRect.w, split->dispRect.h, }, /* SPLIT_POINT_BR */
+		{ 0,                 0,                 }, /* SPLIT_SIDE_L   */
+		{ 0,                 0,                 }, /* SPLIT_SIDE_T   */
+		{ split->dispRect.w, 0,                 }, /* SPLIT_SIDE_R   */
+		{ 0,                 split->dispRect.h, }, /* SPLIT_SIDE_B   */
 	};
 	s32 i;
 	

@@ -59,12 +59,13 @@ static vbool gKillFlag;
 // # # # # # # # # # # # # # # # # # # # #
 
 typedef struct PostFreeNode {
-	struct PostFreeNode* prev;
 	struct PostFreeNode* next;
 	void* ptr;
+	void (*free)(void*);
 } PostFreeNode;
 
 static PostFreeNode* sPostFreeHead;
+static PostFreeNode* sPostFreeHead2;
 
 void* qFree(const void* ptr) {
 	PostFreeNode* node;
@@ -75,6 +76,36 @@ void* qFree(const void* ptr) {
 	Node_Add(sPostFreeHead, node);
 	
 	return (void*)ptr;
+}
+
+void* PostFree_Queue(void* ptr) {
+	PostFreeNode* n = New(PostFreeNode);
+	
+	Node_Add(sPostFreeHead2, n);
+	n->ptr = ptr;
+	
+	return ptr;
+}
+
+void* PostFree_QueueCallback(void* callback, void* ptr) {
+	PostFreeNode* n = New(PostFreeNode);
+	
+	Node_Add(sPostFreeHead2, n);
+	n->ptr = ptr;
+	n->free = callback;
+	
+	return ptr;
+}
+
+void PostFree_Free(void) {
+	while (sPostFreeHead2) {
+		if (sPostFreeHead2->free)
+			sPostFreeHead2->free(sPostFreeHead2->ptr);
+		else
+			Free(sPostFreeHead2->ptr);
+		
+		Node_Kill(sPostFreeHead2, sPostFreeHead2);
+	}
 }
 
 __attribute__ ((constructor)) void ExtLib_Init(void) {
@@ -92,6 +123,156 @@ __attribute__ ((destructor)) void ExtLib_Destroy(void) {
 	}
 	
 	Log_Free();
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+// # ThreadPool                          #
+// # # # # # # # # # # # # # # # # # # # #
+
+typedef enum {
+	T_IDLE,
+	T_RUN,
+	T_DONE,
+} Tstate;
+
+typedef struct ThdItem {
+	struct ThdItem* next;
+	Thread id;
+	void (*function)(void*);
+	void* arg;
+	volatile Tstate state;
+	u8  nid;
+	u8  numDep;
+	s32 dep[16];
+} ThdItem;
+
+struct {
+	ThdItem* head;
+	vu32     num;
+	vu16     dep[__UINT8_MAX__];
+	struct {
+		vbool mutex      : 1;
+		vbool run        : 1;
+		vbool add        : 1;
+		vbool permission : 1;
+	};
+} gTPool;
+
+#undef ThdPool_Add
+void ThdPool_Add(void* function, void* arg, u32 n, ...) {
+	ThdItem* t = New(ThdItem);
+	va_list va;
+	
+	t->function = function;
+	t->arg = arg;
+	
+	ThreadLock_Lock();
+	
+	gTPool.add = true;
+	if (gTPool.run)
+		while (gTPool.permission == false)
+			(void)0;
+	
+	va_start(va, n);
+	for (s32 i = 0; i < n; i++) {
+		s32 val = va_arg(va, s32);
+		
+		if (val > 0)
+			t->nid = val;
+		
+		if (val < 0)
+			t->dep[t->numDep++] = -val;
+	}
+	va_end(va);
+	
+	if (t->nid)
+		gTPool.dep[t->nid]++;
+	
+	Node_Add(gTPool.head, t);
+	gTPool.num++;
+	gTPool.add = gTPool.permission = false;
+	
+	ThreadLock_Unlock();
+}
+
+static void ThdPool_RunThd(ThdItem* thd) {
+	thd->function(thd->arg);
+	thd->state = T_DONE;
+}
+
+static bool ThdPool_CheckDep(ThdItem* t) {
+	if (!t->numDep)
+		return true;
+	
+	for (s32 i = 0; i < t->numDep; i++)
+		if (gTPool.dep[t->dep[i]] != 0)
+			return false;
+	
+	return true;
+}
+
+void ThdPool_Exec(u32 max, bool mutex) {
+	u32 cur = 0;
+	ThdItem* t;
+	
+	gTPool.run = true;
+	gTPool.mutex = mutex;
+	
+	if (max == 0)
+		max = 1;
+	
+	while (gTPool.num) {
+		if (gTPool.add) {
+			gTPool.permission = true;
+			while (gTPool.permission)
+				(void)0;
+		}
+		
+		max = Min(max, gTPool.num);
+		
+		if (cur < max) { /* Assign */
+			t = gTPool.head;
+			
+			while (t) {
+				if (t->state == T_IDLE)
+					if (ThdPool_CheckDep(t))
+						break;
+				
+				t = t->next;
+			}
+			
+			if (t) {
+				cur++;
+				t->state = T_RUN;
+				
+				if (gTPool.mutex)
+					ThreadLock_Create(&t->id, ThdPool_RunThd, t);
+				else
+					Thread_Create(&t->id, ThdPool_RunThd, t);
+			}// else break;
+			
+		}
+		
+		if (true) { /* Clean */
+			t = gTPool.head;
+			while (t) {
+				if (t->state == T_DONE)
+					break;
+				
+				t = t->next;
+			}
+			
+			if (t) {
+				if (t->nid)
+					gTPool.dep[t->nid]--;
+				Node_Remove(gTPool.head, t);
+				cur--;
+				gTPool.num--;
+			}// else break;
+		}
+	}
+	
+	gTPool.run = false;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1223,7 +1404,7 @@ s32 Terminal_YesOrNo(void) {
 		if (clear)
 			Terminal_ClearLines(2);
 		
-		printf("\r" PRNT_GRAY "[" PRNT_GRAY "<" PRNT_GRAY "]: " PRNT_BLUE);
+		printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
 		scanf("%s", ans);
 		clear = 1;
 		
@@ -1269,7 +1450,7 @@ void Terminal_Move(s32 x, s32 y) {
 const char* Terminal_GetStr(void) {
 	static char str[512] = { 0 };
 	
-	printf("\r" PRNT_GRAY "[" PRNT_GRAY "<" PRNT_GRAY "]: " PRNT_RSET);
+	printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_RSET);
 	fgets(str, 511, stdin);
 	str[strlen(str) - 1] = '\0'; // remove newline
 	
@@ -1279,7 +1460,7 @@ const char* Terminal_GetStr(void) {
 }
 
 char Terminal_GetChar() {
-	printf("\r" PRNT_GRAY "[" PRNT_GRAY "<" PRNT_GRAY "]: " PRNT_RSET);
+	printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_RSET);
 	
 	return getchar();
 }
@@ -2132,7 +2313,7 @@ s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
 	u32 tempSize;
 	
 	if (file == NULL) {
-		printf_warning("Failed to open file [%s]", filepath);
+		Log("Could not fopen file [%s]", filepath);
 		
 		return 1;
 	}
@@ -2166,7 +2347,7 @@ s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath) {
 	u32 tempSize;
 	
 	if (file == NULL) {
-		printf_warning("Failed to open file [%s]", filepath);
+		Log("Could not fopen file [%s]", filepath);
 		
 		return 1;
 	}
@@ -2199,7 +2380,7 @@ s32 MemFile_SaveFile(MemFile* memFile, const char* filepath) {
 	FILE* file = MemFOpen(filepath, "wb");
 	
 	if (file == NULL) {
-		printf_warning("Failed to fopen file [%s] for writing.", filepath);
+		Log("Could not fopen file [%s]", filepath);
 		
 		return 1;
 	}
@@ -2215,7 +2396,7 @@ s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath) {
 	FILE* file = MemFOpen(filepath, "w");
 	
 	if (file == NULL) {
-		printf_warning("Failed to fopen file [%s] for writing.", filepath);
+		Log("Could not fopen file [%s]", filepath);
 		
 		return 1;
 	}
@@ -3419,6 +3600,7 @@ static char* sLogFunc[FAULT_LOG_NUM];
 static u32 sLogLine[FAULT_LOG_NUM];
 static vs32 sLogInit;
 static vs32 sLogOutput = true;
+static bool sLogFopenOutput = true;
 
 void Log_NoOutput(void) {
 	sLogOutput = false;
@@ -3451,9 +3633,9 @@ static void Log_Signal_PrintTitle(s32 arg, FILE* file) {
 	if (arg == 16 && sLogOutput == true)
 		fprintf(file, "\n[!]: [ ERROR ]");
 	else if (arg != 0xDEADBEEF)
-		fprintf(file, "\n" PRNT_GRAY "[" PRNT_REDD "!" PRNT_GRAY "]:" PRNT_GRAY " [ " PRNT_REDD "%s " PRNT_GRAY "]", errorMsg[ClampMax(arg, 16)]);
+		fprintf(file, "\n" PRNT_REDD "!" PRNT_GRAY ":" PRNT_GRAY " [ " PRNT_REDD "%s " PRNT_GRAY "]", errorMsg[ClampMax(arg, 16)]);
 	else
-		fprintf(file, "\n" PRNT_GRAY "[" PRNT_REDD "!" PRNT_GRAY "]:" PRNT_GRAY " [ " PRNT_REDD "LOG " PRNT_GRAY "]");
+		fprintf(file, "\n" PRNT_REDD "!" PRNT_GRAY ":" PRNT_GRAY " [ " PRNT_REDD "LOG " PRNT_GRAY "]");
 }
 
 static void Log_Printinf(s32 arg, FILE* file) {
@@ -3470,12 +3652,12 @@ static void Log_Printinf(s32 arg, FILE* file) {
 					fprintf(file, PRNT_PRPL " x %d" PRNT_RSET, repeat + 1);
 			
 			if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogFunc[i], sLogFunc[i + 1])) )
-				fprintf(file, "\n" PRNT_GRAY "[" PRNT_REDD "!" PRNT_GRAY "]:" PRNT_YELW " %s" PRNT_GRAY "();" PRNT_RSET, sLogFunc[i]);
+				fprintf(file, "\n" PRNT_REDD "!" PRNT_GRAY ":" PRNT_YELW " %s" PRNT_GRAY "();" PRNT_RSET, sLogFunc[i]);
 			
 			if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogMsg[i], sLogMsg[i + 1])) ) {
 				fprintf(
 					file,
-					"\n" PRNT_GRAY "[" PRNT_REDD "!" PRNT_GRAY "]:" PRNT_GRAY " [ %4d ]" PRNT_RSET " %s" PRNT_RSET,
+					"\n" PRNT_REDD "!" PRNT_GRAY ":" PRNT_GRAY " [ %4d ]" PRNT_RSET " %s" PRNT_RSET,
 					sLogLine[i],
 					sLogMsg[i]
 				);
@@ -3489,11 +3671,12 @@ static void Log_Printinf(s32 arg, FILE* file) {
 		}
 		fprintf(file, "\n");
 		
+#ifdef _WIN32
 		fprintf(
 			file,
-			"\n" PRNT_GRAY "[" PRNT_REDD "!" PRNT_GRAY "]:" PRNT_YELW " Provide this log to the developer." PRNT_RSET "\n"
+			"\n" PRNT_REDD "!" PRNT_GRAY ":" PRNT_YELW " Press Enter to Exit" PRNT_RSET "\n"
 		);
-		fprintf(file, "\n");
+#endif
 	} else {
 		for (s32 i = FAULT_LOG_NUM - 1; i >= 0; i--) {
 			if (strlen(sLogMsg[i]) == 0)
@@ -3504,12 +3687,12 @@ static void Log_Printinf(s32 arg, FILE* file) {
 					fprintf(file, " x %d", repeat + 1);
 			
 			if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogFunc[i], sLogFunc[i + 1])) )
-				fprintf(file, "\n[!]: %s();", sLogFunc[i]);
+				fprintf(file, "\n!: %s();", sLogFunc[i]);
 			
 			if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogMsg[i], sLogMsg[i + 1])) ) {
 				fprintf(
 					file,
-					"\n[!]: [ %4d ] %s",
+					"\n!: [ %4d ] %s",
 					sLogLine[i],
 					sLogMsg[i]
 				);
@@ -3537,9 +3720,9 @@ static void Log_Signal(s32 arg) {
 	gKillFlag = true;
 	ran = gThreadMode != 0;
 	
-	if (arg == 16 && sLogOutput)
+	if (arg == 16 && sLogOutput) {
 		file = fopen(".log", "w");
-	else
+	} else
 		file = stdout;
 	
 	Log_Signal_PrintTitle(arg, file);
@@ -3729,9 +3912,9 @@ static void __printf_call(u32 type, FILE* file) {
 	fprintf(
 		file,
 		"%s"
-		PRNT_GRAY "["
+		PRNT_GRAY ""
 		"%s%s"
-		PRNT_GRAY "]: "
+		PRNT_GRAY ": "
 		PRNT_RSET,
 		sPrintfPrefix,
 		color[type],
@@ -3803,8 +3986,7 @@ void printf_error(const char* fmt, ...) {
 	char* msg;
 	
 	gKillFlag = 1;
-	if (gThreadMode)
-		printf_MuteOutput(stdout);
+	printf_MuteOutput(stdout);
 	
 	Log_Signal(16);
 	Log_Free();
@@ -3818,8 +4000,6 @@ void printf_error(const char* fmt, ...) {
 		
 		va_start(args, fmt);
 		__printf_call(2, stderr);
-		if (gThreadMode)
-			fprintf(stderr, "[>]: ");
 		vasprintf(
 			&msg,
 			fmt,
@@ -3832,8 +4012,6 @@ void printf_error(const char* fmt, ...) {
 	}
 	
 #ifdef _WIN32
-	if (gThreadMode)
-		fprintf(stderr, "[<]: Press enter to exit");
 	Terminal_GetChar();
 #endif
 	
@@ -3844,8 +4022,7 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 	char* msg[2];
 	
 	gKillFlag = 1;
-	if (gThreadMode)
-		printf_MuteOutput(stdout);
+	printf_MuteOutput(stdout);
 	
 	Log_Signal(16);
 	Log_Free();
@@ -3859,8 +4036,6 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 		
 		va_start(args, fmt);
 		__printf_call(2, stderr);
-		if (gThreadMode)
-			fprintf(stderr, "[>]: ");
 		asprintf(
 			&msg[0],
 			"%-16s " PRNT_RSET,
@@ -3878,8 +4053,6 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 	}
 	
 #ifdef _WIN32
-	if (gThreadMode)
-		fprintf(stderr, "[<]: Press enter to exit");
 	Terminal_GetChar();
 #endif
 	
@@ -4283,11 +4456,6 @@ static u8 Sha_CreateCompleteScheduleArray(u8* Data, u64 DataSizeByte, u64* Remai
 	u8 TmpBlock[64];
 	u8 IsFinishedFlag = 0;
 	static u8 SetEndOnNextBlockFlag = 0;
-	
-	if ((0xFFFFFFFFFFFFFFFF / 8) < DataSizeByte) {
-		printf("Error! File/Data exceeds size limit of 20097152 TiB");
-		exit(EXIT_FAILURE);
-	}
 	
 	for (u8 i = 0; i < 64; i++) {
 		W[i] = 0x0;
