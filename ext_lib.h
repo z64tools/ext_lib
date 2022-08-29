@@ -3,20 +3,20 @@
 
 #define THIS_EXTLIB_VERSION 210
 
-//crustify
 #ifndef EXTLIB_PERMISSIVE
-	#ifndef EXTLIB
-		#error EXTLIB not defined
-	#else
-		#if EXTLIB > THIS_EXTLIB_VERSION
-			#error ExtLib copy is older than the project its used with
-		#endif
-	#endif
+  #ifndef EXTLIB
+    #error EXTLIB not defined
+  #else
+    #if EXTLIB > THIS_EXTLIB_VERSION
+      #error ExtLib copy is older than the project its used with
+    #endif
+  #endif
 #endif
-//uncrustify
 
 #define _GNU_SOURCE
-#define __CRT__NO_INLINE
+#ifndef __CRT__NO_INLINE
+	#define __CRT__NO_INLINE
+#endif
 
 #include "ext_type.h"
 #include "ext_macros.h"
@@ -132,6 +132,8 @@ void* MemStrCase(const char* haystack, u32 haystacklen, const char* needle);
 void* MemMemAlign(u32 val, const void* haystack, Size haystacklen, const void* needle, Size needlelen);
 char* StrEnd(const char* src, const char* ext);
 char* StrEndCase(const char* src, const char* ext);
+char* StrStart(const char* src, const char* ext);
+char* StrStartCase(const char* src, const char* ext);
 void ByteSwap(void* src, s32 size);
 __attribute__ ((warn_unused_result))
 void* Alloc(s32 size);
@@ -301,11 +303,13 @@ void Sound_Free(void* sound);
 void Sound_Xm_Play(const void* data, u32 size);
 void Sound_Xm_Stop();
 
+char* Regex(const char* str, const char* pattern, RegexFlag flag);
+
 #ifndef _WIN32
-#ifndef __clang__
-#define stricmp(a, b)        strcasecmp(a, b)
-#define strnicmp(a, b, size) strncasecmp(a, b, size)
-#endif
+  #ifndef __clang__
+		#define stricmp(a, b)        strcasecmp(a, b)
+		#define strnicmp(a, b, size) strncasecmp(a, b, size)
+  #endif
 #endif
 
 int stricmp(const char* a, const char* b);
@@ -313,6 +317,20 @@ int strnicmp(const char* a, const char* b, Size size);
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
+
+#ifdef _WIN32
+	static char* strndup(const char* s, size_t n) {
+		size_t len = strlen(s);
+		
+		len = len > n ? n : len;
+		char* new = (char*) malloc (len + 1);
+		if (new == NULL)
+			return NULL;
+		new[len] = '\0';
+		
+		return (char*) memcpy (new, s, len);
+	}
+#endif
 
 extern bool gThreadMode;
 extern Mutex gThreadMutex;

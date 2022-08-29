@@ -1390,6 +1390,48 @@ Date Sys_Date(Time time) {
 	return date;
 }
 
+s64 Sys_GetCoreCount(void) {
+#ifndef __clang__
+#ifdef _WIN32
+	#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+	s64 nprocs = -1;
+	s64 nprocs_max = -1;
+	
+#ifdef _WIN32
+#ifndef _SC_NPROCESSORS_ONLN
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	#define sysconf(a) info.dwNumberOfProcessors
+	#define _SC_NPROCESSORS_ONLN
+#endif
+#endif
+#ifdef _SC_NPROCESSORS_ONLN
+	nprocs = sysconf(_SC_NPROCESSORS_ONLN);
+	if (nprocs < 1) {
+		return 0;
+	}
+	nprocs_max = sysconf(_SC_NPROCESSORS_CONF);
+	if (nprocs_max < 1) {
+		return 0;
+	}
+	
+	return nprocs;
+#else
+	
+#endif
+#endif
+	
+	return 0;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # TERMINAL                            #
 // # # # # # # # # # # # # # # # # # # # #
@@ -1646,6 +1688,20 @@ char* StrEndCase(const char* src, const char* ext) {
 	return NULL;
 }
 
+char* StrStart(const char* src, const char* ext) {
+	if (!strncmp(src, ext, strlen(ext)))
+		return (char*)src;
+	
+	return NULL;
+}
+
+char* StrStartCase(const char* src, const char* ext) {
+	if (!strnicmp(src, ext, strlen(ext)))
+		return (char*)src;
+	
+	return NULL;
+}
+
 void ByteSwap(void* src, s32 size) {
 	u32 buffer[64] = { 0 };
 	u8* temp = (u8*)buffer;
@@ -1855,9 +1911,19 @@ char* LineHead(const char* str, const char* head) {
 	for (;; i--) {
 		if (&str[i] == head)
 			return (char*)&str[i];
-		if (str[i - 1] == '\n' || str[i - 1] == '\r')
+		if (str[i - 1] == '\n')
 			return (char*)&str[i];
 	}
+}
+
+static char* revstrchr (register const char* s, int c) {
+	do {
+		if (*s == c) {
+			return (char*)s;
+		}
+	} while (*s--);
+	
+	return (0);
 }
 
 char* Line(const char* str, s32 line) {
@@ -1866,11 +1932,26 @@ char* Line(const char* str, s32 line) {
 	if (!str)
 		return NULL;
 	
-	while (line--) {
-		ln = strpbrk(ln, "\n\r");
+	if (line > 0) {
+		while (line--) {
+			ln = strchr(ln, '\n');
+			
+			if (!ln++)
+				return NULL;
+			
+			if (*ln == '\r')
+				ln++;
+		}
+	} else {
+		while (line++) {
+			ln = revstrchr(ln, '\n');
+			
+			if (!ln--)
+				return NULL;
+		}
 		
-		if (!ln++)
-			return NULL;
+		if (ln)
+			ln += 2;
 	}
 	
 	return (char*)ln;
@@ -1890,7 +1971,7 @@ char* Word(const char* str, s32 word) {
 }
 
 Size LineLen(const char* str) {
-	return strcspn(str, "\n\r");
+	return strcspn(str, "\n");
 }
 
 Size WordLen(const char* str) {
@@ -3600,7 +3681,6 @@ static char* sLogFunc[FAULT_LOG_NUM];
 static u32 sLogLine[FAULT_LOG_NUM];
 static vs32 sLogInit;
 static vs32 sLogOutput = true;
-static bool sLogFopenOutput = true;
 
 void Log_NoOutput(void) {
 	sLogOutput = false;

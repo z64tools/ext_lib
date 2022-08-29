@@ -265,4 +265,14 @@ typedef struct PtrNode {
 	void* ptr;
 } PtrNode;
 
+typedef enum RegexFlag {
+	REGFLAG_START     = 1 << 24,
+	REGFLAG_END       = 1 << 25,
+	REGFLAG_COPY      = 1 << 26,
+	REGFLAG_MATCH_NUM = 1 << 27,
+	
+	REGFLAG_FLAGMASK  = 0xFF000000,
+	REGFLAG_NUMMASK   = 0x00FFFFFF,
+} RegexFlag;
+
 #endif

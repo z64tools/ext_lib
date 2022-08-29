@@ -349,6 +349,8 @@ extern Rect gZeroRect;
 void Gfx_Shape(void* vg, Vec2f center, f32 scale, s16 rot, Vec2f* p, u32 num);
 void Gfx_DrawRounderOutline(void* vg, Rect rect, NVGcolor color);
 void Gfx_DrawRounderRect(void* vg, Rect rect, NVGcolor color);
+void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* txt);
+f32 Gfx_TextWidth(void* vg, const char* txt);
 
 bool Split_CursorInRect(Split* split, Rect* rect);
 bool Split_CursorInSplit(Split* split);

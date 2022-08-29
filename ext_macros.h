@@ -203,11 +203,16 @@
 } while (0)
 
 #ifdef __clang__
+
 #define Block(type, name, args) \
 	type (^ name) args = ^ type args
+#define BlockVar(var) typeof(var) ##var;
+	
 #else
+
 #define Block(type, name, args) \
 	type name args
 #endif
+
 
 #endif
