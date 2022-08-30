@@ -17,14 +17,12 @@ char* Regex(const char* str, const char* pattern, RegexFlag flag) {
 	
 	match = malloc(sizeof(regmatch_t) * (matchNum + 1));
 	
-	Log("comp");
 	if (regcomp(&reg, pattern, REG_EXTENDED)) {
 		printf_warning("regex: compilation error");
 		printf_warning("pattern: \"%s\"", pattern);
 		goto done;
 	}
 	
-	Log("exec");
 	if (regexec(&reg, str, matchNum + 1, match, 0))
 		goto done;
 	

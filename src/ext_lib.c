@@ -2,19 +2,19 @@
 #pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
 
 #ifdef __clang__
-
-#ifdef _WIN32
-#undef _WIN32
-#endif
-void readlink(char*, char*, int);
-void chdir(const char*);
-void gettimeofday(void*, void*);
-
+	
+  #ifdef _WIN32
+    #undef _WIN32
+  #endif
+	void readlink(char*, char*, int);
+	void chdir(const char*);
+	void gettimeofday(void*, void*);
+	
 #endif
 
 #ifndef _WIN32
-#define _XOPEN_SOURCE 500
-#define _DEFAULT_SOURCE
+	#define _XOPEN_SOURCE 500
+	#define _DEFAULT_SOURCE
 #endif
 
 #include "ext_lib.h"
@@ -36,8 +36,8 @@ void gettimeofday(void*, void*);
 //uncrustify
 
 #ifdef _WIN32
-#include <windows.h>
-#include <libloaderapi.h>
+  #include <windows.h>
+  #include <libloaderapi.h>
 #endif
 
 #undef ItemList_GetWildItem
@@ -112,7 +112,7 @@ __attribute__ ((constructor)) void ExtLib_Init(void) {
 	Log_Init();
 	
 #ifdef _WIN32
-	SetConsoleOutputCP(CP_UTF8);
+		SetConsoleOutputCP(CP_UTF8);
 #endif
 }
 
@@ -313,7 +313,7 @@ static ThreadLocal struct {
 void* xAlloc(Size size) {
 #pragma GCC diagnostic push
 #ifndef __clang__
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+  #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
 	u8* ret;
 	
@@ -375,7 +375,8 @@ char* xRep(const char* str, const char* a, const char* b) {
 // # TIME                                #
 // # # # # # # # # # # # # # # # # # # # #
 
-static struct timeval sTimeStart[255], sTimeStop[255];
+ThreadLocal static struct timeval sTimeStart[255];
+ThreadLocal static struct timeval sTimeStop[255];
 
 void Time_Start(u32 slot) {
 	gettimeofday(&sTimeStart[slot], NULL);
@@ -1098,9 +1099,9 @@ char* Sys_ThisApp(void) {
 	static char buf[512];
 	
 #ifdef _WIN32
-	GetModuleFileName(NULL, buf, 512);
+		GetModuleFileName(NULL, buf, 512);
 #else
-	readlink("/proc/self/exe", buf, 512);
+		readlink("/proc/self/exe", buf, 512);
 #endif
 	
 	return buf;
@@ -1142,8 +1143,8 @@ static void __recursive_mkdir(const char* dir) {
 				mkdir(
 					tmp
 #ifndef _WIN32
-					,
-					S_IRWXU
+						,
+						S_IRWXU
 #endif
 				);
 			*p = '/';
@@ -1152,8 +1153,8 @@ static void __recursive_mkdir(const char* dir) {
 		mkdir(
 			tmp
 #ifndef _WIN32
-			,
-			S_IRWXU
+				,
+				S_IRWXU
 #endif
 		);
 }
@@ -1176,25 +1177,25 @@ void Sys_MakeDir(const char* dir, ...) {
 	va_end(args);
 	
 #ifdef _WIN32
-	s32 i = 0;
-	if (PathIsAbs(buffer))
-		i = 3;
-	
-	for (; i < strlen(buffer); i++) {
-		switch (buffer[i]) {
-			case ':':
-			case '*':
-			case '?':
-			case '"':
-			case '<':
-			case '>':
-			case '|':
-				printf_error("MakeDir: Can't make folder with illegal character! '%s'", buffer);
-				break;
-			default:
-				break;
+		s32 i = 0;
+		if (PathIsAbs(buffer))
+			i = 3;
+		
+		for (; i < strlen(buffer); i++) {
+			switch (buffer[i]) {
+				case ':':
+				case '*':
+				case '?':
+				case '"':
+				case '<':
+				case '>':
+				case '|':
+					printf_error("MakeDir: Can't make folder with illegal character! '%s'", buffer);
+					break;
+				default:
+					break;
+			}
 		}
-	}
 #endif
 	
 	if (!Sys_IsDir(dir)) {
@@ -1327,21 +1328,21 @@ void Sys_TerminalSize(s32* r) {
 	s32 y = 0;
 	
 #ifdef _WIN32
-	CONSOLE_SCREEN_BUFFER_INFO csbi;
-	
-	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-	x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-	y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+		CONSOLE_SCREEN_BUFFER_INFO csbi;
+		
+		GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+		x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+		y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 #else
-#ifndef __clang__
-#include <sys/ioctl.h>
-	struct winsize w;
-	
-	ioctl(0, TIOCGWINSZ, &w);
-	
-	x = w.ws_col;
-	y = w.ws_row;
-#endif // __clang__
+  #ifndef __clang__
+    #include <sys/ioctl.h>
+			struct winsize w;
+			
+			ioctl(0, TIOCGWINSZ, &w);
+			
+			x = w.ws_col;
+			y = w.ws_row;
+  #endif // __clang__
 #endif // _WIN32
 	
 	r[0] = x;
@@ -1377,14 +1378,14 @@ Date Sys_Date(Time time) {
 	Date date = { 0 };
 	
 #ifndef __clang__
-	struct tm* tistr = localtime(&time);
-	
-	date.year = tistr->tm_year + 1900;
-	date.month = tistr->tm_mon + 1;
-	date.day = tistr->tm_mday;
-	date.hour = tistr->tm_hour;
-	date.minute = tistr->tm_min;
-	date.second = tistr->tm_sec;
+		struct tm* tistr = localtime(&time);
+		
+		date.year = tistr->tm_year + 1900;
+		date.month = tistr->tm_mon + 1;
+		date.day = tistr->tm_mday;
+		date.hour = tistr->tm_hour;
+		date.minute = tistr->tm_min;
+		date.second = tistr->tm_sec;
 #endif
 	
 	return date;
@@ -1392,41 +1393,41 @@ Date Sys_Date(Time time) {
 
 s64 Sys_GetCoreCount(void) {
 #ifndef __clang__
-#ifdef _WIN32
-	#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-	s64 nprocs = -1;
-	s64 nprocs_max = -1;
-	
-#ifdef _WIN32
-#ifndef _SC_NPROCESSORS_ONLN
-	SYSTEM_INFO info;
-	GetSystemInfo(&info);
-	#define sysconf(a) info.dwNumberOfProcessors
-	#define _SC_NPROCESSORS_ONLN
-#endif
-#endif
-#ifdef _SC_NPROCESSORS_ONLN
-	nprocs = sysconf(_SC_NPROCESSORS_ONLN);
-	if (nprocs < 1) {
-		return 0;
-	}
-	nprocs_max = sysconf(_SC_NPROCESSORS_CONF);
-	if (nprocs_max < 1) {
-		return 0;
-	}
-	
-	return nprocs;
-#else
-	
-#endif
+  #ifdef _WIN32
+			#define WIN32_LEAN_AND_MEAN
+    #include <windows.h>
+  #else
+    #include <unistd.h>
+  #endif
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #include <errno.h>
+		s64 nprocs = -1;
+		s64 nprocs_max = -1;
+		
+  #ifdef _WIN32
+    #ifndef _SC_NPROCESSORS_ONLN
+				SYSTEM_INFO info;
+				GetSystemInfo(&info);
+				#define sysconf(a) info.dwNumberOfProcessors
+				#define _SC_NPROCESSORS_ONLN
+    #endif
+  #endif
+  #ifdef _SC_NPROCESSORS_ONLN
+			nprocs = sysconf(_SC_NPROCESSORS_ONLN);
+			if (nprocs < 1) {
+				return 0;
+			}
+			nprocs_max = sysconf(_SC_NPROCESSORS_CONF);
+			if (nprocs_max < 1) {
+				return 0;
+			}
+			
+			return nprocs;
+  #else
+			
+  #endif
 #endif
 	
 	return 0;
@@ -2178,17 +2179,17 @@ static FILE* MemFOpen(const char* name, const char* mode) {
 	FILE* file;
 	
 #if _WIN32
-	wchar* name16 = Calloc(strlen(name) * 4);
-	wchar* mode16 = Calloc(strlen(mode) * 4);
-	StrU16(name16, name);
-	StrU16(mode16, mode);
-	
-	file = _wfopen(name16, mode16);
-	
-	Free(name16);
-	Free(mode16);
+		wchar* name16 = Calloc(strlen(name) * 4);
+		wchar* mode16 = Calloc(strlen(mode) * 4);
+		StrU16(name16, name);
+		StrU16(mode16, mode);
+		
+		file = _wfopen(name16, mode16);
+		
+		Free(name16);
+		Free(mode16);
 #else
-	file = fopen(name, mode);
+		file = fopen(name, mode);
 #endif
 	
 	return file;
@@ -2894,6 +2895,27 @@ char* StrLower(char* str) {
 	return str;
 }
 
+bool ChrPool(const char c, const char* pool) {
+	u32 m = strlen(pool);
+	
+	for (u32 i = 0; i < m; i++)
+		if (c == pool[i])
+			return true;
+	
+	return false;
+}
+
+bool StrPool(const char* s, const char* pool) {
+	if (!s) return false;
+	
+	do {
+		if (!ChrPool(*s, pool))
+			return false;
+	} while (*(++s) != '\0');
+	
+	return true;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # utf8 <-> utf16                      #
 // # # # # # # # # # # # # # # # # # # # #
@@ -2947,12 +2969,12 @@ static s32 CalcLenU8(u32 codepoint) {
 }
 
 #if 0
-static s32 CalcLenU16(u32 codepoint) {
-	if (codepoint <= BMP_END)
-		return 1;
-	
-	return 2;
-}
+	static s32 CalcLenU16(u32 codepoint) {
+		if (codepoint <= BMP_END)
+			return 1;
+		
+		return 2;
+	}
 #endif
 
 static Size EncodeU8(u32 codepoint, char* utf8, Size index) {
@@ -3752,10 +3774,10 @@ static void Log_Printinf(s32 arg, FILE* file) {
 		fprintf(file, "\n");
 		
 #ifdef _WIN32
-		fprintf(
-			file,
-			"\n" PRNT_REDD "!" PRNT_GRAY ":" PRNT_YELW " Press Enter to Exit" PRNT_RSET "\n"
-		);
+			fprintf(
+				file,
+				"\n" PRNT_REDD "!" PRNT_GRAY ":" PRNT_YELW " Press Enter to Exit" PRNT_RSET "\n"
+			);
 #endif
 	} else {
 		for (s32 i = FAULT_LOG_NUM - 1; i >= 0; i--) {
@@ -4056,9 +4078,9 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
 
 static void printf_MuteOutput(FILE* output) {
 #ifdef _WIN32
-	freopen ("NUL", "w", output);
+		freopen ("NUL", "w", output);
 #else
-	freopen ("/dev/null", "w", output);
+		freopen ("/dev/null", "w", output);
 #endif
 }
 
@@ -4092,7 +4114,7 @@ void printf_error(const char* fmt, ...) {
 	}
 	
 #ifdef _WIN32
-	Terminal_GetChar();
+		Terminal_GetChar();
 #endif
 	
 	exit(EXIT_FAILURE);
@@ -4133,7 +4155,7 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 	}
 	
 #ifdef _WIN32
-	Terminal_GetChar();
+		Terminal_GetChar();
 #endif
 	
 	exit(EXIT_FAILURE);
@@ -4299,7 +4321,7 @@ void printf_lock(const char* fmt, ...) {
 
 void printf_WinFix(void) {
 #ifdef _WIN32
-	system("\0");
+		system("\0");
 #endif
 }
 

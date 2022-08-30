@@ -227,6 +227,8 @@ void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 char* StrUpper(char* str);
 char* StrLower(char* str);
+bool ChrPool(const char c, const char* pool);
+bool StrPool(const char* s, const char* pool);
 
 char* StrU8(char* dst, const wchar* src);
 wchar* StrU16(wchar* dst, const char* src);
