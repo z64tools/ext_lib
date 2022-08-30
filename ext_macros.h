@@ -161,20 +161,20 @@
 #define SEG_FAULT ((u32*)0)[0] = 0
 
 #if defined(_WIN32) && defined(UNICODE)
-#define UnicodeMain(count, args) \
-	__x_main(int count, char** args); \
-	int wmain(int count, wchar * *args) { \
-		char** nargv = Alloc(sizeof(char*) * count); \
-		for (s32 i = 0; i < count; i++) { \
-			nargv[i] = Calloc(strwlen(args[i])); \
-			StrU8(nargv[i], args[i]); \
+	#define UnicodeMain(count, args) \
+		__x_main(int count, char** args); \
+		int wmain(int count, wchar * *args) { \
+			char** nargv = Alloc(sizeof(char*) * count); \
+			for (s32 i = 0; i < count; i++) { \
+				nargv[i] = Calloc(strwlen(args[i])); \
+				StrU8(nargv[i], args[i]); \
+			} \
+			Log("run " PRNT_YELW "main"); \
+			return __x_main(count, nargv); \
 		} \
-		Log("run " PRNT_YELW "main"); \
-		return __x_main(count, nargv); \
-	} \
-	int __x_main(int count, char** args)
+		int __x_main(int count, char** args)
 #else
-#define UnicodeMain(count, args) main(int count, char** args)
+	#define UnicodeMain(count, args) main(int count, char** args)
 #endif
 
 #define New(type)              Calloc(sizeof(type))
@@ -203,16 +203,15 @@
 } while (0)
 
 #ifdef __clang__
-
-#define Block(type, name, args) \
-	type (^ name) args = ^ type args
-#define BlockVar(var) typeof(var) ##var;
+	
+	#define Block(type, name, args) \
+		type (^ name) args = ^ type args
+	#define BlockVar(var) typeof(var) ## var;
 	
 #else
-
-#define Block(type, name, args) \
-	type name args
+	
+	#define Block(type, name, args) \
+		type name args
 #endif
-
 
 #endif

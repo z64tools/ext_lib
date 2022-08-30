@@ -28,22 +28,17 @@ char* Regex(const char* str, const char* pattern, RegexFlag flag) {
 	if (regexec(&reg, str, matchNum + 1, match, 0))
 		goto done;
 	
-	Log("ret");
 	if (flag & REGFLAG_START) {
-		Log("REGFLAG_START");
 		ret = (char*)str + match[matchNum].rm_so;
 	} else if (flag & REGFLAG_END) {
-		Log("REGFLAG_END");
 		ret = (char*)str + match[matchNum].rm_eo;
 	} else if (flag & REGFLAG_COPY) {
-		Log("REGFLAG_COPY, %d", match[matchNum].rm_eo - match[matchNum].rm_so);
 		ret = strndup(str + match[matchNum].rm_so, match[matchNum].rm_eo - match[matchNum].rm_so);
 	}
 	
 done:
 	regfree(&reg);
 	free(match);
-	Log("Free");
 	
 	return ret;
 }
