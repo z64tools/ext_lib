@@ -2,14 +2,12 @@
 #pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
 
 #ifdef __clang__
-	
   #ifdef _WIN32
     #undef _WIN32
   #endif
 	void readlink(char*, char*, int);
 	void chdir(const char*);
 	void gettimeofday(void*, void*);
-	
 #endif
 
 #ifndef _WIN32
@@ -20,7 +18,6 @@
 #include "ext_lib.h"
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <dirent.h>
 #include <unistd.h>
 #include <ftw.h>
 #include <time.h>
@@ -39,9 +36,6 @@
   #include <windows.h>
   #include <libloaderapi.h>
 #endif
-
-#undef ItemList_GetWildItem
-#undef ItemList_SetFilter
 
 f32 EPSILON = 0.0000001f;
 f32 gDeltaTime;
@@ -339,6 +333,22 @@ char* xStrDup(const char* str) {
 	return xMemDup(str, strlen(str) + 1);
 }
 
+char* xStrNDup(const char* s, size_t n) {
+	if (!n) return NULL;
+	
+	for (size_t i = 0; i < n; i++) {
+		if (s[i] == '\0') {
+			n = i;
+			break;
+		}
+	}
+	
+	char* new = xAlloc(n + 1);
+	new[n] = '\0';
+	
+	return (char*) memcpy (new, s, n);
+}
+
 char* xMemDup(const char* data, Size size) {
 	if (!data || !size)
 		return NULL;
@@ -425,533 +435,6 @@ f32 Profiler_Time(u8 s) {
 		p->k = 0;
 	
 	return sec;
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # ITEM LIST                           #
-// # # # # # # # # # # # # # # # # # # # #
-
-ItemList gList_SortError;
-
-typedef struct {
-	StrNode* node;
-	u32      len;
-	u32      num;
-	ListFlag flags;
-} WalkInfo;
-
-void ItemList_Validate(ItemList* itemList) {
-	if (itemList->initKey == 0xDEFABEBACECAFAFF)
-		return;
-	
-	*itemList = ItemList_Initialize();
-}
-
-ItemList ItemList_Initialize(void) {
-	return (ItemList) { .initKey = 0xDEFABEBACECAFAFF };
-}
-
-void ItemList_SetFilter(ItemList* list, u32 filterNum, ...) {
-	va_list va;
-	
-	ItemList_Validate(list);
-	ItemList_FreeFilters(list);
-	
-	if (filterNum % 2 == 1)
-		printf_warning("Odd filterNum! [%d]", --filterNum);
-	
-	va_start(va, filterNum);
-	
-	for (s32 i = 0; i < filterNum * 0.5; i++) {
-		FilterNode* node;
-		
-		node = Calloc(sizeof(FilterNode));
-		node->type = va_arg(va, ListFilter);
-		node->txt = StrDup(va_arg(va, char*));
-		Assert(node->txt != NULL);
-		
-		Node_Add(list->filterNode, node);
-	}
-	
-	va_end(va);
-}
-
-void ItemList_FreeFilters(ItemList* list) {
-	while (list->filterNode) {
-		Free(list->filterNode->txt);
-		
-		Node_Kill(list->filterNode, list->filterNode);
-	}
-}
-
-static void ItemList_Walk(ItemList* list, const char* base, const char* parent, s32 level, s32 max, WalkInfo* info) {
-	DIR* dir;
-	const char* entryPath = parent;
-	struct dirent* entry;
-	
-	if (info->flags & LIST_RELATIVE)
-		entryPath = parent + strlen(base);
-	
-	if (strlen(parent) == 0)
-		dir = opendir("./");
-	else
-		dir = opendir(parent);
-	
-	if (dir) {
-		while ((entry = readdir(dir))) {
-			StrNode* node;
-			char* path;
-			u32 cont = 0;
-			u32 containFlag = false;
-			u32 contains = false;
-			
-			if (!strcmp(".", entry->d_name) || !strcmp("..", entry->d_name))
-				continue;
-			
-			fornode(FilterNode, filterNode, list->filterNode) {
-				switch (filterNode->type) {
-					case FILTER_SEARCH:
-						if (StrStr(entry->d_name, filterNode->txt))
-							cont = true;
-						break;
-					case FILTER_START:
-						if (!memcmp(entry->d_name, filterNode->txt, strlen(filterNode->txt)))
-							cont = true;
-						break;
-					case FILTER_END:
-						if (StrEnd(entry->d_name, filterNode->txt))
-							cont = true;
-						break;
-					case FILTER_WORD:
-						if (!strcmp(entry->d_name, filterNode->txt))
-							cont = true;
-						break;
-						
-					case CONTAIN_SEARCH:
-						containFlag = true;
-						if (StrStr(entry->d_name, filterNode->txt))
-							contains = true;
-						break;
-					case CONTAIN_START:
-						containFlag = true;
-						if (!memcmp(entry->d_name, filterNode->txt, strlen(filterNode->txt)))
-							contains = true;
-						break;
-					case CONTAIN_END:
-						containFlag = true;
-						if (StrEnd(entry->d_name, filterNode->txt))
-							contains = true;
-						break;
-					case CONTAIN_WORD:
-						containFlag = true;
-						if (!strcmp(entry->d_name, filterNode->txt))
-							contains = true;
-						break;
-				}
-				
-				if (cont)
-					break;
-			}
-			
-			if (((info->flags & LIST_NO_DOT) && entry->d_name[0] == '.') || cont)
-				continue;
-			
-			asprintf(&path, "%s%s/", parent, entry->d_name);
-			
-			if (Sys_IsDir(path)) {
-				if (max == -1 || level < max)
-					ItemList_Walk(list, base, path, level + 1, max, info);
-				
-				if ((info->flags & 0xF) == LIST_FOLDERS) {
-					node = Calloc(sizeof(StrNode));
-					asprintf(&node->txt, "%s%s/", entryPath, entry->d_name);
-					info->len += strlen(node->txt) + 1;
-					info->num++;
-					
-					Node_Add(info->node, node);
-				}
-			} else {
-				if (!containFlag || (containFlag && contains)) {
-					if ((info->flags & 0xF) == LIST_FILES) {
-						StrNode* node2;
-						
-						node2 = Calloc(sizeof(StrNode));
-						asprintf(&node2->txt, "%s%s", entryPath, entry->d_name);
-						info->len += strlen(node2->txt) + 1;
-						info->num++;
-						
-						Node_Add(info->node, node2);
-					}
-				}
-			}
-			
-			Free(path);
-		}
-		
-		closedir(dir);
-	} else
-		printf_error("Could not open dir [%s]", dir);
-}
-
-void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags) {
-	WalkInfo info = { 0 };
-	
-	ItemList_Validate(target);
-	
-	if (strlen(path) > 0 && !Sys_Stat(path))
-		printf_error("Can't walk path that does not exist! [%s]", path);
-	
-	info.flags = flags;
-	
-	ItemList_Walk(target, path, path, 0, depth, &info);
-	
-	target->buffer = Alloc(info.len);
-	target->item = Alloc(sizeof(char*) * info.num);
-	target->num = info.num;
-	
-	for (s32 i = 0; i < info.num; i++) {
-		StrNode* node = info.node;
-		target->item[i] = &target->buffer[target->writePoint];
-		strcpy(target->item[i], node->txt);
-		target->writePoint += strlen(target->item[i]) + 1;
-		
-		Free(node->txt);
-		Node_Kill(info.node, info.node);
-	}
-	
-	Log("OK, %d [%s]", target->num, path);
-}
-
-char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, ...) {
-	for (s32 i = 0; i < list->num; i++)
-		if (StrEndCase(list->item[i], end))
-			return list->item[i];
-	
-	if (error) {
-		char* text;
-		va_list va;
-		va_start(va, error);
-		vasprintf(&text, error, va);
-		va_end(va);
-		
-		printf_error("%s", error);
-	}
-	
-	return NULL;
-}
-
-void ItemList_Separated(ItemList* list, const char* str, const char separator) {
-	s32 a = 0;
-	s32 b = 0;
-	StrNode* nodeHead = NULL;
-	
-	Log("Building List");
-	ItemList_Validate(list);
-	
-	while (str[a] == ' ' || str[a] == '\t' || str[a] == '\n' || str[a] == '\r') a++;
-	
-	while (true) {
-		StrNode* node = NULL;
-		s32 isString = 0;
-		s32 strcompns = 0;
-		s32 brk = true;
-		
-		if (str[a] == '\"' || str[a] == '\'') {
-			isString = 1;
-			a++;
-		}
-		
-		b = a;
-		
-		if (isString && (str[b] == '\"' || str[b] == '\'')) {
-			node = Calloc(sizeof(StrNode));
-			node->txt = Calloc(2);
-			Node_Add(nodeHead, node);
-			
-			b++;
-			
-			goto write;
-		}
-		
-		while (isString || (str[b] != separator && str[b] != '\0')) {
-			b++;
-			if (isString && (str[b] == '\"' || str[b] == '\'')) {
-				isString = 0;
-				strcompns = -1;
-			}
-		}
-		while (!isString && a != b && separator != ' ' && str[b - 1] == ' ') b--;
-		
-		if (b == a)
-			break;
-		
-		for (s32 v = 0; v < b - a + strcompns + 1; v++) {
-			if (isgraph(str[a + v]))
-				brk = false;
-		}
-		
-		if (brk)
-			break;
-		
-		node = Calloc(sizeof(StrNode));
-		node->txt = Calloc(b - a + strcompns + 1);
-		memcpy(node->txt, &str[a], b - a + strcompns);
-		Node_Add(nodeHead, node);
-		
-write:
-		list->num++;
-		list->writePoint += strlen(node->txt) + 1;
-		
-		a = b;
-		
-		while (str[a] == separator || str[a] == ' ' || str[a] == '\t' || str[a] == '\n' || str[a] == '\r') a++;
-		if (str[a] == '\0')
-			break;
-	}
-	
-	list->buffer = Calloc(list->writePoint);
-	list->item = Calloc(sizeof(char*) * list->num);
-	list->writePoint = 0;
-	
-	for (s32 i = 0; i < list->num; i++) {
-		list->item[i] = &list->buffer[list->writePoint];
-		strcpy(list->item[i], nodeHead->txt);
-		
-		list->writePoint += strlen(list->item[i]) + 1;
-		
-		Free(nodeHead->txt);
-		Node_Kill(nodeHead, nodeHead);
-	}
-	
-	Log("OK, %d [%s]", list->num, str);
-}
-
-void ItemList_Print(ItemList* target) {
-	for (s32 i = 0; i < target->num; i++)
-		printf("[#]: %4d: \"%s\"\n", i, target->item[i]);
-}
-
-Time ItemList_StatMax(ItemList* list) {
-	Time val = 0;
-	
-	for (s32 i = 0; i < list->num; i++)
-		val = Max(val, Sys_Stat(list->item[i]));
-	
-	return val;
-}
-
-Time ItemList_StatMin(ItemList* list) {
-	Time val = ItemList_StatMax(list);
-	
-	for (s32 i = 0; i < list->num; i++)
-		val = Min(val, Sys_Stat(list->item[i]));
-	
-	return val;
-}
-
-s32 ItemList_SaveList(ItemList* target, const char* output) {
-	MemFile mem = MemFile_Initialize();
-	
-	MemFile_Alloc(&mem, 512 * target->num);
-	
-	for (s32 i = 0; i < target->num; i++)
-		MemFile_Printf(&mem, "%s\n", target->item[i]);
-	if (MemFile_SaveFile_String(&mem, output))
-		return 1;
-	
-	MemFile_Free(&mem);
-	
-	return 0;
-}
-
-void ItemList_NumericalSort(ItemList* list) {
-	ItemList sorted = ItemList_Initialize();
-	u32 highestNum = 0;
-	
-	if (list->num < 2) {
-		Log("Nothing to sort!");
-		
-		return;
-	}
-	
-	Log("Sorting!");
-	for (s32 i = 0; i < list->num; i++)
-		highestNum = Max(highestNum, Value_Int(list->item[i]));
-	
-	Log("Num Max %d From %d Items", highestNum, list->num);
-	
-	if (highestNum == 0) {
-		Log("Aborting Sorting");
-		
-		return;
-	}
-	
-	sorted.buffer = Calloc(list->writePoint * 4);
-	sorted.item = Calloc(sizeof(char*) * (highestNum + 1));
-	
-	for (s32 i = 0; i <= highestNum; i++) {
-		u32 null = true;
-		
-		for (s32 j = 0; j < list->num; j++) {
-			if (isdigit(list->item[j][0]) && Value_Int(list->item[j]) == i) {
-				sorted.item[sorted.num] = &sorted.buffer[sorted.writePoint];
-				strcpy(sorted.item[sorted.num], list->item[j]);
-				sorted.writePoint += strlen(sorted.item[sorted.num]) + 1;
-				sorted.num++;
-				null = false;
-				break;
-			}
-		}
-		
-		if (null == true) {
-			sorted.item[sorted.num++] = NULL;
-		}
-	}
-	
-	sorted.filterNode = list->filterNode;
-	list->filterNode = NULL;
-	ItemList_Free(list);
-	
-	Log("Sorted");
-	*list = sorted;
-}
-
-static s32 SlotSort_GetNum(char* item, u32* ret) {
-	u32 nonNum = false;
-	char* num = item;
-	
-	while (!isdigit(*num)) {
-		num++;
-		if (*num == '\0') {
-			nonNum = true;
-			break;
-		}
-	}
-	
-	if (!nonNum) {
-		*ret = Value_Int(num);
-		
-		return 0;
-	}
-	
-	return 1;
-}
-
-s32 ItemList_NumericalSlotSort(ItemList* list, bool checkOverlaps) {
-	s32 error = false;
-	ItemList new = ItemList_Initialize();
-	u32 max = 0;
-	
-	forlist(i, *list) {
-		u32 num;
-		
-		if (!SlotSort_GetNum(list->item[i], &num))
-			max = Max(num + 1, max);
-	}
-	
-	if (max == 0)
-		return error;
-	
-	ItemList_Alloc(&new, max, list->writePoint);
-	
-	for (s32 i = 0; i < max; i++) {
-		u32 write = false;
-		u32 num;
-		forlist(j, *list) {
-			if (list->item[j] && !SlotSort_GetNum(list->item[j], &num) && i == num) {
-				ItemList_AddItem(&new, list->item[j]);
-				list->item[j] = NULL;
-				write = true;
-				
-				break;
-			}
-		}
-		
-		if (!write)
-			ItemList_AddItem(&new, NULL);
-	}
-	
-	if (checkOverlaps) {
-		forlist(i, new) {
-			u32 newNum = 0;
-			u32 listNum = 0;
-			
-			if (new.item[i] == NULL)
-				continue;
-			
-			SlotSort_GetNum(new.item[i], &newNum);
-			
-			forlist(j, *list) {
-				if (list->item[j] == NULL)
-					continue;
-				
-				SlotSort_GetNum(list->item[j], &listNum);
-				
-				if (newNum != listNum)
-					continue;
-				
-				if (!strcmp(list->item[j], new.item[i]))
-					continue;
-				
-				if (error == 0)
-					ItemList_Alloc(&gList_SortError, new.num, list->writePoint);
-				ItemList_AddItem(&gList_SortError, list->item[j]);
-				error = true;
-			}
-		}
-	}
-	
-	ItemList_Free(list);
-	*list = new;
-	
-	return error;
-}
-
-void ItemList_Free(ItemList* itemList) {
-	if (itemList->initKey == 0xDEFABEBACECAFAFF) {
-		Free(itemList->buffer);
-		Free(itemList->item);
-		ItemList_FreeFilters(itemList);
-	}
-	itemList[0] = ItemList_Initialize();
-}
-
-void ItemList_Alloc(ItemList* list, u32 num, Size size) {
-	ItemList_Validate(list);
-	ItemList_Free(list);
-	list->num = 0;
-	list->writePoint = 0;
-	
-	if (num == 0 || size == 0)
-		return;
-	
-	list->item = Calloc(sizeof(char*) * num);
-	list->buffer = Calloc(size);
-	list->alnum = num;
-}
-
-void ItemList_AddItem(ItemList* list, const char* item) {
-	if (item == NULL) {
-		list->item[list->num++] = NULL;
-		
-		return;
-	}
-	
-	u32 len = strlen(item);
-	
-	list->item[list->num] = &list->buffer[list->writePoint];
-	strcpy(list->item[list->num], item);
-	list->writePoint += len + 1;
-	list->num++;
-}
-
-void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b) {
-	ItemList_Alloc(out, a->num + b->num, a->writePoint + b->writePoint);
-	
-	forlist(i, *a)
-	ItemList_AddItem(out, a->item[i]);
-	forlist(i, *b)
-	ItemList_AddItem(out, b->item[i]);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1392,9 +875,10 @@ Date Sys_Date(Time time) {
 }
 
 s64 Sys_GetCoreCount(void) {
+	{
 #ifndef __clang__
   #ifdef _WIN32
-			#define WIN32_LEAN_AND_MEAN
+				#define WIN32_LEAN_AND_MEAN
     #include <windows.h>
   #else
     #include <unistd.h>
@@ -1403,32 +887,33 @@ s64 Sys_GetCoreCount(void) {
   #include <stdlib.h>
   #include <string.h>
   #include <errno.h>
-		s64 nprocs = -1;
-		s64 nprocs_max = -1;
-		
+			s64 nprocs = -1;
+			s64 nprocs_max = -1;
+			
   #ifdef _WIN32
     #ifndef _SC_NPROCESSORS_ONLN
-				SYSTEM_INFO info;
-				GetSystemInfo(&info);
-				#define sysconf(a) info.dwNumberOfProcessors
-				#define _SC_NPROCESSORS_ONLN
+					SYSTEM_INFO info;
+					GetSystemInfo(&info);
+					#define sysconf(a) info.dwNumberOfProcessors
+					#define _SC_NPROCESSORS_ONLN
     #endif
   #endif
   #ifdef _SC_NPROCESSORS_ONLN
-			nprocs = sysconf(_SC_NPROCESSORS_ONLN);
-			if (nprocs < 1) {
-				return 0;
-			}
-			nprocs_max = sysconf(_SC_NPROCESSORS_CONF);
-			if (nprocs_max < 1) {
-				return 0;
-			}
-			
-			return nprocs;
+				nprocs = sysconf(_SC_NPROCESSORS_ONLN);
+				if (nprocs < 1) {
+					return 0;
+				}
+				nprocs_max = sysconf(_SC_NPROCESSORS_CONF);
+				if (nprocs_max < 1) {
+					return 0;
+				}
+				
+				return nprocs;
   #else
-			
+				
   #endif
 #endif
+	}
 	
 	return 0;
 }
@@ -1477,17 +962,6 @@ void Terminal_ClearLines(u32 i) {
 
 void Terminal_Move_PrevLine(void) {
 	printf("\x1b[1F");
-}
-
-void Terminal_Move(s32 x, s32 y) {
-	if (y < 0)
-		printf("\033[%dA", -y);
-	else
-		printf("\033[%dB", y);
-	if (x < 0)
-		printf("\033[%dD", -x);
-	else
-		printf("\033[%dC", x);
 }
 
 const char* Terminal_GetStr(void) {
@@ -1722,18 +1196,11 @@ void* Alloc(s32 size) {
 }
 
 void* Calloc(s32 size) {
-	return calloc(1, size);
+	return calloc(2, size );
 }
 
 void* Realloc(const void* data, s32 size) {
 	return realloc((void*)data, size);
-}
-
-void* Free(const void* data) {
-	if (data)
-		free((void*)data);
-	
-	return NULL;
 }
 
 void* MemDup(const void* src, Size size) {
@@ -1907,12 +1374,10 @@ char* Filename(const char* src) {
 }
 
 char* LineHead(const char* str, const char* head) {
-	s32 i = 1;
+	if (str == NULL) return NULL;
 	
-	for (;; i--) {
-		if (&str[i] == head)
-			return (char*)&str[i];
-		if (str[i - 1] == '\n')
+	for (s32 i = 0;; i--) {
+		if (str[i - 1] == '\n' || &str[i] == head)
 			return (char*)&str[i];
 	}
 }
@@ -1933,26 +1398,28 @@ char* Line(const char* str, s32 line) {
 	if (!str)
 		return NULL;
 	
-	if (line > 0) {
-		while (line--) {
-			ln = strchr(ln, '\n');
+	if (line) {
+		if (line > 0) {
+			while (line--) {
+				ln = strchr(ln, '\n');
+				
+				if (!ln++)
+					return NULL;
+				
+				if (*ln == '\r')
+					ln++;
+			}
+		} else {
+			while (line++) {
+				ln = revstrchr(ln, '\n');
+				
+				if (!ln--)
+					return NULL;
+			}
 			
-			if (!ln++)
-				return NULL;
-			
-			if (*ln == '\r')
-				ln++;
+			if (ln)
+				ln += 2;
 		}
-	} else {
-		while (line++) {
-			ln = revstrchr(ln, '\n');
-			
-			if (!ln--)
-				return NULL;
-		}
-		
-		if (ln)
-			ln += 2;
 	}
 	
 	return (char*)ln;
@@ -2036,13 +1503,13 @@ s32 PathNum(const char* src) {
 char* CopyLine(const char* str, s32 line) {
 	if (!(str = Line(str, line))) return NULL;
 	
-	return xMemDup(str, LineLen(str));
+	return xStrNDup(str, LineLen(str));
 }
 
 char* CopyWord(const char* str, s32 word) {
 	if (!(str = Word(str, word))) return NULL;
 	
-	return xMemDup(str, WordLen(str));
+	return xStrNDup(str, WordLen(str));
 }
 
 char* PathRel_From(const char* from, const char* item) {
@@ -2169,342 +1636,6 @@ void Color_ToRGB(RGB8* dest, HSL8* src) {
 		dest->g = hue2rgb(p, q, src->h) * 255;
 		dest->b = hue2rgb(p, q, src->h - 1.0 / 3.0) * 255;
 	}
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # MEMFILE                             #
-// # # # # # # # # # # # # # # # # # # # #
-
-static FILE* MemFOpen(const char* name, const char* mode) {
-	FILE* file;
-	
-#if _WIN32
-		wchar* name16 = Calloc(strlen(name) * 4);
-		wchar* mode16 = Calloc(strlen(mode) * 4);
-		StrU16(name16, name);
-		StrU16(mode16, mode);
-		
-		file = _wfopen(name16, mode16);
-		
-		Free(name16);
-		Free(mode16);
-#else
-		file = fopen(name, mode);
-#endif
-	
-	return file;
-}
-
-void MemFile_Validate(MemFile* mem) {
-	if (mem->param.initKey == 0xD0E0A0D0B0E0E0F0) {
-		MemFile_Reset(mem);
-		
-		return;
-	}
-	
-	*mem = MemFile_Initialize();
-}
-
-MemFile MemFile_Initialize() {
-	return (MemFile) { .param.initKey = 0xD0E0A0D0B0E0E0F0 };
-}
-
-void MemFile_Params(MemFile* memFile, ...) {
-	va_list args;
-	u32 cmd;
-	u32 arg;
-	
-	va_start(args, memFile);
-	for (;;) {
-		cmd = va_arg(args, uptr);
-		
-		if (cmd == MEM_END) {
-			break;
-		}
-		
-		arg = va_arg(args, uptr);
-		
-		if (cmd == MEM_CLEAR) {
-			cmd = arg;
-			arg = 0;
-		}
-		
-		switch (cmd) {
-			case MEM_ALIGN:
-				memFile->param.align = arg;
-				break;
-			case MEM_CRC32:
-				memFile->param.getCrc = arg != 0 ? true : false;
-				break;
-			case MEM_REALLOC:
-				memFile->param.realloc = arg != 0 ? true : false;
-				break;
-		}
-	}
-	va_end(args);
-}
-
-void MemFile_Alloc(MemFile* memFile, u32 size) {
-	if (memFile->param.initKey != 0xD0E0A0D0B0E0E0F0) {
-		*memFile = MemFile_Initialize();
-	} else if (memFile->data) {
-		Log("MemFile_Alloc: Mallocing already allocated MemFile [%s], freeing and reallocating!", memFile->info.name);
-		MemFile_Free(memFile);
-	}
-	
-	memFile->data = Calloc(size);
-	
-	if (memFile->data == NULL)
-		printf_error("Failed to malloc [0x%X] bytes.", size);
-	
-	memFile->memSize = size;
-}
-
-void MemFile_Realloc(MemFile* memFile, u32 size) {
-	if (memFile->param.initKey != 0xD0E0A0D0B0E0E0F0)
-		*memFile = MemFile_Initialize();
-	if (memFile->memSize > size)
-		return;
-	
-	memFile->data = Realloc(memFile->data, size);
-	memFile->memSize = size;
-}
-
-void MemFile_Rewind(MemFile* memFile) {
-	memFile->seekPoint = 0;
-}
-
-s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
-	u32 osize = size;
-	
-	if (src == NULL) {
-		printf_warning("MemFile: src is NULL");
-		
-		return -1;
-	}
-	
-	size = ClampMax(size, ClampMin(dest->memSize - dest->seekPoint, 0));
-	
-	if (size != osize) {
-		if (dest->param.realloc) {
-			MemFile_Realloc(dest, dest->memSize + dest->memSize);
-			size = osize;
-		} else {
-			printf_warning("MemFile: Wrote %.2fkB instead of %.2fkB", BinToKb(size), BinToKb(osize));
-		}
-	}
-	
-	memcpy(&dest->cast.u8[dest->seekPoint], src, size);
-	dest->seekPoint += size;
-	dest->size = Max(dest->size, dest->seekPoint);
-	
-	if (dest->param.align)
-		if ((dest->seekPoint % dest->param.align) != 0)
-			MemFile_Align(dest, dest->param.align);
-	
-	return size;
-}
-
-/*
- * If pos is 0 or bigger: override seekPoint
- */
-s32 MemFile_Insert(MemFile* mem, void* src, u32 size, s64 pos) {
-	u32 p = pos < 0 ? mem->seekPoint : pos;
-	u32 remasize = mem->size - p;
-	
-	if (p + size + remasize >= mem->memSize) {
-		if (mem->param.realloc) {
-			MemFile_Realloc(mem, mem->memSize * 2);
-		} else {
-			printf_error("MemFile ran out of space");
-		}
-	}
-	
-	memmove(&mem->cast.u8[p + remasize], &mem->cast.u8[p], remasize);
-	
-	return MemFile_Write(mem, src, size);
-}
-
-s32 MemFile_Append(MemFile* dest, MemFile* src) {
-	return MemFile_Write(dest, src->data, src->size);
-}
-
-void MemFile_Align(MemFile* src, u32 align) {
-	if ((src->seekPoint % align) != 0) {
-		u64 wow[2] = { 0 };
-		u32 size = align - (src->seekPoint % align);
-		
-		MemFile_Write(src, wow, size);
-	}
-}
-
-s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
-	char* buffer;
-	va_list args;
-	
-	va_start(args, fmt);
-	vasprintf(
-		&buffer,
-		fmt,
-		args
-	);
-	va_end(args);
-	
-	return ({
-		s32 ret = MemFile_Write(dest, buffer, strlen(buffer));
-		Free(buffer);
-		ret;
-	});
-}
-
-s32 MemFile_Read(MemFile* src, void* dest, Size size) {
-	Size nsize = ClampMax(size, ClampMin(src->size - src->seekPoint, 0));
-	
-	if (nsize != size)
-		Log("%d == src->seekPoint = %d / %d", nsize, src->seekPoint, src->seekPoint);
-	
-	if (nsize < 1)
-		return 0;
-	
-	memcpy(dest, &src->cast.u8[src->seekPoint], nsize);
-	src->seekPoint += nsize;
-	
-	return nsize;
-}
-
-void* MemFile_Seek(MemFile* src, u32 seek) {
-	if (seek == MEMFILE_SEEK_END)
-		seek = src->size;
-	
-	if (seek > src->memSize) {
-		return NULL;
-	}
-	src->seekPoint = seek;
-	
-	return (void*)&src->cast.u8[seek];
-}
-
-void MemFile_LoadMem(MemFile* mem, void* data, Size size) {
-	MemFile_Validate(mem);
-	mem->size = mem->memSize = size;
-	mem->data = data;
-}
-
-s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
-	FILE* file = MemFOpen(filepath, "rb");
-	u32 tempSize;
-	
-	if (file == NULL) {
-		Log("Could not fopen file [%s]", filepath);
-		
-		return 1;
-	}
-	
-	fseek(file, 0, SEEK_END);
-	tempSize = ftell(file);
-	
-	MemFile_Validate(memFile);
-	
-	if (memFile->data == NULL)
-		MemFile_Alloc(memFile, tempSize + 0x10);
-	
-	else if (memFile->memSize < tempSize)
-		MemFile_Realloc(memFile, tempSize * 2);
-	
-	memFile->size = tempSize;
-	
-	rewind(file);
-	if (fread(memFile->data, 1, memFile->size, file)) {
-	}
-	fclose(file);
-	
-	memFile->info.age = Sys_Stat(filepath);
-	strcpy(memFile->info.name, filepath);
-	
-	return 0;
-}
-
-s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath) {
-	FILE* file = MemFOpen(filepath, "r");
-	u32 tempSize;
-	
-	if (file == NULL) {
-		Log("Could not fopen file [%s]", filepath);
-		
-		return 1;
-	}
-	
-	fseek(file, 0, SEEK_END);
-	tempSize = ftell(file);
-	
-	MemFile_Validate(memFile);
-	
-	if (memFile->data == NULL)
-		MemFile_Alloc(memFile, tempSize + 0x10);
-	
-	else if (memFile->memSize < tempSize)
-		MemFile_Realloc(memFile, tempSize * 2);
-	
-	memFile->size = tempSize;
-	
-	rewind(file);
-	memFile->size = fread(memFile->data, 1, memFile->size, file);
-	fclose(file);
-	memFile->cast.u8[memFile->size] = '\0';
-	
-	memFile->info.age = Sys_Stat(filepath);
-	strcpy(memFile->info.name, filepath);
-	
-	return 0;
-}
-
-s32 MemFile_SaveFile(MemFile* memFile, const char* filepath) {
-	FILE* file = MemFOpen(filepath, "wb");
-	
-	if (file == NULL) {
-		Log("Could not fopen file [%s]", filepath);
-		
-		return 1;
-	}
-	
-	if (memFile->size)
-		fwrite(memFile->data, sizeof(char), memFile->size, file);
-	fclose(file);
-	
-	return 0;
-}
-
-s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath) {
-	FILE* file = MemFOpen(filepath, "w");
-	
-	if (file == NULL) {
-		Log("Could not fopen file [%s]", filepath);
-		
-		return 1;
-	}
-	
-	if (memFile->size)
-		fwrite(memFile->data, sizeof(char), memFile->size, file);
-	fclose(file);
-	
-	return 0;
-}
-
-void MemFile_Free(MemFile* memFile) {
-	if (memFile->param.initKey == 0xD0E0A0D0B0E0E0F0)
-		Free(memFile->data);
-	
-	*memFile = MemFile_Initialize();
-}
-
-void MemFile_Reset(MemFile* memFile) {
-	memFile->size = 0;
-	memFile->seekPoint = 0;
-}
-
-void MemFile_Clear(MemFile* memFile) {
-	memset(memFile->data, 0, memFile->memSize);
-	MemFile_Reset(memFile);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -3125,536 +2256,6 @@ Size strwlen(const wchar* s) {
 		len++;
 	
 	return len;
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # CONFIG                              #
-// # # # # # # # # # # # # # # # # # # # #
-
-static ThreadLocal char* sCfgSection;
-
-static const char* __Config_GotoSection(const char* str) {
-	if (sCfgSection == NULL)
-		return str;
-	
-	s32 lineNum = LineNum(str);
-	const char* line = str;
-	
-	Log("GoTo \"%s\"", sCfgSection);
-	
-	for (s32 i = 0; i < lineNum; i++, line = Line(line, 1)) {
-		if (*line == '\0')
-			return NULL;
-		while (*line == ' ' || *line == '\t') line++;
-		if (!strncmp(line, sCfgSection, strlen(sCfgSection) - 1))
-			return Line(line, 1);
-	}
-	
-	Log("Return NULL;", sCfgSection);
-	
-	return NULL;
-}
-
-char* Config_Variable(const char* str, const char* name) {
-	u32 lineCount;
-	char* line;
-	char* ret = NULL;
-	
-	str = __Config_GotoSection(str);
-	if (str == NULL) return NULL;
-	
-	lineCount = LineNum(str);
-	line = (char*)str;
-	
-	Log("Var [%s]", name);
-	for (s32 i = 0; i < lineCount; i++, line = Line(line, 1)) {
-		if (line == NULL)
-			break;
-		while (line[0] == ' ' || line[0] == '\t') line++;
-		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
-			continue;
-		if (line[0] == '[')
-			break;
-		if (!strncmp(line, name, strlen(name))) {
-			char* p = line + strlen(name);
-			
-			while (p[0] == ' ' || p[0] == '\t') {
-				p++;
-				if (p[0] == '\0')
-					return NULL;
-			}
-			
-			if (p[0] != '=')
-				return NULL;
-			
-			while (p[0] == '=' || p[0] == ' ' || p[0] == '\t') {
-				p++;
-				if (p[0] == '\0')
-					return NULL;
-			}
-			ret = p;
-			break;
-		}
-	}
-	
-	return ret;
-}
-
-char* Config_GetVariable(const char* str, const char* name) {
-	u32 lineCount;
-	char* line;
-	char* ret = NULL;
-	
-	str = __Config_GotoSection(str);
-	if (str == NULL) return NULL;
-	
-	lineCount = LineNum(str);
-	line = (char*)str;
-	
-	Log("Var [%s]", name);
-	for (s32 i = 0; i < lineCount; i++, line = Line(line, 1)) {
-		if (line == NULL)
-			break;
-		while (line[0] == ' ' || line[0] == '\t') line++;
-		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
-			continue;
-		if (line[0] == '[')
-			break;
-		if (!strncmp(line, name, strlen(name))) {
-			s32 isString = 0;
-			char* buf;
-			char* p = line + strlen(name);
-			u32 size = 0;
-			
-			while (p[0] == ' ' || p[0] == '\t') {
-				p++;
-				
-				if (p[0] == '\0' || p[0] == '\n')
-					return NULL;
-			}
-			
-			if (p[0] != '=')
-				return NULL;
-			
-			while (p[0] == '=' || p[0] == ' ' || p[0] == '\t') {
-				p++;
-				
-				if (p[0] == '\0' || p[0] == '\n')
-					return NULL;
-			}
-			
-			while (p[size] != ';' && (p[size] != '#' || isString == true) && p[size] != '\n' && (isString == false || p[size] != '\"') && p[size] != '\0') {
-				if (p[size] == '\"')
-					isString = 1;
-				size++;
-			}
-			
-			if (isString == false)
-				while (p[size - 1] <= ' ')
-					size--;
-			
-			buf = xAlloc(size + 1);
-			memcpy(buf, p + isString, size - isString);
-			
-			ret = buf;
-			break;
-		}
-	}
-	
-	return ret;
-}
-
-static ThreadLocal bool sCfgError;
-
-void Config_ProcessIncludes(MemFile* mem) {
-	StrNode* strNodeHead = NULL;
-	StrNode* strNode = NULL;
-	
-	strNode = Calloc(sizeof(StrNode));
-	strNode->txt = xStrDup(mem->info.name);
-	Node_Add(strNodeHead, strNode);
-	
-reprocess:
-	(void)0;
-	u32 lineNum = LineNum(mem->str);
-	char* line = mem->str;
-	
-	for (s32 i = 0; i < lineNum; i++, line = Line(line, 1)) {
-		if (memcmp(line, "include ", 8))
-			continue;
-		char* head = CopyLine(line, 0);
-		
-		while (line[-1] != '<') {
-			line++;
-			if (*line == '\n' || *line == '\r' || *line == '\0')
-				goto free;
-		}
-		
-		s32 ln = 0;
-		
-		for (;; ln++) {
-			if (line[ln] == '>')
-				break;
-			if (*line == '\0')
-				goto free;
-		}
-		
-		char* name;
-		MemFile in = MemFile_Initialize();
-		
-		name = Calloc(ln + 1);
-		memcpy(name, line, ln);
-		
-		FileSys_Path(Path(mem->info.name));
-		MemFile_LoadFile_String(&in, FileSys_File(name));
-		
-		strNode = strNodeHead;
-		while (strNode) {
-			if (!strcmp(in.info.name, strNode->txt))
-				printf_error("Recursive inclusion in patch [%s] including [%s]", mem->info.name, in.info.name);
-			
-			strNode = strNode->next;
-		}
-		
-		if (!StrRep(mem->str, head, in.str))
-			printf_error("Replacing Failed: [%s] [%X]", head, (u32) * head);
-		
-		strNode = Calloc(sizeof(StrNode));
-		strNode->txt = FileSys_File(name);
-		Node_Add(strNodeHead, strNode);
-		
-		MemFile_Free(&in);
-		Free(name);
-		goto reprocess;
-	}
-	
-free:
-	while (strNodeHead)
-		Node_Kill(strNodeHead, strNodeHead);
-	mem->size = strlen(mem->str);
-	Log("Done");
-}
-
-s32 Config_GetErrorState(void) {
-	s32 ret = 0;
-	
-	if (sCfgError)
-		ret = 1;
-	sCfgError = 0;
-	
-	return ret;
-}
-
-void Config_GetArray(MemFile* mem, const char* variable, ItemList* list) {
-	char* array;
-	char* tmp;
-	u32 size = 0;
-	
-	array = Config_Variable(mem->str, variable);
-	
-	if (array == NULL || (array[0] != '[' && array[0] != '{')) {
-		*list = ItemList_Initialize();
-		
-		sCfgError = true;
-		printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
-		
-		return;
-	}
-	
-	while (array[size] != ']' && array[size] != '}') size++;
-	
-	if (size > 1) {
-		tmp = array;
-		array = Calloc(size);
-		memcpy(array, tmp + 1, size - 1);
-		
-		ItemList_Separated(list, array, ',');
-		Free(array);
-	} else
-		*list = ItemList_Initialize();
-	
-	for (s32 i = 0; i < list->num; i++)
-		StrRep(list->item[i], "\"", "");
-}
-
-s32 Config_GetBool(MemFile* mem, const char* variable) {
-	char* ptr;
-	
-	ptr = Config_GetVariable(mem->str, variable);
-	if (ptr) {
-		char* word = ptr;
-		if (!strcmp(word, "true")) {
-			return true;
-		}
-		if (!strcmp(word, "false")) {
-			return false;
-		}
-	}
-	
-	sCfgError = true;
-	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
-	
-	return 0;
-}
-
-s32 Config_GetOption(MemFile* mem, const char* variable, char* strList[]) {
-	char* ptr;
-	char* word;
-	s32 i = 0;
-	
-	ptr = Config_GetVariable(mem->str, variable);
-	if (ptr) {
-		word = ptr;
-		while (strList[i] != NULL && !StrStr(word, strList[i]))
-			i++;
-		
-		if (strList != NULL)
-			return i;
-	}
-	
-	sCfgError = true;
-	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
-	
-	return 0;
-}
-
-s32 Config_GetInt(MemFile* mem, const char* variable) {
-	char* ptr;
-	
-	ptr = Config_GetVariable(mem->str, variable);
-	if (ptr) {
-		return Value_Int(ptr);
-	}
-	
-	sCfgError = true;
-	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
-	
-	return 0;
-}
-
-char* Config_GetStr(MemFile* mem, const char* variable) {
-	char* ptr;
-	
-	ptr = Config_GetVariable(mem->str, variable);
-	if (ptr) {
-		Log("\"%s\" [%s]", ptr, mem->info.name);
-		
-		return ptr;
-	}
-	
-	sCfgError = true;
-	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
-	
-	return NULL;
-}
-
-f32 Config_GetFloat(MemFile* mem, const char* variable) {
-	char* ptr;
-	
-	ptr = Config_GetVariable(mem->str, variable);
-	if (ptr) {
-		return Value_Float(ptr);
-	}
-	
-	sCfgError = true;
-	printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
-	
-	return 0.0f;
-}
-
-void Config_GotoSection(const char* section) {
-	Free(sCfgSection);
-	sCfgSection = NULL;
-	if (section) {
-		if (section[0] == '[')
-			sCfgSection = StrDup(section);
-		
-		else
-			asprintf(&sCfgSection, "[%s]", section);
-	}
-}
-
-void Config_ListVariables(MemFile* mem, ItemList* list, const char* section) {
-	char* line = mem->str;
-	u32 lineNum;
-	char* wordA = xAlloc(64);
-	
-	ItemList_Validate(list);
-	ItemList_Alloc(list, 256, 256 * 64);
-	
-	if (section)
-		line = (void*)__Config_GotoSection(line);
-	if (line == NULL) return;
-	
-	lineNum = LineNum(line);
-	
-	for (s32 i = 0; i < lineNum; i++, line = Line(line, 1)) {
-		while (*line == ' ' || *line == '\t')
-			line++;
-		if (*line == '#' || *line == '\n')
-			continue;
-		if (*line == '\0' || *line == '[')
-			break;
-		
-		if (StrStr(CopyLine(line, 0), "=")) {
-			u32 strlen = 0;
-			
-			while (isalnum(line[strlen]) || line[strlen] == '_' || line[strlen] == '-')
-				strlen++;
-			
-			if (strlen) {
-				memcpy(wordA, line, strlen);
-				wordA[strlen] = '\0';
-				
-				ItemList_AddItem(list, wordA);
-			}
-		}
-	}
-}
-
-void Config_ListSections(MemFile* cfg, ItemList* list) {
-	char* p = cfg->str;
-	s32 ln = LineNum(p);
-	s32 sctCount = 0;
-	s32 sctSize = 0;
-	
-	for (s32 i = 0; i < ln; i++, p = Line(p, 1)) {
-		s32 sz = 0;
-		
-		while (!isgraph(*p)) p++;
-		if (*p != '[')
-			continue;
-		sctCount++;
-		
-		while (p[sz] != ']') {
-			sz++;
-			sctSize++;
-			
-			if (p[sz] == '\0')
-				printf_error("Missing ']' from section name at line %d for [%s]", i, cfg->info.name);
-		}
-	}
-	
-	ItemList_Alloc(list, sctCount, sctSize + sctCount);
-	
-	p = cfg->str;
-	for (s32 i = 0; i < ln; i++, p = Line(p, 1)) {
-		char* word;
-		
-		while (!isgraph(*p)) p++;
-		if (*p != '[')
-			continue;
-		sctCount++;
-		
-		word = StrDup(p + 1);
-		
-		for (s32 j = 0; ; j++) {
-			if (word[j] == ']') {
-				word[j] = '\0';
-				break;
-			}
-		}
-		
-		ItemList_AddItem(list, word);
-		Free(word);
-	}
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # TOML                                #
-// # # # # # # # # # # # # # # # # # # # #
-
-static void Config_FollowUpComment(MemFile* mem, const char* comment) {
-	if (comment)
-		MemFile_Printf(mem, xFmt(" # %s", comment));
-	MemFile_Printf(mem, "\n");
-}
-
-s32 Config_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ...) {
-	char* replacement;
-	va_list va;
-	char* p;
-	
-	va_start(va, fmt);
-	vasprintf(&replacement, fmt, va);
-	va_end(va);
-	
-	p = Config_Variable(mem->str, variable);
-	
-	if (p) {
-		if (p[0] == '"')
-			p++;
-		StrRem(p, strlen(Config_GetVariable(mem->str, variable)));
-		StrIns(p, replacement);
-		
-		mem->size = strlen(mem->str);
-		Free(replacement);
-		
-		return 0;
-	}
-	
-	Free(replacement);
-	
-	return 1;
-}
-
-void Config_WriteComment(MemFile* mem, const char* comment) {
-	if (comment)
-		MemFile_Printf(mem, xFmt("# %s", comment));
-	MemFile_Printf(mem, "\n");
-}
-
-void Config_WriteArray(MemFile* mem, const char* variable, ItemList* list, bool quote, const char* comment) {
-	const char* q[2] = {
-		"",
-		"\"",
-	};
-	
-	MemFile_Printf(mem, "%-15s = [ ", variable);
-	for (s32 i = 0; i < list->num; i++) {
-		MemFile_Printf(mem, "%s%s%s, ", q[quote], list->item[i], q[quote]);
-	}
-	if (list->num)
-		mem->seekPoint -= 2;
-	MemFile_Printf(mem, " ]");
-	Config_FollowUpComment(mem, comment);
-}
-
-void Config_WriteInt(MemFile* mem, const char* variable, const s64 integer, const char* comment) {
-	MemFile_Printf(mem, "%-15s = %ld", variable, integer);
-	Config_FollowUpComment(mem, comment);
-}
-
-void Config_WriteHex(MemFile* mem, const char* variable, const s64 integer, const char* comment) {
-	MemFile_Printf(mem, "%-15s = 0x%lX", variable, integer);
-	Config_FollowUpComment(mem, comment);
-}
-
-void Config_WriteStr(MemFile* mem, const char* variable, const char* str, bool quote, const char* comment) {
-	const char* q[2] = {
-		"",
-		"\"",
-	};
-	
-	MemFile_Printf(mem, "%-15s = %s%s%s", variable, q[quote], str, q[quote]);
-	Config_FollowUpComment(mem, comment);
-}
-
-void Config_WriteFloat(MemFile* mem, const char* variable, const f64 flo, const char* comment) {
-	MemFile_Printf(mem, "%-15s = %lf", variable, flo);
-	Config_FollowUpComment(mem, comment);
-}
-
-void Config_WriteBool(MemFile* mem, const char* variable, const s32 val, const char* comment) {
-	MemFile_Printf(mem, "%-15s = %s", variable, val ? "true" : "false");
-	Config_FollowUpComment(mem, comment);
-}
-
-void Config_WriteSection(MemFile* mem, const char* variable, const char* comment) {
-	MemFile_Printf(mem, "[%s]", variable);
-	if (comment)
-		MemFile_Printf(mem, " # %s", comment);
-	MemFile_Printf(mem, "\n");
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -4720,4 +3321,12 @@ u8* Sys_Sha256(u8* data, u64 size) {
 	Digest = Sha_ExtractDigest(Hash);
 	
 	return Digest;
+}
+
+#undef Free
+void* Free(const void* data) {
+	if (data)
+		free((void*)data);
+	
+	return NULL;
 }

@@ -3,6 +3,18 @@
 
 #define THIS_EXTLIB_VERSION 210
 
+/**
+ * Do not get impression that this library is clang compatible.
+ * Far from it.
+ *
+ * I just use clang IDE, that's all.
+ */
+#ifdef __clang__
+  #ifdef _WIN32
+    #undef _WIN32
+  #endif
+#endif
+
 #ifndef EXTLIB_PERMISSIVE
   #ifndef EXTLIB
     #error EXTLIB not defined
@@ -48,6 +60,7 @@ void32 VirtualToSegmented(const u8 id, void* ptr);
 // Temporary variable alloc, won't last forever
 void* xAlloc(Size size);
 char* xStrDup(const char* str);
+char* xStrNDup(const char* s, size_t n);
 char* xMemDup(const char* data, Size size);
 char* xFmt(const char* fmt, ...);
 char* xRep(const char* str, const char* a, const char* b);
@@ -93,7 +106,6 @@ s32 Terminal_YesOrNo(void);
 void Terminal_ClearScreen(void);
 void Terminal_ClearLines(u32 i);
 void Terminal_Move_PrevLine(void);
-void Terminal_Move(s32 x, s32 y);
 const char* Terminal_GetStr(void);
 char Terminal_GetChar();
 
@@ -142,6 +154,7 @@ void* Calloc(s32 size);
 __attribute__ ((warn_unused_result))
 void* Realloc(const void* data, s32 size);
 void* Free(const void* data);
+#define Free(data) ({ data = Free(data); })
 void* MemDup(const void* src, Size size);
 char* StrDup(const char* src);
 char* StrDupX(const char* src, Size size);
