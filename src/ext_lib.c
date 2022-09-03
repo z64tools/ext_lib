@@ -3,7 +3,7 @@
 
 #ifdef __clang__
   #ifdef _WIN32
-    #undef _WIN32
+	#undef _WIN32
   #endif
 	void readlink(char*, char*, int);
 	void chdir(const char*);
@@ -107,6 +107,7 @@ __attribute__ ((constructor)) void ExtLib_Init(void) {
 	
 #ifdef _WIN32
 		SetConsoleOutputCP(CP_UTF8);
+		printf_WinFix();
 #endif
 }
 
@@ -818,7 +819,7 @@ void Sys_TerminalSize(s32* r) {
 		y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 #else
   #ifndef __clang__
-    #include <sys/ioctl.h>
+	#include <sys/ioctl.h>
 			struct winsize w;
 			
 			ioctl(0, TIOCGWINSZ, &w);
@@ -874,14 +875,14 @@ Date Sys_Date(Time time) {
 	return date;
 }
 
-s64 Sys_GetCoreCount(void) {
+s32 Sys_GetCoreCount(void) {
 	{
 #ifndef __clang__
   #ifdef _WIN32
 				#define WIN32_LEAN_AND_MEAN
-    #include <windows.h>
+	#include <windows.h>
   #else
-    #include <unistd.h>
+	#include <unistd.h>
   #endif
   #include <stdio.h>
   #include <stdlib.h>
@@ -891,12 +892,12 @@ s64 Sys_GetCoreCount(void) {
 			s64 nprocs_max = -1;
 			
   #ifdef _WIN32
-    #ifndef _SC_NPROCESSORS_ONLN
+	#ifndef _SC_NPROCESSORS_ONLN
 					SYSTEM_INFO info;
 					GetSystemInfo(&info);
 					#define sysconf(a) info.dwNumberOfProcessors
 					#define _SC_NPROCESSORS_ONLN
-    #endif
+	#endif
   #endif
   #ifdef _SC_NPROCESSORS_ONLN
 				nprocs = sysconf(_SC_NPROCESSORS_ONLN);
@@ -916,6 +917,19 @@ s64 Sys_GetCoreCount(void) {
 	}
 	
 	return 0;
+}
+
+Size Sys_GetFileSize(const char* file) {
+	FILE* f = fopen(file, "r");
+	u32 result = -1;
+	
+	if (!f) return result;
+	
+	fseek(f, 0, SEEK_END);
+	result = ftell(f);
+	fclose(f);
+	
+	return result;
 }
 
 // # # # # # # # # # # # # # # # # # # # #

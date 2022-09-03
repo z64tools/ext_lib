@@ -44,6 +44,10 @@
 extern PrintfSuppressLevel gPrintfSuppress;
 extern u8 gPrintfProgressing;
 
+void* Object_Method(Object* self, void* target, int argCount);
+void Object_Prepare(Object* self);
+void* Object_Create(size_t size, int funcCount);
+
 void* qFree(const void* ptr);
 void* PostFree_Queue(void* ptr);
 void* PostFree_QueueCallback(void* callback, void* ptr);
@@ -96,6 +100,8 @@ s32 Sys_Copy(const char* src, const char* dest);
 u8* Sys_Sha256(u8* data, u64 size);
 void Sys_Sleep(f64 sec);
 Date Sys_Date(Time time);
+s32 Sys_GetCoreCount(void);
+Size Sys_GetFileSize(const char* file);
 
 void SysExe_IgnoreError();
 s32 SysExe_GetError();
