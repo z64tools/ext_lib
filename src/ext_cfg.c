@@ -10,18 +10,17 @@ static const char* __Config_GotoSection(const char* str) {
 	if (sCfgSection == NULL)
 		return str;
 	
-	s32 lineNum = LineNum(str);
 	const char* line = str;
 	
 	Log("GoTo \"%s\"", sCfgSection);
 	
-	for (s32 i = 0; i < lineNum; i++, line = Line(line, 1)) {
+	do {
 		if (*line == '\0')
 			return NULL;
 		while (*line == ' ' || *line == '\t') line++;
 		if (!strncmp(line, sCfgSection, strlen(sCfgSection) - 1))
 			return Line(line, 1);
-	}
+	} while ( (line = Line(line, 1)) );
 	
 	Log("Return NULL;", sCfgSection);
 	
@@ -29,112 +28,53 @@ static const char* __Config_GotoSection(const char* str) {
 }
 
 char* Config_Variable(const char* str, const char* name) {
-	u32 lineCount;
-	char* line;
-	char* ret = NULL;
+	char* s;
 	
+	Log("Variable: %s", name);
 	str = __Config_GotoSection(str);
 	if (str == NULL) return NULL;
+	s = (char*)str;
 	
-	lineCount = LineNum(str);
-	line = (char*)str;
-	
-	Log("Var [%s]", name);
-	for (s32 i = 0; i < lineCount; i++, line = Line(line, 1)) {
-		if (line == NULL)
-			break;
-		while (line[0] == ' ' || line[0] == '\t') line++;
-		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
-			continue;
-		if (line[0] == '[')
-			break;
-		if (!strncmp(line, name, strlen(name))) {
-			char* p = line + strlen(name);
-			
-			while (p[0] == ' ' || p[0] == '\t') {
-				p++;
-				if (p[0] == '\0')
-					return NULL;
-			}
-			
-			if (p[0] != '=')
-				return NULL;
-			
-			while (p[0] == '=' || p[0] == ' ' || p[0] == '\t') {
-				p++;
-				if (p[0] == '\0')
-					return NULL;
-			}
-			ret = p;
-			break;
+	do {
+		s += strspn(s, " \t");
+		
+		switch (*s) {
+			case '#':
+			case '[':
+				continue;
 		}
-	}
+		
+		if (strcspn(s, "=") > strcspn(s, "\n"))
+			continue;
+		if (strncmp(name, s, strlen(name)))
+			continue;
+		if (strlen(name) != strcspn(s, " \t="))
+			continue;
+		
+		s += strcspn(s, "=") + 1;
+		s += strspn(s, " \t");
+		break;
+	} while ((s = Line(s, 1)));
 	
-	return ret;
+	return s;
 }
 
 char* Config_GetVariable(const char* str, const char* name) {
-	u32 lineCount;
-	char* line;
-	char* ret = NULL;
+	char* s = Config_Variable(str, name);
+	char* r;
 	
-	str = __Config_GotoSection(str);
-	if (str == NULL) return NULL;
+	if (!s) return NULL;
 	
-	lineCount = LineNum(str);
-	line = (char*)str;
+	if (*s == '\"') {
+		s++;
+		if (*s == '\"')
+			return xAlloc(2);
+		
+		r = xStrNDup(s, strcspn(s, "\""));
+	} else
+		r = xStrNDup(s, strcspn(s, " \n\t#"));
 	
-	Log("Var [%s]", name);
-	for (s32 i = 0; i < lineCount; i++, line = Line(line, 1)) {
-		if (line == NULL)
-			break;
-		while (line[0] == ' ' || line[0] == '\t') line++;
-		if (line[0] == '#' || line[0] == ';' || line[0] <= ' ')
-			continue;
-		if (line[0] == '[')
-			break;
-		if (!strncmp(line, name, strlen(name))) {
-			s32 isString = 0;
-			char* buf;
-			char* p = line + strlen(name);
-			u32 size = 0;
-			
-			while (p[0] == ' ' || p[0] == '\t') {
-				p++;
-				
-				if (p[0] == '\0' || p[0] == '\n')
-					return NULL;
-			}
-			
-			if (p[0] != '=')
-				return NULL;
-			
-			while (p[0] == '=' || p[0] == ' ' || p[0] == '\t') {
-				p++;
-				
-				if (p[0] == '\0' || p[0] == '\n')
-					return NULL;
-			}
-			
-			while (p[size] != ';' && (p[size] != '#' || isString == true) && p[size] != '\n' && (isString == false || p[size] != '\"') && p[size] != '\0') {
-				if (p[size] == '\"')
-					isString = 1;
-				size++;
-			}
-			
-			if (isString == false)
-				while (p[size - 1] <= ' ')
-					size--;
-			
-			buf = xAlloc(size + 1);
-			memcpy(buf, p + isString, size - isString);
-			
-			ret = buf;
-			break;
-		}
-	}
-	
-	return ret;
+	return r;
 }
 
 static ThreadLocal bool sCfgError;
@@ -149,10 +89,9 @@ void Config_ProcessIncludes(MemFile* mem) {
 	
 reprocess:
 	(void)0;
-	u32 lineNum = LineNum(mem->str);
 	char* line = mem->str;
 	
-	for (s32 i = 0; i < lineNum; i++, line = Line(line, 1)) {
+	do {
 		if (memcmp(line, "include ", 8))
 			continue;
 		char* head = CopyLine(line, 0);
@@ -199,7 +138,7 @@ reprocess:
 		MemFile_Free(&in);
 		Free(name);
 		goto reprocess;
-	}
+	} while ( (line = Line(line, 1)) );
 	
 free:
 	while (strNodeHead)
@@ -223,6 +162,7 @@ void Config_GetArray(MemFile* mem, const char* variable, ItemList* list) {
 	char* tmp;
 	u32 size = 0;
 	
+	Log("Build List from [%s]", variable);
 	array = Config_Variable(mem->str, variable);
 	
 	if (array == NULL || (array[0] != '[' && array[0] != '{')) {
@@ -337,7 +277,6 @@ f32 Config_GetFloat(MemFile* mem, const char* variable) {
 
 void Config_GotoSection(const char* section) {
 	Free(sCfgSection);
-	sCfgSection = NULL;
 	if (section) {
 		if (section[0] == '[')
 			sCfgSection = StrDup(section);

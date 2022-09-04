@@ -21,56 +21,56 @@
 
 #define catprintf(dest, ...) sprintf(dest + strlen(dest), __VA_ARGS__)
 
-#define Node_Add(head, node) do { \
-		typeof(node) * __n__ = &head; \
-		while (*__n__) __n__ = &(*__n__)->next; \
-		*__n__ = node; \
+#define Node_Add(head, node) do {				\
+		typeof(node) * __n__ = &head;			\
+		while (*__n__) __n__ = &(*__n__)->next;	\
+		*__n__ = node;							\
 } while (0)
 
-#define Node_Remove(head, node) do { \
-		typeof(node) * __n__ = &head; \
-		while (*__n__ != node) __n__ = &(*__n__)->next; \
-		*__n__ = node->next; \
+#define Node_Remove(head, node) do {					\
+		typeof(node) * __n__ = &head;					\
+		while (*__n__ != node) __n__ = &(*__n__)->next;	\
+		*__n__ = node->next;							\
 } while (0)
 
-#define Node_Kill(head, node) do { \
+#define Node_Kill(head, node) do {	  \
 		typeof(node) killNode = node; \
-		Node_Remove(head, node); \
-		Free(killNode); \
+		Node_Remove(head, node);	  \
+		Free(killNode);				  \
 } while (0)
 
-#define Swap(a, b) do { \
-		var y = a; \
-		a = b; \
-		b = y; \
+#define Swap(a, b) do {	\
+		var y = a;		\
+		a = b;			\
+		b = y;			\
 } while (0)
 
 // Checks endianess with tst & tstP
-#define ReadBE(in) ({ \
-		typeof(in) out; \
-		s32 tst = 1; \
-		u8* tstP = (u8*)&tst; \
-		if (tstP[0] != 0) { \
-			s32 size = sizeof(in); \
-			if (size == 2) { \
+#define ReadBE(in) ({						 \
+		typeof(in) out;						 \
+		s32 tst = 1;						 \
+		u8* tstP = (u8*)&tst;				 \
+		if (tstP[0] != 0) {					 \
+			s32 size = sizeof(in);			 \
+			if (size == 2) {				 \
 				out = __builtin_bswap16(in); \
-			} else if (size == 4) { \
+			} else if (size == 4) {			 \
 				out = __builtin_bswap32(in); \
-			} else if (size == 8) { \
+			} else if (size == 8) {			 \
 				out = __builtin_bswap64(in); \
-			} else { \
-				out = in; \
-			} \
-		} else { \
-			out = in; \
-		} \
-		out; \
-	} \
+			} else {						 \
+				out = in;					 \
+			}								 \
+		} else {							 \
+			out = in;						 \
+		}									 \
+		out;								 \
+	}										 \
 )
 
-#define WriteBE(dest, set) { \
-		typeof(dest) get = set; \
-		dest = ReadBE(get); \
+#define WriteBE(dest, set) {	\
+		typeof(dest) get = set;	\
+		dest = ReadBE(get);		\
 }
 
 #define SwapBE(in) WriteBE(in, in)
@@ -117,42 +117,42 @@
 #define VA8(_1, _2, _3, _4, _5, _6, _7, NAME, ...)     NAME
 #define VA9(_1, _2, _3, _4, _5, _6, _7, _8, NAME, ...) NAME
 
-#define NARGS_SEQ( \
-		_1, _2, _3, _4, _5, _6, _7, _8, \
-		_9, _10, _11, _12, _13, _14, _15, _16, \
-		_17, _18, _19, _20, _21, _22, _23, _24, \
-		_25, _26, _27, _28, _29, _30, _31, _32, \
-		_33, _34, _35, _36, _37, _38, _39, _40, \
-		_41, _42, _43, _44, _45, _46, _47, _48, \
-		_49, _50, _51, _52, _53, _54, _55, _56, \
-		_57, _58, _59, _60, _61, _62, _63, _64, \
-		_65, _66, _67, _68, _69, _70, _71, _72, \
-		_73, _74, _75, _76, _77, _78, _79, _80, \
-		_81, _82, _83, _84, _85, _86, _87, _88, \
-		_89, _90, _91, _92, _93, _94, _95, _96, \
-		_97, _98, _99, _100, _101, _102, _103, _104, \
-		_105, _106, _107, _108, _109, _110, _111, _112, \
-		_113, _114, _115, _116, _117, _118, _119, _120, \
+#define NARGS_SEQ(										\
+		_1, _2, _3, _4, _5, _6, _7, _8,					\
+		_9, _10, _11, _12, _13, _14, _15, _16,			\
+		_17, _18, _19, _20, _21, _22, _23, _24,			\
+		_25, _26, _27, _28, _29, _30, _31, _32,			\
+		_33, _34, _35, _36, _37, _38, _39, _40,			\
+		_41, _42, _43, _44, _45, _46, _47, _48,			\
+		_49, _50, _51, _52, _53, _54, _55, _56,			\
+		_57, _58, _59, _60, _61, _62, _63, _64,			\
+		_65, _66, _67, _68, _69, _70, _71, _72,			\
+		_73, _74, _75, _76, _77, _78, _79, _80,			\
+		_81, _82, _83, _84, _85, _86, _87, _88,			\
+		_89, _90, _91, _92, _93, _94, _95, _96,			\
+		_97, _98, _99, _100, _101, _102, _103, _104,	\
+		_105, _106, _107, _108, _109, _110, _111, _112,	\
+		_113, _114, _115, _116, _117, _118, _119, _120,	\
 		_121, _122, _123, _124, _125, _126, _127, _128, N, ...) N
-#define NARGS(...) \
-	NARGS_SEQ( \
-		__VA_ARGS__ \
+#define NARGS(...)								 \
+	NARGS_SEQ(									 \
+		__VA_ARGS__								 \
 		, 128, 127, 126, 125, 124, 123, 122, 121 \
 		, 120, 119, 118, 117, 116, 115, 114, 113 \
 		, 112, 111, 110, 109, 108, 107, 106, 105 \
-		, 104, 103, 102, 101, 100, 99, 98, 97 \
-		, 96, 95, 94, 93, 92, 91, 90, 89 \
-		, 88, 87, 86, 85, 84, 83, 82, 81 \
-		, 80, 79, 78, 77, 76, 75, 74, 73 \
-		, 72, 71, 70, 69, 68, 67, 66, 65 \
-		, 64, 63, 62, 61, 60, 59, 58, 57 \
-		, 56, 55, 54, 53, 52, 51, 50, 49 \
-		, 48, 47, 46, 45, 44, 43, 42, 41 \
-		, 40, 39, 38, 37, 36, 35, 34, 33 \
-		, 32, 31, 30, 29, 28, 27, 26, 25 \
-		, 24, 23, 22, 21, 20, 19, 18, 17 \
-		, 16, 15, 14, 13, 12, 11, 10, 9 \
-		, 8, 7, 6, 5, 4, 3, 2, 1 \
+		, 104, 103, 102, 101, 100, 99, 98, 97	 \
+		, 96, 95, 94, 93, 92, 91, 90, 89		 \
+		, 88, 87, 86, 85, 84, 83, 82, 81		 \
+		, 80, 79, 78, 77, 76, 75, 74, 73		 \
+		, 72, 71, 70, 69, 68, 67, 66, 65		 \
+		, 64, 63, 62, 61, 60, 59, 58, 57		 \
+		, 56, 55, 54, 53, 52, 51, 50, 49		 \
+		, 48, 47, 46, 45, 44, 43, 42, 41		 \
+		, 40, 39, 38, 37, 36, 35, 34, 33		 \
+		, 32, 31, 30, 29, 28, 27, 26, 25		 \
+		, 24, 23, 22, 21, 20, 19, 18, 17		 \
+		, 16, 15, 14, 13, 12, 11, 10, 9			 \
+		, 8, 7, 6, 5, 4, 3, 2, 1				 \
 	)
 
 #define Main(y1, y2)  main(y1, y2)
@@ -161,17 +161,17 @@
 #define SEG_FAULT ((u32*)0)[0] = 0
 
 #if defined(_WIN32) && defined(UNICODE)
-	#define UnicodeMain(count, args) \
-		__x_main(int count, char** args); \
-		int wmain(int count, wchar * *args) { \
+	#define UnicodeMain(count, args)					 \
+		__x_main(int count, char** args);				 \
+		int wmain(int count, wchar * *args) {			 \
 			char** nargv = Alloc(sizeof(char*) * count); \
-			for (s32 i = 0; i < count; i++) { \
-				nargv[i] = Calloc(strwlen(args[i])); \
-				StrU8(nargv[i], args[i]); \
-			} \
-			Log("run " PRNT_YELW "main"); \
-			return __x_main(count, nargv); \
-		} \
+			for (s32 i = 0; i < count; i++) {			 \
+				nargv[i] = Calloc(strwlen(args[i]));	 \
+				StrU8(nargv[i], args[i]);				 \
+			}											 \
+			Log("run " PRNT_YELW "main");				 \
+			return __x_main(count, nargv);				 \
+		}												 \
 		int __x_main(int count, char** args)
 #else
 	#define UnicodeMain(count, args) main(int count, char** args)
@@ -188,30 +188,36 @@
 #define fornode(type, val, head) for (type* val = head; val != NULL; val = val->next)
 #define forstr(val, str)         for (int val = 0; val < strlen(str); val++)
 
-#define ArrMoveR(arr, start, count) do { \
-		var v = (arr)[(start) + (count) - 1]; \
+#define ArrMoveR(arr, start, count) do {					  \
+		var v = (arr)[(start) + (count) - 1];				  \
 		for (int i = (count) + (start) - 1; i > (start); i--) \
-		(arr)[i] = (arr)[i - 1]; \
-		(arr)[(start)] = v; \
+		(arr)[i] = (arr)[i - 1];							  \
+		(arr)[(start)] = v;									  \
 } while (0)
 
-#define ArrMoveL(arr, start, count) do { \
-		var v = (arr)[(start)]; \
+#define ArrMoveL(arr, start, count) do {				  \
+		var v = (arr)[(start)];							  \
 		for (int i = (start); i < (count) + (start); i++) \
-		(arr)[i] = (arr)[i + 1]; \
-		(arr)[(count) + (start) - 1] = v; \
+		(arr)[i] = (arr)[i + 1];						  \
+		(arr)[(count) + (start) - 1] = v;				  \
 } while (0)
 
 #ifdef __clang__
 	
-	#define Block(type, name, args) \
+	#define Block(type, name, args)	\
 		type (^ name) args = ^ type args
 	#define BlockVar(var) typeof(var) ## var;
 	
 #else
 	
-	#define Block(type, name, args) \
+	#define Block(type, name, args)	\
 		type name args
 #endif
+
+#define FOPEN(file, mode) ({									\
+		FILE* f = fopen(file, mode);							\
+		if (f == NULL) printf_error("fopen error: [%s]", file);	\
+		f;														\
+	})
 
 #endif

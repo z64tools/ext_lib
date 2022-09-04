@@ -10,19 +10,19 @@
  * I just use clang IDE, that's all.
  */
 #ifdef __clang__
-  #ifdef _WIN32
-    #undef _WIN32
-  #endif
+	#ifdef _WIN32
+		#undef _WIN32
+	#endif
 #endif
 
 #ifndef EXTLIB_PERMISSIVE
-  #ifndef EXTLIB
-    #error EXTLIB not defined
-  #else
-    #if EXTLIB > THIS_EXTLIB_VERSION
-      #error ExtLib copy is older than the project its used with
-    #endif
-  #endif
+	#ifndef EXTLIB
+		#error EXTLIB not defined
+	#else
+		#if EXTLIB > THIS_EXTLIB_VERSION
+			#error ExtLib copy is older than the project its used with
+		#endif
+	#endif
 #endif
 
 #define _GNU_SOURCE
@@ -53,6 +53,7 @@ void* PostFree_Queue(void* ptr);
 void* PostFree_QueueCallback(void* callback, void* ptr);
 void PostFree_Free(void);
 
+extern const char* gThdPool_ProgressMessage;
 void ThdPool_Add(void* function, void* arg, u32 n, ...);
 void ThdPool_Exec(u32 max, bool mutex);
 #define ThdPool_Add(function, arg, ...) ThdPool_Add(function, arg, NARGS(__VA_ARGS__), __VA_ARGS__)
@@ -107,6 +108,7 @@ void SysExe_IgnoreError();
 s32 SysExe_GetError();
 s32 SysExe(const char* cmd);
 char* SysExeO(const char* cmd);
+s32 SysExeC(const char* cmd, s32 (*callback)(void*, const char*), void* arg);
 
 s32 Terminal_YesOrNo(void);
 void Terminal_ClearScreen(void);
@@ -217,6 +219,11 @@ void MemFile_Free(MemFile* memFile);
 void MemFile_Reset(MemFile* memFile);
 void MemFile_Clear(MemFile* memFile);
 
+#define MemFile_Alloc(this, size) do {				 \
+		Log("MemFile_Alloc(%s, %s);", #this, #size); \
+		MemFile_Alloc(this, size);					 \
+} while (0)
+
 #define MEMFILE_SEEK_END 0xFFFFFFFF
 
 u32 Value_Hex(const char* string);
@@ -288,10 +295,8 @@ void Log_NoOutput(void);
 void Log_Init();
 void Log_Free();
 void Log_Print();
-void __Log_ItemList(ItemList* list, const char* function, s32 line);
 void __Log(const char* func, u32 line, const char* txt, ...);
-#define Log(...)           __Log(__FUNCTION__, __LINE__, __VA_ARGS__)
-#define Log_ItemList(list) __Log_ItemList(list, __FUNCTION__, __LINE__)
+#define Log(...) __Log(__FUNCTION__, __LINE__, __VA_ARGS__)
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_SetPrefix(char* fmt);
@@ -327,10 +332,10 @@ void Sound_Xm_Stop();
 char* Regex(const char* str, const char* pattern, RegexFlag flag);
 
 #ifndef _WIN32
-  #ifndef __clang__
+	#ifndef __clang__
 		#define stricmp(a, b)        strcasecmp(a, b)
 		#define strnicmp(a, b, size) strncasecmp(a, b, size)
-  #endif
+	#endif
 #endif
 
 int stricmp(const char* a, const char* b);

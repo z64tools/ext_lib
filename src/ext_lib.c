@@ -2,9 +2,9 @@
 #pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
 
 #ifdef __clang__
-  #ifdef _WIN32
-	#undef _WIN32
-  #endif
+	#ifdef _WIN32
+		#undef _WIN32
+	#endif
 	void readlink(char*, char*, int);
 	void chdir(const char*);
 	void gettimeofday(void*, void*);
@@ -33,8 +33,8 @@
 //uncrustify
 
 #ifdef _WIN32
-  #include <windows.h>
-  #include <libloaderapi.h>
+	#include <windows.h>
+	#include <libloaderapi.h>
 #endif
 
 f32 EPSILON = 0.0000001f;
@@ -75,7 +75,9 @@ void* qFree(const void* ptr) {
 void* PostFree_Queue(void* ptr) {
 	PostFreeNode* n = New(PostFreeNode);
 	
+	ThreadLock_Lock();
 	Node_Add(sPostFreeHead2, n);
+	ThreadLock_Unlock();
 	n->ptr = ptr;
 	
 	return ptr;
@@ -84,7 +86,9 @@ void* PostFree_Queue(void* ptr) {
 void* PostFree_QueueCallback(void* callback, void* ptr) {
 	PostFreeNode* n = New(PostFreeNode);
 	
+	ThreadLock_Lock();
 	Node_Add(sPostFreeHead2, n);
+	ThreadLock_Unlock();
 	n->ptr = ptr;
 	n->free = callback;
 	
@@ -132,41 +136,34 @@ typedef enum {
 
 typedef struct ThdItem {
 	struct ThdItem* next;
-	Thread id;
+	volatile Tstate state;
+	Thread thd;
 	void (*function)(void*);
 	void* arg;
-	volatile Tstate state;
-	u8  nid;
-	u8  numDep;
-	s32 dep[16];
+	vu8   nid;
+	vu8   numDep;
+	vs32  dep[16];
 } ThdItem;
 
-struct {
+static struct {
 	ThdItem* head;
-	vu32     num;
-	vu16     dep[__UINT8_MAX__];
+	u32      num;
+	u16      dep[__UINT8_MAX__];
 	struct {
-		vbool mutex      : 1;
-		vbool run        : 1;
-		vbool add        : 1;
-		vbool permission : 1;
+		vbool mutex : 1;
+		vbool on    : 1;
 	};
 } gTPool;
 
 #undef ThdPool_Add
 void ThdPool_Add(void* function, void* arg, u32 n, ...) {
+	ThreadLock_Lock();
 	ThdItem* t = New(ThdItem);
 	va_list va;
 	
+	Assert(gTPool.on == false);
 	t->function = function;
 	t->arg = arg;
-	
-	ThreadLock_Lock();
-	
-	gTPool.add = true;
-	if (gTPool.run)
-		while (gTPool.permission == false)
-			(void)0;
 	
 	va_start(va, n);
 	for (s32 i = 0; i < n; i++) {
@@ -185,7 +182,6 @@ void ThdPool_Add(void* function, void* arg, u32 n, ...) {
 	
 	Node_Add(gTPool.head, t);
 	gTPool.num++;
-	gTPool.add = gTPool.permission = false;
 	
 	ThreadLock_Unlock();
 }
@@ -206,21 +202,26 @@ static bool ThdPool_CheckDep(ThdItem* t) {
 	return true;
 }
 
+const char* gThdPool_ProgressMessage;
+
 void ThdPool_Exec(u32 max, bool mutex) {
+	u32 amount = gTPool.num;
+	u32 prev = 1;
+	u32 prog = 0;
 	u32 cur = 0;
 	ThdItem* t;
-	
-	gTPool.run = true;
-	gTPool.mutex = mutex;
+	bool msg = gThdPool_ProgressMessage != NULL;
 	
 	if (max == 0)
 		max = 1;
 	
+	gTPool.on = true;
 	while (gTPool.num) {
-		if (gTPool.add) {
-			gTPool.permission = true;
-			while (gTPool.permission)
-				(void)0;
+		
+		if (msg) {
+			if (prev != prog) {
+				printf_progressFst(gThdPool_ProgressMessage, prog + 1, amount);
+			}
 		}
 		
 		max = Min(max, gTPool.num);
@@ -237,17 +238,16 @@ void ThdPool_Exec(u32 max, bool mutex) {
 			}
 			
 			if (t) {
-				cur++;
-				t->state = T_RUN;
+				while (t->state != T_RUN)
+					t->state = T_RUN;
+				Thread_Create(&t->thd, ThdPool_RunThd, t);
 				
-				if (gTPool.mutex)
-					ThreadLock_Create(&t->id, ThdPool_RunThd, t);
-				else
-					Thread_Create(&t->id, ThdPool_RunThd, t);
-			}// else break;
+				cur++;
+			}
 			
 		}
 		
+		prev = prog;
 		if (true) { /* Clean */
 			t = gTPool.head;
 			while (t) {
@@ -260,14 +260,20 @@ void ThdPool_Exec(u32 max, bool mutex) {
 			if (t) {
 				if (t->nid)
 					gTPool.dep[t->nid]--;
-				Node_Remove(gTPool.head, t);
+				
+				Thread_Join(&t->thd);
+				Node_Kill(gTPool.head, t);
+				
 				cur--;
 				gTPool.num--;
-			}// else break;
+				prog++;
+			}
 		}
+		
 	}
 	
-	gTPool.run = false;
+	gThdPool_ProgressMessage = NULL;
+	gTPool.on = false;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -295,31 +301,39 @@ void32 VirtualToSegmented(const u8 id, void* ptr) {
 // # TMP                                 #
 // # # # # # # # # # # # # # # # # # # # #
 
-static ThreadLocal struct {
+typedef struct {
 	u8*  head;
 	Size offset;
 	
 	// Maybe expandable in the future?
 	Size max;
-} sBufferX = {
-	.max = MbToBin(1)
+} BufferX;
+
+ThreadLocal BufferX sBufferX = {
+	.max = MbToBin(1),
 };
 
 void* xAlloc(Size size) {
 #pragma GCC diagnostic push
 #ifndef __clang__
-  #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+	#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
 	u8* ret;
 	
 	if (size <= 0)
 		return NULL;
 	
-	if (!sBufferX.head)
+	if (!sBufferX.head) {
+		ThreadLock_Lock();
 		qFree(sBufferX.head = Alloc(sBufferX.max));
+		ThreadLock_Unlock();
+	}
+	
+	if (size >= sBufferX.max / 4)
+		printf_error("That's over half!!!");
 	
 	if (sBufferX.offset + size + 10 >= sBufferX.max) {
-		Log("xBufferFlip");
+		Log("Rewind: [ %.3fkB / %.3fkB ]", BinToKb(sBufferX.offset), BinToKb(sBufferX.max));
 		sBufferX.offset = 0;
 	}
 	
@@ -774,10 +788,13 @@ s32 SysExe(const char* cmd) {
 	return ret;
 }
 
+ThreadLocal char sExeBuffer[MbToBin(15)];
+
 char* SysExeO(const char* cmd) {
-	char* result;
-	MemFile mem = MemFile_Initialize();
-	FILE* file;
+	char result[1025];
+	FILE* file = NULL;
+	u32 size = 0;
+	char* out;
 	
 	if ((file = popen(cmd, "r")) == NULL) {
 		Log(PRNT_REDD "SysExeO(%s);", cmd);
@@ -786,25 +803,46 @@ char* SysExeO(const char* cmd) {
 		return NULL;
 	}
 	
-	MemFile_Params(&mem, MEM_REALLOC, true, MEM_END);
-	MemFile_Alloc(&mem, MbToBin(1.0));
-	
-	result = Alloc(1025);
-	while (fgets(result, 1024, file))
-		MemFile_Write(&mem, result, strlen(result));
-	Free(result);
+	sExeBuffer[0] = '\0';
+	while (fgets(result, 1024, file)) {
+		size += strlen(result);
+		Assert (size < MbToBin(15));
+		strcat(sExeBuffer, result);
+	}
 	
 	if ((sSysReturn = pclose(file)) != 0) {
 		if (sSysIgnore == 0) {
-			printf("%s\n", mem.str);
+			printf("%s\n", sExeBuffer);
 			Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExeO(" PRNT_REDD "%s" PRNT_GRAY ");", sSysReturn, cmd);
 			printf_error("SysExeO");
 		}
 	}
 	
 	sSysIgnore = 0;
+	out = StrDup(sExeBuffer);
+	Assert(out != NULL);
 	
-	return mem.data;
+	return out;
+}
+
+s32 SysExeC(const char* cmd, s32 (*callback)(void*, const char*), void* arg) {
+	char* s;
+	FILE* file;
+	
+	if ((file = popen(cmd, "r")) == NULL) {
+		Log(PRNT_REDD "SysExeO(%s);", cmd);
+		Log("popen failed!");
+		
+		return -1;
+	}
+	
+	s = Alloc(1025);
+	while (fgets(s, 1024, file))
+		if (callback(arg, s))
+			break;
+	Free(s);
+	
+	return pclose(file);
 }
 
 void Sys_TerminalSize(s32* r) {
@@ -818,15 +856,15 @@ void Sys_TerminalSize(s32* r) {
 		x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
 		y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 #else
-  #ifndef __clang__
-	#include <sys/ioctl.h>
+	#ifndef __clang__
+		#include <sys/ioctl.h>
 			struct winsize w;
 			
 			ioctl(0, TIOCGWINSZ, &w);
 			
 			x = w.ws_col;
 			y = w.ws_row;
-  #endif // __clang__
+	#endif // __clang__
 #endif // _WIN32
 	
 	r[0] = x;
@@ -878,28 +916,28 @@ Date Sys_Date(Time time) {
 s32 Sys_GetCoreCount(void) {
 	{
 #ifndef __clang__
-  #ifdef _WIN32
+	#ifdef _WIN32
 				#define WIN32_LEAN_AND_MEAN
-	#include <windows.h>
-  #else
-	#include <unistd.h>
-  #endif
-  #include <stdio.h>
-  #include <stdlib.h>
-  #include <string.h>
-  #include <errno.h>
+		#include <windows.h>
+	#else
+		#include <unistd.h>
+	#endif
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <string.h>
+	#include <errno.h>
 			s64 nprocs = -1;
 			s64 nprocs_max = -1;
 			
-  #ifdef _WIN32
-	#ifndef _SC_NPROCESSORS_ONLN
+	#ifdef _WIN32
+		#ifndef _SC_NPROCESSORS_ONLN
 					SYSTEM_INFO info;
 					GetSystemInfo(&info);
 					#define sysconf(a) info.dwNumberOfProcessors
 					#define _SC_NPROCESSORS_ONLN
+		#endif
 	#endif
-  #endif
-  #ifdef _SC_NPROCESSORS_ONLN
+	#ifdef _SC_NPROCESSORS_ONLN
 				nprocs = sysconf(_SC_NPROCESSORS_ONLN);
 				if (nprocs < 1) {
 					return 0;
@@ -910,9 +948,9 @@ s32 Sys_GetCoreCount(void) {
 				}
 				
 				return nprocs;
-  #else
+	#else
 				
-  #endif
+	#endif
 #endif
 	}
 	
@@ -991,9 +1029,12 @@ const char* Terminal_GetStr(void) {
 }
 
 char Terminal_GetChar() {
-	printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_RSET);
+	char s;
 	
-	return getchar();
+	printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_RSET);
+	scanf("%c", &s);
+	
+	return s;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1178,6 +1219,9 @@ char* StrEndCase(const char* src, const char* ext) {
 }
 
 char* StrStart(const char* src, const char* ext) {
+	if (strlen(src) < strlen(ext))
+		return NULL;
+	
 	if (!strncmp(src, ext, strlen(ext)))
 		return (char*)src;
 	
@@ -1232,10 +1276,16 @@ char* StrDup(const char* src) {
 }
 
 char* StrDupX(const char* src, Size size) {
+	char* r;
+	
 	if (src == NULL)
 		return NULL;
 	
-	return strcpy(Alloc(Max(size, strlen(src) + 1)), src);
+	r = Alloc(Max(size, strlen(src) + 1));
+	if (r)
+		strcpy(r, src);
+	
+	return r;
 }
 
 char* StrDupClp(const char* str, u32 max) {
@@ -2308,215 +2358,178 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 // # LOG                                 #
 // # # # # # # # # # # # # # # # # # # # #
 
-#include <signal.h>
-
-#define FAULT_BUFFER_SIZE (1024)
-#define FAULT_LOG_NUM     8
-
-static char* sLogMsg[FAULT_LOG_NUM];
-static char* sLogFunc[FAULT_LOG_NUM];
-static u32 sLogLine[FAULT_LOG_NUM];
-static vs32 sLogInit;
-static vs32 sLogOutput = true;
-
-void Log_NoOutput(void) {
-	sLogOutput = false;
-}
-
-static void Log_Signal_PrintTitle(s32 arg, FILE* file) {
-	const char* errorMsg[] = {
-		"\a0",
-		"\a1 - Hang Up",
-		"\a2 - Interrupted", // SIGINT
-		"\a3 - Quit",
-		"\a4 - Illegal Instruction",
-		"\a5 - Trap",
-		"\a6 - Abort()",
-		"\a7 - Illegal Memory Access",
-		"\a8 - Floating Point Exception",
-		"\a9 - Killed",
-		"\a10 - Programmer Error",
-		"\a11 - Segmentation Fault",
-		"\a12 - Programmer Error",
-		"\a13 - Pipe Death",
-		"\a14 - Alarm",
-		"\a15 - Killed",
+#ifndef EXT_LIB_NO_LOG
+	#include <signal.h>
+	
+	#define FAULT_BUFFER_SIZE (1024)
+	#define FAULT_LOG_NUM     16
+	
+	static char* sLogMsg[FAULT_LOG_NUM];
+	static char* sLogFunc[FAULT_LOG_NUM];
+	static u32 sLogLine[FAULT_LOG_NUM];
+	static vs32 sLogInit;
+	static vs32 sLogOutput = true;
+	
+	void Log_NoOutput(void) {
+		sLogOutput = false;
+	}
+	
+	static void Log_Signal_PrintTitle(s32 arg, FILE* file) {
+		const char* errorMsg[] = {
+			"\a0",
+			"\a1 - Hang Up",
+			"\a2 - Interrupted", // SIGINT
+			"\a3 - Quit",
+			"\a4 - Illegal Instruction",
+			"\a5 - Trap",
+			"\a6 - Abort()",
+			"\a7 - Illegal Memory Access",
+			"\a8 - Floating Point Exception",
+			"\a9 - Killed",
+			"\a10 - Programmer Error",
+			"\a11 - Segmentation Fault",
+			"\a12 - Programmer Error",
+			"\a13 - Pipe Death",
+			"\a14 - Alarm",
+			"\a15 - Killed",
+			
+			"\aLog List",
+		};
 		
-		"\aERROR",
-	};
-	
-	printf_WinFix();
-	
-	if (arg == 16 && sLogOutput == true)
-		fprintf(file, "\n[!]: [ ERROR ]");
-	else if (arg != 0xDEADBEEF)
-		fprintf(file, "\n" PRNT_REDD "!" PRNT_GRAY ":" PRNT_GRAY " [ " PRNT_REDD "%s " PRNT_GRAY "]", errorMsg[ClampMax(arg, 16)]);
-	else
-		fprintf(file, "\n" PRNT_REDD "!" PRNT_GRAY ":" PRNT_GRAY " [ " PRNT_REDD "LOG " PRNT_GRAY "]");
-}
-
-static void Log_Printinf(s32 arg, FILE* file) {
-	u32 msgsNum = 0;
-	u32 repeat = 0;
-	
-	if (arg != 16 || sLogOutput == false) {
-		for (s32 i = FAULT_LOG_NUM - 1; i >= 0; i--) {
-			if (strlen(sLogMsg[i]) == 0)
-				continue;
-			
-			if ((msgsNum > 0 && strcmp(sLogMsg[i], sLogMsg[i + 1])) )
-				if (repeat)
-					fprintf(file, PRNT_PRPL " x %d" PRNT_RSET, repeat + 1);
-			
-			if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogFunc[i], sLogFunc[i + 1])) )
-				fprintf(file, "\n" PRNT_REDD "!" PRNT_GRAY ":" PRNT_YELW " %s" PRNT_GRAY "();" PRNT_RSET, sLogFunc[i]);
-			
-			if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogMsg[i], sLogMsg[i + 1])) ) {
-				fprintf(
-					file,
-					"\n" PRNT_REDD "!" PRNT_GRAY ":" PRNT_GRAY " [ %4d ]" PRNT_RSET " %s" PRNT_RSET,
-					sLogLine[i],
-					sLogMsg[i]
-				);
-				
-				repeat = 0;
-			} else {
-				repeat++;
-			}
-			
-			msgsNum++;
-		}
+		printf_WinFix();
+		
+		if (gPrintfProgressing)
+			fprintf(file, "\n");
+		
+		if (arg != 0xDEADBEEF)
+			fprintf(file, "" PRNT_GRAY "[ " PRNT_REDD "%s " PRNT_GRAY "]\n", errorMsg[ClampMax(arg, 16)]);
+		else
+			fprintf(file, "" PRNT_GRAY "[ " PRNT_REDD "LOG " PRNT_GRAY "]\n");
 		fprintf(file, "\n");
+	}
+	
+	static void Log_Printinf(s32 arg, FILE* file) {
 		
-#ifdef _WIN32
-			fprintf(
-				file,
-				"\n" PRNT_REDD "!" PRNT_GRAY ":" PRNT_YELW " Press Enter to Exit" PRNT_RSET "\n"
-			);
+		for (s32 i = FAULT_LOG_NUM - 1, j = 0; i >= 0; i--, j++) {
+			char* pfunc = j == 0 ? "__log_none__" : sLogFunc[i + 1];
+			char* fmt = Fmt("%d:", sLogLine[i]);
+			
+			if (strcmp(sLogFunc[i], pfunc))
+				fprintf(file, "" PRNT_YELW "%s" PRNT_GRAY "();\n", sLogFunc[i]);
+			fprintf(file, "" PRNT_GRAY "%-8s" PRNT_RSET "%s\n", fmt, sLogMsg[i]);
+			
+			free(fmt);
+		}
+		
+		if (arg == 16)
+			fprintf(file, "\n");
+	}
+	
+	static void Log_Signal(s32 arg) {
+		static volatile bool ran = 0;
+		
+		if (!sLogInit)
+			return;
+		if (ran) return;
+		ran = true;
+		sLogInit = false;
+		gKillFlag = true;
+		
+		Log_Signal_PrintTitle(arg, stderr);
+		Log_Printinf(arg, stderr);
+		
+		if (arg != 16) {
+			printf_getchar("Press enter to exit");
+			exit(1);
+		}
+	}
+	
+	void Log_Init() {
+		if (sLogInit)
+			return;
+		for (s32 i = 1; i < 16; i++)
+			signal(i, Log_Signal);
+		
+		for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
+			sLogMsg[i] = Calloc(FAULT_BUFFER_SIZE);
+			sLogFunc[i] = Calloc(FAULT_BUFFER_SIZE * 0.25);
+		}
+		
+		sLogInit = true;
+	}
+	
+	void Log_Free() {
+		if (!sLogInit)
+			return;
+		sLogInit = 0;
+		for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
+			Free(sLogMsg[i]);
+			Free(sLogFunc[i]);
+		}
+	}
+	
+	void Log_Print() {
+		if (!sLogInit)
+			return;
+		if (sLogMsg[0] == NULL)
+			return;
+		if (sLogMsg[0][0] != 0)
+			Log_Signal(0xDEADBEEF);
+	}
+	
+	void __Log(const char* func, u32 line, const char* txt, ...) {
+		if (!sLogInit)
+			return;
+		
+		ThreadLock_Lock();
+		va_list args;
+		
+		if (sLogMsg[0] == NULL)
+			return;
+		
+		ArrMoveR(sLogMsg, 0, FAULT_LOG_NUM);
+		ArrMoveR(sLogFunc, 0, FAULT_LOG_NUM);
+		ArrMoveR(sLogLine, 0, FAULT_LOG_NUM);
+		
+		va_start(args, txt);
+		vsnprintf(sLogMsg[0], FAULT_BUFFER_SIZE, txt, args);
+		va_end(args);
+		
+		strcpy(sLogFunc[0], func);
+		sLogLine[0] = line;
+		
+	#if 0
+			if (strcmp(sLogFunc[0], sLogFunc[1]))
+				fprintf(stderr, "" PRNT_REDD "%s" PRNT_GRAY "();\n", sLogFunc[0]);
+			fprintf(stderr, "" PRNT_GRAY "%-8d" PRNT_RSET "%s\n", sLogLine[0], sLogMsg[0]);
+	#endif
+		
+		ThreadLock_Unlock();
+	}
+	
+#else
+	
+	static void Log_Signal(int wow) {
+		return;
+	}
+	
+	void Log_NoOutput() {
+		return;
+	}
+	void Log_Init() {
+		return;
+	}
+	void Log_Free() {
+		return;
+	}
+	void Log_Print() {
+		return;
+	}
+	void __Log(const char* func, u32 line, const char* txt, ...) {
+		return;
+	}
+	
 #endif
-	} else {
-		for (s32 i = FAULT_LOG_NUM - 1; i >= 0; i--) {
-			if (strlen(sLogMsg[i]) == 0)
-				continue;
-			
-			if ((msgsNum > 0 && strcmp(sLogMsg[i], sLogMsg[i + 1])) )
-				if (repeat)
-					fprintf(file, " x %d", repeat + 1);
-			
-			if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogFunc[i], sLogFunc[i + 1])) )
-				fprintf(file, "\n!: %s();", sLogFunc[i]);
-			
-			if (msgsNum == 0 || (msgsNum > 0 && strcmp(sLogMsg[i], sLogMsg[i + 1])) ) {
-				fprintf(
-					file,
-					"\n!: [ %4d ] %s",
-					sLogLine[i],
-					sLogMsg[i]
-				);
-				
-				repeat = 0;
-			} else {
-				repeat++;
-			}
-			
-			msgsNum++;
-		}
-		fprintf(file, "\n");
-	}
-}
-
-static void Log_Signal(s32 arg) {
-	static volatile bool ran = 0;
-	FILE* file;
-	
-	if (!sLogInit)
-		return;
-	
-	if (ran) return;
-	sLogInit = false;
-	gKillFlag = true;
-	ran = gThreadMode != 0;
-	
-	if (arg == 16 && sLogOutput) {
-		file = fopen(".log", "w");
-	} else
-		file = stdout;
-	
-	Log_Signal_PrintTitle(arg, file);
-	Log_Printinf(arg, file);
-	
-	if (arg != 16) {
-		printf_getchar("Press enter to exit");
-		exit(1);
-	}
-}
-
-void Log_Init() {
-	if (sLogInit)
-		return;
-	for (s32 i = 1; i < 16; i++)
-		signal(i, Log_Signal);
-	
-	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-		sLogMsg[i] = Calloc(FAULT_BUFFER_SIZE);
-		sLogFunc[i] = Calloc(FAULT_BUFFER_SIZE * 0.25);
-	}
-	
-	sLogInit = true;
-}
-
-void Log_Free() {
-	if (!sLogInit)
-		return;
-	sLogInit = 0;
-	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-		Free(sLogMsg[i]);
-		Free(sLogFunc[i]);
-	}
-}
-
-void Log_Print() {
-	if (!sLogInit)
-		return;
-	if (sLogMsg[0] == NULL)
-		return;
-	if (sLogMsg[0][0] != 0)
-		Log_Signal(0xDEADBEEF);
-}
-
-void __Log_ItemList(ItemList* list, const char* function, s32 line) {
-	if (!sLogInit)
-		return;
-	__Log(function, line, "Num: %d", list->num);
-	forlist(i, *list) {
-		__Log(function, line, "%d - [%s]", i, list->item[i]);
-	}
-}
-
-void __Log(const char* func, u32 line, const char* txt, ...) {
-	if (!sLogInit)
-		return;
-	
-	ThreadLock_Lock();
-	va_list args;
-	
-	if (sLogMsg[0] == NULL)
-		return;
-	
-	for (s32 i = FAULT_LOG_NUM - 1; i > 0; i--) {
-		strcpy(sLogMsg[i], sLogMsg[i - 1]);
-		strcpy(sLogFunc[i], sLogFunc[i - 1]);
-		sLogLine[i] = sLogLine[i - 1];
-	}
-	
-	va_start(args, txt);
-	vsnprintf(sLogMsg[0], FAULT_BUFFER_SIZE, txt, args);
-	va_end(args);
-	
-	strcpy(sLogFunc[0], func);
-	sLogLine[0] = line;
-	ThreadLock_Unlock();
-}
 
 // # # # # # # # # # # # # # # # # # # # #
 // # PRINTF                              #
@@ -2700,7 +2713,12 @@ static void printf_MuteOutput(FILE* output) {
 }
 
 void printf_error(const char* fmt, ...) {
+	static vbool error = false;
 	char* msg;
+	
+	if (error)
+		return;
+	error = true;
 	
 	gKillFlag = 1;
 	printf_MuteOutput(stdout);
@@ -2930,6 +2948,7 @@ void printf_lock(const char* fmt, ...) {
 	va_start(va, fmt);
 	ThreadLock_Lock();
 	vprintf(fmt, va);
+	fflush(stdout);
 	ThreadLock_Unlock();
 	va_end(va);
 }

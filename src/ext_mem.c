@@ -1,5 +1,7 @@
 #include <ext_lib.h>
 
+#undef MemFile_Alloc
+
 // # # # # # # # # # # # # # # # # # # # #
 // # MEMFILE                             #
 // # # # # # # # # # # # # # # # # # # # #
@@ -43,6 +45,9 @@ void MemFile_Params(MemFile* memFile, ...) {
 	u32 cmd;
 	u32 arg;
 	
+	if (memFile->param.initKey == 0xD0E0A0D0B0E0E0F0)
+		*memFile = MemFile_Initialize();
+	
 	va_start(args, memFile);
 	for (;;) {
 		cmd = va_arg(args, uptr);
@@ -74,6 +79,7 @@ void MemFile_Params(MemFile* memFile, ...) {
 }
 
 void MemFile_Alloc(MemFile* memFile, u32 size) {
+	
 	if (memFile->param.initKey != 0xD0E0A0D0B0E0E0F0) {
 		*memFile = MemFile_Initialize();
 	} else if (memFile->data) {
@@ -81,11 +87,7 @@ void MemFile_Alloc(MemFile* memFile, u32 size) {
 		MemFile_Free(memFile);
 	}
 	
-	memFile->data = Calloc(size);
-	
-	if (memFile->data == NULL)
-		printf_error("Failed to malloc [0x%X] bytes.", size);
-	
+	Assert ((memFile->data = Calloc(size)) != NULL);
 	memFile->memSize = size;
 }
 
@@ -95,7 +97,7 @@ void MemFile_Realloc(MemFile* memFile, u32 size) {
 	if (memFile->memSize > size)
 		return;
 	
-	memFile->data = Realloc(memFile->data, size);
+	Assert((memFile->data = Realloc(memFile->data, size)) != NULL);
 	memFile->memSize = size;
 }
 
@@ -107,21 +109,15 @@ s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
 	u32 osize = size;
 	
 	if (src == NULL) {
-		printf_warning("MemFile: src is NULL");
+		Log("Trying to write 0 size");
 		
-		return -1;
+		return 0;
 	}
 	
 	size = ClampMax(size, ClampMin(dest->memSize - dest->seekPoint, 0));
 	
-	if (size != osize) {
-		if (dest->param.realloc) {
-			MemFile_Realloc(dest, dest->memSize + dest->memSize);
-			size = osize;
-		} else {
-			printf_warning("MemFile: Wrote %.2fkB instead of %.2fkB", BinToKb(size), BinToKb(osize));
-		}
-	}
+	if (size != osize)
+		MemFile_Realloc(dest, dest->memSize * 2 + size);
 	
 	memcpy(&dest->cast.u8[dest->seekPoint], src, size);
 	dest->seekPoint += size;
@@ -141,13 +137,8 @@ s32 MemFile_Insert(MemFile* mem, void* src, u32 size, s64 pos) {
 	u32 p = pos < 0 ? mem->seekPoint : pos;
 	u32 remasize = mem->size - p;
 	
-	if (p + size + remasize >= mem->memSize) {
-		if (mem->param.realloc) {
-			MemFile_Realloc(mem, mem->memSize * 2);
-		} else {
-			printf_error("MemFile ran out of space");
-		}
-	}
+	if (p + size + remasize >= mem->memSize)
+		MemFile_Realloc(mem, mem->memSize * 2);
 	
 	memmove(&mem->cast.u8[p + remasize], &mem->cast.u8[p], remasize);
 	
@@ -248,7 +239,7 @@ s32 MemFile_LoadFile(MemFile* memFile, const char* filepath) {
 	fclose(file);
 	
 	memFile->info.age = Sys_Stat(filepath);
-	strcpy(memFile->info.name, filepath);
+	memFile->info.name = strdup(filepath);
 	
 	return 0;
 }
@@ -282,7 +273,7 @@ s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath) {
 	memFile->cast.u8[memFile->size] = '\0';
 	
 	memFile->info.age = Sys_Stat(filepath);
-	strcpy(memFile->info.name, filepath);
+	memFile->info.name = strdup(filepath);
 	
 	return 0;
 }
@@ -320,8 +311,10 @@ s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath) {
 }
 
 void MemFile_Free(MemFile* memFile) {
-	if (memFile->param.initKey == 0xD0E0A0D0B0E0E0F0)
+	if (memFile->param.initKey == 0xD0E0A0D0B0E0E0F0) {
 		Free(memFile->data);
+		Free(memFile->info.name);
+	}
 	
 	*memFile = MemFile_Initialize();
 }

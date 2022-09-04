@@ -4,6 +4,12 @@
 #undef ItemList_GetWildItem
 #undef ItemList_SetFilter
 
+#undef ItemList_List
+#undef ItemList_Separated
+#undef ItemList_Free
+#undef ItemList_Alloc
+#undef ItemList_AddItem
+
 // # # # # # # # # # # # # # # # # # # # #
 // # ITEM LIST                           #
 // # # # # # # # # # # # # # # # # # # # #
@@ -195,8 +201,6 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags
 		Free(node->txt);
 		Node_Kill(info.node, info.node);
 	}
-	
-	Log("OK, %d [%s]", target->num, path);
 }
 
 char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, ...) {
@@ -222,7 +226,6 @@ void ItemList_Separated(ItemList* list, const char* str, const char separator) {
 	s32 b = 0;
 	StrNode* nodeHead = NULL;
 	
-	Log("Building List");
 	ItemList_Validate(list);
 	
 	while (str[a] == ' ' || str[a] == '\t' || str[a] == '\n' || str[a] == '\r') a++;
@@ -299,8 +302,6 @@ write:
 		Free(nodeHead->txt);
 		Node_Kill(nodeHead, nodeHead);
 	}
-	
-	Log("OK, %d [%s]", list->num, str);
 }
 
 void ItemList_Print(ItemList* target) {
@@ -346,22 +347,15 @@ void ItemList_NumericalSort(ItemList* list) {
 	u32 highestNum = 0;
 	
 	if (list->num < 2) {
-		Log("Nothing to sort!");
 		
 		return;
 	}
 	
-	Log("Sorting!");
 	for (s32 i = 0; i < list->num; i++)
 		highestNum = Max(highestNum, Value_Int(list->item[i]));
 	
-	Log("Num Max %d From %d Items", highestNum, list->num);
-	
-	if (highestNum == 0) {
-		Log("Aborting Sorting");
-		
+	if (highestNum == 0)
 		return;
-	}
 	
 	sorted.buffer = Calloc(list->writePoint * 4);
 	sorted.item = Calloc(sizeof(char*) * (highestNum + 1));
@@ -389,7 +383,6 @@ void ItemList_NumericalSort(ItemList* list) {
 	list->filterNode = NULL;
 	ItemList_Free(list);
 	
-	Log("Sorted");
 	*list = sorted;
 }
 
@@ -525,8 +518,11 @@ void ItemList_AddItem(ItemList* list, const char* item) {
 void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b) {
 	ItemList_Alloc(out, a->num + b->num, a->writePoint + b->writePoint);
 	
-	forlist(i, *a)
-	ItemList_AddItem(out, a->item[i]);
-	forlist(i, *b)
-	ItemList_AddItem(out, b->item[i]);
+	forlist(i, *a) {
+		ItemList_AddItem(out, a->item[i]);
+	}
+	
+	forlist(i, *b) {
+		ItemList_AddItem(out, b->item[i]);
+	}
 }

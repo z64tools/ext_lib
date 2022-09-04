@@ -149,9 +149,9 @@ typedef struct MemFile {
 	u32 size;
 	u32 seekPoint;
 	struct {
-		Time age;
-		char name[512];
-		u32  crc32;
+		Time  age;
+		char* name;
+		u32   crc32;
 	} info;
 	struct {
 		u32 align;
