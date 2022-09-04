@@ -140,9 +140,17 @@ void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b);
 #define ItemList_GetWildItem(list, ...) ItemList_GetWildItem(list, __VA_ARGS__, NULL)
 #define ItemList_SetFilter(list, ...)   ItemList_SetFilter(list, NARGS(__VA_ARGS__), __VA_ARGS__)
 
-#define Assert(expression) \
-	__Assert((s32)(expression), "" PRNT_GRAY "[" PRNT_REDD "%s" PRNT_GRAY "]:[" PRNT_YELW "%s" PRNT_GRAY "]:[" PRNT_BLUE "%d" PRNT_GRAY "]", #expression, __FUNCTION__, __LINE__)
-void __Assert(s32 expression, const char* msg, ...);
+#define Assert(expression) do {										   \
+		if (!(expression)) {										   \
+			fprintf(												   \
+				stdout,												   \
+				"ASSERT: " PRNT_GRAY "[" PRNT_REDD "%s" PRNT_GRAY "]:" \
+				"[" PRNT_YELW "%s" PRNT_GRAY "]:"					   \
+				"[" PRNT_BLUE "%d" PRNT_GRAY "]",					   \
+				#expression, __FUNCTION__, __LINE__					   \
+			); }													   \
+} while (0)
+
 f32 RandF();
 void* MemMem(const void* haystack, Size haystacklen, const void* needle, Size needlelen);
 void* StrStr(const char* haystack, const char* needle);
@@ -299,8 +307,7 @@ void __Log(const char* func, u32 line, const char* txt, ...);
 #define Log(...) __Log(__FUNCTION__, __LINE__, __VA_ARGS__)
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
-void printf_SetPrefix(char* fmt);
-void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i);
+void __attribute__ ((deprecated)) printf_SetPrefix(char* fmt);
 void printf_toolinfo(const char* toolname, const char* fmt, ...);
 void printf_warning(const char* fmt, ...);
 void printf_warning_align(const char* info, const char* fmt, ...);
@@ -358,36 +365,31 @@ int strnicmp(const char* a, const char* b, Size size);
 	}
 #endif
 
-extern bool gThreadMode;
+extern vbool gThreadMode;
 extern Mutex gThreadMutex;
 
-static inline void ThreadLock_Init(void) {
-	pthread_mutex_init(&gThreadMutex, NULL);
+static inline void Mutex_Enable(void) {
+	if (!gThreadMode)
+		pthread_mutex_init(&gThreadMutex, NULL);
 	gThreadMode = true;
+	
 }
 
-static inline void ThreadLock_Free(void) {
-	pthread_mutex_destroy(&gThreadMutex);
+static inline void Mutex_Disable(void) {
+	if (gThreadMode)
+		pthread_mutex_destroy(&gThreadMutex);
 	gThreadMode = false;
+	
 }
 
-static inline void ThreadLock_Lock(void) {
+static inline void Mutex_Lock(void) {
 	if (gThreadMode)
 		pthread_mutex_lock(&gThreadMutex);
 }
 
-static inline void ThreadLock_Unlock(void) {
+static inline void Mutex_Unlock(void) {
 	if (gThreadMode)
 		pthread_mutex_unlock(&gThreadMutex);
-}
-
-static inline void ThreadLock_Create(Thread* thread, void* func, void* arg) {
-	if (gThreadMode == false) printf_error("Thread not Initialized");
-	pthread_create(thread, NULL, (void*)func, (void*)(arg));
-}
-
-static inline s32 ThreadLock_Join(Thread* thread) {
-	return pthread_join(*thread, NULL);
 }
 
 static inline void Thread_Create(Thread* thread, void* func, void* arg) {

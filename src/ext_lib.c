@@ -37,6 +37,8 @@
 	#include <libloaderapi.h>
 #endif
 
+#define stdlog stdout
+
 f32 EPSILON = 0.0000001f;
 f32 gDeltaTime;
 
@@ -44,7 +46,7 @@ f32 gDeltaTime;
 // # THREAD                              #
 // # # # # # # # # # # # # # # # # # # # #
 
-bool gThreadMode;
+vbool gThreadMode;
 Mutex gThreadMutex;
 static vbool gKillFlag;
 
@@ -75,9 +77,9 @@ void* qFree(const void* ptr) {
 void* PostFree_Queue(void* ptr) {
 	PostFreeNode* n = New(PostFreeNode);
 	
-	ThreadLock_Lock();
+	Mutex_Lock();
 	Node_Add(sPostFreeHead2, n);
-	ThreadLock_Unlock();
+	Mutex_Unlock();
 	n->ptr = ptr;
 	
 	return ptr;
@@ -86,9 +88,9 @@ void* PostFree_Queue(void* ptr) {
 void* PostFree_QueueCallback(void* callback, void* ptr) {
 	PostFreeNode* n = New(PostFreeNode);
 	
-	ThreadLock_Lock();
+	Mutex_Lock();
 	Node_Add(sPostFreeHead2, n);
-	ThreadLock_Unlock();
+	Mutex_Unlock();
 	n->ptr = ptr;
 	n->free = callback;
 	
@@ -150,18 +152,18 @@ static struct {
 	u32      num;
 	u16      dep[__UINT8_MAX__];
 	struct {
-		vbool mutex : 1;
-		vbool on    : 1;
+		bool mutex : 1;
+		bool on    : 1;
 	};
 } gTPool;
 
 #undef ThdPool_Add
 void ThdPool_Add(void* function, void* arg, u32 n, ...) {
-	ThreadLock_Lock();
 	ThdItem* t = New(ThdItem);
 	va_list va;
 	
 	Assert(gTPool.on == false);
+	
 	t->function = function;
 	t->arg = arg;
 	
@@ -177,13 +179,13 @@ void ThdPool_Add(void* function, void* arg, u32 n, ...) {
 	}
 	va_end(va);
 	
+	Mutex_Lock();
 	if (t->nid)
 		gTPool.dep[t->nid]++;
 	
 	Node_Add(gTPool.head, t);
 	gTPool.num++;
-	
-	ThreadLock_Unlock();
+	Mutex_Unlock();
 }
 
 static void ThdPool_RunThd(ThdItem* thd) {
@@ -215,14 +217,14 @@ void ThdPool_Exec(u32 max, bool mutex) {
 	if (max == 0)
 		max = 1;
 	
+	if (mutex)
+		Mutex_Enable();
+	
 	gTPool.on = true;
 	while (gTPool.num) {
 		
-		if (msg) {
-			if (prev != prog) {
-				printf_progressFst(gThdPool_ProgressMessage, prog + 1, amount);
-			}
-		}
+		if (msg && prev != prog)
+			printf_progressFst(gThdPool_ProgressMessage, prog + 1, amount);
 		
 		max = Min(max, gTPool.num);
 		
@@ -272,6 +274,9 @@ void ThdPool_Exec(u32 max, bool mutex) {
 		
 	}
 	
+	if (mutex)
+		Mutex_Disable();
+	
 	gThdPool_ProgressMessage = NULL;
 	gTPool.on = false;
 }
@@ -304,44 +309,38 @@ void32 VirtualToSegmented(const u8 id, void* ptr) {
 typedef struct {
 	u8*  head;
 	Size offset;
-	
-	// Maybe expandable in the future?
 	Size max;
 } BufferX;
 
-ThreadLocal BufferX sBufferX = {
-	.max = MbToBin(1),
-};
-
 void* xAlloc(Size size) {
-#pragma GCC diagnostic push
-#ifndef __clang__
-	#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
+	static BufferX this = {
+		.max = MbToBin(16),
+	};
 	u8* ret;
 	
 	if (size <= 0)
 		return NULL;
 	
-	if (!sBufferX.head) {
-		ThreadLock_Lock();
-		qFree(sBufferX.head = Alloc(sBufferX.max));
-		ThreadLock_Unlock();
-	}
-	
-	if (size >= sBufferX.max / 4)
+	if (size >= this.max / 4)
 		printf_error("That's over half!!!");
 	
-	if (sBufferX.offset + size + 10 >= sBufferX.max) {
-		Log("Rewind: [ %.3fkB / %.3fkB ]", BinToKb(sBufferX.offset), BinToKb(sBufferX.max));
-		sBufferX.offset = 0;
+	Mutex_Lock();
+	if (this.head == NULL) {
+		this.head = qFree(Alloc(this.max));
+		Assert(this.head != NULL);
 	}
 	
-	ret = &sBufferX.head[sBufferX.offset];
-	sBufferX.offset += size + 1;
+	if (this.offset + size + 10 >= this.max) {
+		Log("Rewind: [ %.3fkB / %.3fkB ]", BinToKb(this.offset), BinToKb(this.max));
+		this.offset = 0;
+	}
+	
+	ret = &this.head[this.offset];
+	this.offset += size + 1;
+	
+	Mutex_Unlock();
 	
 	return memset(ret, 0, size + 1);
-#pragma GCC diagnostic pop
 }
 
 char* xStrDup(const char* str) {
@@ -1042,19 +1041,6 @@ char Terminal_GetChar() {
 // # # # # # # # # # # # # # # # # # # # #
 
 static s32 sRandInit;
-
-void __Assert(s32 expression, const char* msg, ...) {
-	if (!expression) {
-		char* buf;
-		va_list va;
-		
-		va_start(va, msg);
-		vasprintf(&buf, msg, va);
-		va_end(va);
-		
-		printf_error("%s", buf);
-	}
-}
 
 f32 RandF() {
 	if (sRandInit == 0) {
@@ -2435,8 +2421,8 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 		sLogInit = false;
 		gKillFlag = true;
 		
-		Log_Signal_PrintTitle(arg, stderr);
-		Log_Printinf(arg, stderr);
+		Log_Signal_PrintTitle(arg, stdlog);
+		Log_Printinf(arg, stdlog);
 		
 		if (arg != 16) {
 			printf_getchar("Press enter to exit");
@@ -2481,7 +2467,7 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 		if (!sLogInit)
 			return;
 		
-		ThreadLock_Lock();
+		Mutex_Lock();
 		va_list args;
 		
 		if (sLogMsg[0] == NULL)
@@ -2498,13 +2484,13 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 		strcpy(sLogFunc[0], func);
 		sLogLine[0] = line;
 		
-	#if 0
+	#if 1
 			if (strcmp(sLogFunc[0], sLogFunc[1]))
-				fprintf(stderr, "" PRNT_REDD "%s" PRNT_GRAY "();\n", sLogFunc[0]);
-			fprintf(stderr, "" PRNT_GRAY "%-8d" PRNT_RSET "%s\n", sLogLine[0], sLogMsg[0]);
+				fprintf(stdlog, "" PRNT_REDD "%s" PRNT_GRAY "();\n", sLogFunc[0]);
+			fprintf(stdlog, "" PRNT_GRAY "%-8d" PRNT_RSET "%s\n", sLogLine[0], sLogMsg[0]);
 	#endif
 		
-		ThreadLock_Unlock();
+		Mutex_Unlock();
 	}
 	
 #else
@@ -2535,22 +2521,6 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 // # PRINTF                              #
 // # # # # # # # # # # # # # # # # # # # #
 
-static char* sPrintfPrefix = "";
-static u8 sPrintfType = 1;
-static const char* sPrintfPreType[][4] = {
-	{
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-	},
-	{
-		">",
-		">",
-		">",
-		">"
-	}
-};
 PrintfSuppressLevel gPrintfSuppress = 0;
 u8 gPrintfProgressing;
 
@@ -2559,15 +2529,6 @@ void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
 }
 
 void printf_SetPrefix(char* fmt) {
-	sPrintfPrefix = fmt;
-}
-
-void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i) {
-	sPrintfType = 0;
-	sPrintfPreType[sPrintfType][0] = d;
-	sPrintfPreType[sPrintfType][1] = w;
-	sPrintfPreType[sPrintfType][2] = e;
-	sPrintfPreType[sPrintfType][3] = i;
 }
 
 void printf_toolinfo(const char* toolname, const char* fmt, ...) {
@@ -2632,7 +2593,7 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 }
 
 static void __printf_call(u32 type, FILE* file) {
-	char* color[4] = {
+	const char* color[4] = {
 		PRNT_PRPL,
 		PRNT_REDD,
 		PRNT_REDD,
@@ -2641,14 +2602,8 @@ static void __printf_call(u32 type, FILE* file) {
 	
 	fprintf(
 		file,
-		"%s"
-		PRNT_GRAY ""
-		"%s%s"
-		PRNT_GRAY ": "
-		PRNT_RSET,
-		sPrintfPrefix,
-		color[type],
-		sPrintfPreType[sPrintfType][type]
+		"" PRNT_GRAY "%s>" PRNT_GRAY ": " PRNT_RSET,
+		color[type]
 	);
 }
 
@@ -2667,12 +2622,13 @@ void printf_warning(const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	__printf_call(1, stdout);
-	vprintf(
+	__printf_call(1, stdlog);
+	vfprintf(
+		stdlog,
 		fmt,
 		args
 	);
-	printf("\n");
+	fputs("\n", stdlog);
 	va_end(args);
 }
 
@@ -2692,15 +2648,17 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
 	
 	va_start(args, fmt);
 	__printf_call(1, stdout);
-	printf(
+	fprintf(
+		stdout,
 		"%-16s " PRNT_RSET,
 		info
 	);
-	vprintf(
+	vfprintf(
+		stdout,
 		fmt,
 		args
 	);
-	printf(PRNT_RSET "\n");
+	fputs("\n", stdout);
 	va_end(args);
 }
 
@@ -2713,35 +2671,26 @@ static void printf_MuteOutput(FILE* output) {
 }
 
 void printf_error(const char* fmt, ...) {
-	static vbool error = false;
-	char* msg;
-	
-	if (error)
-		return;
-	error = true;
-	
 	gKillFlag = 1;
-	printf_MuteOutput(stdout);
 	
+	printf_MuteOutput(stdout);
 	Log_Signal(16);
 	Log_Free();
+	
 	if (gPrintfSuppress < PSL_NO_ERROR) {
 		if (gPrintfProgressing) {
-			fprintf(stderr, "\n");
+			fputs("\n", stdlog);
 			gPrintfProgressing = false;
 		}
 		
 		va_list args;
 		
 		va_start(args, fmt);
-		__printf_call(2, stderr);
-		vasprintf(
-			&msg,
-			fmt,
-			args
-		);
 		
-		fprintf(stderr, "%s\n", msg);
+		__printf_call(2, stdlog);
+		vfprintf(stdlog, fmt, args);
+		fputs("\n", stdlog);
+		fflush(stdlog);
 		
 		va_end(args);
 	}
@@ -2754,35 +2703,33 @@ void printf_error(const char* fmt, ...) {
 }
 
 void printf_error_align(const char* info, const char* fmt, ...) {
-	char* msg[2];
-	
 	gKillFlag = 1;
-	printf_MuteOutput(stdout);
 	
+	printf_MuteOutput(stdout);
 	Log_Signal(16);
 	Log_Free();
+	
 	if (gPrintfSuppress < PSL_NO_ERROR) {
 		if (gPrintfProgressing) {
-			fprintf(stderr, "\n");
+			fputs("\n", stdlog);
 			gPrintfProgressing = false;
 		}
 		
 		va_list args;
 		
 		va_start(args, fmt);
-		__printf_call(2, stderr);
-		asprintf(
-			&msg[0],
+		__printf_call(2, stdlog);
+		fprintf(
+			stdlog,
 			"%-16s " PRNT_RSET,
 			info
 		);
-		vasprintf(
-			&msg[1],
+		vfprintf(
+			stdlog,
 			fmt,
 			args
 		);
-		
-		fprintf(stderr, "%s%s\n", msg[0], msg[1]);
+		fputs("\n", stdlog);
 		
 		va_end(args);
 	}
@@ -2795,7 +2742,6 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 }
 
 void printf_info(const char* fmt, ...) {
-	char* buf = NULL;
 	
 	if (gKillFlag)
 		return;
@@ -2804,27 +2750,23 @@ void printf_info(const char* fmt, ...) {
 		return;
 	
 	if (gPrintfProgressing) {
-		printf("\n");
+		fputs("\n", stdout);
 		gPrintfProgressing = false;
 	}
 	va_list args;
 	
 	va_start(args, fmt);
 	__printf_call(3, stdout);
-	vasprintf(
-		&buf,
+	vfprintf(
+		stdout,
 		fmt,
 		args
 	);
+	fputs("\n", stdout);
 	va_end(args);
-	
-	printf("%s" PRNT_RSET "\n", buf);
-	Free(buf);
 }
 
 void printf_info_align(const char* info, const char* fmt, ...) {
-	char* buf = NULL;
-	
 	if (gKillFlag)
 		return;
 	
@@ -2832,22 +2774,20 @@ void printf_info_align(const char* info, const char* fmt, ...) {
 		return;
 	
 	if (gPrintfProgressing) {
-		printf("\n");
+		fputs("\n", stdout);
 		gPrintfProgressing = false;
 	}
 	va_list args;
 	
 	va_start(args, fmt);
 	__printf_call(3, stdout);
-	vasprintf(
-		&buf,
+	vfprintf(
+		stdout,
 		fmt,
 		args
 	);
+	fputs("\n", stdout);
 	va_end(args);
-	
-	printf("%-16s%s" PRNT_RSET "\n", info, buf);
-	Free(buf);
 }
 
 void printf_prog_align(const char* info, const char* fmt, const char* color) {
@@ -2946,10 +2886,10 @@ void printf_lock(const char* fmt, ...) {
 		return;
 	
 	va_start(va, fmt);
-	ThreadLock_Lock();
+	Mutex_Lock();
 	vprintf(fmt, va);
 	fflush(stdout);
-	ThreadLock_Unlock();
+	Mutex_Unlock();
 	va_end(va);
 }
 
