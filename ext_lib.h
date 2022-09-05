@@ -1,7 +1,7 @@
 #ifndef EXT_LIB_H
 #define EXT_LIB_H
 
-#define THIS_EXTLIB_VERSION 210
+#define THIS_EXTLIB_VERSION 211
 
 /**
  * Do not get impression that this library is clang compatible.
@@ -9,6 +9,7 @@
  *
  * I just use clang IDE, that's all.
  */
+
 #ifdef __clang__
 	#ifdef _WIN32
 		#undef _WIN32
@@ -27,7 +28,7 @@
 
 #define _GNU_SOURCE
 #ifndef __CRT__NO_INLINE
-	#define __CRT__NO_INLINE
+#define __CRT__NO_INLINE
 #endif
 
 #include "ext_type.h"
@@ -210,8 +211,8 @@ void MemFile_Params(MemFile* memFile, ...);
 void MemFile_Alloc(MemFile* memFile, u32 size);
 void MemFile_Realloc(MemFile* memFile, u32 size);
 void MemFile_Rewind(MemFile* memFile);
-s32 MemFile_Write(MemFile* dest, void* src, u32 size);
-s32 MemFile_Insert(MemFile* mem, void* src, u32 size, s64 pos);
+s32 MemFile_Write(MemFile* dest, const void* src, u32 size);
+s32 MemFile_Insert(MemFile* mem, const void* src, u32 size, s64 pos);
 s32 MemFile_Append(MemFile* dest, MemFile* src);
 void MemFile_Align(MemFile* src, u32 align);
 s32 MemFile_Printf(MemFile* dest, const char* fmt, ...);
@@ -339,8 +340,8 @@ char* Regex(const char* str, const char* pattern, RegexFlag flag);
 
 #ifndef _WIN32
 	#ifndef __clang__
-		#define stricmp(a, b)        strcasecmp(a, b)
-		#define strnicmp(a, b, size) strncasecmp(a, b, size)
+#define stricmp(a, b)        strcasecmp(a, b)
+#define strnicmp(a, b, size) strncasecmp(a, b, size)
 	#endif
 #endif
 
@@ -351,17 +352,17 @@ int strnicmp(const char* a, const char* b, Size size);
 #pragma GCC diagnostic ignored "-Wunused-function"
 
 #ifdef _WIN32
-	static char* strndup(const char* s, size_t n) {
-		size_t len = strlen(s);
-		
-		len = len > n ? n : len;
-		char* new = (char*) malloc (len + 1);
-		if (new == NULL)
-			return NULL;
-		new[len] = '\0';
-		
-		return (char*) memcpy (new, s, len);
-	}
+static char* strndup(const char* s, size_t n) {
+	size_t len = strlen(s);
+	
+	len = len > n ? n : len;
+	char* new = (char*) malloc (len + 1);
+	if (new == NULL)
+		return NULL;
+	new[len] = '\0';
+	
+	return (char*) memcpy (new, s, len);
+}
 #endif
 
 extern vbool gThreadMode;
@@ -401,11 +402,11 @@ static inline s32 Thread_Join(Thread* thread) {
 
 static inline s32 Thread_TryJoin(Thread* thread) {
 #ifdef _WIN32
-		
-		return _pthread_tryjoin(*thread, NULL);
+	
+	return _pthread_tryjoin(*thread, NULL);
 #else
-		
-		return pthread_tryjoin_np(*thread, NULL);
+	
+	return pthread_tryjoin_np(*thread, NULL);
 #endif
 }
 

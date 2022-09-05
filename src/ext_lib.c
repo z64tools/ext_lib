@@ -149,15 +149,16 @@ typedef struct ThdItem {
 
 static struct {
 	ThdItem* head;
-	u32      num;
-	u16      dep[__UINT8_MAX__];
+	vu32     num;
+	vu16     dep[__UINT8_MAX__];
 	struct {
-		bool mutex : 1;
-		bool on    : 1;
+		vbool mutex : 1;
+		vbool on    : 1;
 	};
 } gTPool;
 
 #undef ThdPool_Add
+
 void ThdPool_Add(void* function, void* arg, u32 n, ...) {
 	ThdItem* t = New(ThdItem);
 	va_list va;
@@ -180,11 +181,13 @@ void ThdPool_Add(void* function, void* arg, u32 n, ...) {
 	va_end(va);
 	
 	Mutex_Lock();
-	if (t->nid)
-		gTPool.dep[t->nid]++;
-	
-	Node_Add(gTPool.head, t);
-	gTPool.num++;
+	{
+		if (t->nid)
+			gTPool.dep[t->nid]++;
+		
+		Node_Add(gTPool.head, t);
+		gTPool.num++;
+	}
 	Mutex_Unlock();
 }
 
@@ -245,7 +248,6 @@ void ThdPool_Exec(u32 max, bool mutex) {
 				while (t->state != T_RUN)
 					t->state = T_RUN;
 				Thread_Create(&t->thd, ThdPool_RunThd, t);
-				Thread_Detach(&t->thd);
 				
 				cur++;
 			}
@@ -256,8 +258,10 @@ void ThdPool_Exec(u32 max, bool mutex) {
 		if (true) { /* Clean */
 			t = gTPool.head;
 			while (t) {
-				if (t->state == T_DONE)
+				if (t->state == T_DONE) {
+					Thread_Join(&t->thd);
 					break;
+				}
 				
 				t = t->next;
 			}
@@ -323,7 +327,7 @@ void* xAlloc(Size size) {
 		return NULL;
 	
 	if (size >= this.max / 4)
-		printf_error("That's over half!!!");
+		printf_error("");
 	
 	Mutex_Lock();
 	if (this.head == NULL) {
@@ -458,8 +462,8 @@ f32 Profiler_Time(u8 s) {
 // # SYS                                 #
 // # # # # # # # # # # # # # # # # # # # #
 
-static ThreadLocal char* __sPath;
-static ThreadLocal s32 __sMakeDir;
+ThreadLocal static char* __sPath;
+ThreadLocal static s32 __sMakeDir;
 
 void FileSys_MakePath(s32 flag) {
 	__sMakeDir = flag;
@@ -1004,6 +1008,7 @@ s32 Terminal_YesOrNo(void) {
 
 void Terminal_ClearScreen(void) {
 	printf("\033[2J");
+	fflush(stdout);
 }
 
 void Terminal_ClearLines(u32 i) {
@@ -1012,10 +1017,12 @@ void Terminal_ClearLines(u32 i) {
 		Terminal_Move_PrevLine();
 		printf("\x1b[2K");
 	}
+	fflush(stdout);
 }
 
 void Terminal_Move_PrevLine(void) {
 	printf("\x1b[1F");
+	fflush(stdout);
 }
 
 const char* Terminal_GetStr(void) {
@@ -1034,6 +1041,7 @@ char Terminal_GetChar() {
 	char s;
 	
 	printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_RSET);
+	fflush(stdout);
 	scanf("%c", &s);
 	
 	return s;
@@ -2349,176 +2357,151 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 // # LOG                                 #
 // # # # # # # # # # # # # # # # # # # # #
 
-#ifndef EXT_LIB_NO_LOG
-	#include <signal.h>
-	
-	#define FAULT_BUFFER_SIZE (1024)
-	#define FAULT_LOG_NUM     16
-	
-	static char* sLogMsg[FAULT_LOG_NUM];
-	static char* sLogFunc[FAULT_LOG_NUM];
-	static u32 sLogLine[FAULT_LOG_NUM];
-	static vs32 sLogInit;
-	static vs32 sLogOutput = true;
-	
-	void Log_NoOutput(void) {
-		sLogOutput = false;
-	}
-	
-	static void Log_Signal_PrintTitle(s32 arg, FILE* file) {
-		const char* errorMsg[] = {
-			"\a0",
-			"\a1 - Hang Up",
-			"\a2 - Interrupted", // SIGINT
-			"\a3 - Quit",
-			"\a4 - Illegal Instruction",
-			"\a5 - Trap",
-			"\a6 - Abort()",
-			"\a7 - Illegal Memory Access",
-			"\a8 - Floating Point Exception",
-			"\a9 - Killed",
-			"\a10 - Programmer Error",
-			"\a11 - Segmentation Fault",
-			"\a12 - Programmer Error",
-			"\a13 - Pipe Death",
-			"\a14 - Alarm",
-			"\a15 - Killed",
-			
-			"\aLog List",
-		};
+#include <signal.h>
+
+#define FAULT_BUFFER_SIZE (1024)
+#define FAULT_LOG_NUM     8
+
+static char* sLogMsg[FAULT_LOG_NUM];
+static char* sLogFunc[FAULT_LOG_NUM];
+static u32 sLogLine[FAULT_LOG_NUM];
+static vs32 sLogInit;
+static vs32 sLogOutput = true;
+
+void Log_NoOutput(void) {
+	sLogOutput = false;
+}
+
+static void Log_Signal_PrintTitle(s32 arg, FILE* file) {
+	const char* errorMsg[] = {
+		"\a0",
+		"\a1 - Hang Up",
+		"\a2 - Interrupted",   // SIGINT
+		"\a3 - Quit",
+		"\a4 - Illegal Instruction",
+		"\a5 - Trap",
+		"\a6 - Abort()",
+		"\a7 - Illegal Memory Access",
+		"\a8 - Floating Point Exception",
+		"\a9 - Killed",
+		"\a10 - Programmer Error",
+		"\a11 - Segmentation Fault",
+		"\a12 - Programmer Error",
+		"\a13 - Pipe Death",
+		"\a14 - Alarm",
+		"\a15 - Killed",
 		
-		if (gPrintfProgressing)
-			fprintf(file, "\n");
-		
-		if (arg != 0xDEADBEEF)
-			fprintf(file, "" PRNT_GRAY "[ " PRNT_REDD "%s " PRNT_GRAY "]\n", errorMsg[ClampMax(arg, 16)]);
-		else
-			fprintf(file, "" PRNT_GRAY "[ " PRNT_REDD "LOG " PRNT_GRAY "]\n");
+		"\aLog List",
+	};
+	
+	if (gPrintfProgressing)
 		fprintf(file, "\n");
+	
+	if (arg != 0xDEADBEEF)
+		fprintf(file, "" PRNT_GRAY "[ " PRNT_REDD "%s " PRNT_GRAY "]\n", errorMsg[ClampMax(arg, 16)]);
+	else
+		fprintf(file, "" PRNT_GRAY "[ " PRNT_REDD "LOG " PRNT_GRAY "]\n");
+	fprintf(file, "\n");
+}
+
+static void Log_Printinf(s32 arg, FILE* file) {
+	
+	for (s32 i = FAULT_LOG_NUM - 1, j = 0; i >= 0; i--, j++) {
+		char* pfunc = j == 0 ? "__log_none__" : sLogFunc[i + 1];
+		char* fmt = Fmt("%d:", sLogLine[i]);
+		
+		if (strcmp(sLogFunc[i], pfunc))
+			fprintf(file, "" PRNT_YELW "%s" PRNT_GRAY "();\n", sLogFunc[i]);
+		fprintf(file, "" PRNT_GRAY "%-8s" PRNT_RSET "%s\n", fmt, sLogMsg[i]);
+		
+		free(fmt);
 	}
 	
-	static void Log_Printinf(s32 arg, FILE* file) {
-		
-		for (s32 i = FAULT_LOG_NUM - 1, j = 0; i >= 0; i--, j++) {
-			char* pfunc = j == 0 ? "__log_none__" : sLogFunc[i + 1];
-			char* fmt = Fmt("%d:", sLogLine[i]);
-			
-			if (strcmp(sLogFunc[i], pfunc))
-				fprintf(file, "" PRNT_YELW "%s" PRNT_GRAY "();\n", sLogFunc[i]);
-			fprintf(file, "" PRNT_GRAY "%-8s" PRNT_RSET "%s\n", fmt, sLogMsg[i]);
-			
-			free(fmt);
-		}
-		
-		if (arg == 16)
-			fprintf(file, "\n");
-	}
+	if (arg == 16)
+		fprintf(file, "\n");
+}
+
+static void Log_Signal(s32 arg) {
+	static volatile bool ran = 0;
 	
-	static void Log_Signal(s32 arg) {
-		static volatile bool ran = 0;
-		
-		if (!sLogInit)
-			return;
-		if (ran) return;
-		ran = true;
-		sLogInit = false;
-		gKillFlag = true;
-		
-		Log_Signal_PrintTitle(arg, stdlog);
-		Log_Printinf(arg, stdlog);
-		
-		if (arg != 16) {
-			printf_getchar("Press enter to exit");
-			exit(1);
-		}
-	}
-	
-	void Log_Init() {
-		if (sLogInit)
-			return;
-		for (s32 i = 1; i < 16; i++)
-			signal(i, Log_Signal);
-		
-		for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-			sLogMsg[i] = Calloc(FAULT_BUFFER_SIZE);
-			sLogFunc[i] = Calloc(FAULT_BUFFER_SIZE * 0.25);
-		}
-		
-		sLogInit = true;
-	}
-	
-	void Log_Free() {
-		if (!sLogInit)
-			return;
-		sLogInit = 0;
-		for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-			Free(sLogMsg[i]);
-			Free(sLogFunc[i]);
-		}
-	}
-	
-	void Log_Print() {
-		if (!sLogInit)
-			return;
-		if (sLogMsg[0] == NULL)
-			return;
-		if (sLogMsg[0][0] != 0)
-			Log_Signal(0xDEADBEEF);
-	}
-	
-	void __Log(const char* func, u32 line, const char* txt, ...) {
-		if (!sLogInit)
-			return;
-		
-		Mutex_Lock();
-		va_list args;
-		
-		if (sLogMsg[0] == NULL)
-			return;
-		
-		ArrMoveR(sLogMsg, 0, FAULT_LOG_NUM);
-		ArrMoveR(sLogFunc, 0, FAULT_LOG_NUM);
-		ArrMoveR(sLogLine, 0, FAULT_LOG_NUM);
-		
-		va_start(args, txt);
-		vsnprintf(sLogMsg[0], FAULT_BUFFER_SIZE, txt, args);
-		va_end(args);
-		
-		strcpy(sLogFunc[0], func);
-		sLogLine[0] = line;
-		
-	#if 0
-			if (strcmp(sLogFunc[0], sLogFunc[1]))
-				fprintf(stdlog, "" PRNT_REDD "%s" PRNT_GRAY "();\n", sLogFunc[0]);
-			fprintf(stdlog, "" PRNT_GRAY "%-8d" PRNT_RSET "%s\n", sLogLine[0], sLogMsg[0]);
-	#endif
-		
-		Mutex_Unlock();
-	}
-	
-#else
-	
-	static void Log_Signal(int wow) {
+	if (!sLogInit)
 		return;
+	if (ran) return;
+	ran = true;
+	sLogInit = false;
+	gKillFlag = true;
+	
+	Log_Signal_PrintTitle(arg, stdlog);
+	Log_Printinf(arg, stdlog);
+	
+	if (arg != 16) {
+		printf_getchar("Press enter to exit");
+		exit(1);
+	}
+}
+
+void Log_Init() {
+	if (sLogInit)
+		return;
+	for (s32 i = 1; i < 16; i++)
+		signal(i, Log_Signal);
+	
+	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
+		sLogMsg[i] = Calloc(FAULT_BUFFER_SIZE);
+		sLogFunc[i] = Calloc(FAULT_BUFFER_SIZE * 0.25);
 	}
 	
-	void Log_NoOutput() {
+	sLogInit = true;
+}
+
+void Log_Free() {
+	if (!sLogInit)
 		return;
+	sLogInit = 0;
+	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
+		Free(sLogMsg[i]);
+		Free(sLogFunc[i]);
 	}
-	void Log_Init() {
+}
+
+void Log_Print() {
+	if (!sLogInit)
 		return;
-	}
-	void Log_Free() {
+	if (sLogMsg[0] == NULL)
 		return;
-	}
-	void Log_Print() {
+	if (sLogMsg[0][0] != 0)
+		Log_Signal(0xDEADBEEF);
+}
+
+void __Log(const char* func, u32 line, const char* txt, ...) {
+	if (!sLogInit)
 		return;
-	}
-	void __Log(const char* func, u32 line, const char* txt, ...) {
-		return;
-	}
 	
+	va_list args;
+	
+	if (sLogMsg[0] == NULL)
+		return;
+	
+	Mutex_Lock();
+	ArrMoveR(sLogMsg, 0, FAULT_LOG_NUM);
+	ArrMoveR(sLogFunc, 0, FAULT_LOG_NUM);
+	ArrMoveR(sLogLine, 0, FAULT_LOG_NUM);
+	
+	va_start(args, txt);
+	vsnprintf(sLogMsg[0], FAULT_BUFFER_SIZE, txt, args);
+	va_end(args);
+	
+	strcpy(sLogFunc[0], func);
+	sLogLine[0] = line;
+	
+#if 0
+		if (strcmp(sLogFunc[0], sLogFunc[1]))
+			fprintf(stdlog, "" PRNT_REDD "%s" PRNT_GRAY "();\n", sLogFunc[0]);
+		fprintf(stdlog, "" PRNT_GRAY "%-8d" PRNT_RSET "%s\n", sLogLine[0], sLogMsg[0]);
 #endif
+	
+	Mutex_Unlock();
+}
 
 // # # # # # # # # # # # # # # # # # # # #
 // # PRINTF                              #

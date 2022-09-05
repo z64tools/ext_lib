@@ -202,16 +202,19 @@
 		(arr)[(count) + (start) - 1] = v;				  \
 } while (0)
 
+/**
+ * These are only to satisfy clang IDE. These won't work
+ * as expected if compiled with clang.
+ */
 #ifdef __clang__
-	
 	#define Block(type, name, args)	\
 		type (^ name) args = ^ type args
-	#define BlockVar(var) typeof(var) ## var;
+	#define BlockVar(var) typeof(var) var
 	
 #else
-	
 	#define Block(type, name, args)	\
 		type name args
+	#define BlockVar(var)
 #endif
 
 #define FOPEN(file, mode) ({									\

@@ -72,7 +72,7 @@ char* Config_GetVariable(const char* str, const char* name) {
 		
 		r = xStrNDup(s, strcspn(s, "\""));
 	} else
-		r = xStrNDup(s, strcspn(s, " \n\t#"));
+		r = xStrNDup(s, strcspn(s, "\n#"));
 	
 	return r;
 }
