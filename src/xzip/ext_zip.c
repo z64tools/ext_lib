@@ -24,7 +24,7 @@ s32 ZipFile_ReadEntry_Name(ZipFile* zip, const char* entry, MemFile* mem) {
 		return ZIP_ERROR_RW_ENTRY;
 	}
 	
-	strncpy(mem->info.name, entry, 512);
+	mem->info.name = strdup(entry);
 	
 	if (zip_entry_close(zip->pkg))
 		return ZIP_ERROR_CLOSE;
@@ -40,7 +40,7 @@ s32 ZipFile_ReadEntry_Index(ZipFile* zip, Size index, MemFile* mem) {
 	
 	if (zip_entry_openbyindex(zip->pkg, index))
 		return ZIP_ERROR_OPEN_ENTRY;
-	strncpy(mem->info.name, zip_entry_name(zip->pkg), 512);
+	mem->info.name = strdup(zip_entry_name(zip->pkg));
 	Log("Reading Entry \"%s\"", mem->info.name);
 	
 	if (zip_entry_read(zip->pkg, &data, &sz) < 0) {

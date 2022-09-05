@@ -97,6 +97,7 @@ void MemFile_Realloc(MemFile* memFile, u32 size) {
 	if (memFile->memSize > size)
 		return;
 	
+	Assert(size > memFile->memSize);
 	Assert((memFile->data = Realloc(memFile->data, size)) != NULL);
 	memFile->memSize = size;
 }
@@ -116,8 +117,10 @@ s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
 	
 	size = ClampMax(size, ClampMin(dest->memSize - dest->seekPoint, 0));
 	
-	if (size != osize)
-		MemFile_Realloc(dest, dest->memSize * 2 + size);
+	if (size != osize) {
+		MemFile_Realloc(dest, dest->memSize * 2 + osize * 2);
+		size = osize;
+	}
 	
 	memcpy(&dest->cast.u8[dest->seekPoint], src, size);
 	dest->seekPoint += size;
@@ -138,7 +141,7 @@ s32 MemFile_Insert(MemFile* mem, void* src, u32 size, s64 pos) {
 	u32 remasize = mem->size - p;
 	
 	if (p + size + remasize >= mem->memSize)
-		MemFile_Realloc(mem, mem->memSize * 2);
+		MemFile_Realloc(mem, mem->memSize * 2 + size * 2);
 	
 	memmove(&mem->cast.u8[p + remasize], &mem->cast.u8[p], remasize);
 	

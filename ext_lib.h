@@ -142,11 +142,10 @@ void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b);
 
 #define Assert(expression) do {										   \
 		if (!(expression)) {										   \
-			fprintf(												   \
-				stdout,												   \
+			printf_error(											   \
 				"ASSERT: " PRNT_GRAY "[" PRNT_REDD "%s" PRNT_GRAY "]:" \
 				"[" PRNT_YELW "%s" PRNT_GRAY "]:"					   \
-				"[" PRNT_BLUE "%d" PRNT_GRAY "]",					   \
+				"[" PRNT_BLUE "%d" PRNT_GRAY "]\n",					   \
 				#expression, __FUNCTION__, __LINE__					   \
 			); }													   \
 } while (0)
@@ -397,11 +396,21 @@ static inline void Thread_Create(Thread* thread, void* func, void* arg) {
 }
 
 static inline s32 Thread_Join(Thread* thread) {
-	u32 r = pthread_join(*thread, NULL);
-	
-	memset(thread, 0, sizeof(Thread));
-	
-	return r;
+	return pthread_join(*thread, NULL);
+}
+
+static inline s32 Thread_TryJoin(Thread* thread) {
+#ifdef _WIN32
+		
+		return _pthread_tryjoin(*thread, NULL);
+#else
+		
+		return pthread_tryjoin_np(*thread, NULL);
+#endif
+}
+
+static inline s32 Thread_Detach(Thread* thread) {
+	return pthread_detach(*thread);
 }
 
 #pragma GCC diagnostic pop

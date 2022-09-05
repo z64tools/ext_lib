@@ -37,7 +37,7 @@
 	#include <libloaderapi.h>
 #endif
 
-#define stdlog stdout
+#define stdlog stderr
 
 f32 EPSILON = 0.0000001f;
 f32 gDeltaTime;
@@ -191,6 +191,8 @@ void ThdPool_Add(void* function, void* arg, u32 n, ...) {
 static void ThdPool_RunThd(ThdItem* thd) {
 	thd->function(thd->arg);
 	thd->state = T_DONE;
+	
+	Log("Finished");
 }
 
 static bool ThdPool_CheckDep(ThdItem* t) {
@@ -243,6 +245,7 @@ void ThdPool_Exec(u32 max, bool mutex) {
 				while (t->state != T_RUN)
 					t->state = T_RUN;
 				Thread_Create(&t->thd, ThdPool_RunThd, t);
+				Thread_Detach(&t->thd);
 				
 				cur++;
 			}
@@ -263,7 +266,6 @@ void ThdPool_Exec(u32 max, bool mutex) {
 				if (t->nid)
 					gTPool.dep[t->nid]--;
 				
-				Thread_Join(&t->thd);
 				Node_Kill(gTPool.head, t);
 				
 				cur--;
@@ -271,7 +273,6 @@ void ThdPool_Exec(u32 max, bool mutex) {
 				prog++;
 			}
 		}
-		
 	}
 	
 	if (mutex)
@@ -371,17 +372,19 @@ char* xMemDup(const char* data, Size size) {
 }
 
 char* xFmt(const char* fmt, ...) {
-	char* tempBuf;
+	Size sz;
 	char* r;
+	va_list va;
 	
-	va_list args;
+	va_start(va, fmt);
+	sz = vsnprintf(NULL, 0, fmt, va);
+	Assert(sz > 0);
+	r = Alloc(sz + 1);
+	va_end(va);
 	
-	va_start(args, fmt);
-	vasprintf(&tempBuf, fmt, args);
-	va_end(args);
-	
-	r = xStrDup(tempBuf);
-	Free(tempBuf);
+	va_start(va, fmt);
+	vsprintf(r, fmt, va);
+	va_end(va);
 	
 	return r;
 }
@@ -1289,6 +1292,8 @@ char* Fmt(const char* fmt, ...) {
 	va_start(va, fmt);
 	vasprintf(&s, fmt, va);
 	va_end(va);
+	
+	Assert(s != NULL);
 	
 	return s;
 }
@@ -2382,8 +2387,6 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 			"\aLog List",
 		};
 		
-		printf_WinFix();
-		
 		if (gPrintfProgressing)
 			fprintf(file, "\n");
 		
@@ -2484,7 +2487,7 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 		strcpy(sLogFunc[0], func);
 		sLogLine[0] = line;
 		
-	#if 1
+	#if 0
 			if (strcmp(sLogFunc[0], sLogFunc[1]))
 				fprintf(stdlog, "" PRNT_REDD "%s" PRNT_GRAY "();\n", sLogFunc[0]);
 			fprintf(stdlog, "" PRNT_GRAY "%-8d" PRNT_RSET "%s\n", sLogLine[0], sLogMsg[0]);
