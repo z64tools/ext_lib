@@ -93,6 +93,7 @@ const char* Sys_AppDir(void);
 void Sys_SetWorkDir(const char* txt);
 #define cliprintf(dest, tool, args, ...) sprintf(dest, "%s " args, tool, __VA_ARGS__)
 void Sys_TerminalSize(s32* r);
+void Sys_TerminalCursorPos(s32* r);
 s32 Sys_Touch(const char* file);
 s32 Sys_Copy(const char* src, const char* dest);
 u8* Sys_Sha256(u8* data, u64 size);

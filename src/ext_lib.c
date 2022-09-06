@@ -787,29 +787,9 @@ s32 SysExe_GetError() {
 	return sSysReturn;
 }
 
-static char* SysExe_Adjust(const char* cmd) {
-	char* n = xStrDup(cmd);
-	
-#ifdef _WIN32
-	char* c = xStrNDup(cmd, strcspn(n, " "));
-	
-	if (!StrStrCase(c, ".exe"))
-		return n;
-	
-	s32 l = strcspn(n, " ");
-	for (s32 i = 0; i < l; i++) {
-		if (n[i] == '/')
-			n[i] == '\\';
-	}
-#endif
-	
-	return n;
-}
-
 s32 SysExe(const char* cmd) {
 	s32 ret;
 	
-	cmd = SysExe_Adjust(cmd);
 	ret = system(cmd);
 	
 	if (ret != 0)
@@ -834,7 +814,6 @@ char* SysExeO(const char* cmd) {
 	u32 size = 0;
 	char* out;
 	
-	cmd = SysExe_Adjust(cmd);
 	if ((file = popen(cmd, "r")) == NULL) {
 		Log(PRNT_REDD "SysExeO(%s);", cmd);
 		Log("popen failed!");
@@ -868,7 +847,6 @@ s32 SysExeC(const char* cmd, s32 (*callback)(void*, const char*), void* arg) {
 	char* s;
 	FILE* file;
 	
-	cmd = SysExe_Adjust(cmd);
 	if ((file = popen(cmd, "r")) == NULL) {
 		Log(PRNT_REDD "SysExeO(%s);", cmd);
 		Log("popen failed!");
@@ -906,6 +884,24 @@ void Sys_TerminalSize(s32* r) {
 	x = w.ws_col;
 	y = w.ws_row;
 	#endif // __clang__
+#endif // _WIN32
+	
+	r[0] = x;
+	r[1] = y;
+}
+
+void Sys_TerminalCursorPos(s32* r) {
+	s32 x = 0;
+	s32 y = 0;
+	
+#ifdef _WIN32
+	CONSOLE_SCREEN_BUFFER_INFO cbsi;
+	
+	Assert (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cbsi));
+	
+	x = cbsi.dwCursorPosition.X;
+	y = cbsi.dwCursorPosition.Y;
+#else
 #endif // _WIN32
 	
 	r[0] = x;
