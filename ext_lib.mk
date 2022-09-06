@@ -84,9 +84,9 @@ define GD_LINUX
 endef
 
 # Binary file compiler
-$(DataFileCompiler): $(PATH_EXTLIB)tools/dfc.c $(ExtLib_Linux_O)
+$(DataFileCompiler): $(PATH_EXTLIB)tools/dfc.c
 	@echo "$(PRNT_RSET)[$(PRNT_YELW)$(ASSET_FILENAME)$(PRNT_RSET)]"
-	@gcc -o $@ $^ -pthread -lm $(CFLAGS) -DEXTLIB_PERMISSIVE
+	@gcc -o $@ $< $(ExtLib_C) -pthread -lm $(CFLAGS) -DEXTLIB_PERMISSIVE
 
 bin/win32/%.o: $(PATH_EXTLIB)%.ttf $(DataFileCompiler)
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"

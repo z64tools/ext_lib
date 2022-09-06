@@ -275,12 +275,4 @@ typedef enum RegexFlag {
 	REGFLAG_NUMMASK   = 0x00FFFFFF,
 } RegexFlag;
 
-typedef struct Object {
-	void (*destroy)(void);
-	
-	size_t codePageSize;
-	unsigned char* codePage;
-	unsigned char* codePagePtr;
-} Object;
-
 #endif

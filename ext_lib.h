@@ -45,10 +45,6 @@
 extern PrintfSuppressLevel gPrintfSuppress;
 extern u8 gPrintfProgressing;
 
-void* Object_Method(Object* self, void* target, int argCount);
-void Object_Prepare(Object* self);
-void* Object_Create(size_t size, int funcCount);
-
 void* qFree(const void* ptr);
 void* PostFree_Queue(void* ptr);
 void* PostFree_QueueCallback(void* callback, void* ptr);
@@ -108,7 +104,11 @@ Size Sys_GetFileSize(const char* file);
 void SysExe_IgnoreError();
 s32 SysExe_GetError();
 s32 SysExe(const char* cmd);
+// Detached
+void SysExeD(const char* cmd);
+// Redirected Output
 char* SysExeO(const char* cmd);
+// Callback Output
 s32 SysExeC(const char* cmd, s32 (*callback)(void*, const char*), void* arg);
 
 s32 Terminal_YesOrNo(void);
@@ -153,9 +153,9 @@ void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b);
 
 f32 RandF();
 void* MemMem(const void* haystack, Size haystacklen, const void* needle, Size needlelen);
-void* StrStr(const char* haystack, const char* needle);
-void* StrStrWhole(const char* haystack, const char* needle);
-void* StrStrCase(const char* haystack, const char* needle);
+char* StrStr(const char* haystack, const char* needle);
+char* StrStrWhole(const char* haystack, const char* needle);
+char* StrStrCase(const char* haystack, const char* needle);
 void* MemStrCase(const char* haystack, u32 haystacklen, const char* needle);
 void* MemMemAlign(u32 val, const void* haystack, Size haystacklen, const void* needle, Size needlelen);
 char* StrEnd(const char* src, const char* ext);
@@ -405,6 +405,7 @@ static inline s32 Thread_TryJoin(Thread* thread) {
 	
 	return _pthread_tryjoin(*thread, NULL);
 #else
+	int pthread_tryjoin_np(Thread, void**);
 	
 	return pthread_tryjoin_np(*thread, NULL);
 #endif

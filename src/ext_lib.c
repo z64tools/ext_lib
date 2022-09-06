@@ -733,7 +733,11 @@ const char* Sys_WorkDir(void) {
 }
 
 const char* Sys_AppDir(void) {
-	return Path(Sys_ThisApp());
+	char* path = Path(Sys_ThisApp());
+	
+	StrRep(path, "\\", "/");
+	
+	return path;
 }
 
 s32 Sys_Rename(const char* input, const char* output) {
@@ -783,15 +787,43 @@ s32 SysExe_GetError() {
 	return sSysReturn;
 }
 
+static char* SysExe_Adjust(const char* cmd) {
+	char* n = xStrDup(cmd);
+	
+#ifdef _WIN32
+	char* c = xStrNDup(cmd, strcspn(n, " "));
+	
+	if (!StrStrCase(c, ".exe"))
+		return n;
+	
+	s32 l = strcspn(n, " ");
+	for (s32 i = 0; i < l; i++) {
+		if (n[i] == '/')
+			n[i] == '\\';
+	}
+#endif
+	
+	return n;
+}
+
 s32 SysExe(const char* cmd) {
 	s32 ret;
 	
+	cmd = SysExe_Adjust(cmd);
 	ret = system(cmd);
 	
 	if (ret != 0)
 		Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExe(" PRNT_REDD "%s" PRNT_GRAY ");", ret, cmd);
 	
 	return ret;
+}
+
+void SysExeD(const char* cmd) {
+#ifdef _WIN32
+	SysExe(xFmt("start %s", cmd));
+#else
+	SysExe(xFmt("nohup %s", cmd));
+#endif
 }
 
 ThreadLocal char sExeBuffer[MbToBin(15)];
@@ -802,6 +834,7 @@ char* SysExeO(const char* cmd) {
 	u32 size = 0;
 	char* out;
 	
+	cmd = SysExe_Adjust(cmd);
 	if ((file = popen(cmd, "r")) == NULL) {
 		Log(PRNT_REDD "SysExeO(%s);", cmd);
 		Log("popen failed!");
@@ -835,6 +868,7 @@ s32 SysExeC(const char* cmd, s32 (*callback)(void*, const char*), void* arg) {
 	char* s;
 	FILE* file;
 	
+	cmd = SysExe_Adjust(cmd);
 	if ((file = popen(cmd, "r")) == NULL) {
 		Log(PRNT_REDD "SysExeO(%s);", cmd);
 		Log("popen failed!");
@@ -879,6 +913,14 @@ void Sys_TerminalSize(s32* r) {
 }
 
 s32 Sys_Touch(const char* file) {
+	if (!Sys_Stat(file)) {
+		FILE* f = fopen(file, "w");
+		Assert(f != NULL);
+		fclose(f);
+		
+		return 0;
+	}
+	
 #include <utime.h>
 	struct stat st;
 	struct utimbuf nTime;
@@ -1086,14 +1128,14 @@ void* MemMem(const void* haystack, Size haystacklen, const void* needle, Size ne
 	return NULL;
 }
 
-void* StrStr(const char* haystack, const char* needle) {
+char* StrStr(const char* haystack, const char* needle) {
 	if (!haystack || !needle)
 		return NULL;
 	
 	return MemMem(haystack, strlen(haystack), needle, strlen(needle));
 }
 
-void* StrStrWhole(const char* haystack, const char* needle) {
+char* StrStrWhole(const char* haystack, const char* needle) {
 	char* p = StrStr(haystack, needle);
 	
 	while (p) {
@@ -1106,7 +1148,7 @@ void* StrStrWhole(const char* haystack, const char* needle) {
 	return NULL;
 }
 
-void* StrStrCase(const char* haystack, const char* needle) {
+char* StrStrCase(const char* haystack, const char* needle) {
 	char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
 	
 	if (!haystack || !needle)
@@ -2424,6 +2466,13 @@ static void Log_Printinf(s32 arg, FILE* file) {
 
 static void Log_Signal(s32 arg) {
 	static volatile bool ran = 0;
+	
+	if (arg == 2) { /* INTERRUPT */
+		Terminal_ClearLines(1);
+		fprintf(stdlog, "\r");
+		printf_warning("Closed!");
+		exit(1);
+	}
 	
 	if (!sLogInit)
 		return;

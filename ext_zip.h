@@ -2,7 +2,6 @@
 #define EXT_ZIP_H
 
 #include "ext_lib.h"
-#include <zip/src/zip.h>
 
 typedef struct ZipFile {
 	void* pkg;

@@ -4,6 +4,7 @@
 // # # # # # # # # # # # # # # # # # # # #
 
 #include "ext_zip.h"
+#include <zip/src/zip.h>
 
 void* ZipFile_Load(ZipFile* zip, const char* file, ZipParam mode) {
 	zip->filename = StrDup(file);
