@@ -21,7 +21,7 @@ void TriBuffer_Free(TriBuffer* this) {
 
 RayLine RayLine_New(Vec3f start, Vec3f end) {
 	return (RayLine) {
-		       start, end, FLT_MAX
+			   start, end, FLT_MAX
 	};
 }
 
@@ -41,7 +41,7 @@ bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* outPos, Vec3f* out
 	if ((cullBackface && a < 0) || (cullFrontface && a > 0))
 		return false;
 	if (a > -EPSILON && a < EPSILON)
-		return false;  // This ray is parallel to this triangle.
+		return false;          // This ray is parallel to this triangle.
 	f = 1.0 / a;
 	s = Math_Vec3f_Sub(ray->start, vertex0);
 	u = f * Math_Vec3f_Dot(s, h);
@@ -62,7 +62,7 @@ bool Col3D_LineVsTriangle(RayLine* ray, Triangle* tri, Vec3f* outPos, Vec3f* out
 		ray->nearest = t;
 		
 		return true;
-	} else                 // This means that there is a line intersection but not a ray intersection.
+	} else                     // This means that there is a line intersection but not a ray intersection.
 		return false;
 }
 

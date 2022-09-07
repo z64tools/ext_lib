@@ -1,7 +1,7 @@
 #ifndef EXT_LIB_H
 #define EXT_LIB_H
 
-#define THIS_EXTLIB_VERSION 211
+#define THIS_EXTLIB_VERSION 212
 
 /**
  * Do not get impression that this library is clang compatible.

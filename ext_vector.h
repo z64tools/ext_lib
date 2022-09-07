@@ -6,16 +6,16 @@
 #include "ext_macros.h"
 #include <math.h>
 
-#define veccmp(a, b) ({ \
-		bool r = false; \
-		for (s32 i = 0; i < sizeof((*(a))) / sizeof((*(a)).x); i++) \
-		if ((*(a)).axis[i] != (*(b)).axis[i]) r = true; \
-		r; \
+#define veccmp(a, b) ({												\
+		bool r = false;												\
+		for (s32 i = 0; i < sizeof((*(a))) / sizeof((*(a)).x); i++)	\
+		if ((*(a)).axis[i] != (*(b)).axis[i]) r = true;				\
+		r;															\
 	})
 
-#define veccpy(a, b) do { \
-	for (s32 i = 0; i < sizeof((*(a))) / sizeof((*(a)).x); i++) \
-	(*(a)).axis[i] = (*(b)).axis[i]; \
+#define veccpy(a, b) do {										\
+	for (s32 i = 0; i < sizeof((*(a))) / sizeof((*(a)).x); i++)	\
+	(*(a)).axis[i] = (*(b)).axis[i];							\
 } while (0)
 
 #define SQ(x)   ((x) * (x))
@@ -43,29 +43,29 @@
 #define IsZero(f32)      ((fabsf(f32) < EPSILON))
 
 #define VEC_TYPE(type, suffix) \
-	typedef union { \
-		struct { \
-			type x; \
-			type y; \
-			type z; \
-			type w; \
-		}; \
-		type axis[4]; \
-	} Vec4 ## suffix; \
-	typedef union { \
-		struct { \
-			type x; \
-			type y; \
-			type z; \
-		}; \
-		type axis[3]; \
-	} Vec3 ## suffix; \
-	typedef union { \
-		struct { \
-			type x; \
-			type y; \
-		}; \
-		type axis[2]; \
+	typedef union {			   \
+		struct {			   \
+			type x;			   \
+			type y;			   \
+			type z;			   \
+			type w;			   \
+		};					   \
+		type axis[4];		   \
+	} Vec4 ## suffix;		   \
+	typedef union {			   \
+		struct {			   \
+			type x;			   \
+			type y;			   \
+			type z;			   \
+		};					   \
+		type axis[3];		   \
+	} Vec3 ## suffix;		   \
+	typedef union {			   \
+		struct {			   \
+			type x;			   \
+			type y;			   \
+		};					   \
+		type axis[2];		   \
 	} Vec2 ## suffix;
 
 VEC_TYPE(f32, f)
