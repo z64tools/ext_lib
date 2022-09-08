@@ -53,6 +53,9 @@ char* Config_Variable(const char* str, const char* name) {
 		
 		s += strcspn(s, "=") + 1;
 		s += strspn(s, " \t");
+		if (*s == '\n' || *s == '#' || *s == '\0')
+			return NULL;
+		
 		break;
 	} while ((s = Line(s, 1)));
 	
