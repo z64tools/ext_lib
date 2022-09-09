@@ -5,35 +5,35 @@
 #include <nanovg/src/nanovg.h>
 
 typedef struct {
-	RGBA8*    bitmap;
-	GLFWimage img;
-	void* glfwCur;
+    RGBA8*    bitmap;
+    GLFWimage img;
+    void*     glfwCur;
 } CursorBitmap;
 
 typedef enum {
-	CURSOR_NONE    = -1,
-	CURSOR_DEFAULT = 0,
-	CURSOR_ARROW_L = 1,
-	CURSOR_ARROW_U,
-	CURSOR_ARROW_R,
-	CURSOR_ARROW_D,
-	
-	CURSOR_ARROW_H,
-	CURSOR_ARROW_V,
-	
-	CURSOR_CROSSHAIR,
-	
-	CURSOR_EMPTY,
-	CURSOR_MAX
+    CURSOR_NONE    = -1,
+    CURSOR_DEFAULT = 0,
+    CURSOR_ARROW_L = 1,
+    CURSOR_ARROW_U,
+    CURSOR_ARROW_R,
+    CURSOR_ARROW_D,
+    
+    CURSOR_ARROW_H,
+    CURSOR_ARROW_V,
+    
+    CURSOR_CROSSHAIR,
+    
+    CURSOR_EMPTY,
+    CURSOR_MAX
 } CursorIndex;
 
 typedef struct {
-	struct AppInfo* app;
-	void* _p;
-	CursorBitmap    cursor[64];
-	CursorIndex cursorNow;
-	CursorIndex cursorSet;
-	CursorIndex cursorForce;
+    struct AppInfo* app;
+    void* _p;
+    CursorBitmap cursor[64];
+    CursorIndex  cursorNow;
+    CursorIndex  cursorSet;
+    CursorIndex  cursorForce;
 } Cursor;
 
 void Cursor_CreateCursor(CursorIndex id,  const u8* data, s32 size, s32 xcent, s32 ycent);

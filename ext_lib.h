@@ -11,19 +11,19 @@
  */
 
 #ifdef __clang__
-	#ifdef _WIN32
-		#undef _WIN32
-	#endif
+    #ifdef _WIN32
+        #undef _WIN32
+    #endif
 #endif
 
 #ifndef EXTLIB_PERMISSIVE
-	#ifndef EXTLIB
-		#error EXTLIB not defined
-	#else
-		#if EXTLIB > THIS_EXTLIB_VERSION
-			#error ExtLib copy is older than the project its used with
-		#endif
-	#endif
+    #ifndef EXTLIB
+        #error EXTLIB not defined
+    #else
+        #if EXTLIB > THIS_EXTLIB_VERSION
+            #error ExtLib copy is older than the project its used with
+        #endif
+    #endif
 #endif
 
 #define _GNU_SOURCE
@@ -142,14 +142,14 @@ void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b);
 #define ItemList_GetWildItem(list, ...) ItemList_GetWildItem(list, __VA_ARGS__, NULL)
 #define ItemList_SetFilter(list, ...)   ItemList_SetFilter(list, NARGS(__VA_ARGS__), __VA_ARGS__)
 
-#define Assert(expression) do {										   \
-		if (!(expression)) {										   \
-			printf_error(											   \
-				"ASSERT: " PRNT_GRAY "[" PRNT_REDD "%s" PRNT_GRAY "]:" \
-				"[" PRNT_YELW "%s" PRNT_GRAY "]:"					   \
-				"[" PRNT_BLUE "%d" PRNT_GRAY "]\n",					   \
-				#expression, __FUNCTION__, __LINE__					   \
-			); }													   \
+#define Assert(expression) do {                                        \
+        if (!(expression)) {                                           \
+            printf_error(                                              \
+                "ASSERT: " PRNT_GRAY "[" PRNT_REDD "%s" PRNT_GRAY "]:" \
+                "[" PRNT_YELW "%s" PRNT_GRAY "]:"                      \
+                "[" PRNT_BLUE "%d" PRNT_GRAY "]\n",                    \
+                #expression, __FUNCTION__, __LINE__                    \
+            ); }                                                       \
 } while (0)
 
 f32 RandF();
@@ -228,9 +228,9 @@ void MemFile_Free(MemFile* memFile);
 void MemFile_Reset(MemFile* memFile);
 void MemFile_Clear(MemFile* memFile);
 
-#define MemFile_Alloc(this, size) do {				 \
-		Log("MemFile_Alloc(%s, %s);", #this, #size); \
-		MemFile_Alloc(this, size);					 \
+#define MemFile_Alloc(this, size) do {               \
+        Log("MemFile_Alloc(%s, %s);", #this, #size); \
+        MemFile_Alloc(this, size);                   \
 } while (0)
 
 #define MEMFILE_SEEK_END 0xFFFFFFFF
@@ -340,10 +340,10 @@ void Sound_Xm_Stop();
 char* Regex(const char* str, const char* pattern, RegexFlag flag);
 
 #ifndef _WIN32
-	#ifndef __clang__
+    #ifndef __clang__
 #define stricmp(a, b)        strcasecmp(a, b)
 #define strnicmp(a, b, size) strncasecmp(a, b, size)
-	#endif
+    #endif
 #endif
 
 int stricmp(const char* a, const char* b);
@@ -354,15 +354,15 @@ int strnicmp(const char* a, const char* b, Size size);
 
 #ifdef _WIN32
 static char* strndup(const char* s, size_t n) {
-	size_t len = strlen(s);
-	
-	len = len > n ? n : len;
-	char* new = (char*) malloc (len + 1);
-	if (new == NULL)
-		return NULL;
-	new[len] = '\0';
-	
-	return (char*) memcpy (new, s, len);
+    size_t len = strlen(s);
+    
+    len = len > n ? n : len;
+    char* new = (char*) malloc (len + 1);
+    if (new == NULL)
+        return NULL;
+    new[len] = '\0';
+    
+    return (char*) memcpy (new, s, len);
 }
 #endif
 
@@ -370,50 +370,50 @@ extern vbool gThreadMode;
 extern Mutex gThreadMutex;
 
 static inline void Mutex_Enable(void) {
-	if (!gThreadMode)
-		pthread_mutex_init(&gThreadMutex, NULL);
-	gThreadMode = true;
-	
+    if (!gThreadMode)
+        pthread_mutex_init(&gThreadMutex, NULL);
+    gThreadMode = true;
+    
 }
 
 static inline void Mutex_Disable(void) {
-	if (gThreadMode)
-		pthread_mutex_destroy(&gThreadMutex);
-	gThreadMode = false;
-	
+    if (gThreadMode)
+        pthread_mutex_destroy(&gThreadMutex);
+    gThreadMode = false;
+    
 }
 
 static inline void Mutex_Lock(void) {
-	if (gThreadMode)
-		pthread_mutex_lock(&gThreadMutex);
+    if (gThreadMode)
+        pthread_mutex_lock(&gThreadMutex);
 }
 
 static inline void Mutex_Unlock(void) {
-	if (gThreadMode)
-		pthread_mutex_unlock(&gThreadMutex);
+    if (gThreadMode)
+        pthread_mutex_unlock(&gThreadMutex);
 }
 
 static inline void Thread_Create(Thread* thread, void* func, void* arg) {
-	pthread_create(thread, NULL, (void*)func, (void*)(arg));
+    pthread_create(thread, NULL, (void*)func, (void*)(arg));
 }
 
 static inline s32 Thread_Join(Thread* thread) {
-	return pthread_join(*thread, NULL);
+    return pthread_join(*thread, NULL);
 }
 
 static inline s32 Thread_TryJoin(Thread* thread) {
 #ifdef _WIN32
-	
-	return _pthread_tryjoin(*thread, NULL);
+    
+    return _pthread_tryjoin(*thread, NULL);
 #else
-	int pthread_tryjoin_np(Thread, void**);
-	
-	return pthread_tryjoin_np(*thread, NULL);
+    int pthread_tryjoin_np(Thread, void**);
+    
+    return pthread_tryjoin_np(*thread, NULL);
 #endif
 }
 
 static inline s32 Thread_Detach(Thread* thread) {
-	return pthread_detach(*thread);
+    return pthread_detach(*thread);
 }
 
 #pragma GCC diagnostic pop

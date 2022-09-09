@@ -6,27 +6,27 @@
 #include "ext_vector.h"
 
 typedef enum {
-	MTXMODE_NEW,
-	MTXMODE_APPLY
+    MTXMODE_NEW,
+    MTXMODE_APPLY
 } MtxMode;
 
 typedef union StructBE {
-	s32 m[4][4];
-	struct StructBE {
-		u16 intPart[4][4];
-		u16 fracPart[4][4];
-	};
+    s32 m[4][4];
+    struct StructBE {
+        u16 intPart[4][4];
+        u16 fracPart[4][4];
+    };
 } Mtx;
 
 typedef float MtxF_t[4][4];
 typedef union {
-	MtxF_t mf;
-	struct {
-		float xx, yx, zx, wx,
-			xy, yy, zy, wy,
-			xz, yz, zz, wz,
-			xw, yw, zw, ww;
-	};
+    MtxF_t mf;
+    struct {
+        float xx, yx, zx, wx,
+            xy, yy, zy, wy,
+            xz, yz, zz, wz,
+            xw, yw, zw, ww;
+    };
 } MtxF;
 
 extern MtxF* gMatrixStack;
@@ -70,27 +70,27 @@ void Matrix_Unproject(MtxF* modelViewMtx, MtxF* projMtx, Vec3f* src, Vec3f* dest
 void Matrix_Project(MtxF* modelViewMtx, MtxF* projMtx, Vec3f* src, Vec3f* dest, f32 w, f32 h);
 
 static inline void Matrix_RotateX_s(f32 x, MtxMode mode) {
-	Matrix_RotateX(BinToRad(x), mode);
+    Matrix_RotateX(BinToRad(x), mode);
 }
 
 static inline void Matrix_RotateY_s(f32 y, MtxMode mode) {
-	Matrix_RotateY(BinToRad(y), mode);
+    Matrix_RotateY(BinToRad(y), mode);
 }
 
 static inline void Matrix_RotateZ_s(f32 z, MtxMode mode) {
-	Matrix_RotateZ(BinToRad(z), mode);
+    Matrix_RotateZ(BinToRad(z), mode);
 }
 
 static inline void Matrix_RotateX_d(f32 x, MtxMode mode) {
-	Matrix_RotateX(DegToRad(x), mode);
+    Matrix_RotateX(DegToRad(x), mode);
 }
 
 static inline void Matrix_RotateY_d(f32 y, MtxMode mode) {
-	Matrix_RotateY(DegToRad(y), mode);
+    Matrix_RotateY(DegToRad(y), mode);
 }
 
 static inline void Matrix_RotateZ_d(f32 z, MtxMode mode) {
-	Matrix_RotateZ(DegToRad(z), mode);
+    Matrix_RotateZ(DegToRad(z), mode);
 }
 
 #endif

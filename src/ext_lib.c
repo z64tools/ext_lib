@@ -1,15 +1,6 @@
 #pragma GCC diagnostic ignored "-Wunused-result"
 #pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
 
-#ifdef __clang__
-	#ifdef _WIN32
-		#undef _WIN32
-	#endif
-void readlink(char*, char*, int);
-void chdir(const char*);
-void gettimeofday(void*, void*);
-#endif
-
 #ifndef _WIN32
 #define _XOPEN_SOURCE 500
 #define _DEFAULT_SOURCE
@@ -33,8 +24,8 @@ void gettimeofday(void*, void*);
 //uncrustify
 
 #ifdef _WIN32
-	#include <windows.h>
-	#include <libloaderapi.h>
+    #include <windows.h>
+    #include <libloaderapi.h>
 #endif
 
 #define stdlog stderr
@@ -55,75 +46,75 @@ static vbool gKillFlag;
 // # # # # # # # # # # # # # # # # # # # #
 
 typedef struct PostFreeNode {
-	struct PostFreeNode* next;
-	void* ptr;
-	void (*free)(void*);
+    struct PostFreeNode* next;
+    void* ptr;
+    void (*free)(void*);
 } PostFreeNode;
 
 static PostFreeNode* sPostFreeHead;
 static PostFreeNode* sPostFreeHead2;
 
 void* qFree(const void* ptr) {
-	PostFreeNode* node;
-	
-	node = Calloc(sizeof(struct PostFreeNode));
-	node->ptr = (void*)ptr;
-	
-	Node_Add(sPostFreeHead, node);
-	
-	return (void*)ptr;
+    PostFreeNode* node;
+    
+    node = Calloc(sizeof(struct PostFreeNode));
+    node->ptr = (void*)ptr;
+    
+    Node_Add(sPostFreeHead, node);
+    
+    return (void*)ptr;
 }
 
 void* PostFree_Queue(void* ptr) {
-	PostFreeNode* n = New(PostFreeNode);
-	
-	Mutex_Lock();
-	Node_Add(sPostFreeHead2, n);
-	Mutex_Unlock();
-	n->ptr = ptr;
-	
-	return ptr;
+    PostFreeNode* n = New(PostFreeNode);
+    
+    Mutex_Lock();
+    Node_Add(sPostFreeHead2, n);
+    Mutex_Unlock();
+    n->ptr = ptr;
+    
+    return ptr;
 }
 
 void* PostFree_QueueCallback(void* callback, void* ptr) {
-	PostFreeNode* n = New(PostFreeNode);
-	
-	Mutex_Lock();
-	Node_Add(sPostFreeHead2, n);
-	Mutex_Unlock();
-	n->ptr = ptr;
-	n->free = callback;
-	
-	return ptr;
+    PostFreeNode* n = New(PostFreeNode);
+    
+    Mutex_Lock();
+    Node_Add(sPostFreeHead2, n);
+    Mutex_Unlock();
+    n->ptr = ptr;
+    n->free = callback;
+    
+    return ptr;
 }
 
 void PostFree_Free(void) {
-	while (sPostFreeHead2) {
-		if (sPostFreeHead2->free)
-			sPostFreeHead2->free(sPostFreeHead2->ptr);
-		else
-			Free(sPostFreeHead2->ptr);
-		
-		Node_Kill(sPostFreeHead2, sPostFreeHead2);
-	}
+    while (sPostFreeHead2) {
+        if (sPostFreeHead2->free)
+            sPostFreeHead2->free(sPostFreeHead2->ptr);
+        else
+            Free(sPostFreeHead2->ptr);
+        
+        Node_Kill(sPostFreeHead2, sPostFreeHead2);
+    }
 }
 
 __attribute__ ((constructor)) void ExtLib_Init(void) {
-	Log_Init();
-	
+    Log_Init();
+    
 #ifdef _WIN32
-	SetConsoleOutputCP(CP_UTF8);
-	printf_WinFix();
+    SetConsoleOutputCP(CP_UTF8);
+    printf_WinFix();
 #endif
 }
 
 __attribute__ ((destructor)) void ExtLib_Destroy(void) {
-	while (sPostFreeHead) {
-		Free(sPostFreeHead->ptr);
-		Node_Kill(sPostFreeHead, sPostFreeHead);
-	}
-	
-	Log_Free();
+    while (sPostFreeHead) {
+        Free(sPostFreeHead->ptr);
+        Node_Kill(sPostFreeHead, sPostFreeHead);
+    }
+    
+    Log_Free();
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -131,159 +122,159 @@ __attribute__ ((destructor)) void ExtLib_Destroy(void) {
 // # # # # # # # # # # # # # # # # # # # #
 
 typedef enum {
-	T_IDLE,
-	T_RUN,
-	T_DONE,
+    T_IDLE,
+    T_RUN,
+    T_DONE,
 } Tstate;
 
 typedef struct ThdItem {
-	struct ThdItem* next;
-	volatile Tstate state;
-	Thread thd;
-	void (*function)(void*);
-	void* arg;
-	vu8   nid;
-	vu8   numDep;
-	vs32  dep[16];
+    struct ThdItem* next;
+    volatile Tstate state;
+    Thread thd;
+    void (*function)(void*);
+    void* arg;
+    vu8   nid;
+    vu8   numDep;
+    vs32  dep[16];
 } ThdItem;
 
 static struct {
-	ThdItem* head;
-	vu32     num;
-	vu16     dep[__UINT8_MAX__];
-	struct {
-		vbool mutex : 1;
-		vbool on    : 1;
-	};
+    ThdItem* head;
+    vu32     num;
+    vu16     dep[__UINT8_MAX__];
+    struct {
+        vbool mutex : 1;
+        vbool on    : 1;
+    };
 } gTPool;
 
 #undef ThdPool_Add
 
 void ThdPool_Add(void* function, void* arg, u32 n, ...) {
-	ThdItem* t = New(ThdItem);
-	va_list va;
-	
-	Assert(gTPool.on == false);
-	
-	t->function = function;
-	t->arg = arg;
-	
-	va_start(va, n);
-	for (s32 i = 0; i < n; i++) {
-		s32 val = va_arg(va, s32);
-		
-		if (val > 0)
-			t->nid = val;
-		
-		if (val < 0)
-			t->dep[t->numDep++] = -val;
-	}
-	va_end(va);
-	
-	Mutex_Lock();
-	{
-		if (t->nid)
-			gTPool.dep[t->nid]++;
-		
-		Node_Add(gTPool.head, t);
-		gTPool.num++;
-	}
-	Mutex_Unlock();
+    ThdItem* t = New(ThdItem);
+    va_list va;
+    
+    Assert(gTPool.on == false);
+    
+    t->function = function;
+    t->arg = arg;
+    
+    va_start(va, n);
+    for (s32 i = 0; i < n; i++) {
+        s32 val = va_arg(va, s32);
+        
+        if (val > 0)
+            t->nid = val;
+        
+        if (val < 0)
+            t->dep[t->numDep++] = -val;
+    }
+    va_end(va);
+    
+    Mutex_Lock();
+    {
+        if (t->nid)
+            gTPool.dep[t->nid]++;
+        
+        Node_Add(gTPool.head, t);
+        gTPool.num++;
+    }
+    Mutex_Unlock();
 }
 
 static void ThdPool_RunThd(ThdItem* thd) {
-	thd->function(thd->arg);
-	thd->state = T_DONE;
-	
-	Log("Finished");
+    thd->function(thd->arg);
+    thd->state = T_DONE;
+    
+    Log("Finished");
 }
 
 static bool ThdPool_CheckDep(ThdItem* t) {
-	if (!t->numDep)
-		return true;
-	
-	for (s32 i = 0; i < t->numDep; i++)
-		if (gTPool.dep[t->dep[i]] != 0)
-			return false;
-	
-	return true;
+    if (!t->numDep)
+        return true;
+    
+    for (s32 i = 0; i < t->numDep; i++)
+        if (gTPool.dep[t->dep[i]] != 0)
+            return false;
+    
+    return true;
 }
 
 const char* gThdPool_ProgressMessage;
 
 void ThdPool_Exec(u32 max, bool mutex) {
-	u32 amount = gTPool.num;
-	u32 prev = 1;
-	u32 prog = 0;
-	u32 cur = 0;
-	ThdItem* t;
-	bool msg = gThdPool_ProgressMessage != NULL;
-	
-	if (max == 0)
-		max = 1;
-	
-	if (mutex)
-		Mutex_Enable();
-	
-	gTPool.on = true;
-	while (gTPool.num) {
-		
-		if (msg && prev != prog)
-			printf_progressFst(gThdPool_ProgressMessage, prog + 1, amount);
-		
-		max = Min(max, gTPool.num);
-		
-		if (cur < max) { /* Assign */
-			t = gTPool.head;
-			
-			while (t) {
-				if (t->state == T_IDLE)
-					if (ThdPool_CheckDep(t))
-						break;
-				
-				t = t->next;
-			}
-			
-			if (t) {
-				while (t->state != T_RUN)
-					t->state = T_RUN;
-				Thread_Create(&t->thd, ThdPool_RunThd, t);
-				
-				cur++;
-			}
-			
-		}
-		
-		prev = prog;
-		if (true) { /* Clean */
-			t = gTPool.head;
-			while (t) {
-				if (t->state == T_DONE) {
-					Thread_Join(&t->thd);
-					break;
-				}
-				
-				t = t->next;
-			}
-			
-			if (t) {
-				if (t->nid)
-					gTPool.dep[t->nid]--;
-				
-				Node_Kill(gTPool.head, t);
-				
-				cur--;
-				gTPool.num--;
-				prog++;
-			}
-		}
-	}
-	
-	if (mutex)
-		Mutex_Disable();
-	
-	gThdPool_ProgressMessage = NULL;
-	gTPool.on = false;
+    u32 amount = gTPool.num;
+    u32 prev = 1;
+    u32 prog = 0;
+    u32 cur = 0;
+    ThdItem* t;
+    bool msg = gThdPool_ProgressMessage != NULL;
+    
+    if (max == 0)
+        max = 1;
+    
+    if (mutex)
+        Mutex_Enable();
+    
+    gTPool.on = true;
+    while (gTPool.num) {
+        
+        if (msg && prev != prog)
+            printf_progressFst(gThdPool_ProgressMessage, prog + 1, amount);
+        
+        max = Min(max, gTPool.num);
+        
+        if (cur < max) { /* Assign */
+            t = gTPool.head;
+            
+            while (t) {
+                if (t->state == T_IDLE)
+                    if (ThdPool_CheckDep(t))
+                        break;
+                
+                t = t->next;
+            }
+            
+            if (t) {
+                while (t->state != T_RUN)
+                    t->state = T_RUN;
+                Thread_Create(&t->thd, ThdPool_RunThd, t);
+                
+                cur++;
+            }
+            
+        }
+        
+        prev = prog;
+        if (true) { /* Clean */
+            t = gTPool.head;
+            while (t) {
+                if (t->state == T_DONE) {
+                    Thread_Join(&t->thd);
+                    break;
+                }
+                
+                t = t->next;
+            }
+            
+            if (t) {
+                if (t->nid)
+                    gTPool.dep[t->nid]--;
+                
+                Node_Kill(gTPool.head, t);
+                
+                cur--;
+                gTPool.num--;
+                prog++;
+            }
+        }
+    }
+    
+    if (mutex)
+        Mutex_Disable();
+    
+    gThdPool_ProgressMessage = NULL;
+    gTPool.on = false;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -293,18 +284,18 @@ void ThdPool_Exec(u32 max, bool mutex) {
 static u8* sSegment[255];
 
 void SetSegment(const u8 id, void* segment) {
-	sSegment[id] = segment;
+    sSegment[id] = segment;
 }
 
 void* SegmentedToVirtual(const u8 id, void32 ptr) {
-	if (sSegment[id] == NULL)
-		printf_error("Segment 0x%X == NULL", id);
-	
-	return &sSegment[id][ptr];
+    if (sSegment[id] == NULL)
+        printf_error("Segment 0x%X == NULL", id);
+    
+    return &sSegment[id][ptr];
 }
 
 void32 VirtualToSegmented(const u8 id, void* ptr) {
-	return (uptr)ptr - (uptr)sSegment[id];
+    return (uptr)ptr - (uptr)sSegment[id];
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -312,94 +303,94 @@ void32 VirtualToSegmented(const u8 id, void* ptr) {
 // # # # # # # # # # # # # # # # # # # # #
 
 typedef struct {
-	u8*  head;
-	Size offset;
-	Size max;
+    u8*  head;
+    Size offset;
+    Size max;
 } BufferX;
 
 void* xAlloc(Size size) {
-	static BufferX this = {
-		.max = MbToBin(16),
-	};
-	u8* ret;
-	
-	if (size <= 0)
-		return NULL;
-	
-	if (size >= this.max / 4)
-		printf_error("");
-	
-	Mutex_Lock();
-	if (this.head == NULL) {
-		this.head = qFree(Alloc(this.max));
-		Assert(this.head != NULL);
-	}
-	
-	if (this.offset + size + 10 >= this.max) {
-		Log("Rewind: [ %.3fkB / %.3fkB ]", BinToKb(this.offset), BinToKb(this.max));
-		this.offset = 0;
-	}
-	
-	ret = &this.head[this.offset];
-	this.offset += size + 1;
-	
-	Mutex_Unlock();
-	
-	return memset(ret, 0, size + 1);
+    static BufferX this = {
+        .max = MbToBin(16),
+    };
+    u8* ret;
+    
+    if (size <= 0)
+        return NULL;
+    
+    if (size >= this.max / 4)
+        printf_error("");
+    
+    Mutex_Lock();
+    if (this.head == NULL) {
+        this.head = qFree(Alloc(this.max));
+        Assert(this.head != NULL);
+    }
+    
+    if (this.offset + size + 10 >= this.max) {
+        Log("Rewind: [ %.3fkB / %.3fkB ]", BinToKb(this.offset), BinToKb(this.max));
+        this.offset = 0;
+    }
+    
+    ret = &this.head[this.offset];
+    this.offset += size + 1;
+    
+    Mutex_Unlock();
+    
+    return memset(ret, 0, size + 1);
 }
 
 char* xStrDup(const char* str) {
-	return xMemDup(str, strlen(str) + 1);
+    return xMemDup(str, strlen(str) + 1);
 }
 
 char* xStrNDup(const char* s, size_t n) {
-	if (!n) return NULL;
-	
-	for (size_t i = 0; i < n; i++) {
-		if (s[i] == '\0') {
-			n = i;
-			break;
-		}
-	}
-	
-	char* new = xAlloc(n + 1);
-	new[n] = '\0';
-	
-	return (char*) memcpy (new, s, n);
+    if (!n) return NULL;
+    
+    for (size_t i = 0; i < n; i++) {
+        if (s[i] == '\0') {
+            n = i;
+            break;
+        }
+    }
+    
+    char* new = xAlloc(n + 1);
+    new[n] = '\0';
+    
+    return (char*) memcpy (new, s, n);
 }
 
 char* xMemDup(const char* data, Size size) {
-	if (!data || !size)
-		return NULL;
-	
-	return memcpy(xAlloc(size), data, size);
+    if (!data || !size)
+        return NULL;
+    
+    return memcpy(xAlloc(size), data, size);
 }
 
 char* xFmt(const char* fmt, ...) {
-	Size sz;
-	char* r;
-	va_list va;
-	
-	va_start(va, fmt);
-	sz = vsnprintf(NULL, 0, fmt, va);
-	Assert(sz > 0);
-	r = Alloc(sz + 1);
-	va_end(va);
-	
-	va_start(va, fmt);
-	vsprintf(r, fmt, va);
-	va_end(va);
-	
-	return r;
+    Size sz;
+    char* r;
+    va_list va;
+    
+    va_start(va, fmt);
+    sz = vsnprintf(NULL, 0, fmt, va);
+    Assert(sz > 0);
+    r = Alloc(sz + 1);
+    va_end(va);
+    
+    va_start(va, fmt);
+    vsprintf(r, fmt, va);
+    va_end(va);
+    
+    return r;
 }
 
 char* xRep(const char* str, const char* a, const char* b) {
-	char* r = xAlloc(strlen(str) + (strlen(b) - strlen(a)) + 1 );
-	
-	strcpy(r, str);
-	StrRep(r, a, b);
-	
-	return r;
+    char* r = xAlloc(strlen(str) + (strlen(b) - strlen(a)) + 1 );
+    
+    strcpy(r, str);
+    StrRep(r, a, b);
+    
+    return r;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -410,52 +401,52 @@ ThreadLocal static struct timeval sTimeStart[255];
 ThreadLocal static struct timeval sTimeStop[255];
 
 void Time_Start(u32 slot) {
-	gettimeofday(&sTimeStart[slot], NULL);
+    gettimeofday(&sTimeStart[slot], NULL);
 }
 
 f64 Time_Get(u32 slot) {
-	gettimeofday(&sTimeStop[slot], NULL);
-	
-	return (sTimeStop[slot].tv_sec - sTimeStart[slot].tv_sec) + (f32)(sTimeStop[slot].tv_usec - sTimeStart[slot].tv_usec) / 1000000;
+    gettimeofday(&sTimeStop[slot], NULL);
+    
+    return (sTimeStop[slot].tv_sec - sTimeStart[slot].tv_sec) + (f32)(sTimeStop[slot].tv_usec - sTimeStart[slot].tv_usec) / 1000000;
 }
 
 typedef struct {
-	struct timeval t;
-	f32 ring[20];
-	s8  k;
+    struct timeval t;
+    f32 ring[20];
+    s8  k;
 } ProfilerSlot;
 
 struct {
-	ProfilerSlot s[255];
+    ProfilerSlot s[255];
 } gProfilerCtx;
 
 void Profiler_I(u8 s) {
-	ProfilerSlot* p = &gProfilerCtx.s[s];
-	
-	gettimeofday(&p->t, 0);
+    ProfilerSlot* p = &gProfilerCtx.s[s];
+    
+    gettimeofday(&p->t, 0);
 }
 
 void Profiler_O(u8 s) {
-	struct timeval t;
-	ProfilerSlot* p = &gProfilerCtx.s[s];
-	
-	gettimeofday(&t, 0);
-	
-	p->ring[p->k] = t.tv_sec - p->t.tv_sec + (f32)(t.tv_usec - p->t.tv_usec) * 0.000001f;
+    struct timeval t;
+    ProfilerSlot* p = &gProfilerCtx.s[s];
+    
+    gettimeofday(&t, 0);
+    
+    p->ring[p->k] = t.tv_sec - p->t.tv_sec + (f32)(t.tv_usec - p->t.tv_usec) * 0.000001f;
 }
 
 f32 Profiler_Time(u8 s) {
-	ProfilerSlot* p = &gProfilerCtx.s[s];
-	f32 sec = 0.0f;
-	
-	for (s32 i = 0; i < 20; i++)
-		sec += p->ring[i];
-	sec /= 20;
-	p->k++;
-	if (p->k >= 20)
-		p->k = 0;
-	
-	return sec;
+    ProfilerSlot* p = &gProfilerCtx.s[s];
+    f32 sec = 0.0f;
+    
+    for (s32 i = 0; i < 20; i++)
+        sec += p->ring[i];
+    sec /= 20;
+    p->k++;
+    if (p->k >= 20)
+        p->k = 0;
+    
+    return sec;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -466,66 +457,66 @@ ThreadLocal static char* __sPath;
 ThreadLocal static s32 __sMakeDir;
 
 void FileSys_MakePath(s32 flag) {
-	__sMakeDir = flag;
+    __sMakeDir = flag;
 }
 
 void FileSys_Path(const char* fmt, ...) {
-	va_list va;
-	
-	Free(__sPath);
-	va_start(va, fmt);
-	vasprintf(&__sPath, fmt, va);
-	va_end(va);
-	
-	if (__sMakeDir)
-		Sys_MakeDir(__sPath);
+    va_list va;
+    
+    Free(__sPath);
+    va_start(va, fmt);
+    vasprintf(&__sPath, fmt, va);
+    va_end(va);
+    
+    if (__sMakeDir)
+        Sys_MakeDir(__sPath);
 }
 
 char* FileSys_File(const char* str, ...) {
-	char* buffer;
-	char* ret;
-	va_list va;
-	
-	va_start(va, str);
-	vasprintf(&buffer, str, va);
-	va_end(va);
-	
-	Log("%s", str);
-	Assert(buffer != NULL);
-	if (buffer[0] != '/' && buffer[0] != '\\')
-		ret = xFmt("%s%s", __sPath, buffer);
-	else
-		ret = xStrDup(buffer + 1);
-	Free(buffer);
-	
-	return ret;
+    char* buffer;
+    char* ret;
+    va_list va;
+    
+    va_start(va, str);
+    vasprintf(&buffer, str, va);
+    va_end(va);
+    
+    Log("%s", str);
+    Assert(buffer != NULL);
+    if (buffer[0] != '/' && buffer[0] != '\\')
+        ret = xFmt("%s%s", __sPath, buffer);
+    else
+        ret = xStrDup(buffer + 1);
+    Free(buffer);
+    
+    return ret;
 }
 
 char* FileSys_FindFile(const char* str) {
-	ItemList list = ItemList_Initialize();
-	char* file = NULL;
-	Time stat = 0;
-	
-	if (*str == '*') str++;
-	
-	ItemList_List(&list, __sPath, 0, LIST_FILES | LIST_NO_DOT);
-	for (s32 i = 0; i < list.num; i++) {
-		if (StrEndCase(list.item[i], str) && Sys_Stat(list.item[i]) > stat) {
-			file = list.item[i];
-			stat = Sys_Stat(file);
-		}
-	}
-	
-	if (file)
-		file = xStrDup(file);
-	
-	ItemList_Free(&list);
-	
-	return file;
+    ItemList list = ItemList_Initialize();
+    char* file = NULL;
+    Time stat = 0;
+    
+    if (*str == '*') str++;
+    
+    ItemList_List(&list, __sPath, 0, LIST_FILES | LIST_NO_DOT);
+    for (s32 i = 0; i < list.num; i++) {
+        if (StrEndCase(list.item[i], str) && Sys_Stat(list.item[i]) > stat) {
+            file = list.item[i];
+            stat = Sys_Stat(file);
+        }
+    }
+    
+    if (file)
+        file = xStrDup(file);
+    
+    ItemList_Free(&list);
+    
+    return file;
 }
 
 void FileSys_Free() {
-	Free(__sPath);
+    Free(__sPath);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -536,483 +527,483 @@ static s32 sSysIgnore;
 static s32 sSysReturn;
 
 bool Sys_IsDir(const char* path) {
-	struct stat st = { 0 };
-	
-	stat(path, &st);
-	
-	if (S_ISDIR(st.st_mode)) {
-		return true;
-	}
-	
-	return false;
+    struct stat st = { 0 };
+    
+    stat(path, &st);
+    
+    if (S_ISDIR(st.st_mode)) {
+        return true;
+    }
+    
+    return false;
 }
 
 Time Sys_Stat(const char* item) {
-	struct stat st = { 0 };
-	Time t = 0;
-	s32 free = 0;
-	
-	if (item == NULL)
-		return 0;
-	
-	if (StrEnd(item, "/") || StrEnd(item, "\\")) {
-		free = 1;
-		item = StrDup(item);
-		((char*)item)[strlen(item) - 1] = 0;
-	}
-	
-	if (stat(item, &st) == -1) {
-		if (free) Free(item);
-		
-		return 0;
-	}
-	
-	// No access time
-	// t = Max(st.st_atime, t);
-	t = Max(st.st_mtime, t);
-	t = Max(st.st_ctime, t);
-	
-	if (free) Free(item);
-	
-	return t;
+    struct stat st = { 0 };
+    Time t = 0;
+    s32 free = 0;
+    
+    if (item == NULL)
+        return 0;
+    
+    if (StrEnd(item, "/") || StrEnd(item, "\\")) {
+        free = 1;
+        item = StrDup(item);
+        ((char*)item)[strlen(item) - 1] = 0;
+    }
+    
+    if (stat(item, &st) == -1) {
+        if (free) Free(item);
+        
+        return 0;
+    }
+    
+    // No access time
+    // t = Max(st.st_atime, t);
+    t = Max(st.st_mtime, t);
+    t = Max(st.st_ctime, t);
+    
+    if (free) Free(item);
+    
+    return t;
 }
 
 Time Sys_StatF(const char* item, StatFlag flag) {
-	struct stat st = { 0 };
-	Time t = 0;
-	
-	if (item == NULL)
-		return 0;
-	
-	if (stat(item, &st) == -1)
-		return 0;
-	
-	if (flag & STAT_ACCS)
-		t = Max(st.st_atime, t);
-	
-	if (flag & STAT_MODF)
-		t = Max(st.st_mtime, t);
-	
-	if (flag & STAT_CREA)
-		t = Max(st.st_ctime, t);
-	
-	return t;
+    struct stat st = { 0 };
+    Time t = 0;
+    
+    if (item == NULL)
+        return 0;
+    
+    if (stat(item, &st) == -1)
+        return 0;
+    
+    if (flag & STAT_ACCS)
+        t = Max(st.st_atime, t);
+    
+    if (flag & STAT_MODF)
+        t = Max(st.st_mtime, t);
+    
+    if (flag & STAT_CREA)
+        t = Max(st.st_ctime, t);
+    
+    return t;
 }
 
 char* Sys_ThisApp(void) {
-	static char buf[512];
-	
+    static char buf[512];
+    
 #ifdef _WIN32
-	GetModuleFileName(NULL, buf, 512);
+    GetModuleFileName(NULL, buf, 512);
 #else
-	readlink("/proc/self/exe", buf, 512);
+    (void)readlink("/proc/self/exe", buf, 512);
 #endif
-	
-	return buf;
+    
+    return buf;
 }
 
 Time Sys_Time(void) {
-	Time tme;
-	
-	time(&tme);
-	
-	return tme;
+    Time tme;
+    
+    time(&tme);
+    
+    return tme;
 }
 
 void Sys_Sleep(f64 sec) {
-	struct timespec ts = { 0 };
-	
-	if (sec <= 0)
-		return;
-	
-	ts.tv_sec = floor(sec);
-	ts.tv_nsec = (sec - floor(sec)) * 1000000000;
-	
-	nanosleep(&ts, NULL);
+    struct timespec ts = { 0 };
+    
+    if (sec <= 0)
+        return;
+    
+    ts.tv_sec = floor(sec);
+    ts.tv_nsec = (sec - floor(sec)) * 1000000000;
+    
+    nanosleep(&ts, NULL);
 }
 
 static void __recursive_mkdir(const char* dir) {
-	char tmp[256];
-	char* p = NULL;
-	Size len;
-	
-	snprintf(tmp, sizeof(tmp), "%s", dir);
-	len = strlen(tmp);
-	if (tmp[len - 1] == '/')
-		tmp[len - 1] = 0;
-	for (p = tmp + 1; *p; p++)
-		if (*p == '/') {
-			*p = 0;
-			if (!Sys_Stat(tmp))
-				mkdir(
-					tmp
+    char tmp[256];
+    char* p = NULL;
+    Size len;
+    
+    snprintf(tmp, sizeof(tmp), "%s", dir);
+    len = strlen(tmp);
+    if (tmp[len - 1] == '/')
+        tmp[len - 1] = 0;
+    for (p = tmp + 1; *p; p++)
+        if (*p == '/') {
+            *p = 0;
+            if (!Sys_Stat(tmp))
+                mkdir(
+                    tmp
 #ifndef _WIN32
-					,
-					S_IRWXU
+                    ,
+                    S_IRWXU
 #endif
-				);
-			*p = '/';
-		}
-	if (!Sys_Stat(tmp))
-		mkdir(
-			tmp
+                );
+            *p = '/';
+        }
+    if (!Sys_Stat(tmp))
+        mkdir(
+            tmp
 #ifndef _WIN32
-			,
-			S_IRWXU
+            ,
+            S_IRWXU
 #endif
-		);
+        );
 }
 
 void __MakeDir(const char* buffer) {
-	if (Sys_Stat(buffer))
-		return;
-	
-	__recursive_mkdir(buffer);
-	if (!Sys_Stat(buffer))
-		Log("mkdir error: [%s]", buffer);
+    if (Sys_Stat(buffer))
+        return;
+    
+    __recursive_mkdir(buffer);
+    if (!Sys_Stat(buffer))
+        Log("mkdir error: [%s]", buffer);
 }
 
 void Sys_MakeDir(const char* dir, ...) {
-	char* buffer;
-	va_list args;
-	
-	va_start(args, dir);
-	vasprintf(&buffer, dir, args);
-	va_end(args);
-	
+    char* buffer;
+    va_list args;
+    
+    va_start(args, dir);
+    vasprintf(&buffer, dir, args);
+    va_end(args);
+    
 #ifdef _WIN32
-	s32 i = 0;
-	if (PathIsAbs(buffer))
-		i = 3;
-	
-	for (; i < strlen(buffer); i++) {
-		switch (buffer[i]) {
-			case ':':
-			case '*':
-			case '?':
-			case '"':
-			case '<':
-			case '>':
-			case '|':
-				printf_error("MakeDir: Can't make folder with illegal character! '%s'", buffer);
-				break;
-			default:
-				break;
-		}
-	}
+    s32 i = 0;
+    if (PathIsAbs(buffer))
+        i = 3;
+    
+    for (; i < strlen(buffer); i++) {
+        switch (buffer[i]) {
+            case ':':
+            case '*':
+            case '?':
+            case '"':
+            case '<':
+            case '>':
+            case '|':
+                printf_error("MakeDir: Can't make folder with illegal character! '%s'", buffer);
+                break;
+            default:
+                break;
+        }
+    }
 #endif
-	
-	if (!Sys_IsDir(dir)) {
-		for (s32 i = strlen(buffer) - 1; i >= 0; i--) {
-			if (buffer[i] == '/' || buffer[i] == '\\')
-				break;
-			buffer[i] = '\0';
-		}
-	}
-	
-	__MakeDir(buffer);
-	
-	Free(buffer);
+    
+    if (!Sys_IsDir(dir)) {
+        for (s32 i = strlen(buffer) - 1; i >= 0; i--) {
+            if (buffer[i] == '/' || buffer[i] == '\\')
+                break;
+            buffer[i] = '\0';
+        }
+    }
+    
+    __MakeDir(buffer);
+    
+    Free(buffer);
 }
 
 const char* Sys_WorkDir(void) {
-	static char buf[512];
-	
-	if (getcwd(buf, sizeof(buf)) == NULL) {
-		printf_error("Could not get Sys_WorkDir");
-	}
-	
-	for (s32 i = 0; i < strlen(buf); i++) {
-		if (buf[i] == '\\')
-			buf[i] = '/';
-	}
-	
-	strcat(buf, "/");
-	
-	return buf;
+    static char buf[512];
+    
+    if (getcwd(buf, sizeof(buf)) == NULL) {
+        printf_error("Could not get Sys_WorkDir");
+    }
+    
+    for (s32 i = 0; i < strlen(buf); i++) {
+        if (buf[i] == '\\')
+            buf[i] = '/';
+    }
+    
+    strcat(buf, "/");
+    
+    return buf;
 }
 
 const char* Sys_AppDir(void) {
-	char* path = Path(Sys_ThisApp());
-	
-	StrRep(path, "\\", "/");
-	
-	return path;
+    char* path = Path(Sys_ThisApp());
+    
+    StrRep(path, "\\", "/");
+    
+    return path;
 }
 
 s32 Sys_Rename(const char* input, const char* output) {
-	if (Sys_Stat(output))
-		Sys_Delete(output);
-	
-	return rename(input, output);
+    if (Sys_Stat(output))
+        Sys_Delete(output);
+    
+    return rename(input, output);
 }
 
 static s32 __rm_func(const char* item, const struct stat* bug, s32 type, struct FTW* ftw) {
-	if (Sys_Delete(item))
-		printf_error_align("Delete", "%s", item);
-	
-	return 0;
+    if (Sys_Delete(item))
+        printf_error_align("Delete", "%s", item);
+    
+    return 0;
 }
 
 s32 Sys_Delete(const char* item) {
-	if (Sys_IsDir(item))
-		return rmdir(item);
-	else
-		return remove(item);
+    if (Sys_IsDir(item))
+        return rmdir(item);
+    else
+        return remove(item);
 }
 
 s32 Sys_Delete_Recursive(const char* item) {
-	if (!Sys_IsDir(item))
-		return 1;
-	if (!Sys_Stat(item))
-		return 0;
-	if (nftw(item, __rm_func, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
-		printf_error("nftw error: %s %s", item, __FUNCTION__);
-	
-	return 0;
+    if (!Sys_IsDir(item))
+        return 1;
+    if (!Sys_Stat(item))
+        return 0;
+    if (nftw(item, __rm_func, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
+        printf_error("nftw error: %s %s", item, __FUNCTION__);
+    
+    return 0;
 }
 
 void Sys_SetWorkDir(const char* txt) {
-	if (PathIsRel(txt))
-		txt = PathAbs(txt);
-	
-	chdir(txt);
+    if (PathIsRel(txt))
+        txt = PathAbs(txt);
+    
+    chdir(txt);
 }
 
 void SysExe_IgnoreError() {
-	sSysIgnore = true;
+    sSysIgnore = true;
 }
 
 s32 SysExe_GetError() {
-	return sSysReturn;
+    return sSysReturn;
 }
 
 s32 SysExe(const char* cmd) {
-	s32 ret;
-	
-	ret = system(cmd);
-	
-	if (ret != 0)
-		Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExe(" PRNT_REDD "%s" PRNT_GRAY ");", ret, cmd);
-	
-	return ret;
+    s32 ret;
+    
+    ret = system(cmd);
+    
+    if (ret != 0)
+        Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExe(" PRNT_REDD "%s" PRNT_GRAY ");", ret, cmd);
+    
+    return ret;
 }
 
 void SysExeD(const char* cmd) {
 #ifdef _WIN32
-	SysExe(xFmt("start %s", cmd));
+    SysExe(xFmt("start %s", cmd));
 #else
-	SysExe(xFmt("nohup %s", cmd));
+    SysExe(xFmt("nohup %s", cmd));
 #endif
 }
 
 ThreadLocal char sExeBuffer[MbToBin(15)];
 
 char* SysExeO(const char* cmd) {
-	char result[1025];
-	FILE* file = NULL;
-	u32 size = 0;
-	char* out;
-	
-	if ((file = popen(cmd, "r")) == NULL) {
-		Log(PRNT_REDD "SysExeO(%s);", cmd);
-		Log("popen failed!");
-		
-		return NULL;
-	}
-	
-	sExeBuffer[0] = '\0';
-	while (fgets(result, 1024, file)) {
-		size += strlen(result);
-		Assert (size < MbToBin(15));
-		strcat(sExeBuffer, result);
-	}
-	
-	if ((sSysReturn = pclose(file)) != 0) {
-		if (sSysIgnore == 0) {
-			printf("%s\n", sExeBuffer);
-			Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExeO(" PRNT_REDD "%s" PRNT_GRAY ");", sSysReturn, cmd);
-			printf_error("SysExeO");
-		}
-	}
-	
-	sSysIgnore = 0;
-	out = StrDup(sExeBuffer);
-	Assert(out != NULL);
-	
-	return out;
+    char result[1025];
+    FILE* file = NULL;
+    u32 size = 0;
+    char* out;
+    
+    if ((file = popen(cmd, "r")) == NULL) {
+        Log(PRNT_REDD "SysExeO(%s);", cmd);
+        Log("popen failed!");
+        
+        return NULL;
+    }
+    
+    sExeBuffer[0] = '\0';
+    while (fgets(result, 1024, file)) {
+        size += strlen(result);
+        Assert (size < MbToBin(15));
+        strcat(sExeBuffer, result);
+    }
+    
+    if ((sSysReturn = pclose(file)) != 0) {
+        if (sSysIgnore == 0) {
+            printf("%s\n", sExeBuffer);
+            Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExeO(" PRNT_REDD "%s" PRNT_GRAY ");", sSysReturn, cmd);
+            printf_error("SysExeO");
+        }
+    }
+    
+    sSysIgnore = 0;
+    out = StrDup(sExeBuffer);
+    Assert(out != NULL);
+    
+    return out;
 }
 
 s32 SysExeC(const char* cmd, s32 (*callback)(void*, const char*), void* arg) {
-	char* s;
-	FILE* file;
-	
-	if ((file = popen(cmd, "r")) == NULL) {
-		Log(PRNT_REDD "SysExeO(%s);", cmd);
-		Log("popen failed!");
-		
-		return -1;
-	}
-	
-	s = Alloc(1025);
-	while (fgets(s, 1024, file))
-		if (callback)
-			if (callback(arg, s))
-				break;
-	Free(s);
-	
-	return pclose(file);
+    char* s;
+    FILE* file;
+    
+    if ((file = popen(cmd, "r")) == NULL) {
+        Log(PRNT_REDD "SysExeO(%s);", cmd);
+        Log("popen failed!");
+        
+        return -1;
+    }
+    
+    s = Alloc(1025);
+    while (fgets(s, 1024, file))
+        if (callback)
+            if (callback(arg, s))
+                break;
+    Free(s);
+    
+    return pclose(file);
 }
 
 void Sys_TerminalSize(s32* r) {
-	s32 x = 0;
-	s32 y = 0;
-	
+    s32 x = 0;
+    s32 y = 0;
+    
 #ifdef _WIN32
-	CONSOLE_SCREEN_BUFFER_INFO csbi;
-	
-	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-	x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-	y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 #else
-	#ifndef __clang__
-		#include <sys/ioctl.h>
-	struct winsize w;
-	
-	ioctl(0, TIOCGWINSZ, &w);
-	
-	x = w.ws_col;
-	y = w.ws_row;
-	#endif // __clang__
+    #ifndef __clang__
+        #include <sys/ioctl.h>
+    struct winsize w;
+    
+    ioctl(0, TIOCGWINSZ, &w);
+    
+    x = w.ws_col;
+    y = w.ws_row;
+    #endif // __clang__
 #endif // _WIN32
-	
-	r[0] = x;
-	r[1] = y;
+    
+    r[0] = x;
+    r[1] = y;
 }
 
 void Sys_TerminalCursorPos(s32* r) {
-	s32 x = 0;
-	s32 y = 0;
-	
+    s32 x = 0;
+    s32 y = 0;
+    
 #ifdef _WIN32
-	CONSOLE_SCREEN_BUFFER_INFO cbsi;
-	
-	Assert (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cbsi));
-	
-	x = cbsi.dwCursorPosition.X;
-	y = cbsi.dwCursorPosition.Y;
+    CONSOLE_SCREEN_BUFFER_INFO cbsi;
+    
+    Assert (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cbsi));
+    
+    x = cbsi.dwCursorPosition.X;
+    y = cbsi.dwCursorPosition.Y;
 #else
 #endif // _WIN32
-	
-	r[0] = x;
-	r[1] = y;
+    
+    r[0] = x;
+    r[1] = y;
 }
 
 s32 Sys_Touch(const char* file) {
-	if (!Sys_Stat(file)) {
-		FILE* f = fopen(file, "w");
-		Assert(f != NULL);
-		fclose(f);
-		
-		return 0;
-	}
-	
+    if (!Sys_Stat(file)) {
+        FILE* f = fopen(file, "w");
+        Assert(f != NULL);
+        fclose(f);
+        
+        return 0;
+    }
+    
 #include <utime.h>
-	struct stat st;
-	struct utimbuf nTime;
-	
-	stat(file, &st);
-	nTime.actime = st.st_atime;
-	nTime.modtime = time(NULL);
-	utime(file, &nTime);
-	
-	return 0;
+    struct stat st;
+    struct utimbuf nTime;
+    
+    stat(file, &st);
+    nTime.actime = st.st_atime;
+    nTime.modtime = time(NULL);
+    utime(file, &nTime);
+    
+    return 0;
 }
 
 s32 Sys_Copy(const char* src, const char* dest) {
-	MemFile a = MemFile_Initialize();
-	
-	if (MemFile_LoadFile(&a, src))
-		return -1;
-	if (MemFile_SaveFile(&a, dest))
-		return 1;
-	MemFile_Free(&a);
-	
-	return 0;
+    MemFile a = MemFile_Initialize();
+    
+    if (MemFile_LoadFile(&a, src))
+        return -1;
+    if (MemFile_SaveFile(&a, dest))
+        return 1;
+    MemFile_Free(&a);
+    
+    return 0;
 }
 
 Date Sys_Date(Time time) {
-	Date date = { 0 };
-	
+    Date date = { 0 };
+    
 #ifndef __clang__
-	struct tm* tistr = localtime(&time);
-	
-	date.year = tistr->tm_year + 1900;
-	date.month = tistr->tm_mon + 1;
-	date.day = tistr->tm_mday;
-	date.hour = tistr->tm_hour;
-	date.minute = tistr->tm_min;
-	date.second = tistr->tm_sec;
+    struct tm* tistr = localtime(&time);
+    
+    date.year = tistr->tm_year + 1900;
+    date.month = tistr->tm_mon + 1;
+    date.day = tistr->tm_mday;
+    date.hour = tistr->tm_hour;
+    date.minute = tistr->tm_min;
+    date.second = tistr->tm_sec;
 #endif
-	
-	return date;
+    
+    return date;
 }
 
 s32 Sys_GetCoreCount(void) {
-	{
+    {
 #ifndef __clang__
-	#ifdef _WIN32
-		#define WIN32_LEAN_AND_MEAN
-		#include <windows.h>
-	#else
-		#include <unistd.h>
-	#endif
-	#include <stdio.h>
-	#include <stdlib.h>
-	#include <string.h>
-	#include <errno.h>
-		s64 nprocs = -1;
-		s64 nprocs_max = -1;
-		
-	#ifdef _WIN32
-		#ifndef _SC_NPROCESSORS_ONLN
-		SYSTEM_INFO info;
-		GetSystemInfo(&info);
-		#define sysconf(a) info.dwNumberOfProcessors
-		#define _SC_NPROCESSORS_ONLN
-		#endif
-	#endif
-	#ifdef _SC_NPROCESSORS_ONLN
-		nprocs = sysconf(_SC_NPROCESSORS_ONLN);
-		if (nprocs < 1) {
-			return 0;
-		}
-		nprocs_max = sysconf(_SC_NPROCESSORS_CONF);
-		if (nprocs_max < 1) {
-			return 0;
-		}
-		
-		return nprocs;
-	#else
-		
-	#endif
+    #ifdef _WIN32
+        #define WIN32_LEAN_AND_MEAN
+        #include <windows.h>
+    #else
+        #include <unistd.h>
+    #endif
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <string.h>
+    #include <errno.h>
+        s64 nprocs = -1;
+        s64 nprocs_max = -1;
+        
+    #ifdef _WIN32
+        #ifndef _SC_NPROCESSORS_ONLN
+        SYSTEM_INFO info;
+        GetSystemInfo(&info);
+        #define sysconf(a) info.dwNumberOfProcessors
+        #define _SC_NPROCESSORS_ONLN
+        #endif
+    #endif
+    #ifdef _SC_NPROCESSORS_ONLN
+        nprocs = sysconf(_SC_NPROCESSORS_ONLN);
+        if (nprocs < 1) {
+            return 0;
+        }
+        nprocs_max = sysconf(_SC_NPROCESSORS_CONF);
+        if (nprocs_max < 1) {
+            return 0;
+        }
+        
+        return nprocs;
+    #else
+        
+    #endif
 #endif
-	}
-	
-	return 0;
+    }
+    
+    return 0;
 }
 
 Size Sys_GetFileSize(const char* file) {
-	FILE* f = fopen(file, "r");
-	u32 result = -1;
-	
-	if (!f) return result;
-	
-	fseek(f, 0, SEEK_END);
-	result = ftell(f);
-	fclose(f);
-	
-	return result;
+    FILE* f = fopen(file, "r");
+    u32 result = -1;
+    
+    if (!f) return result;
+    
+    fseek(f, 0, SEEK_END);
+    result = ftell(f);
+    fclose(f);
+    
+    return result;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1020,70 +1011,70 @@ Size Sys_GetFileSize(const char* file) {
 // # # # # # # # # # # # # # # # # # # # #
 
 s32 Terminal_YesOrNo(void) {
-	char ans[512] = { 0 };
-	u32 clear = 0;
-	
-	while (strncmp(ans, "y", 2) && strncmp(ans, "n", 2) && strncmp(ans, "Y", 2) && strncmp(ans, "N", 2)) {
-		if (gKillFlag)
-			return -1;
-		if (clear)
-			Terminal_ClearLines(2);
-		
-		printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
-		scanf("%s", ans);
-		clear = 1;
-		
-	}
-	
-	if (ans[0] == 'N' || ans[0] == 'n') {
-		Terminal_ClearLines(2);
-		
-		return false;
-	}
-	Terminal_ClearLines(2);
-	
-	return true;
+    char ans[512] = { 0 };
+    u32 clear = 0;
+    
+    while (strncmp(ans, "y", 2) && strncmp(ans, "n", 2) && strncmp(ans, "Y", 2) && strncmp(ans, "N", 2)) {
+        if (gKillFlag)
+            return -1;
+        if (clear)
+            Terminal_ClearLines(2);
+        
+        printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
+        scanf("%s", ans);
+        clear = 1;
+        
+    }
+    
+    if (ans[0] == 'N' || ans[0] == 'n') {
+        Terminal_ClearLines(2);
+        
+        return false;
+    }
+    Terminal_ClearLines(2);
+    
+    return true;
 }
 
 void Terminal_ClearScreen(void) {
-	printf("\033[2J");
-	fflush(stdout);
+    printf("\033[2J");
+    fflush(stdout);
 }
 
 void Terminal_ClearLines(u32 i) {
-	printf("\x1b[2K");
-	for (s32 j = 1; j < i; j++) {
-		Terminal_Move_PrevLine();
-		printf("\x1b[2K");
-	}
-	fflush(stdout);
+    printf("\x1b[2K");
+    for (s32 j = 1; j < i; j++) {
+        Terminal_Move_PrevLine();
+        printf("\x1b[2K");
+    }
+    fflush(stdout);
 }
 
 void Terminal_Move_PrevLine(void) {
-	printf("\x1b[1F");
-	fflush(stdout);
+    printf("\x1b[1F");
+    fflush(stdout);
 }
 
 const char* Terminal_GetStr(void) {
-	static char str[512] = { 0 };
-	
-	printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_RSET);
-	fgets(str, 511, stdin);
-	str[strlen(str) - 1] = '\0'; // remove newline
-	
-	Log("[%s]", str);
-	
-	return str;
+    static char str[512] = { 0 };
+    
+    printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_RSET);
+    fgets(str, 511, stdin);
+    str[strlen(str) - 1] = '\0'; // remove newline
+    
+    Log("[%s]", str);
+    
+    return str;
 }
 
 char Terminal_GetChar() {
-	char s;
-	
-	printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_RSET);
-	fflush(stdout);
-	scanf("%c", &s);
-	
-	return s;
+    char s;
+    
+    printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_RSET);
+    fflush(stdout);
+    scanf("%c", &s);
+    
+    return s;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1093,596 +1084,596 @@ char Terminal_GetChar() {
 static s32 sRandInit;
 
 f32 RandF() {
-	if (sRandInit == 0) {
-		sRandInit++;
-		srand(time(NULL));
-	}
-	
-	for (s32 i = 0; i < 128; i++)
-		srand(rand());
-	
-	f64 r = rand() / (f32)__INT16_MAX__;
-	
-	return fmod(r, 1.0f);
+    if (sRandInit == 0) {
+        sRandInit++;
+        srand(time(NULL));
+    }
+    
+    for (s32 i = 0; i < 128; i++)
+        srand(rand());
+    
+    f64 r = rand() / (f32)__INT16_MAX__;
+    
+    return fmod(r, 1.0f);
 }
 
 void* MemMem(const void* haystack, Size haystacklen, const void* needle, Size needlelen) {
-	char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
-	
-	if (haystacklen < needlelen || !haystack || !needle || !haystacklen || !needlelen)
-		return NULL;
-	
-	while ((haystacklen - (p - bf)) >= needlelen) {
-		if (NULL != (p = memchr(p, (s32)(*pt), haystacklen - (p - bf)))) {
-			if (!memcmp(p, needle, needlelen))
-				return p;
-			++p;
-		} else
-			break;
-	}
-	
-	return NULL;
+    char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
+    
+    if (haystacklen < needlelen || !haystack || !needle || !haystacklen || !needlelen)
+        return NULL;
+    
+    while ((haystacklen - (p - bf)) >= needlelen) {
+        if (NULL != (p = memchr(p, (s32)(*pt), haystacklen - (p - bf)))) {
+            if (!memcmp(p, needle, needlelen))
+                return p;
+            ++p;
+        } else
+            break;
+    }
+    
+    return NULL;
 }
 
 char* StrStr(const char* haystack, const char* needle) {
-	if (!haystack || !needle)
-		return NULL;
-	
-	return MemMem(haystack, strlen(haystack), needle, strlen(needle));
+    if (!haystack || !needle)
+        return NULL;
+    
+    return MemMem(haystack, strlen(haystack), needle, strlen(needle));
 }
 
 char* StrStrWhole(const char* haystack, const char* needle) {
-	char* p = StrStr(haystack, needle);
-	
-	while (p) {
-		if (!isgraph(p[-1]) && !isgraph(p[strlen(needle)]))
-			return p;
-		
-		p = StrStr(p + 1, needle);
-	}
-	
-	return NULL;
+    char* p = StrStr(haystack, needle);
+    
+    while (p) {
+        if (!isgraph(p[-1]) && !isgraph(p[strlen(needle)]))
+            return p;
+        
+        p = StrStr(p + 1, needle);
+    }
+    
+    return NULL;
 }
 
 char* StrStrCase(const char* haystack, const char* needle) {
-	char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
-	
-	if (!haystack || !needle)
-		return NULL;
-	
-	u32 haystacklen = strlen(haystack);
-	u32 needlelen = strlen(needle);
-	
-	while (needlelen <= (haystacklen - (p - bf))) {
-		char* a, * b;
-		
-		a = memchr(p, tolower((s32)(*pt)), haystacklen - (p - bf));
-		b = memchr(p, toupper((s32)(*pt)), haystacklen - (p - bf));
-		
-		if (a == NULL)
-			p = b;
-		else if (b == NULL)
-			p = a;
-		else
-			p = Min(a, b);
-		
-		if (p) {
-			if (0 == strnicmp(p, needle, needlelen))
-				return p;
-			++p;
-		} else
-			break;
-	}
-	
-	return NULL;
+    char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
+    
+    if (!haystack || !needle)
+        return NULL;
+    
+    u32 haystacklen = strlen(haystack);
+    u32 needlelen = strlen(needle);
+    
+    while (needlelen <= (haystacklen - (p - bf))) {
+        char* a, * b;
+        
+        a = memchr(p, tolower((s32)(*pt)), haystacklen - (p - bf));
+        b = memchr(p, toupper((s32)(*pt)), haystacklen - (p - bf));
+        
+        if (a == NULL)
+            p = b;
+        else if (b == NULL)
+            p = a;
+        else
+            p = Min(a, b);
+        
+        if (p) {
+            if (0 == strnicmp(p, needle, needlelen))
+                return p;
+            ++p;
+        } else
+            break;
+    }
+    
+    return NULL;
 }
 
 void* MemStrCase(const char* haystack, u32 haystacklen, const char* needle) {
-	char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
-	
-	if (!haystack || !needle)
-		return NULL;
-	
-	u32 needlelen = strlen(needle);
-	
-	while (needlelen <= (haystacklen - (p - bf))) {
-		char* a, * b;
-		
-		a = memchr(p, tolower((s32)(*pt)), haystacklen - (p - bf));
-		b = memchr(p, toupper((s32)(*pt)), haystacklen - (p - bf));
-		
-		if (a == NULL)
-			p = b;
-		else if (b == NULL)
-			p = a;
-		else
-			p = Min(a, b);
-		
-		if (p) {
-			if (0 == strnicmp(p, needle, needlelen))
-				return p;
-			++p;
-		} else
-			break;
-	}
-	
-	return NULL;
+    char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
+    
+    if (!haystack || !needle)
+        return NULL;
+    
+    u32 needlelen = strlen(needle);
+    
+    while (needlelen <= (haystacklen - (p - bf))) {
+        char* a, * b;
+        
+        a = memchr(p, tolower((s32)(*pt)), haystacklen - (p - bf));
+        b = memchr(p, toupper((s32)(*pt)), haystacklen - (p - bf));
+        
+        if (a == NULL)
+            p = b;
+        else if (b == NULL)
+            p = a;
+        else
+            p = Min(a, b);
+        
+        if (p) {
+            if (0 == strnicmp(p, needle, needlelen))
+                return p;
+            ++p;
+        } else
+            break;
+    }
+    
+    return NULL;
 }
 
 void* MemMemAlign(u32 val, const void* haystack, Size haystacklen, const void* needle, Size needlelen) {
-	char* s = (char*)needle;
-	char* bf = (char*)haystack;
-	char* p = (char*)haystack;
-	
-	if (haystacklen < needlelen || !haystack || !needle || !haystacklen || !needlelen || !val)
-		return NULL;
-	
-	while (haystacklen - (p - bf) >= needlelen) {
-		if (p[0] == s[0] && !memcmp(p, needle, needlelen))
-			return p;
-		p += val;
-	}
-	
-	return NULL;
+    char* s = (char*)needle;
+    char* bf = (char*)haystack;
+    char* p = (char*)haystack;
+    
+    if (haystacklen < needlelen || !haystack || !needle || !haystacklen || !needlelen || !val)
+        return NULL;
+    
+    while (haystacklen - (p - bf) >= needlelen) {
+        if (p[0] == s[0] && !memcmp(p, needle, needlelen))
+            return p;
+        p += val;
+    }
+    
+    return NULL;
 }
 
 char* StrEnd(const char* src, const char* ext) {
-	char* fP;
-	
-	if (strlen(src) < strlen(ext))
-		return NULL;
-	
-	fP = (char*)(src + strlen(src) - strlen(ext));
-	
-	if (!strcmp(fP, ext))
-		return fP;
-	
-	return NULL;
+    char* fP;
+    
+    if (strlen(src) < strlen(ext))
+        return NULL;
+    
+    fP = (char*)(src + strlen(src) - strlen(ext));
+    
+    if (!strcmp(fP, ext))
+        return fP;
+    
+    return NULL;
 }
 
 char* StrEndCase(const char* src, const char* ext) {
-	char* fP;
-	
-	if (strlen(src) < strlen(ext))
-		return NULL;
-	
-	fP = (char*)(src + strlen(src) - strlen(ext));
-	
-	if (!stricmp(fP, ext))
-		return fP;
-	
-	return NULL;
+    char* fP;
+    
+    if (strlen(src) < strlen(ext))
+        return NULL;
+    
+    fP = (char*)(src + strlen(src) - strlen(ext));
+    
+    if (!stricmp(fP, ext))
+        return fP;
+    
+    return NULL;
 }
 
 char* StrStart(const char* src, const char* ext) {
-	if (strlen(src) < strlen(ext))
-		return NULL;
-	
-	if (!strncmp(src, ext, strlen(ext)))
-		return (char*)src;
-	
-	return NULL;
+    if (strlen(src) < strlen(ext))
+        return NULL;
+    
+    if (!strncmp(src, ext, strlen(ext)))
+        return (char*)src;
+    
+    return NULL;
 }
 
 char* StrStartCase(const char* src, const char* ext) {
-	if (!strnicmp(src, ext, strlen(ext)))
-		return (char*)src;
-	
-	return NULL;
+    if (!strnicmp(src, ext, strlen(ext)))
+        return (char*)src;
+    
+    return NULL;
 }
 
 void ByteSwap(void* src, s32 size) {
-	u32 buffer[64] = { 0 };
-	u8* temp = (u8*)buffer;
-	u8* srcp = src;
-	
-	for (s32 i = 0; i < size; i++) {
-		temp[size - i - 1] = srcp[i];
-	}
-	
-	for (s32 i = 0; i < size; i++) {
-		srcp[i] = temp[i];
-	}
+    u32 buffer[64] = { 0 };
+    u8* temp = (u8*)buffer;
+    u8* srcp = src;
+    
+    for (s32 i = 0; i < size; i++) {
+        temp[size - i - 1] = srcp[i];
+    }
+    
+    for (s32 i = 0; i < size; i++) {
+        srcp[i] = temp[i];
+    }
 }
 
 void* Alloc(s32 size) {
-	return malloc(size);
+    return malloc(size);
 }
 
 void* Calloc(s32 size) {
-	return calloc(2, size );
+    return calloc(2, size );
 }
 
 void* Realloc(const void* data, s32 size) {
-	return realloc((void*)data, size);
+    return realloc((void*)data, size);
 }
 
 void* MemDup(const void* src, Size size) {
-	if (src == NULL)
-		return NULL;
-	
-	return memcpy(Alloc(size), src, size);
+    if (src == NULL)
+        return NULL;
+    
+    return memcpy(Alloc(size), src, size);
 }
 
 char* StrDup(const char* src) {
-	if (src == NULL)
-		return NULL;
-	
-	return MemDup(src, strlen(src) + 1);
+    if (src == NULL)
+        return NULL;
+    
+    return MemDup(src, strlen(src) + 1);
 }
 
 char* StrDupX(const char* src, Size size) {
-	char* r;
-	
-	if (src == NULL)
-		return NULL;
-	
-	r = Alloc(Max(size, strlen(src) + 1));
-	if (r)
-		strcpy(r, src);
-	
-	return r;
+    char* r;
+    
+    if (src == NULL)
+        return NULL;
+    
+    r = Alloc(Max(size, strlen(src) + 1));
+    if (r)
+        strcpy(r, src);
+    
+    return r;
 }
 
 char* StrDupClp(const char* str, u32 max) {
-	char* r = MemDup(str, max + 1);
-	
-	r[max] = '\0';
-	
-	return r;
+    char* r = MemDup(str, max + 1);
+    
+    r[max] = '\0';
+    
+    return r;
 }
 
 char* Fmt(const char* fmt, ...) {
-	char* s;
-	va_list va;
-	
-	va_start(va, fmt);
-	vasprintf(&s, fmt, va);
-	va_end(va);
-	
-	Assert(s != NULL);
-	
-	return s;
+    char* s;
+    va_list va;
+    
+    va_start(va, fmt);
+    vasprintf(&s, fmt, va);
+    va_end(va);
+    
+    Assert(s != NULL);
+    
+    return s;
 }
 
 s32 ParseArgs(char* argv[], char* arg, u32* parArg) {
-	char* s = xFmt("%s", arg);
-	char* ss = xFmt("-%s", arg);
-	char* sss = xFmt("--%s", arg);
-	char* tst[] = {
-		s, ss, sss
-	};
-	
-	for (s32 i = 1; argv[i] != NULL; i++) {
-		for (s32 j = 0; j < ArrayCount(tst); j++) {
-			if (strlen(argv[i]) == strlen(tst[j]))
-				if (!strcmp(argv[i], tst[j])) {
-					if (parArg != NULL)
-						*parArg = i + 1;
-					
-					return i + 1;
-				}
-		}
-	}
-	
-	return 0;
+    char* s = xFmt("%s", arg);
+    char* ss = xFmt("-%s", arg);
+    char* sss = xFmt("--%s", arg);
+    char* tst[] = {
+        s, ss, sss
+    };
+    
+    for (s32 i = 1; argv[i] != NULL; i++) {
+        for (s32 j = 0; j < ArrayCount(tst); j++) {
+            if (strlen(argv[i]) == strlen(tst[j]))
+                if (!strcmp(argv[i], tst[j])) {
+                    if (parArg != NULL)
+                        *parArg = i + 1;
+                    
+                    return i + 1;
+                }
+        }
+    }
+    
+    return 0;
 }
 
 void SlashAndPoint(const char* src, s32* slash, s32* point) {
-	s32 strSize = strlen(src);
-	
-	*slash = 0;
-	*point = 0;
-	
-	for (s32 i = strSize; i > 0; i--) {
-		if (*point == 0 && src[i] == '.') {
-			*point = i;
-		}
-		if (src[i] == '/' || src[i] == '\\') {
-			*slash = i;
-			break;
-		}
-	}
+    s32 strSize = strlen(src);
+    
+    *slash = 0;
+    *point = 0;
+    
+    for (s32 i = strSize; i > 0; i--) {
+        if (*point == 0 && src[i] == '.') {
+            *point = i;
+        }
+        if (src[i] == '/' || src[i] == '\\') {
+            *slash = i;
+            break;
+        }
+    }
 }
 
 char* Path(const char* src) {
-	char* buffer;
-	s32 point;
-	s32 slash;
-	
-	if (src == NULL)
-		return NULL;
-	
-	SlashAndPoint(src, &slash, &point);
-	
-	if (slash == 0)
-		slash = -1;
-	
-	buffer = xAlloc(slash + 1 + 1);
-	memcpy(buffer, src, slash + 1);
-	buffer[slash + 1] = '\0';
-	
-	return buffer;
+    char* buffer;
+    s32 point;
+    s32 slash;
+    
+    if (src == NULL)
+        return NULL;
+    
+    SlashAndPoint(src, &slash, &point);
+    
+    if (slash == 0)
+        slash = -1;
+    
+    buffer = xAlloc(slash + 1 + 1);
+    memcpy(buffer, src, slash + 1);
+    buffer[slash + 1] = '\0';
+    
+    return buffer;
 }
 
 char* PathSlot(const char* src, s32 num) {
-	char* buffer;
-	s32 start = -1;
-	s32 end;
-	
-	if (src == NULL)
-		return NULL;
-	
-	if (num < 0) {
-		num = PathNum(src) - 1;
-	}
-	
-	for (s32 temp = 0;;) {
-		if (temp >= num)
-			break;
-		if (src[start + 1] == '/')
-			temp++;
-		start++;
-	}
-	start++;
-	end = start + 1;
-	
-	while (src[end] != '/') {
-		if (src[end] == '\0')
-			printf_error("Could not solve folder for [%s]", src);
-		end++;
-	}
-	end++;
-	
-	buffer = xAlloc(end - start + 1);
-	
-	memcpy(buffer, &src[start], end - start);
-	buffer[end - start] = '\0';
-	
-	return buffer;
+    char* buffer;
+    s32 start = -1;
+    s32 end;
+    
+    if (src == NULL)
+        return NULL;
+    
+    if (num < 0) {
+        num = PathNum(src) - 1;
+    }
+    
+    for (s32 temp = 0;;) {
+        if (temp >= num)
+            break;
+        if (src[start + 1] == '/')
+            temp++;
+        start++;
+    }
+    start++;
+    end = start + 1;
+    
+    while (src[end] != '/') {
+        if (src[end] == '\0')
+            printf_error("Could not solve folder for [%s]", src);
+        end++;
+    }
+    end++;
+    
+    buffer = xAlloc(end - start + 1);
+    
+    memcpy(buffer, &src[start], end - start);
+    buffer[end - start] = '\0';
+    
+    return buffer;
 }
 
 char* StrChrAcpt(const char* str, char* c) {
-	char* v = (char*)str;
-	u32 an = strlen(c);
-	
-	if (!v) return NULL;
-	else v = strchr(str, '\0');
-	
-	while (--v >= str)
-		for (s32 i = 0; i < an; i++)
-			if (*v == c[i])
-				return v;
-	
-	return NULL;
+    char* v = (char*)str;
+    u32 an = strlen(c);
+    
+    if (!v) return NULL;
+    else v = strchr(str, '\0');
+    
+    while (--v >= str)
+        for (s32 i = 0; i < an; i++)
+            if (*v == c[i])
+                return v;
+    
+    return NULL;
 }
 
 char* Basename(const char* src) {
-	char* ls = StrChrAcpt(src, "\\/");
-	
-	if (!ls++)
-		ls = (char*)src;
-	
-	return xMemDup(ls, strcspn(ls, "."));
+    char* ls = StrChrAcpt(src, "\\/");
+    
+    if (!ls++)
+        ls = (char*)src;
+    
+    return xMemDup(ls, strcspn(ls, "."));
 }
 
 char* Filename(const char* src) {
-	char* ls = StrChrAcpt(src, "\\/");
-	
-	if (!ls++)
-		ls = (char*)src;
-	
-	return xStrDup(ls);
+    char* ls = StrChrAcpt(src, "\\/");
+    
+    if (!ls++)
+        ls = (char*)src;
+    
+    return xStrDup(ls);
 }
 
 char* LineHead(const char* str, const char* head) {
-	if (str == NULL) return NULL;
-	
-	for (s32 i = 0;; i--) {
-		if (str[i - 1] == '\n' || &str[i] == head)
-			return (char*)&str[i];
-	}
+    if (str == NULL) return NULL;
+    
+    for (s32 i = 0;; i--) {
+        if (str[i - 1] == '\n' || &str[i] == head)
+            return (char*)&str[i];
+    }
 }
 
 static char* revstrchr (register const char* s, int c) {
-	do {
-		if (*s == c) {
-			return (char*)s;
-		}
-	} while (*s--);
-	
-	return (0);
+    do {
+        if (*s == c) {
+            return (char*)s;
+        }
+    } while (*s--);
+    
+    return (0);
 }
 
 char* Line(const char* str, s32 line) {
-	const char* ln = str;
-	
-	if (!str)
-		return NULL;
-	
-	if (line) {
-		if (line > 0) {
-			while (line--) {
-				ln = strchr(ln, '\n');
-				
-				if (!ln++)
-					return NULL;
-				
-				if (*ln == '\r')
-					ln++;
-			}
-		} else {
-			while (line++) {
-				ln = revstrchr(ln, '\n');
-				
-				if (!ln--)
-					return NULL;
-			}
-			
-			if (ln)
-				ln += 2;
-		}
-	}
-	
-	return (char*)ln;
+    const char* ln = str;
+    
+    if (!str)
+        return NULL;
+    
+    if (line) {
+        if (line > 0) {
+            while (line--) {
+                ln = strchr(ln, '\n');
+                
+                if (!ln++)
+                    return NULL;
+                
+                if (*ln == '\r')
+                    ln++;
+            }
+        } else {
+            while (line++) {
+                ln = revstrchr(ln, '\n');
+                
+                if (!ln--)
+                    return NULL;
+            }
+            
+            if (ln)
+                ln += 2;
+        }
+    }
+    
+    return (char*)ln;
 }
 
 char* Word(const char* str, s32 word) {
-	if (!str)
-		return NULL;
-	
-	while (!isgraph(*str)) str++;
-	while (word--) {
-		if (!(str = strpbrk(str, " \t\n\r"))) return NULL;
-		while (!isgraph(*str)) str++;
-	}
-	
-	return (char*)str;
+    if (!str)
+        return NULL;
+    
+    while (!isgraph(*str)) str++;
+    while (word--) {
+        if (!(str = strpbrk(str, " \t\n\r"))) return NULL;
+        while (!isgraph(*str)) str++;
+    }
+    
+    return (char*)str;
 }
 
 Size LineLen(const char* str) {
-	return strcspn(str, "\n");
+    return strcspn(str, "\n");
 }
 
 Size WordLen(const char* str) {
-	return strcspn(str, " \t\n\r");
+    return strcspn(str, " \t\n\r");
 }
 
 char* FileExtension(const char* str) {
-	s32 slash;
-	s32 point;
-	
-	SlashAndPoint(str, &slash, &point);
-	
-	return (void*)&str[point];
+    s32 slash;
+    s32 point;
+    
+    SlashAndPoint(str, &slash, &point);
+    
+    return (void*)&str[point];
 }
 
 void CaseToLow(char* s, s32 i) {
-	if (i <= 0)
-		i = strlen(s);
-	
-	for (s32 k = 0; k < i; k++) {
-		if (s[k] >= 'A' && s[k] <= 'Z') {
-			s[k] = s[k] + 32;
-		}
-	}
+    if (i <= 0)
+        i = strlen(s);
+    
+    for (s32 k = 0; k < i; k++) {
+        if (s[k] >= 'A' && s[k] <= 'Z') {
+            s[k] = s[k] + 32;
+        }
+    }
 }
 
 void CaseToUp(char* s, s32 i) {
-	if (i <= 0)
-		i = strlen(s);
-	
-	for (s32 k = 0; k < i; k++) {
-		if (s[k] >= 'a' && s[k] <= 'z') {
-			s[k] = s[k] - 32;
-		}
-	}
+    if (i <= 0)
+        i = strlen(s);
+    
+    for (s32 k = 0; k < i; k++) {
+        if (s[k] >= 'a' && s[k] <= 'z') {
+            s[k] = s[k] - 32;
+        }
+    }
 }
 
 s32 LineNum(const char* str) {
-	s32 num = 1;
-	
-	while (*str != '\0') {
-		if (*str == '\n' || *str == '\r')
-			num++;
-		str++;
-	}
-	
-	return num;
+    s32 num = 1;
+    
+    while (*str != '\0') {
+        if (*str == '\n' || *str == '\r')
+            num++;
+        str++;
+    }
+    
+    return num;
 }
 
 s32 PathNum(const char* src) {
-	s32 dir = -1;
-	
-	for (s32 i = 0; i < strlen(src); i++) {
-		if (src[i] == '/')
-			dir++;
-	}
-	
-	return dir + 1;
+    s32 dir = -1;
+    
+    for (s32 i = 0; i < strlen(src); i++) {
+        if (src[i] == '/')
+            dir++;
+    }
+    
+    return dir + 1;
 }
 
 char* CopyLine(const char* str, s32 line) {
-	if (!(str = Line(str, line))) return NULL;
-	
-	return xStrNDup(str, LineLen(str));
+    if (!(str = Line(str, line))) return NULL;
+    
+    return xStrNDup(str, LineLen(str));
 }
 
 char* CopyWord(const char* str, s32 word) {
-	if (!(str = Word(str, word))) return NULL;
-	
-	return xStrNDup(str, WordLen(str));
+    if (!(str = Word(str, word))) return NULL;
+    
+    return xStrNDup(str, WordLen(str));
 }
 
 char* PathRel_From(const char* from, const char* item) {
-	item = StrSlash(StrUnq(item));
-	char* work = StrSlash(StrDup(from));
-	s32 lenCom = StrComLen(work, item);
-	s32 subCnt = 0;
-	char* sub = (char*)&work[lenCom];
-	char* fol = (char*)&item[lenCom];
-	char* buffer = xAlloc(strlen(work) + strlen(item));
-	
-	forstr(i, sub) {
-		if (sub[i] == '/' || sub[i] == '\\')
-			subCnt++;
-	}
-	
-	for (s32 i = 0; i < subCnt; i++)
-		strcat(buffer, "../");
-	
-	strcat(buffer, fol);
-	
-	return buffer;
+    item = StrSlash(StrUnq(item));
+    char* work = StrSlash(StrDup(from));
+    s32 lenCom = StrComLen(work, item);
+    s32 subCnt = 0;
+    char* sub = (char*)&work[lenCom];
+    char* fol = (char*)&item[lenCom];
+    char* buffer = xAlloc(strlen(work) + strlen(item));
+    
+    forstr(i, sub) {
+        if (sub[i] == '/' || sub[i] == '\\')
+            subCnt++;
+    }
+    
+    for (s32 i = 0; i < subCnt; i++)
+        strcat(buffer, "../");
+    
+    strcat(buffer, fol);
+    
+    return buffer;
 }
 
 char* PathAbs_From(const char* from, const char* item) {
-	item = StrSlash(StrUnq(item));
-	char* path = StrSlash(xStrDup(from));
-	char* t = StrStr(item, "../");
-	char* f = (char*)item;
-	s32 subCnt = 0;
-	
-	while (t) {
-		f = &f[strlen("../")];
-		subCnt++;
-		t = StrStr(t + 1, "../");
-	}
-	
-	for (s32 i = 0; i < subCnt; i++) {
-		path[strlen(path) - 1] = '\0';
-		path = Path(path);
-	}
-	
-	return xFmt("%s%s", path, f);
+    item = StrSlash(StrUnq(item));
+    char* path = StrSlash(xStrDup(from));
+    char* t = StrStr(item, "../");
+    char* f = (char*)item;
+    s32 subCnt = 0;
+    
+    while (t) {
+        f = &f[strlen("../")];
+        subCnt++;
+        t = StrStr(t + 1, "../");
+    }
+    
+    for (s32 i = 0; i < subCnt; i++) {
+        path[strlen(path) - 1] = '\0';
+        path = Path(path);
+    }
+    
+    return xFmt("%s%s", path, f);
 }
 
 char* PathRel(const char* item) {
-	return PathRel_From(Sys_WorkDir(), item);
+    return PathRel_From(Sys_WorkDir(), item);
 }
 
 char* PathAbs(const char* item) {
-	return PathAbs_From(Sys_WorkDir(), item);
+    return PathAbs_From(Sys_WorkDir(), item);
 }
 
 s32 PathIsAbs(const char* item) {
-	while (item[0] == '\'' || item[0] == '\"')
-		item++;
-	
-	if (isalpha(item[0]) && item[1] == ':' && (item[2] == '/' || item[2] == '\\')) {
-		
-		return 1;
-	}
-	if (item[0] == '/' || item[0] == '\\') {
-		
-		return 1;
-	}
-	
-	return 0;
+    while (item[0] == '\'' || item[0] == '\"')
+        item++;
+    
+    if (isalpha(item[0]) && item[1] == ':' && (item[2] == '/' || item[2] == '\\')) {
+        
+        return 1;
+    }
+    if (item[0] == '/' || item[0] == '\\') {
+        
+        return 1;
+    }
+    
+    return 0;
 }
 
 s32 PathIsRel(const char* item) {
-	return !PathIsAbs(item);
+    return !PathIsAbs(item);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1690,54 +1681,54 @@ s32 PathIsRel(const char* item) {
 // # # # # # # # # # # # # # # # # # # # #
 
 void Color_ToHSL(HSL8* dest, RGB8* src) {
-	f32 r, g, b;
-	f32 cmax, cmin, d;
-	
-	r = (f32)src->r / 255;
-	g = (f32)src->g / 255;
-	b = (f32)src->b / 255;
-	
-	cmax = fmax(r, (fmax(g, b)));
-	cmin = fmin(r, (fmin(g, b)));
-	dest->l = (cmax + cmin) / 2;
-	d = cmax - cmin;
-	
-	if (cmax == cmin)
-		dest->h = dest->s = 0;
-	else {
-		dest->s = dest->l > 0.5 ? d / (2 - cmax - cmin) : d / (cmax + cmin);
-		
-		if (cmax == r) {
-			dest->h = (g - b) / d + (g < b ? 6 : 0);
-		} else if (cmax == g) {
-			dest->h = (b - r) / d + 2;
-		} else if (cmax == b) {
-			dest->h = (r - g) / d + 4;
-		}
-		dest->h /= 6.0;
-	}
+    f32 r, g, b;
+    f32 cmax, cmin, d;
+    
+    r = (f32)src->r / 255;
+    g = (f32)src->g / 255;
+    b = (f32)src->b / 255;
+    
+    cmax = fmax(r, (fmax(g, b)));
+    cmin = fmin(r, (fmin(g, b)));
+    dest->l = (cmax + cmin) / 2;
+    d = cmax - cmin;
+    
+    if (cmax == cmin)
+        dest->h = dest->s = 0;
+    else {
+        dest->s = dest->l > 0.5 ? d / (2 - cmax - cmin) : d / (cmax + cmin);
+        
+        if (cmax == r) {
+            dest->h = (g - b) / d + (g < b ? 6 : 0);
+        } else if (cmax == g) {
+            dest->h = (b - r) / d + 2;
+        } else if (cmax == b) {
+            dest->h = (r - g) / d + 4;
+        }
+        dest->h /= 6.0;
+    }
 }
 
 static f32 hue2rgb(f32 p, f32 q, f32 t) {
-	if (t < 0.0) t += 1;
-	if (t > 1.0) t -= 1;
-	if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t;
-	if (t < 1.0 / 2.0) return q;
-	if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
-	
-	return p;
+    if (t < 0.0) t += 1;
+    if (t > 1.0) t -= 1;
+    if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t;
+    if (t < 1.0 / 2.0) return q;
+    if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
+    
+    return p;
 }
 
 void Color_ToRGB(RGB8* dest, HSL8* src) {
-	if (src->s == 0) {
-		dest->r = dest->g = dest->b = src->l;
-	} else {
-		f32 q = src->l < 0.5 ? src->l * (1 + src->s) : src->l + src->s - src->l * src->s;
-		f32 p = 2.0 * src->l - q;
-		dest->r = hue2rgb(p, q, src->h + 1.0 / 3.0) * 255;
-		dest->g = hue2rgb(p, q, src->h) * 255;
-		dest->b = hue2rgb(p, q, src->h - 1.0 / 3.0) * 255;
-	}
+    if (src->s == 0) {
+        dest->r = dest->g = dest->b = src->l;
+    } else {
+        f32 q = src->l < 0.5 ? src->l * (1 + src->s) : src->l + src->s - src->l * src->s;
+        f32 p = 2.0 * src->l - q;
+        dest->r = hue2rgb(p, q, src->h + 1.0 / 3.0) * 255;
+        dest->g = hue2rgb(p, q, src->h) * 255;
+        dest->b = hue2rgb(p, q, src->h - 1.0 / 3.0) * 255;
+    }
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1745,172 +1736,172 @@ void Color_ToRGB(RGB8* dest, HSL8* src) {
 // # # # # # # # # # # # # # # # # # # # #
 
 u32 Value_Hex(const char* string) {
-	return strtoul(string, NULL, 16);
+    return strtoul(string, NULL, 16);
 }
 
 s32 Value_Int(const char* string) {
-	if (!memcmp(string, "0x", 2)) {
-		return strtoul(string, NULL, 16);
-	} else {
-		return strtol(string, NULL, 10);
-	}
+    if (!memcmp(string, "0x", 2)) {
+        return strtoul(string, NULL, 16);
+    } else {
+        return strtol(string, NULL, 10);
+    }
 }
 
 f32 Value_Float(const char* string) {
-	f32 fl;
-	void* str = NULL;
-	
-	if (StrStr(string, ",")) {
-		string = strdup(string);
-		str = (void*)string;
-		StrRep((void*)string, ",", ".");
-	}
-	
-	fl = strtod(string, NULL);
-	Free(str);
-	
-	return fl;
+    f32 fl;
+    void* str = NULL;
+    
+    if (StrStr(string, ",")) {
+        string = strdup(string);
+        str = (void*)string;
+        StrRep((void*)string, ",", ".");
+    }
+    
+    fl = strtod(string, NULL);
+    Free(str);
+    
+    return fl;
 }
 
 s32 Value_Bool(const char* string) {
-	if (string == NULL)
-		return -1;
-	
-	if (!stricmp(string, "true"))
-		return true;
-	else if (!stricmp(string, "false"))
-		return false;
-	
-	return -1;
+    if (string == NULL)
+        return -1;
+    
+    if (!stricmp(string, "true"))
+        return true;
+    else if (!stricmp(string, "false"))
+        return false;
+    
+    return -1;
 }
 
 s32 Value_ValidateHex(const char* str) {
-	s32 isOk = false;
-	
-	for (s32 i = 0; i < strlen(str); i++) {
-		if (ispunct(str[i]))
-			break;
-		if (
-			(str[i] >= 'A' && str[i] <= 'F') ||
-			(str[i] >= 'a' && str[i] <= 'f') ||
-			(str[i] >= '0' && str[i] <= '9') ||
-			str[i] == 'x' || str[i] == 'X' ||
-			str[i] == ' ' || str[i] == '\t'
-		) {
-			isOk = true;
-			continue;
-		}
-		
-		return false;
-	}
-	
-	return isOk;
+    s32 isOk = false;
+    
+    for (s32 i = 0; i < strlen(str); i++) {
+        if (ispunct(str[i]))
+            break;
+        if (
+            (str[i] >= 'A' && str[i] <= 'F') ||
+            (str[i] >= 'a' && str[i] <= 'f') ||
+            (str[i] >= '0' && str[i] <= '9') ||
+            str[i] == 'x' || str[i] == 'X' ||
+            str[i] == ' ' || str[i] == '\t'
+        ) {
+            isOk = true;
+            continue;
+        }
+        
+        return false;
+    }
+    
+    return isOk;
 }
 
 s32 Value_ValidateInt(const char* str) {
-	s32 isOk = false;
-	
-	for (s32 i = 0; i < strlen(str); i++) {
-		if (ispunct(str[i]))
-			break;
-		if (
-			(str[i] >= '0' && str[i] <= '9')
-		) {
-			isOk = true;
-			continue;
-		}
-		
-		return false;
-	}
-	
-	return isOk;
+    s32 isOk = false;
+    
+    for (s32 i = 0; i < strlen(str); i++) {
+        if (ispunct(str[i]))
+            break;
+        if (
+            (str[i] >= '0' && str[i] <= '9')
+        ) {
+            isOk = true;
+            continue;
+        }
+        
+        return false;
+    }
+    
+    return isOk;
 }
 
 s32 Value_ValidateFloat(const char* str) {
-	s32 isOk = false;
-	
-	for (s32 i = 0; i < strlen(str); i++) {
-		if (ispunct(str[i]) && str[i] != '.')
-			break;
-		if (
-			(str[i] >= '0' && str[i] <= '9') || str[i] == '.'
-		) {
-			isOk = true;
-			continue;
-		}
-		
-		return false;
-	}
-	
-	return isOk;
+    s32 isOk = false;
+    
+    for (s32 i = 0; i < strlen(str); i++) {
+        if (ispunct(str[i]) && str[i] != '.')
+            break;
+        if (
+            (str[i] >= '0' && str[i] <= '9') || str[i] == '.'
+        ) {
+            isOk = true;
+            continue;
+        }
+        
+        return false;
+    }
+    
+    return isOk;
 }
 
 ValueType Value_Type(const char* variable) {
-	ValueType type = {
-		.isFloat = true,
-		.isHex   = true,
-		.isDec   = true,
-		.isBool  = false,
-	};
-	
-	if (!strcmp(variable, "true") || !strcmp(variable, "false")) {
-		type = (ValueType) {
-			.isBool = true,
-		};
-		
-		return type;
-	}
-	
-	for (s32 i = 0; i < strlen(variable); i++) {
-		if (variable[i] <= ' ') {
-			type.isFloat = false;
-			type.isDec = false;
-			type.isHex = false;
-		}
-		
-		if (isalpha(variable[i])) {
-			type.isFloat = false;
-			type.isDec = false;
-		}
-		
-		if (variable[i] == '.')
-			type.isDec = false;
-		
-		switch (variable[i]) {
-			case 'a' ... 'f':
-			case 'A' ... 'F':
-			case '0' ... '9':
-			case 'x':
-				break;
-			default:
-				type.isHex = false;
-				break;
-		}
-	}
-	
-	if (type.isDec) {
-		type.isFloat = type.isHex = false;
-	}
-	
-	return type;
+    ValueType type = {
+        .isFloat = true,
+        .isHex   = true,
+        .isDec   = true,
+        .isBool  = false,
+    };
+    
+    if (!strcmp(variable, "true") || !strcmp(variable, "false")) {
+        type = (ValueType) {
+            .isBool = true,
+        };
+        
+        return type;
+    }
+    
+    for (s32 i = 0; i < strlen(variable); i++) {
+        if (variable[i] <= ' ') {
+            type.isFloat = false;
+            type.isDec = false;
+            type.isHex = false;
+        }
+        
+        if (isalpha(variable[i])) {
+            type.isFloat = false;
+            type.isDec = false;
+        }
+        
+        if (variable[i] == '.')
+            type.isDec = false;
+        
+        switch (variable[i]) {
+            case 'a' ... 'f':
+            case 'A' ... 'F':
+            case '0' ... '9':
+            case 'x':
+                break;
+            default:
+                type.isHex = false;
+                break;
+        }
+    }
+    
+    if (type.isDec) {
+        type.isFloat = type.isHex = false;
+    }
+    
+    return type;
 }
 
 s32 Digits_Int(s32 i) {
-	s32 d = 0;
-	
-	for (; i != 0; d++)
-		i *= 0.1;
-	
-	return ClampMin(d, 1);
+    s32 d = 0;
+    
+    for (; i != 0; d++)
+        i *= 0.1;
+    
+    return ClampMin(d, 1);
 }
 
 s32 Digits_Hex(s32 i) {
-	s32 d = 0;
-	
-	for (; i != 0 && d != 0; d++)
-		i = (i >> 4);
-	
-	return ClampMin(d, 1);
+    s32 d = 0;
+    
+    for (; i != 0 && d != 0; d++)
+        i = (i >> 4);
+    
+    return ClampMin(d, 1);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1918,45 +1909,45 @@ s32 Digits_Hex(s32 i) {
 // # # # # # # # # # # # # # # # # # # # #
 
 static const char* sNoteName[12] = {
-	"C", "C#",
-	"D", "D#",
-	"E",
-	"F", "F#",
-	"G", "G#",
-	"A", "A#",
-	"B",
+    "C", "C#",
+    "D", "D#",
+    "E",
+    "F", "F#",
+    "G", "G#",
+    "A", "A#",
+    "B",
 };
 
 s32 Music_NoteIndex(const char* note) {
-	s32 id = 0;
-	u32 octave;
-	
-	foreach(i, sNoteName) {
-		if (sNoteName[i][1] == '#')
-			continue;
-		if (note[0] == sNoteName[i][0]) {
-			id = i;
-			
-			if (note[1] == '#')
-				id++;
-			
-			break;
-		}
-	}
-	
-	while (!isdigit(note[0]) && note[0] != '-') note++;
-	
-	octave = 12 * (Value_Int(note));
-	
-	return id + octave;
+    s32 id = 0;
+    u32 octave;
+    
+    foreach(i, sNoteName) {
+        if (sNoteName[i][1] == '#')
+            continue;
+        if (note[0] == sNoteName[i][0]) {
+            id = i;
+            
+            if (note[1] == '#')
+                id++;
+            
+            break;
+        }
+    }
+    
+    while (!isdigit(note[0]) && note[0] != '-') note++;
+    
+    octave = 12 * (Value_Int(note));
+    
+    return id + octave;
 }
 
 const char* Music_NoteWord(s32 note) {
-	f32 octave = (f32)note / 12;
-	
-	note %= 12;
-	
-	return xFmt("%s%d", sNoteName[note], (s32)floorf(octave));
+    f32 octave = (f32)note / 12;
+    
+    note %= 12;
+    
+    return xFmt("%s%d", sNoteName[note], (s32)floorf(octave));
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1965,188 +1956,188 @@ const char* Music_NoteWord(s32 note) {
 
 // Insert
 void StrIns(char* point, const char* insert) {
-	s32 insLen = strlen(insert);
-	char* insEnd = point + insLen;
-	s32 remLen = strlen(point);
-	
-	memmove(insEnd, point, remLen + 1);
-	insEnd[remLen] = 0;
-	memcpy(point, insert, insLen);
+    s32 insLen = strlen(insert);
+    char* insEnd = point + insLen;
+    s32 remLen = strlen(point);
+    
+    memmove(insEnd, point, remLen + 1);
+    insEnd[remLen] = 0;
+    memcpy(point, insert, insLen);
 }
 
 // Insert
 void StrIns2(char* origin, const char* insert, s32 pos, s32 size) {
-	s32 inslen = strlen(insert);
-	
-	if (pos >= size)
-		return;
-	
-	if (size - pos - inslen > 0)
-		memmove(&origin[pos + inslen], &origin[pos], size - pos - inslen);
-	
-	for (s32 j = 0; j < inslen; pos++, j++) {
-		origin[pos] = insert[j];
-	}
+    s32 inslen = strlen(insert);
+    
+    if (pos >= size)
+        return;
+    
+    if (size - pos - inslen > 0)
+        memmove(&origin[pos + inslen], &origin[pos], size - pos - inslen);
+    
+    for (s32 j = 0; j < inslen; pos++, j++) {
+        origin[pos] = insert[j];
+    }
 }
 
 // Remove
 void StrRem(char* point, s32 amount) {
-	char* get = point + amount;
-	s32 len = strlen(get);
-	
-	if (len)
-		memcpy(point, get, strlen(get));
-	point[len] = 0;
+    char* get = point + amount;
+    s32 len = strlen(get);
+    
+    if (len)
+        memcpy(point, get, strlen(get));
+    point[len] = 0;
 }
 
 // Replace
 s32 StrRep(char* src, const char* word, const char* replacement) {
-	u32 repLen = strlen(replacement);
-	u32 wordLen = strlen(word);
-	s32 diff = 0;
-	char* ptr;
-	
-	if ((uptr)word >= (uptr)src && (uptr)word < (uptr)src + strlen(src)) {
-		printf("[%s] [%s]", word, replacement);
-		printf_error("Replacing with self!");
-	}
-	
-	ptr = StrStr(src, word);
-	
-	while (ptr != NULL) {
-		u32 remLen = strlen(ptr + wordLen);
-		memmove(ptr + repLen, ptr + wordLen, remLen + 1);
-		memcpy(ptr, replacement, repLen);
-		ptr = StrStr(ptr + repLen, word);
-		diff = true;
-	}
-	
-	return diff;
+    u32 repLen = strlen(replacement);
+    u32 wordLen = strlen(word);
+    s32 diff = 0;
+    char* ptr;
+    
+    if ((uptr)word >= (uptr)src && (uptr)word < (uptr)src + strlen(src)) {
+        printf("[%s] [%s]", word, replacement);
+        printf_error("Replacing with self!");
+    }
+    
+    ptr = StrStr(src, word);
+    
+    while (ptr != NULL) {
+        u32 remLen = strlen(ptr + wordLen);
+        memmove(ptr + repLen, ptr + wordLen, remLen + 1);
+        memcpy(ptr, replacement, repLen);
+        ptr = StrStr(ptr + repLen, word);
+        diff = true;
+    }
+    
+    return diff;
 }
 
 s32 StrRepWhole(char* src, const char* word, const char* replacement) {
-	u32 repLen = strlen(replacement);
-	u32 wordLen = strlen(word);
-	s32 diff = 0;
-	char* ptr;
-	
-	if ((uptr)word >= (uptr)src && (uptr)word < (uptr)src + strlen(src)) {
-		printf("[%s] [%s]", word, replacement);
-		printf_error("Replacing with self!");
-	}
-	
-	ptr = StrStrWhole(src, word);
-	
-	while (ptr != NULL) {
-		u32 remLen = strlen(ptr + wordLen);
-		memmove(ptr + repLen, ptr + wordLen, remLen + 1);
-		memcpy(ptr, replacement, repLen);
-		ptr = StrStrWhole(ptr  + repLen, word);
-		diff = true;
-	}
-	
-	return diff;
+    u32 repLen = strlen(replacement);
+    u32 wordLen = strlen(word);
+    s32 diff = 0;
+    char* ptr;
+    
+    if ((uptr)word >= (uptr)src && (uptr)word < (uptr)src + strlen(src)) {
+        printf("[%s] [%s]", word, replacement);
+        printf_error("Replacing with self!");
+    }
+    
+    ptr = StrStrWhole(src, word);
+    
+    while (ptr != NULL) {
+        u32 remLen = strlen(ptr + wordLen);
+        memmove(ptr + repLen, ptr + wordLen, remLen + 1);
+        memcpy(ptr, replacement, repLen);
+        ptr = StrStrWhole(ptr  + repLen, word);
+        diff = true;
+    }
+    
+    return diff;
 }
 
 // Unquote
 char* StrUnq(const char* str) {
-	char* new = xStrDup(str);
-	
-	StrRep(new, "\"", "");
-	StrRep(new, "'", "");
-	
-	return new;
+    char* new = xStrDup(str);
+    
+    StrRep(new, "\"", "");
+    StrRep(new, "'", "");
+    
+    return new;
 }
 
 char* StrSlash(char* t) {
-	StrRep(t, "\\", "/");
-	
-	return t;
+    StrRep(t, "\\", "/");
+    
+    return t;
 }
 
 char* StrStripIllegalChar(char* t) {
-	StrRep(t, "\\", "");
-	StrRep(t, "/", "");
-	StrRep(t, ":", "");
-	StrRep(t, "*", "");
-	StrRep(t, "?", "");
-	StrRep(t, "\"", "");
-	StrRep(t, "<", "");
-	StrRep(t, ">", "");
-	StrRep(t, "|", "");
-	
-	return t;
+    StrRep(t, "\\", "");
+    StrRep(t, "/", "");
+    StrRep(t, ":", "");
+    StrRep(t, "*", "");
+    StrRep(t, "?", "");
+    StrRep(t, "\"", "");
+    StrRep(t, "<", "");
+    StrRep(t, ">", "");
+    StrRep(t, "|", "");
+    
+    return t;
 }
 
 // Common length
 s32 StrComLen(const char* a, const char* b) {
-	s32 s = 0;
-	
-	for (; s < strlen(b); s++) {
-		if (b[s] != a[s])
-			return s;
-	}
-	
-	return s;
+    s32 s = 0;
+    
+    for (; s < strlen(b); s++) {
+        if (b[s] != a[s])
+            return s;
+    }
+    
+    return s;
 }
 
 char* String_GetSpacedArg(char* argv[], s32 cur) {
-	char tempBuf[512];
-	s32 i = cur + 1;
-	
-	if (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
-		strcpy(tempBuf, argv[cur]);
-		
-		while (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
-			strcat(tempBuf, " ");
-			strcat(tempBuf, argv[i++]);
-		}
-		
-		return xStrDup(tempBuf);
-	}
-	
-	return argv[cur];
+    char tempBuf[512];
+    s32 i = cur + 1;
+    
+    if (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
+        strcpy(tempBuf, argv[cur]);
+        
+        while (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
+            strcat(tempBuf, " ");
+            strcat(tempBuf, argv[i++]);
+        }
+        
+        return xStrDup(tempBuf);
+    }
+    
+    return argv[cur];
 }
 
 void String_SwapExtension(char* dest, char* src, const char* ext) {
-	strcpy(dest, Path(src));
-	strcat(dest, Basename(src));
-	strcat(dest, ext);
+    strcpy(dest, Path(src));
+    strcat(dest, Basename(src));
+    strcat(dest, ext);
 }
 
 char* StrUpper(char* str) {
-	forstr(i, str)
-	str[i] = toupper(str[i]);
-	
-	return str;
+    forstr(i, str)
+    str[i] = toupper(str[i]);
+    
+    return str;
 }
 
 char* StrLower(char* str) {
-	forstr(i, str)
-	str[i] = tolower(str[i]);
-	
-	return str;
+    forstr(i, str)
+    str[i] = tolower(str[i]);
+    
+    return str;
 }
 
 bool ChrPool(const char c, const char* pool) {
-	u32 m = strlen(pool);
-	
-	for (u32 i = 0; i < m; i++)
-		if (c == pool[i])
-			return true;
-	
-	return false;
+    u32 m = strlen(pool);
+    
+    for (u32 i = 0; i < m; i++)
+        if (c == pool[i])
+            return true;
+    
+    return false;
 }
 
 bool StrPool(const char* s, const char* pool) {
-	if (!s) return false;
-	
-	do {
-		if (!ChrPool(*s, pool))
-			return false;
-	} while (*(++s) != '\0');
-	
-	return true;
+    if (!s) return false;
+    
+    do {
+        if (!ChrPool(*s, pool))
+            return false;
+    } while (*(++s) != '\0');
+    
+    return true;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -2155,209 +2146,209 @@ bool StrPool(const char* s, const char* pool) {
 // https://github.com/Davipb/utf8-utf16-converter
 
 typedef enum {
-	BMP_END                          = 0xFFFF,
-	UNICODE_MAX                      = 0x10FFFF,
-	INVALID_CODEPOINT                = 0xFFFD,
-	GENERIC_SURROGATE_VALUE          = 0xD800,
-	GENERIC_SURROGATE_MASK           = 0xF800,
-	HIGH_SURROGATE_VALUE             = 0xD800,
-	LOW_SURROGATE_VALUE              = 0xDC00,
-	SURROGATE_MASK                   = 0xFC00,
-	SURROGATE_CODEPOINT_OFFSET       = 0x10000,
-	SURROGATE_CODEPOINT_MASK         = 0x03FF,
-	SURROGATE_CODEPOINT_BITS         = 10,
-	UTF8_1_MAX                       = 0x7F,
-	UTF8_2_MAX                       = 0x7FF,
-	UTF8_3_MAX                       = 0xFFFF,
-	UTF8_4_MAX                       = 0x10FFFF,
-	UTF8_CONTINUATION_VALUE          = 0x80,
-	UTF8_CONTINUATION_MASK           = 0xC0,
-	UTF8_CONTINUATION_CODEPOINT_BITS = 6,
-	UTF8_LEADING_BYTES_LEN           = 4,
+    BMP_END                          = 0xFFFF,
+    UNICODE_MAX                      = 0x10FFFF,
+    INVALID_CODEPOINT                = 0xFFFD,
+    GENERIC_SURROGATE_VALUE          = 0xD800,
+    GENERIC_SURROGATE_MASK           = 0xF800,
+    HIGH_SURROGATE_VALUE             = 0xD800,
+    LOW_SURROGATE_VALUE              = 0xDC00,
+    SURROGATE_MASK                   = 0xFC00,
+    SURROGATE_CODEPOINT_OFFSET       = 0x10000,
+    SURROGATE_CODEPOINT_MASK         = 0x03FF,
+    SURROGATE_CODEPOINT_BITS         = 10,
+    UTF8_1_MAX                       = 0x7F,
+    UTF8_2_MAX                       = 0x7FF,
+    UTF8_3_MAX                       = 0xFFFF,
+    UTF8_4_MAX                       = 0x10FFFF,
+    UTF8_CONTINUATION_VALUE          = 0x80,
+    UTF8_CONTINUATION_MASK           = 0xC0,
+    UTF8_CONTINUATION_CODEPOINT_BITS = 6,
+    UTF8_LEADING_BYTES_LEN           = 4,
 } __utf8_define_t;
 
 typedef struct {
-	u8 mask;
-	u8 value;
+    u8 mask;
+    u8 value;
 } utf8_pattern;
 
 static const utf8_pattern utf8_leading_bytes[] = {
-	{ 0x80, 0x00 }, // 0xxxxxxx
-	{ 0xE0, 0xC0 }, // 110xxxxx
-	{ 0xF0, 0xE0 }, // 1110xxxx
-	{ 0xF8, 0xF0 }, // 11110xxx
+    { 0x80, 0x00 }, // 0xxxxxxx
+    { 0xE0, 0xC0 }, // 110xxxxx
+    { 0xF0, 0xE0 }, // 1110xxxx
+    { 0xF8, 0xF0 }, // 11110xxx
 };
 
 static s32 CalcLenU8(u32 codepoint) {
-	if (codepoint <= UTF8_1_MAX)
-		return 1;
-	
-	if (codepoint <= UTF8_2_MAX)
-		return 2;
-	
-	if (codepoint <= UTF8_3_MAX)
-		return 3;
-	
-	return 4;
+    if (codepoint <= UTF8_1_MAX)
+        return 1;
+    
+    if (codepoint <= UTF8_2_MAX)
+        return 2;
+    
+    if (codepoint <= UTF8_3_MAX)
+        return 3;
+    
+    return 4;
 }
 
 #if 0
 static s32 CalcLenU16(u32 codepoint) {
-	if (codepoint <= BMP_END)
-		return 1;
-	
-	return 2;
+    if (codepoint <= BMP_END)
+        return 1;
+    
+    return 2;
 }
 #endif
 
 static Size EncodeU8(u32 codepoint, char* utf8, Size index) {
-	s32 size = CalcLenU8(codepoint);
-	
-	// Write the continuation bytes in reverse order first
-	for (s32 cont_index = size - 1; cont_index > 0; cont_index--) {
-		u8 cont = codepoint & ~UTF8_CONTINUATION_MASK;
-		cont |= UTF8_CONTINUATION_VALUE;
-		
-		utf8[index + cont_index] = cont;
-		codepoint >>= UTF8_CONTINUATION_CODEPOINT_BITS;
-	}
-	
-	utf8_pattern pattern = utf8_leading_bytes[size - 1];
-	
-	u8 lead = codepoint & ~(pattern.mask);
-	
-	lead |= pattern.value;
-	
-	utf8[index] = lead;
-	
-	return size;
+    s32 size = CalcLenU8(codepoint);
+    
+    // Write the continuation bytes in reverse order first
+    for (s32 cont_index = size - 1; cont_index > 0; cont_index--) {
+        u8 cont = codepoint & ~UTF8_CONTINUATION_MASK;
+        cont |= UTF8_CONTINUATION_VALUE;
+        
+        utf8[index + cont_index] = cont;
+        codepoint >>= UTF8_CONTINUATION_CODEPOINT_BITS;
+    }
+    
+    utf8_pattern pattern = utf8_leading_bytes[size - 1];
+    
+    u8 lead = codepoint & ~(pattern.mask);
+    
+    lead |= pattern.value;
+    
+    utf8[index] = lead;
+    
+    return size;
 }
 
 static Size EncodeU16(u32 codepoint, wchar* utf16, Size index) {
-	if (codepoint <= BMP_END) {
-		utf16[index] = codepoint;
-		
-		return 1;
-	}
-	
-	codepoint -= SURROGATE_CODEPOINT_OFFSET;
-	
-	u16 low = LOW_SURROGATE_VALUE;
-	low |= codepoint & SURROGATE_CODEPOINT_MASK;
-	
-	codepoint >>= SURROGATE_CODEPOINT_BITS;
-	
-	u16 high = HIGH_SURROGATE_VALUE;
-	high |= codepoint & SURROGATE_CODEPOINT_MASK;
-	
-	utf16[index] = high;
-	utf16[index + 1] = low;
-	
-	return 2;
+    if (codepoint <= BMP_END) {
+        utf16[index] = codepoint;
+        
+        return 1;
+    }
+    
+    codepoint -= SURROGATE_CODEPOINT_OFFSET;
+    
+    u16 low = LOW_SURROGATE_VALUE;
+    low |= codepoint & SURROGATE_CODEPOINT_MASK;
+    
+    codepoint >>= SURROGATE_CODEPOINT_BITS;
+    
+    u16 high = HIGH_SURROGATE_VALUE;
+    high |= codepoint & SURROGATE_CODEPOINT_MASK;
+    
+    utf16[index] = high;
+    utf16[index + 1] = low;
+    
+    return 2;
 }
 
 static u32 DecodeU8(const char* utf8, Size len, Size* index) {
-	u8 leading = utf8[*index];
-	s32 encoding_len = 0;
-	utf8_pattern leading_pattern;
-	bool matches = false;
-	
-	do {
-		encoding_len++;
-		leading_pattern = utf8_leading_bytes[encoding_len - 1];
-		
-		matches = (leading & leading_pattern.mask) == leading_pattern.value;
-		
-	} while (!matches && encoding_len < UTF8_LEADING_BYTES_LEN);
-	
-	if (!matches)
-		return INVALID_CODEPOINT;
-	
-	u32 codepoint = leading & ~leading_pattern.mask;
-	
-	for (s32 i = 0; i < encoding_len - 1; i++) {
-		if (*index + 1 >= len)
-			return INVALID_CODEPOINT;
-		
-		u8 continuation = utf8[*index + 1];
-		if ((continuation & UTF8_CONTINUATION_MASK) != UTF8_CONTINUATION_VALUE)
-			return INVALID_CODEPOINT;
-		
-		codepoint <<= UTF8_CONTINUATION_CODEPOINT_BITS;
-		codepoint |= continuation & ~UTF8_CONTINUATION_MASK;
-		
-		(*index)++;
-	}
-	
-	s32 proper_len = CalcLenU8(codepoint);
-	
-	if (proper_len != encoding_len)
-		return INVALID_CODEPOINT;
-	if (codepoint < BMP_END && (codepoint & GENERIC_SURROGATE_MASK) == GENERIC_SURROGATE_VALUE)
-		return INVALID_CODEPOINT;
-	if (codepoint > UNICODE_MAX)
-		return INVALID_CODEPOINT;
-	
-	return codepoint;
+    u8 leading = utf8[*index];
+    s32 encoding_len = 0;
+    utf8_pattern leading_pattern;
+    bool matches = false;
+    
+    do {
+        encoding_len++;
+        leading_pattern = utf8_leading_bytes[encoding_len - 1];
+        
+        matches = (leading & leading_pattern.mask) == leading_pattern.value;
+        
+    } while (!matches && encoding_len < UTF8_LEADING_BYTES_LEN);
+    
+    if (!matches)
+        return INVALID_CODEPOINT;
+    
+    u32 codepoint = leading & ~leading_pattern.mask;
+    
+    for (s32 i = 0; i < encoding_len - 1; i++) {
+        if (*index + 1 >= len)
+            return INVALID_CODEPOINT;
+        
+        u8 continuation = utf8[*index + 1];
+        if ((continuation & UTF8_CONTINUATION_MASK) != UTF8_CONTINUATION_VALUE)
+            return INVALID_CODEPOINT;
+        
+        codepoint <<= UTF8_CONTINUATION_CODEPOINT_BITS;
+        codepoint |= continuation & ~UTF8_CONTINUATION_MASK;
+        
+        (*index)++;
+    }
+    
+    s32 proper_len = CalcLenU8(codepoint);
+    
+    if (proper_len != encoding_len)
+        return INVALID_CODEPOINT;
+    if (codepoint < BMP_END && (codepoint & GENERIC_SURROGATE_MASK) == GENERIC_SURROGATE_VALUE)
+        return INVALID_CODEPOINT;
+    if (codepoint > UNICODE_MAX)
+        return INVALID_CODEPOINT;
+    
+    return codepoint;
 }
 
 static u32 DecodeU16(const wchar* utf16, Size len, Size* index) {
-	u16 high = utf16[*index];
-	
-	if ((high & GENERIC_SURROGATE_MASK) != GENERIC_SURROGATE_VALUE)
-		return high;
-	if ((high & SURROGATE_MASK) != HIGH_SURROGATE_VALUE)
-		return INVALID_CODEPOINT;
-	if (*index == len - 1)
-		return INVALID_CODEPOINT;
-	
-	u16 low = utf16[*index + 1];
-	
-	if ((low & SURROGATE_MASK) != LOW_SURROGATE_VALUE)
-		return INVALID_CODEPOINT;
-	(*index)++;
-	u32 result = high & SURROGATE_CODEPOINT_MASK;
-	
-	result <<= SURROGATE_CODEPOINT_BITS;
-	result |= low & SURROGATE_CODEPOINT_MASK;
-	result += SURROGATE_CODEPOINT_OFFSET;
-	
-	return result;
+    u16 high = utf16[*index];
+    
+    if ((high & GENERIC_SURROGATE_MASK) != GENERIC_SURROGATE_VALUE)
+        return high;
+    if ((high & SURROGATE_MASK) != HIGH_SURROGATE_VALUE)
+        return INVALID_CODEPOINT;
+    if (*index == len - 1)
+        return INVALID_CODEPOINT;
+    
+    u16 low = utf16[*index + 1];
+    
+    if ((low & SURROGATE_MASK) != LOW_SURROGATE_VALUE)
+        return INVALID_CODEPOINT;
+    (*index)++;
+    u32 result = high & SURROGATE_CODEPOINT_MASK;
+    
+    result <<= SURROGATE_CODEPOINT_BITS;
+    result |= low & SURROGATE_CODEPOINT_MASK;
+    result += SURROGATE_CODEPOINT_OFFSET;
+    
+    return result;
 }
 
 char* StrU8(char* dst, const wchar* src) {
-	Size dstIndex = 0;
-	Size len = strwlen(src) + 1;
-	
-	if (!dst)
-		dst = xAlloc(len);
-	
-	for (Size indexSrc = 0; indexSrc < len; indexSrc++)
-		dstIndex += EncodeU8(DecodeU16(src, len, &indexSrc), dst, dstIndex);
-	
-	return dst;
+    Size dstIndex = 0;
+    Size len = strwlen(src) + 1;
+    
+    if (!dst)
+        dst = xAlloc(len);
+    
+    for (Size indexSrc = 0; indexSrc < len; indexSrc++)
+        dstIndex += EncodeU8(DecodeU16(src, len, &indexSrc), dst, dstIndex);
+    
+    return dst;
 }
 
 wchar* StrU16(wchar* dst, const char* src) {
-	Size dstIndex = 0;
-	Size len = strlen(src) + 1;
-	
-	if (!dst)
-		dst = xAlloc(len * 3);
-	
-	for (Size srcIndex = 0; srcIndex < len; srcIndex++)
-		dstIndex += EncodeU16(DecodeU8(src, len, &srcIndex), dst, dstIndex);
-	
-	return dst;
+    Size dstIndex = 0;
+    Size len = strlen(src) + 1;
+    
+    if (!dst)
+        dst = xAlloc(len * 3);
+    
+    for (Size srcIndex = 0; srcIndex < len; srcIndex++)
+        dstIndex += EncodeU16(DecodeU8(src, len, &srcIndex), dst, dstIndex);
+    
+    return dst;
 }
 
 Size strwlen(const wchar* s) {
-	Size len = 0;
-	
-	while (s[len] != L'\0')
-		len++;
-	
-	return len;
+    Size len = 0;
+    
+    while (s[len] != L'\0')
+        len++;
+    
+    return len;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -2365,31 +2356,31 @@ Size strwlen(const wchar* s) {
 // # # # # # # # # # # # # # # # # # # # #
 
 char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
-	char* line = Line(str, lineNum);
-	u32 size = 0;
-	char* r;
-	
-	for (s32 i = 0; i < rowNum; i++) {
-		while (*line != '\t') {
-			line++;
-			
-			if (*line == '\0' || *line == '\n')
-				return NULL;
-		}
-		
-		line++;
-		
-		if (*line == '\0' || *line == '\n')
-			return NULL;
-	}
-	
-	if (*line == '\t') return NULL;
-	while (line[size] != '\t' && line[size] != '\0' && line[size] != '\n') size++;
-	
-	r = xAlloc(size + 1);
-	memcpy(r, line, size);
-	
-	return r;
+    char* line = Line(str, lineNum);
+    u32 size = 0;
+    char* r;
+    
+    for (s32 i = 0; i < rowNum; i++) {
+        while (*line != '\t') {
+            line++;
+            
+            if (*line == '\0' || *line == '\n')
+                return NULL;
+        }
+        
+        line++;
+        
+        if (*line == '\0' || *line == '\n')
+            return NULL;
+    }
+    
+    if (*line == '\t') return NULL;
+    while (line[size] != '\t' && line[size] != '\0' && line[size] != '\n') size++;
+    
+    r = xAlloc(size + 1);
+    memcpy(r, line, size);
+    
+    return r;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -2408,145 +2399,145 @@ static vs32 sLogInit;
 static vs32 sLogOutput = true;
 
 void Log_NoOutput(void) {
-	sLogOutput = false;
+    sLogOutput = false;
 }
 
 static void Log_Signal_PrintTitle(s32 arg, FILE* file) {
-	const char* errorMsg[] = {
-		"\a0",
-		"\a1 - Hang Up",
-		"\a2 - Interrupted",   // SIGINT
-		"\a3 - Quit",
-		"\a4 - Illegal Instruction",
-		"\a5 - Trap",
-		"\a6 - Abort()",
-		"\a7 - Illegal Memory Access",
-		"\a8 - Floating Point Exception",
-		"\a9 - Killed",
-		"\a10 - Programmer Error",
-		"\a11 - Segmentation Fault",
-		"\a12 - Programmer Error",
-		"\a13 - Pipe Death",
-		"\a14 - Alarm",
-		"\a15 - Killed",
-		
-		"\aLog List",
-	};
-	
-	if (gPrintfProgressing)
-		fprintf(file, "\n");
-	
-	if (arg != 0xDEADBEEF)
-		fprintf(file, "" PRNT_GRAY "[ " PRNT_REDD "%s " PRNT_GRAY "]\n", errorMsg[ClampMax(arg, 16)]);
-	else
-		fprintf(file, "" PRNT_GRAY "[ " PRNT_REDD "LOG " PRNT_GRAY "]\n");
-	fprintf(file, "\n");
+    const char* errorMsg[] = {
+        "\a0",
+        "\a1 - Hang Up",
+        "\a2 - Interrupted",   // SIGINT
+        "\a3 - Quit",
+        "\a4 - Illegal Instruction",
+        "\a5 - Trap",
+        "\a6 - Abort()",
+        "\a7 - Illegal Memory Access",
+        "\a8 - Floating Point Exception",
+        "\a9 - Killed",
+        "\a10 - Programmer Error",
+        "\a11 - Segmentation Fault",
+        "\a12 - Programmer Error",
+        "\a13 - Pipe Death",
+        "\a14 - Alarm",
+        "\a15 - Killed",
+        
+        "\aLog List",
+    };
+    
+    if (gPrintfProgressing)
+        fprintf(file, "\n");
+    
+    if (arg != 0xDEADBEEF)
+        fprintf(file, "" PRNT_GRAY "[ " PRNT_REDD "%s " PRNT_GRAY "]\n", errorMsg[ClampMax(arg, 16)]);
+    else
+        fprintf(file, "" PRNT_GRAY "[ " PRNT_REDD "LOG " PRNT_GRAY "]\n");
+    fprintf(file, "\n");
 }
 
 static void Log_Printinf(s32 arg, FILE* file) {
-	
-	for (s32 i = FAULT_LOG_NUM - 1, j = 0; i >= 0; i--, j++) {
-		char* pfunc = j == 0 ? "__log_none__" : sLogFunc[i + 1];
-		char* fmt = Fmt("%d:", sLogLine[i]);
-		
-		if (strcmp(sLogFunc[i], pfunc))
-			fprintf(file, "" PRNT_YELW "%s" PRNT_GRAY "();\n", sLogFunc[i]);
-		fprintf(file, "" PRNT_GRAY "%-8s" PRNT_RSET "%s\n", fmt, sLogMsg[i]);
-		
-		free(fmt);
-	}
-	
-	if (arg == 16)
-		fprintf(file, "\n");
+    
+    for (s32 i = FAULT_LOG_NUM - 1, j = 0; i >= 0; i--, j++) {
+        char* pfunc = j == 0 ? "__log_none__" : sLogFunc[i + 1];
+        char* fmt = Fmt("%d:", sLogLine[i]);
+        
+        if (strcmp(sLogFunc[i], pfunc))
+            fprintf(file, "" PRNT_YELW "%s" PRNT_GRAY "();\n", sLogFunc[i]);
+        fprintf(file, "" PRNT_GRAY "%-8s" PRNT_RSET "%s\n", fmt, sLogMsg[i]);
+        
+        free(fmt);
+    }
+    
+    if (arg == 16)
+        fprintf(file, "\n");
 }
 
 static void Log_Signal(s32 arg) {
-	static volatile bool ran = 0;
-	
-	if (arg == 2) { /* INTERRUPT */
-		Terminal_ClearLines(1);
-		fprintf(stdlog, "\r");
-		printf_warning("Closed!");
-		exit(1);
-	}
-	
-	if (!sLogInit)
-		return;
-	if (ran) return;
-	ran = true;
-	sLogInit = false;
-	gKillFlag = true;
-	
-	Log_Signal_PrintTitle(arg, stdlog);
-	Log_Printinf(arg, stdlog);
-	
-	if (arg != 16) {
-		printf_getchar("Press enter to exit");
-		exit(1);
-	}
+    static volatile bool ran = 0;
+    
+    if (arg == 2) { /* INTERRUPT */
+        Terminal_ClearLines(1);
+        fprintf(stdlog, "\r");
+        printf_warning("Closed!");
+        exit(1);
+    }
+    
+    if (!sLogInit)
+        return;
+    if (ran) return;
+    ran = true;
+    sLogInit = false;
+    gKillFlag = true;
+    
+    Log_Signal_PrintTitle(arg, stdlog);
+    Log_Printinf(arg, stdlog);
+    
+    if (arg != 16) {
+        printf_getchar("Press enter to exit");
+        exit(1);
+    }
 }
 
 void Log_Init() {
-	if (sLogInit)
-		return;
-	for (s32 i = 1; i < 16; i++)
-		signal(i, Log_Signal);
-	
-	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-		sLogMsg[i] = Calloc(FAULT_BUFFER_SIZE);
-		sLogFunc[i] = Calloc(FAULT_BUFFER_SIZE * 0.25);
-	}
-	
-	sLogInit = true;
+    if (sLogInit)
+        return;
+    for (s32 i = 1; i < 16; i++)
+        signal(i, Log_Signal);
+    
+    for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
+        sLogMsg[i] = Calloc(FAULT_BUFFER_SIZE);
+        sLogFunc[i] = Calloc(FAULT_BUFFER_SIZE * 0.25);
+    }
+    
+    sLogInit = true;
 }
 
 void Log_Free() {
-	if (!sLogInit)
-		return;
-	sLogInit = 0;
-	for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-		Free(sLogMsg[i]);
-		Free(sLogFunc[i]);
-	}
+    if (!sLogInit)
+        return;
+    sLogInit = 0;
+    for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
+        Free(sLogMsg[i]);
+        Free(sLogFunc[i]);
+    }
 }
 
 void Log_Print() {
-	if (!sLogInit)
-		return;
-	if (sLogMsg[0] == NULL)
-		return;
-	if (sLogMsg[0][0] != 0)
-		Log_Signal(0xDEADBEEF);
+    if (!sLogInit)
+        return;
+    if (sLogMsg[0] == NULL)
+        return;
+    if (sLogMsg[0][0] != 0)
+        Log_Signal(0xDEADBEEF);
 }
 
 void __Log(const char* func, u32 line, const char* txt, ...) {
-	if (!sLogInit)
-		return;
-	
-	va_list args;
-	
-	if (sLogMsg[0] == NULL)
-		return;
-	
-	Mutex_Lock();
-	ArrMoveR(sLogMsg, 0, FAULT_LOG_NUM);
-	ArrMoveR(sLogFunc, 0, FAULT_LOG_NUM);
-	ArrMoveR(sLogLine, 0, FAULT_LOG_NUM);
-	
-	va_start(args, txt);
-	vsnprintf(sLogMsg[0], FAULT_BUFFER_SIZE, txt, args);
-	va_end(args);
-	
-	strcpy(sLogFunc[0], func);
-	sLogLine[0] = line;
-	
+    if (!sLogInit)
+        return;
+    
+    va_list args;
+    
+    if (sLogMsg[0] == NULL)
+        return;
+    
+    Mutex_Lock();
+    ArrMoveR(sLogMsg, 0, FAULT_LOG_NUM);
+    ArrMoveR(sLogFunc, 0, FAULT_LOG_NUM);
+    ArrMoveR(sLogLine, 0, FAULT_LOG_NUM);
+    
+    va_start(args, txt);
+    vsnprintf(sLogMsg[0], FAULT_BUFFER_SIZE, txt, args);
+    va_end(args);
+    
+    strcpy(sLogFunc[0], func);
+    sLogLine[0] = line;
+    
 #if 0
-	if (strcmp(sLogFunc[0], sLogFunc[1]))
-		fprintf(stdlog, "" PRNT_REDD "%s" PRNT_GRAY "();\n", sLogFunc[0]);
-	fprintf(stdlog, "" PRNT_GRAY "%-8d" PRNT_RSET "%s\n", sLogLine[0], sLogMsg[0]);
+    if (strcmp(sLogFunc[0], sLogFunc[1]))
+        fprintf(stdlog, "" PRNT_REDD "%s" PRNT_GRAY "();\n", sLogFunc[0]);
+    fprintf(stdlog, "" PRNT_GRAY "%-8d" PRNT_RSET "%s\n", sLogLine[0], sLogMsg[0]);
 #endif
-	
-	Mutex_Unlock();
+    
+    Mutex_Unlock();
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -2557,458 +2548,458 @@ PrintfSuppressLevel gPrintfSuppress = 0;
 u8 gPrintfProgressing;
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
-	gPrintfSuppress = lvl;
+    gPrintfSuppress = lvl;
 }
 
 void printf_SetPrefix(char* fmt) {
 }
 
 void printf_toolinfo(const char* toolname, const char* fmt, ...) {
-	static u32 printed = 0;
-	
-	if (gPrintfSuppress >= PSL_NO_INFO)
-		return;
-	
-	if (printed != 0) return;
-	printed++;
-	
-	u32 strln = strlen(toolname);
-	u32 rmv = 0;
-	u32 tmp = strln;
-	va_list args;
-	
-	for (s32 i = 0; i < strln; i++) {
-		if (rmv) {
-			if (toolname[i] != 'm') {
-				tmp--;
-			} else {
-				tmp -= 2;
-				rmv = false;
-			}
-		} else {
-			if (toolname[i] == '\e' && toolname[i + 1] == '[') {
-				rmv = true;
-				strln--;
-			}
-		}
-	}
-	
-	strln = tmp;
-	
-	printf(PRNT_GRAY "[>]--");
-	for (s32 i = 0; i < strln; i++)
-		printf("-");
-	printf("------[>]\n");
-	
-	printf(" |   ");
-	printf(PRNT_CYAN "%s" PRNT_GRAY, toolname);
-	printf("       |\n");
-	
-	printf("[>]--");
-	for (s32 i = 0; i < strln; i++)
-		printf("-");
-	printf("------[>]\n" PRNT_RSET);
-	printf("     ");
-	
-	if (fmt) {
-		va_start(args, fmt);
-		vprintf(
-			fmt,
-			args
-		);
-		va_end(args);
-		if (strlen(fmt) > 1)
-			printf("\n");
-	}
-	printf("\n" PRNT_RSET);
-	
+    static u32 printed = 0;
+    
+    if (gPrintfSuppress >= PSL_NO_INFO)
+        return;
+    
+    if (printed != 0) return;
+    printed++;
+    
+    u32 strln = strlen(toolname);
+    u32 rmv = 0;
+    u32 tmp = strln;
+    va_list args;
+    
+    for (s32 i = 0; i < strln; i++) {
+        if (rmv) {
+            if (toolname[i] != 'm') {
+                tmp--;
+            } else {
+                tmp -= 2;
+                rmv = false;
+            }
+        } else {
+            if (toolname[i] == '\e' && toolname[i + 1] == '[') {
+                rmv = true;
+                strln--;
+            }
+        }
+    }
+    
+    strln = tmp;
+    
+    printf(PRNT_GRAY "[>]--");
+    for (s32 i = 0; i < strln; i++)
+        printf("-");
+    printf("------[>]\n");
+    
+    printf(" |   ");
+    printf(PRNT_CYAN "%s" PRNT_GRAY, toolname);
+    printf("       |\n");
+    
+    printf("[>]--");
+    for (s32 i = 0; i < strln; i++)
+        printf("-");
+    printf("------[>]\n" PRNT_RSET);
+    printf("     ");
+    
+    if (fmt) {
+        va_start(args, fmt);
+        vprintf(
+            fmt,
+            args
+        );
+        va_end(args);
+        if (strlen(fmt) > 1)
+            printf("\n");
+    }
+    printf("\n" PRNT_RSET);
+    
 }
 
 static void __printf_call(u32 type, FILE* file) {
-	const char* color[4] = {
-		PRNT_PRPL,
-		PRNT_REDD,
-		PRNT_REDD,
-		PRNT_BLUE
-	};
-	
-	fprintf(
-		file,
-		"" PRNT_GRAY "%s>" PRNT_GRAY ": " PRNT_RSET,
-		color[type]
-	);
+    const char* color[4] = {
+        PRNT_PRPL,
+        PRNT_REDD,
+        PRNT_REDD,
+        PRNT_BLUE
+    };
+    
+    fprintf(
+        file,
+        "" PRNT_GRAY "%s>" PRNT_GRAY ": " PRNT_RSET,
+        color[type]
+    );
 }
 
 void printf_warning(const char* fmt, ...) {
-	if (gPrintfSuppress >= PSL_NO_WARNING)
-		return;
-	
-	if (gKillFlag)
-		return;
-	
-	if (gPrintfProgressing) {
-		printf("\n");
-		gPrintfProgressing = false;
-	}
-	
-	va_list args;
-	
-	va_start(args, fmt);
-	__printf_call(1, stdlog);
-	vfprintf(
-		stdlog,
-		fmt,
-		args
-	);
-	fputs("\n", stdlog);
-	va_end(args);
+    if (gPrintfSuppress >= PSL_NO_WARNING)
+        return;
+    
+    if (gKillFlag)
+        return;
+    
+    if (gPrintfProgressing) {
+        printf("\n");
+        gPrintfProgressing = false;
+    }
+    
+    va_list args;
+    
+    va_start(args, fmt);
+    __printf_call(1, stdlog);
+    vfprintf(
+        stdlog,
+        fmt,
+        args
+    );
+    fputs("\n", stdlog);
+    va_end(args);
 }
 
 void printf_warning_align(const char* info, const char* fmt, ...) {
-	if (gPrintfSuppress >= PSL_NO_WARNING)
-		return;
-	
-	if (gKillFlag)
-		return;
-	
-	if (gPrintfProgressing) {
-		printf("\n");
-		gPrintfProgressing = false;
-	}
-	
-	va_list args;
-	
-	va_start(args, fmt);
-	__printf_call(1, stdout);
-	fprintf(
-		stdout,
-		"%-16s " PRNT_RSET,
-		info
-	);
-	vfprintf(
-		stdout,
-		fmt,
-		args
-	);
-	fputs("\n", stdout);
-	va_end(args);
+    if (gPrintfSuppress >= PSL_NO_WARNING)
+        return;
+    
+    if (gKillFlag)
+        return;
+    
+    if (gPrintfProgressing) {
+        printf("\n");
+        gPrintfProgressing = false;
+    }
+    
+    va_list args;
+    
+    va_start(args, fmt);
+    __printf_call(1, stdout);
+    fprintf(
+        stdout,
+        "%-16s " PRNT_RSET,
+        info
+    );
+    vfprintf(
+        stdout,
+        fmt,
+        args
+    );
+    fputs("\n", stdout);
+    va_end(args);
 }
 
 static void printf_MuteOutput(FILE* output) {
 #ifdef _WIN32
-	freopen ("NUL", "w", output);
+    freopen ("NUL", "w", output);
 #else
-	freopen ("/dev/null", "w", output);
+    freopen ("/dev/null", "w", output);
 #endif
 }
 
 void printf_error(const char* fmt, ...) {
-	gKillFlag = 1;
-	
-	printf_MuteOutput(stdout);
-	
-	if (gPrintfSuppress < PSL_NO_ERROR) {
-		if (gPrintfProgressing) {
-			fputs("\n", stdlog);
-			gPrintfProgressing = false;
-		}
-		
-		va_list args;
-		
-		va_start(args, fmt);
-		
-		__printf_call(2, stdlog);
-		vfprintf(stdlog, fmt, args);
-		fputs("\n\a", stdlog);
-		fflush(stdlog);
-		
-		va_end(args);
-	}
-	
+    gKillFlag = 1;
+    
+    printf_MuteOutput(stdout);
+    
+    if (gPrintfSuppress < PSL_NO_ERROR) {
+        if (gPrintfProgressing) {
+            fputs("\n", stdlog);
+            gPrintfProgressing = false;
+        }
+        
+        va_list args;
+        
+        va_start(args, fmt);
+        
+        __printf_call(2, stdlog);
+        vfprintf(stdlog, fmt, args);
+        fputs("\n\a", stdlog);
+        fflush(stdlog);
+        
+        va_end(args);
+    }
+    
 #ifdef _WIN32
-	Terminal_GetChar();
+    Terminal_GetChar();
 #endif
-	
-	exit(EXIT_FAILURE);
+    
+    exit(EXIT_FAILURE);
 }
 
 void printf_error_align(const char* info, const char* fmt, ...) {
-	gKillFlag = 1;
-	
-	printf_MuteOutput(stdout);
-	
-	if (gPrintfSuppress < PSL_NO_ERROR) {
-		if (gPrintfProgressing) {
-			fputs("\n", stdlog);
-			gPrintfProgressing = false;
-		}
-		
-		va_list args;
-		
-		va_start(args, fmt);
-		__printf_call(2, stdlog);
-		fprintf(
-			stdlog,
-			"%-16s " PRNT_RSET,
-			info
-		);
-		vfprintf(
-			stdlog,
-			fmt,
-			args
-		);
-		fputs("\n\a", stdlog);
-		
-		va_end(args);
-	}
-	
+    gKillFlag = 1;
+    
+    printf_MuteOutput(stdout);
+    
+    if (gPrintfSuppress < PSL_NO_ERROR) {
+        if (gPrintfProgressing) {
+            fputs("\n", stdlog);
+            gPrintfProgressing = false;
+        }
+        
+        va_list args;
+        
+        va_start(args, fmt);
+        __printf_call(2, stdlog);
+        fprintf(
+            stdlog,
+            "%-16s " PRNT_RSET,
+            info
+        );
+        vfprintf(
+            stdlog,
+            fmt,
+            args
+        );
+        fputs("\n\a", stdlog);
+        
+        va_end(args);
+    }
+    
 #ifdef _WIN32
-	Terminal_GetChar();
+    Terminal_GetChar();
 #endif
-	
-	exit(EXIT_FAILURE);
+    
+    exit(EXIT_FAILURE);
 }
 
 void printf_info(const char* fmt, ...) {
-	
-	if (gKillFlag)
-		return;
-	
-	if (gPrintfSuppress >= PSL_NO_INFO)
-		return;
-	
-	if (gPrintfProgressing) {
-		fputs("\n", stdout);
-		gPrintfProgressing = false;
-	}
-	va_list args;
-	
-	va_start(args, fmt);
-	__printf_call(3, stdout);
-	vfprintf(
-		stdout,
-		fmt,
-		args
-	);
-	fputs("\n", stdout);
-	va_end(args);
+    
+    if (gKillFlag)
+        return;
+    
+    if (gPrintfSuppress >= PSL_NO_INFO)
+        return;
+    
+    if (gPrintfProgressing) {
+        fputs("\n", stdout);
+        gPrintfProgressing = false;
+    }
+    va_list args;
+    
+    va_start(args, fmt);
+    __printf_call(3, stdout);
+    vfprintf(
+        stdout,
+        fmt,
+        args
+    );
+    fputs("\n", stdout);
+    va_end(args);
 }
 
 void printf_info_align(const char* info, const char* fmt, ...) {
-	if (gKillFlag)
-		return;
-	
-	if (gPrintfSuppress >= PSL_NO_INFO)
-		return;
-	
-	if (gPrintfProgressing) {
-		fputs("\n", stdout);
-		gPrintfProgressing = false;
-	}
-	va_list args;
-	
-	va_start(args, fmt);
-	__printf_call(3, stdout);
-	vfprintf(
-		stdout,
-		fmt,
-		args
-	);
-	fputs("\n", stdout);
-	va_end(args);
+    if (gKillFlag)
+        return;
+    
+    if (gPrintfSuppress >= PSL_NO_INFO)
+        return;
+    
+    if (gPrintfProgressing) {
+        fputs("\n", stdout);
+        gPrintfProgressing = false;
+    }
+    va_list args;
+    
+    va_start(args, fmt);
+    __printf_call(3, stdout);
+    vfprintf(
+        stdout,
+        fmt,
+        args
+    );
+    fputs("\n", stdout);
+    va_end(args);
 }
 
 void printf_prog_align(const char* info, const char* fmt, const char* color) {
-	if (gKillFlag)
-		return;
-	
-	if (gPrintfSuppress >= PSL_NO_INFO)
-		return;
-	
-	if (gPrintfProgressing) {
-		printf("\n");
-		gPrintfProgressing = false;
-	}
-	
-	printf("\n");
-	Terminal_ClearLines(2);
-	__printf_call(3, stdout);
-	printf("%-16s%s%s", info, color ? color : "", fmt);
+    if (gKillFlag)
+        return;
+    
+    if (gPrintfSuppress >= PSL_NO_INFO)
+        return;
+    
+    if (gPrintfProgressing) {
+        printf("\n");
+        gPrintfProgressing = false;
+    }
+    
+    printf("\n");
+    Terminal_ClearLines(2);
+    __printf_call(3, stdout);
+    printf("%-16s%s%s", info, color ? color : "", fmt);
 }
 
 void printf_progressFst(const char* info, u32 a, u32 b) {
-	if (gPrintfSuppress >= PSL_NO_INFO) {
-		return;
-	}
-	
-	if (gKillFlag)
-		return;
-	
-	printf("\r");
-	__printf_call(3, stdout);
-	printf(
-		// "%-16s" PRNT_RSET "[%4d / %-4d]",
-		xFmt("%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
-		info,
-		a,
-		b
-	);
-	gPrintfProgressing = true;
-	
-	if (a == b) {
-		gPrintfProgressing = false;
-		printf("\n");
-	}
-	fflush(stdout);
+    if (gPrintfSuppress >= PSL_NO_INFO) {
+        return;
+    }
+    
+    if (gKillFlag)
+        return;
+    
+    printf("\r");
+    __printf_call(3, stdout);
+    printf(
+        // "%-16s" PRNT_RSET "[%4d / %-4d]",
+        xFmt("%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
+        info,
+        a,
+        b
+    );
+    gPrintfProgressing = true;
+    
+    if (a == b) {
+        gPrintfProgressing = false;
+        printf("\n");
+    }
+    fflush(stdout);
 }
 
 void printf_progress(const char* info, u32 a, u32 b) {
-	if (gPrintfSuppress >= PSL_NO_INFO) {
-		return;
-	}
-	
-	if (gKillFlag)
-		return;
-	
-	static f32 lstPrcnt;
-	f32 prcnt = (f32)a / (f32)b;
-	
-	if (lstPrcnt > prcnt)
-		lstPrcnt = 0;
-	
-	if (prcnt - lstPrcnt > 0.125) {
-		lstPrcnt = prcnt;
-	} else {
-		if (a != b && a > 1) {
-			return;
-		}
-	}
-	
-	printf("\r");
-	__printf_call(3, stdout);
-	printf(
-		// "%-16s" PRNT_RSET "[%4d / %-4d]",
-		xFmt("%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
-		info,
-		a,
-		b
-	);
-	gPrintfProgressing = true;
-	
-	if (a == b) {
-		gPrintfProgressing = false;
-		printf("\n");
-	}
-	fflush(stdout);
+    if (gPrintfSuppress >= PSL_NO_INFO) {
+        return;
+    }
+    
+    if (gKillFlag)
+        return;
+    
+    static f32 lstPrcnt;
+    f32 prcnt = (f32)a / (f32)b;
+    
+    if (lstPrcnt > prcnt)
+        lstPrcnt = 0;
+    
+    if (prcnt - lstPrcnt > 0.125) {
+        lstPrcnt = prcnt;
+    } else {
+        if (a != b && a > 1) {
+            return;
+        }
+    }
+    
+    printf("\r");
+    __printf_call(3, stdout);
+    printf(
+        // "%-16s" PRNT_RSET "[%4d / %-4d]",
+        xFmt("%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
+        info,
+        a,
+        b
+    );
+    gPrintfProgressing = true;
+    
+    if (a == b) {
+        gPrintfProgressing = false;
+        printf("\n");
+    }
+    fflush(stdout);
 }
 
 void printf_getchar(const char* txt) {
-	printf_info("%s", txt);
-	Terminal_GetChar();
+    printf_info("%s", txt);
+    Terminal_GetChar();
 }
 
 void printf_lock(const char* fmt, ...) {
-	va_list va;
-	
-	if (gKillFlag)
-		return;
-	
-	va_start(va, fmt);
-	Mutex_Lock();
-	vprintf(fmt, va);
-	fflush(stdout);
-	Mutex_Unlock();
-	va_end(va);
+    va_list va;
+    
+    if (gKillFlag)
+        return;
+    
+    va_start(va, fmt);
+    Mutex_Lock();
+    vprintf(fmt, va);
+    fflush(stdout);
+    Mutex_Unlock();
+    va_end(va);
 }
 
 void printf_WinFix(void) {
 #ifdef _WIN32
-	system("\0");
+    system("\0");
 #endif
 }
 
 void printf_hex(const char* txt, const void* data, u32 size, u32 dispOffset) {
-	const u8* d = data;
-	u32 num = 8;
-	char* digit;
-	s32 i = 0;
-	
-	if (gKillFlag)
-		return;
-	
-	if (gPrintfSuppress >= PSL_NO_INFO)
-		return;
-	
-	for (;; num--)
-		if ((size + dispOffset) >> (num * 4))
-			break;
-	
-	digit = xFmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
-	
-	if (txt)
-		printf_info("%s", txt);
-	for (; i < size; i++) {
-		if (i % 16 == 0)
-			printf(digit, i + dispOffset);
-		
-		printf("%02X", d[i]);
-		if ((i + 1) % 4 == 0)
-			printf(" ");
-		if ((i + 1) % 16 == 0)
-			printf("\n");
-	}
-	
-	if (i % 16 != 0)
-		printf("\n");
+    const u8* d = data;
+    u32 num = 8;
+    char* digit;
+    s32 i = 0;
+    
+    if (gKillFlag)
+        return;
+    
+    if (gPrintfSuppress >= PSL_NO_INFO)
+        return;
+    
+    for (;; num--)
+        if ((size + dispOffset) >> (num * 4))
+            break;
+    
+    digit = xFmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
+    
+    if (txt)
+        printf_info("%s", txt);
+    for (; i < size; i++) {
+        if (i % 16 == 0)
+            printf(digit, i + dispOffset);
+        
+        printf("%02X", d[i]);
+        if ((i + 1) % 4 == 0)
+            printf(" ");
+        if ((i + 1) % 16 == 0)
+            printf("\n");
+    }
+    
+    if (i % 16 != 0)
+        printf("\n");
 }
 
 void printf_bit(const char* txt, const void* data, u32 size, u32 dispOffset) {
-	const u8* d = data;
-	s32 s = 0;
-	u32 num = 8;
-	char* digit;
-	
-	if (gKillFlag)
-		return;
-	
-	if (gPrintfSuppress >= PSL_NO_INFO)
-		return;
-	
-	for (;; num--)
-		if ((size + dispOffset) >> (num * 4))
-			break;
-	
-	digit = xFmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
-	
-	if (txt)
-		printf_info("%s", txt);
-	for (s32 i = 0; i < size; i++) {
-		if (s % 4 == 0)
-			printf(digit, s + dispOffset);
-		
-		for (s32 j = 7; j >= 0; j--)
-			printf("%d", (d[i] >> j) & 1);
-		
-		printf(" ");
-		
-		if ((s + 1) % 4 == 0)
-			printf("\n");
-		
-		s++;
-	}
-	
-	if (s % 4 != 0)
-		printf("\n");
+    const u8* d = data;
+    s32 s = 0;
+    u32 num = 8;
+    char* digit;
+    
+    if (gKillFlag)
+        return;
+    
+    if (gPrintfSuppress >= PSL_NO_INFO)
+        return;
+    
+    for (;; num--)
+        if ((size + dispOffset) >> (num * 4))
+            break;
+    
+    digit = xFmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
+    
+    if (txt)
+        printf_info("%s", txt);
+    for (s32 i = 0; i < size; i++) {
+        if (s % 4 == 0)
+            printf(digit, s + dispOffset);
+        
+        for (s32 j = 7; j >= 0; j--)
+            printf("%d", (d[i] >> j) & 1);
+        
+        printf(" ");
+        
+        if ((s + 1) % 4 == 0)
+            printf("\n");
+        
+        s++;
+    }
+    
+    if (s % 4 != 0)
+        printf("\n");
 }
 
 void printf_nl(void) {
-	if (gKillFlag)
-		return;
-	
-	if (gPrintfSuppress >= PSL_NO_INFO)
-		return;
-	
-	printf("\n");
+    if (gKillFlag)
+        return;
+    
+    if (gPrintfSuppress >= PSL_NO_INFO)
+        return;
+    
+    printf("\n");
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -3016,86 +3007,86 @@ void printf_nl(void) {
 // # # # # # # # # # # # # # # # # # # # #
 
 f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep) {
-	if (*pValue != target) {
-		f32 stepSize = (target - *pValue) * fraction;
-		
-		if ((stepSize >= minStep) || (stepSize <= -minStep)) {
-			if (stepSize > step) {
-				stepSize = step;
-			}
-			
-			if (stepSize < -step) {
-				stepSize = -step;
-			}
-			
-			*pValue += stepSize;
-		} else {
-			if (stepSize < minStep) {
-				*pValue += minStep;
-				stepSize = minStep;
-				
-				if (target < *pValue) {
-					*pValue = target;
-				}
-			}
-			if (stepSize > -minStep) {
-				*pValue += -minStep;
-				
-				if (*pValue < target) {
-					*pValue = target;
-				}
-			}
-		}
-	}
-	
-	return fabsf(target - *pValue);
+    if (*pValue != target) {
+        f32 stepSize = (target - *pValue) * fraction;
+        
+        if ((stepSize >= minStep) || (stepSize <= -minStep)) {
+            if (stepSize > step) {
+                stepSize = step;
+            }
+            
+            if (stepSize < -step) {
+                stepSize = -step;
+            }
+            
+            *pValue += stepSize;
+        } else {
+            if (stepSize < minStep) {
+                *pValue += minStep;
+                stepSize = minStep;
+                
+                if (target < *pValue) {
+                    *pValue = target;
+                }
+            }
+            if (stepSize > -minStep) {
+                *pValue += -minStep;
+                
+                if (*pValue < target) {
+                    *pValue = target;
+                }
+            }
+        }
+    }
+    
+    return fabsf(target - *pValue);
 }
 
 f32 Math_Spline_Audio(f32 k, f32 xm1, f32 x0, f32 x1, f32 x2) {
-	f32 a = (3.0f * (x0 - x1) - xm1 + x2) * 0.5f;
-	f32 b = 2.0f * x1 + xm1 - (5.0f * x0 + x2) * 0.5f;
-	f32 c = (x1 - xm1) * 0.5f;
-	
-	return (((((a * k) + b) * k) + c) * k) + x0;
+    f32 a = (3.0f * (x0 - x1) - xm1 + x2) * 0.5f;
+    f32 b = 2.0f * x1 + xm1 - (5.0f * x0 + x2) * 0.5f;
+    f32 c = (x1 - xm1) * 0.5f;
+    
+    return (((((a * k) + b) * k) + c) * k) + x0;
 }
 
 f32 Math_Spline(f32 k, f32 xm1, f32 x0, f32 x1, f32 x2) {
-	f32 coeff[4];
-	
-	coeff[0] = (1.0f - k) * (1.0f - k) * (1.0f - k) / 6.0f;
-	coeff[1] = k * k * k / 2.0f - k * k + 2.0f / 3.0f;
-	coeff[2] = -k * k * k / 2.0f + k * k / 2.0f + k / 2.0f + 1.0f / 6.0f;
-	coeff[3] = k * k * k / 6.0f;
-	
-	return (coeff[0] * xm1) + (coeff[1] * x0) + (coeff[2] * x1) + (coeff[3] * x2);
+    f32 coeff[4];
+    
+    coeff[0] = (1.0f - k) * (1.0f - k) * (1.0f - k) / 6.0f;
+    coeff[1] = k * k * k / 2.0f - k * k + 2.0f / 3.0f;
+    coeff[2] = -k * k * k / 2.0f + k * k / 2.0f + k / 2.0f + 1.0f / 6.0f;
+    coeff[3] = k * k * k / 6.0f;
+    
+    return (coeff[0] * xm1) + (coeff[1] * x0) + (coeff[2] * x1) + (coeff[3] * x2);
 }
 
 void Math_ApproachF(f32* pValue, f32 target, f32 fraction, f32 step) {
-	if (*pValue != target) {
-		f32 stepSize = (target - *pValue) * fraction;
-		
-		if (stepSize > step) {
-			stepSize = step;
-		} else if (stepSize < -step) {
-			stepSize = -step;
-		}
-		
-		*pValue += stepSize;
-	}
+    if (*pValue != target) {
+        f32 stepSize = (target - *pValue) * fraction;
+        
+        if (stepSize > step) {
+            stepSize = step;
+        } else if (stepSize < -step) {
+            stepSize = -step;
+        }
+        
+        *pValue += stepSize;
+    }
 }
 
 void Math_ApproachS(s16* pValue, s16 target, s16 scale, s16 step) {
-	s16 diff = target - *pValue;
-	
-	diff /= scale;
-	
-	if (diff > step) {
-		*pValue += step;
-	} else if (diff < -step) {
-		*pValue -= step;
-	} else {
-		*pValue += diff;
-	}
+    s16 diff = target - *pValue;
+    
+    diff /= scale;
+    
+    if (diff > step) {
+        *pValue += step;
+    } else if (diff < -step) {
+        *pValue -= step;
+    } else {
+        *pValue += diff;
+    }
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -3109,225 +3100,225 @@ void Math_ApproachS(s16* pValue, s16 target, s16 scale, s16 step) {
  */
 
 static u32 Sha_Sgima1(u32 x) {
-	u32 RotateRight17, RotateRight19, ShiftRight10;
-	
-	RotateRight17 = (x >> 17) | (x << 15);
-	RotateRight19 = (x >> 19) | (x << 13);
-	ShiftRight10 = x >> 10;
-	
-	return RotateRight17 ^ RotateRight19 ^ ShiftRight10;
+    u32 RotateRight17, RotateRight19, ShiftRight10;
+    
+    RotateRight17 = (x >> 17) | (x << 15);
+    RotateRight19 = (x >> 19) | (x << 13);
+    ShiftRight10 = x >> 10;
+    
+    return RotateRight17 ^ RotateRight19 ^ ShiftRight10;
 }
 
 static u32 Sha_Sgima0(u32 x) {
-	u32 RotateRight7, RotateRight18, ShiftRight3;
-	
-	RotateRight7 = (x >> 7) | (x << 25);
-	RotateRight18 = (x >> 18) | (x << 14);
-	ShiftRight3 = x >> 3;
-	
-	return RotateRight7 ^ RotateRight18 ^ ShiftRight3;
+    u32 RotateRight7, RotateRight18, ShiftRight3;
+    
+    RotateRight7 = (x >> 7) | (x << 25);
+    RotateRight18 = (x >> 18) | (x << 14);
+    ShiftRight3 = x >> 3;
+    
+    return RotateRight7 ^ RotateRight18 ^ ShiftRight3;
 }
 
 static u32 Sha_Choice(u32 x, u32 y, u32 z) {
-	return (x & y) ^ ((~x) & z);
+    return (x & y) ^ ((~x) & z);
 }
 
 static u32 Sha_BigSigma1(u32 x) {
-	u32 RotateRight6, RotateRight11, RotateRight25;
-	
-	RotateRight6 = (x >> 6) | (x << 26);
-	RotateRight11 = (x >> 11) | (x << 21);
-	RotateRight25 = (x >> 25) | (x << 7);
-	
-	return RotateRight6 ^ RotateRight11 ^ RotateRight25;
+    u32 RotateRight6, RotateRight11, RotateRight25;
+    
+    RotateRight6 = (x >> 6) | (x << 26);
+    RotateRight11 = (x >> 11) | (x << 21);
+    RotateRight25 = (x >> 25) | (x << 7);
+    
+    return RotateRight6 ^ RotateRight11 ^ RotateRight25;
 }
 
 static u32 Sha_BigSigma0(u32 x) {
-	u32 RotateRight2, RotateRight13, RotateRight22;
-	
-	RotateRight2 = (x >> 2) | (x << 30);
-	RotateRight13 = (x >> 13) | (x << 19);
-	RotateRight22 = (x >> 22) | (x << 10);
-	
-	return RotateRight2 ^ RotateRight13 ^ RotateRight22;
+    u32 RotateRight2, RotateRight13, RotateRight22;
+    
+    RotateRight2 = (x >> 2) | (x << 30);
+    RotateRight13 = (x >> 13) | (x << 19);
+    RotateRight22 = (x >> 22) | (x << 10);
+    
+    return RotateRight2 ^ RotateRight13 ^ RotateRight22;
 }
 
 static u32 Sha_Major(u32 x, u32 y, u32 z) {
-	return (x & y) ^ (x & z) ^ (y & z);
+    return (x & y) ^ (x & z) ^ (y & z);
 }
 
 static u8 Sha_CreateCompleteScheduleArray(u8* Data, u64 DataSizeByte, u64* RemainingDataSizeByte, u32* W) {
-	u8 TmpBlock[64];
-	u8 IsFinishedFlag = 0;
-	static u8 SetEndOnNextBlockFlag = 0;
-	
-	for (u8 i = 0; i < 64; i++) {
-		W[i] = 0x0;
-		TmpBlock[i] = 0x0;
-	}
-	
-	for (u8 i = 0; i < 64; i++) {
-		if (*RemainingDataSizeByte > 0) {
-			TmpBlock[i] = Data[DataSizeByte - *RemainingDataSizeByte];
-			*RemainingDataSizeByte = *RemainingDataSizeByte - 1;
-			
-			if (*RemainingDataSizeByte == 0) {
-				if (i < 63) {
-					i++;
-					TmpBlock[i] = 0x80;
-					if (i < 56) {
-						u64 DataSizeBits = DataSizeByte * 8;
-						TmpBlock[56] = (DataSizeBits >> 56) & 0x00000000000000FF;
-						TmpBlock[57] = (DataSizeBits >> 48) & 0x00000000000000FF;
-						TmpBlock[58] = (DataSizeBits >> 40) & 0x00000000000000FF;
-						TmpBlock[59] = (DataSizeBits >> 32) & 0x00000000000000FF;
-						TmpBlock[60] = (DataSizeBits >> 24) & 0x00000000000000FF;
-						TmpBlock[61] = (DataSizeBits >> 16) & 0x00000000000000FF;
-						TmpBlock[62] = (DataSizeBits >> 8) & 0x00000000000000FF;
-						TmpBlock[63] = DataSizeBits & 0x00000000000000FF;
-						IsFinishedFlag = 1;
-						goto outside1;
-						
-					} else
-						goto outside1;
-					
-				} else {
-					SetEndOnNextBlockFlag = 1;
-				}
-			}
-		} else {
-			if ((SetEndOnNextBlockFlag == 1) && (i == 0)) {
-				TmpBlock[i] = 0x80;
-				SetEndOnNextBlockFlag = 0;
-			}
-			u64 DataSizeBits = DataSizeByte * 8;
-			TmpBlock[56] = (DataSizeBits >> 56) & 0x00000000000000FF;
-			TmpBlock[57] = (DataSizeBits >> 48) & 0x00000000000000FF;
-			TmpBlock[58] = (DataSizeBits >> 40) & 0x00000000000000FF;
-			TmpBlock[59] = (DataSizeBits >> 32) & 0x00000000000000FF;
-			TmpBlock[60] = (DataSizeBits >> 24) & 0x00000000000000FF;
-			TmpBlock[61] = (DataSizeBits >> 16) & 0x00000000000000FF;
-			TmpBlock[62] = (DataSizeBits >> 8) & 0x00000000000000FF;
-			TmpBlock[63] = DataSizeBits & 0x00000000000000FF;
-			IsFinishedFlag = 1;
-			goto outside1;
-		}
-	}
+    u8 TmpBlock[64];
+    u8 IsFinishedFlag = 0;
+    static u8 SetEndOnNextBlockFlag = 0;
+    
+    for (u8 i = 0; i < 64; i++) {
+        W[i] = 0x0;
+        TmpBlock[i] = 0x0;
+    }
+    
+    for (u8 i = 0; i < 64; i++) {
+        if (*RemainingDataSizeByte > 0) {
+            TmpBlock[i] = Data[DataSizeByte - *RemainingDataSizeByte];
+            *RemainingDataSizeByte = *RemainingDataSizeByte - 1;
+            
+            if (*RemainingDataSizeByte == 0) {
+                if (i < 63) {
+                    i++;
+                    TmpBlock[i] = 0x80;
+                    if (i < 56) {
+                        u64 DataSizeBits = DataSizeByte * 8;
+                        TmpBlock[56] = (DataSizeBits >> 56) & 0x00000000000000FF;
+                        TmpBlock[57] = (DataSizeBits >> 48) & 0x00000000000000FF;
+                        TmpBlock[58] = (DataSizeBits >> 40) & 0x00000000000000FF;
+                        TmpBlock[59] = (DataSizeBits >> 32) & 0x00000000000000FF;
+                        TmpBlock[60] = (DataSizeBits >> 24) & 0x00000000000000FF;
+                        TmpBlock[61] = (DataSizeBits >> 16) & 0x00000000000000FF;
+                        TmpBlock[62] = (DataSizeBits >> 8) & 0x00000000000000FF;
+                        TmpBlock[63] = DataSizeBits & 0x00000000000000FF;
+                        IsFinishedFlag = 1;
+                        goto outside1;
+                        
+                    } else
+                        goto outside1;
+                    
+                } else {
+                    SetEndOnNextBlockFlag = 1;
+                }
+            }
+        } else {
+            if ((SetEndOnNextBlockFlag == 1) && (i == 0)) {
+                TmpBlock[i] = 0x80;
+                SetEndOnNextBlockFlag = 0;
+            }
+            u64 DataSizeBits = DataSizeByte * 8;
+            TmpBlock[56] = (DataSizeBits >> 56) & 0x00000000000000FF;
+            TmpBlock[57] = (DataSizeBits >> 48) & 0x00000000000000FF;
+            TmpBlock[58] = (DataSizeBits >> 40) & 0x00000000000000FF;
+            TmpBlock[59] = (DataSizeBits >> 32) & 0x00000000000000FF;
+            TmpBlock[60] = (DataSizeBits >> 24) & 0x00000000000000FF;
+            TmpBlock[61] = (DataSizeBits >> 16) & 0x00000000000000FF;
+            TmpBlock[62] = (DataSizeBits >> 8) & 0x00000000000000FF;
+            TmpBlock[63] = DataSizeBits & 0x00000000000000FF;
+            IsFinishedFlag = 1;
+            goto outside1;
+        }
+    }
 outside1:
-	
-	for (u8 i = 0; i < 64; i += 4) {
-		W[i / 4] = (((u32)TmpBlock[i]) << 24) |
-			(((u32)TmpBlock[i + 1]) << 16) |
-			(((u32)TmpBlock[i + 2]) << 8) |
-			((u32)TmpBlock[i + 3]);
-	}
-	
-	if (IsFinishedFlag == 1)
-		return 0;
-	else
-		return 1;
+    
+    for (u8 i = 0; i < 64; i += 4) {
+        W[i / 4] = (((u32)TmpBlock[i]) << 24) |
+            (((u32)TmpBlock[i + 1]) << 16) |
+            (((u32)TmpBlock[i + 2]) << 8) |
+            ((u32)TmpBlock[i + 3]);
+    }
+    
+    if (IsFinishedFlag == 1)
+        return 0;
+    else
+        return 1;
 }
 
 static void Sha_CompleteScheduleArray(u32* W) {
-	for (u8 i = 16; i < 64; i++)
-		W[i] = Sha_Sgima1(W[i - 2]) + W[i - 7] + Sha_Sgima0(W[i - 15]) + W[i - 16];
+    for (u8 i = 16; i < 64; i++)
+        W[i] = Sha_Sgima1(W[i - 2]) + W[i - 7] + Sha_Sgima0(W[i - 15]) + W[i - 16];
 }
 
 static void Sha_Compression(u32* Hash, u32* W) {
-	enum TmpH {a, b, c, d, e, f, g, h};
-	u32 TmpHash[8] = { 0 };
-	u32 Temp1 = 0, Temp2 = 0;
-	const u32 K_const[64] = {
-		0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
-		0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-		0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
-		0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-		0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
-		0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-		0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
-		0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-		0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
-		0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-		0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
-		0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-		0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
-		0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-		0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-		0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
-	};
-	
-	TmpHash[a] = Hash[0];
-	TmpHash[b] = Hash[1];
-	TmpHash[c] = Hash[2];
-	TmpHash[d] = Hash[3];
-	TmpHash[e] = Hash[4];
-	TmpHash[f] = Hash[5];
-	TmpHash[g] = Hash[6];
-	TmpHash[h] = Hash[7];
-	
-	for (u32 i = 0; i < 64; i++) {
-		Temp1 = Sha_BigSigma1(TmpHash[e]) + Sha_Choice(TmpHash[e], TmpHash[f], TmpHash[g]) +
-			K_const[i] + W[i] + TmpHash[h];
-		Temp2 = Sha_BigSigma0(TmpHash[a]) + Sha_Major(TmpHash[a], TmpHash[b], TmpHash[c]);
-		
-		TmpHash[h] = TmpHash[g];
-		TmpHash[g] = TmpHash[f];
-		TmpHash[f] = TmpHash[e];
-		TmpHash[e] = TmpHash[d] + Temp1;
-		TmpHash[d] = TmpHash[c];
-		TmpHash[c] = TmpHash[b];
-		TmpHash[b] = TmpHash[a];
-		TmpHash[a] = Temp1 + Temp2;
-	}
-	
-	Hash[0] += TmpHash[a];
-	Hash[1] += TmpHash[b];
-	Hash[2] += TmpHash[c];
-	Hash[3] += TmpHash[d];
-	Hash[4] += TmpHash[e];
-	Hash[5] += TmpHash[f];
-	Hash[6] += TmpHash[g];
-	Hash[7] += TmpHash[h];
+    enum TmpH {a, b, c, d, e, f, g, h};
+    u32 TmpHash[8] = { 0 };
+    u32 Temp1 = 0, Temp2 = 0;
+    const u32 K_const[64] = {
+        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+        0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+        0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+        0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+        0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+        0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+        0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+        0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+        0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+        0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+        0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
+        0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+        0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
+        0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+        0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+        0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+    };
+    
+    TmpHash[a] = Hash[0];
+    TmpHash[b] = Hash[1];
+    TmpHash[c] = Hash[2];
+    TmpHash[d] = Hash[3];
+    TmpHash[e] = Hash[4];
+    TmpHash[f] = Hash[5];
+    TmpHash[g] = Hash[6];
+    TmpHash[h] = Hash[7];
+    
+    for (u32 i = 0; i < 64; i++) {
+        Temp1 = Sha_BigSigma1(TmpHash[e]) + Sha_Choice(TmpHash[e], TmpHash[f], TmpHash[g]) +
+            K_const[i] + W[i] + TmpHash[h];
+        Temp2 = Sha_BigSigma0(TmpHash[a]) + Sha_Major(TmpHash[a], TmpHash[b], TmpHash[c]);
+        
+        TmpHash[h] = TmpHash[g];
+        TmpHash[g] = TmpHash[f];
+        TmpHash[f] = TmpHash[e];
+        TmpHash[e] = TmpHash[d] + Temp1;
+        TmpHash[d] = TmpHash[c];
+        TmpHash[c] = TmpHash[b];
+        TmpHash[b] = TmpHash[a];
+        TmpHash[a] = Temp1 + Temp2;
+    }
+    
+    Hash[0] += TmpHash[a];
+    Hash[1] += TmpHash[b];
+    Hash[2] += TmpHash[c];
+    Hash[3] += TmpHash[d];
+    Hash[4] += TmpHash[e];
+    Hash[5] += TmpHash[f];
+    Hash[6] += TmpHash[g];
+    Hash[7] += TmpHash[h];
 }
 
 static u8* Sha_ExtractDigest(u32* Hash) {
-	u8* Digest = (u8*)malloc(32 * sizeof(u8));
-	
-	for (u32 i = 0; i < 32; i += 4) {
-		Digest[i] = (u8)((Hash[i / 4] >> 24) & 0x000000FF);
-		Digest[i + 1] = (u8)((Hash[i / 4] >> 16) & 0x000000FF);
-		Digest[i + 2] = (u8)((Hash[i / 4] >> 8) & 0x000000FF);
-		Digest[i + 3] = (u8)(Hash[i / 4] & 0x000000FF);
-	}
-	
-	return Digest;
+    u8* Digest = (u8*)malloc(32 * sizeof(u8));
+    
+    for (u32 i = 0; i < 32; i += 4) {
+        Digest[i] = (u8)((Hash[i / 4] >> 24) & 0x000000FF);
+        Digest[i + 1] = (u8)((Hash[i / 4] >> 16) & 0x000000FF);
+        Digest[i + 2] = (u8)((Hash[i / 4] >> 8) & 0x000000FF);
+        Digest[i + 3] = (u8)(Hash[i / 4] & 0x000000FF);
+    }
+    
+    return Digest;
 }
 
 u8* Sys_Sha256(u8* data, u64 size) {
-	u32 W[64];
-	u32 Hash[8] = {
-		0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-		0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
-	};
-	u8* Digest;
-	u64 RemainingDataSizeByte = size;
-	
-	while (Sha_CreateCompleteScheduleArray(data, size, &RemainingDataSizeByte, W) == 1) {
-		Sha_CompleteScheduleArray(W);
-		Sha_Compression(Hash, W);
-	}
-	Sha_CompleteScheduleArray(W);
-	Sha_Compression(Hash, W);
-	
-	Digest = Sha_ExtractDigest(Hash);
-	
-	return Digest;
+    u32 W[64];
+    u32 Hash[8] = {
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+        0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+    };
+    u8* Digest;
+    u64 RemainingDataSizeByte = size;
+    
+    while (Sha_CreateCompleteScheduleArray(data, size, &RemainingDataSizeByte, W) == 1) {
+        Sha_CompleteScheduleArray(W);
+        Sha_Compression(Hash, W);
+    }
+    Sha_CompleteScheduleArray(W);
+    Sha_Compression(Hash, W);
+    
+    Digest = Sha_ExtractDigest(Hash);
+    
+    return Digest;
 }
 
 #undef Free
 void* Free(const void* data) {
-	if (data)
-		free((void*)data);
-	
-	return NULL;
+    if (data)
+        free((void*)data);
+    
+    return NULL;
 }

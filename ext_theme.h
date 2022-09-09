@@ -7,20 +7,20 @@
 #include "ext_vector.h"
 
 typedef enum {
-	THEME_BASE,
-	THEME_SHADOW,
-	THEME_HIGHLIGHT,
-	
-	THEME_ELEMENT_LIGHT,
-	THEME_ELEMENT_BASE,
-	THEME_ELEMENT_DARK,
-	
-	THEME_PRIM,
-	THEME_TEXT,
-	
-	THEME_MAX,
-	
-	THEME_DISABLED = THEME_BASE,
+    THEME_BASE,
+    THEME_SHADOW,
+    THEME_HIGHLIGHT,
+    
+    THEME_ELEMENT_LIGHT,
+    THEME_ELEMENT_BASE,
+    THEME_ELEMENT_DARK,
+    
+    THEME_PRIM,
+    THEME_TEXT,
+    
+    THEME_MAX,
+    
+    THEME_DISABLED = THEME_BASE,
 } ThemeColor;
 
 void Theme_Init(u32 themeId);

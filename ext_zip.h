@@ -4,20 +4,20 @@
 #include "ext_lib.h"
 
 typedef struct ZipFile {
-	void* pkg;
-	char* filename;
+    void* pkg;
+    char* filename;
 } ZipFile;
 
 typedef enum {
-	ZIP_READ   = 'r',
-	ZIP_WRITE  = 'w',
-	ZIP_APPEND = 'a',
+    ZIP_READ   = 'r',
+    ZIP_WRITE  = 'w',
+    ZIP_APPEND = 'a',
 } ZipParam;
 
 typedef enum {
-	ZIP_ERROR_OPEN_ENTRY = 1,
-	ZIP_ERROR_RW_ENTRY   = -1,
-	ZIP_ERROR_CLOSE      = -2,
+    ZIP_ERROR_OPEN_ENTRY = 1,
+    ZIP_ERROR_RW_ENTRY   = -1,
+    ZIP_ERROR_CLOSE      = -2,
 } ZipReturn;
 
 void* ZipFile_Load(ZipFile* zip, const char* file, ZipParam mode);
