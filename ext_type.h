@@ -275,4 +275,10 @@ typedef enum RegexFlag {
     REGFLAG_NUMMASK   = 0x00FFFFFF,
 } RegexFlag;
 
+typedef enum {
+    ENV_USER,
+    ENV_APPDATA,
+    ENV_HOME,
+} SysEnv;
+
 #endif

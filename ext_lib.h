@@ -101,6 +101,7 @@ void Sys_Sleep(f64 sec);
 Date Sys_Date(Time time);
 s32 Sys_GetCoreCount(void);
 Size Sys_GetFileSize(const char* file);
+const char* Sys_GetEnv(SysEnv env);
 
 void SysExe_IgnoreError();
 s32 SysExe_GetError();
@@ -112,7 +113,7 @@ char* SysExeO(const char* cmd);
 // Callback Output
 s32 SysExeC(const char* cmd, s32 (*callback)(void*, const char*), void* arg);
 
-s32 Terminal_YesOrNo(void);
+bool Terminal_YesOrNo(void);
 void Terminal_ClearScreen(void);
 void Terminal_ClearLines(u32 i);
 void Terminal_Move_PrevLine(void);
@@ -264,6 +265,8 @@ char* StrUpper(char* str);
 char* StrLower(char* str);
 bool ChrPool(const char c, const char* pool);
 bool StrPool(const char* s, const char* pool);
+char* StrCatArg(const char** list, char separator);
+char* StrCatArr(const char** list, u32 num, char separator);
 
 char* StrU8(char* dst, const wchar* src);
 wchar* StrU16(wchar* dst, const char* src);

@@ -1006,34 +1006,55 @@ Size Sys_GetFileSize(const char* file) {
     return result;
 }
 
+const char* Sys_GetEnv(SysEnv env) {
+    switch (env) {
+#ifdef _WIN32
+        case ENV_USER:
+            return StrSlash(xStrDup(getenv("USERNAME")));
+        case ENV_APPDATA:
+            return StrSlash(xStrDup(getenv("APPDATA")));
+        case ENV_HOME:
+            return StrSlash(xStrDup(getenv("USERPROFILE")));
+            
+#else // UNIX
+        case ENV_USER:
+            return xStrDup(getenv("USER"));
+        case ENV_APPDATA:
+            return NULL;
+        case ENV_HOME:
+            return xStrDup(getenv("HOME"));
+            
+#endif
+    }
+    
+    return NULL;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # TERMINAL                            #
 // # # # # # # # # # # # # # # # # # # # #
 
-s32 Terminal_YesOrNo(void) {
-    char ans[512] = { 0 };
+bool Terminal_YesOrNo(void) {
+    char line[4096] = {};
     u32 clear = 0;
+    bool ret = true;
     
-    while (strncmp(ans, "y", 2) && strncmp(ans, "n", 2) && strncmp(ans, "Y", 2) && strncmp(ans, "N", 2)) {
+    while (stricmp(line, "y") && stricmp(line, "n")) {
         if (gKillFlag)
             return -1;
-        if (clear)
+        if (clear++)
             Terminal_ClearLines(2);
         
         printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
-        scanf("%s", ans);
-        clear = 1;
-        
+        gets(line);
     }
     
-    if (ans[0] == 'N' || ans[0] == 'n') {
-        Terminal_ClearLines(2);
-        
-        return false;
-    }
+    if (!stricmp(line, "n"))
+        ret = false;
+    
     Terminal_ClearLines(2);
     
-    return true;
+    return ret;
 }
 
 void Terminal_ClearScreen(void) {
@@ -1068,13 +1089,14 @@ const char* Terminal_GetStr(void) {
 }
 
 char Terminal_GetChar() {
-    char s;
+    char line[4096] = {};
     
-    printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_RSET);
-    fflush(stdout);
-    scanf("%c", &s);
+    printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
+    gets(line);
     
-    return s;
+    Terminal_ClearLines(2);
+    
+    return 0;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -2138,6 +2160,46 @@ bool StrPool(const char* s, const char* pool) {
     } while (*(++s) != '\0');
     
     return true;
+}
+
+static char* StrCatAlloc(const char** list, Size size, char* separator) {
+    char* s = Alloc(size + 1);
+    
+    s[0] = '\0';
+    
+    for (s32 i = 0; list[i] != NULL; i++) {
+        strcat(s, list[i]);
+        strcat(s, separator);
+    }
+    
+    if (*separator != '\0')
+        StrEnd(s, separator)[0] = '\0';
+    
+    return s;
+}
+
+char* StrCatArg(const char** list, char separator) {
+    char sep[2] = { separator, '\0' };
+    u32 count = 0;
+    u32 ln = 0;
+    
+    for (s32 i = 0; list[i] != NULL; i++, count++)
+        ln += strlen(list[i]);
+    ln += strlen(sep) * count;
+    
+    return StrCatAlloc(list, ln, sep);
+}
+
+char* StrCatArr(const char** list, u32 num, char separator) {
+    char sep[2] = { separator, '\0' };
+    u32 count = 0;
+    u32 ln = 0;
+    
+    for (s32 i = 0; i < num; i++, count++)
+        ln += strlen(list[i]);
+    ln += strlen(sep) * count;
+    
+    return StrCatAlloc(list, ln, sep);
 }
 
 // # # # # # # # # # # # # # # # # # # # #

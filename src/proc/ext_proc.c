@@ -44,16 +44,24 @@ static char* ArgToken_Copy(const char* s) {
     return strndup(s, sz);
 }
 
-Proc* Proc_New(char* arg) {
+Proc* Proc_New(char* fmt, ...) {
     Proc* this = New(Proc);
-    char* tok = arg;
+    char* arg;
+    char* tok;
     char* args[512];
+    va_list va;
+    
+    va_start(va, fmt);
+    vasprintf(&arg, fmt, va);
+    va_end(va);
+    
+    tok = arg;
     
     Assert(this != NULL);
     Assert(tok != NULL);
     Assert((this->proc = reproc_new()) != NULL);
     
-    this->status = PROC_NEW;
+    this->localStatus = PROC_NEW;
     
     while (tok) {
         args[this->numArg++] = ArgToken_Copy(tok);
@@ -65,6 +73,8 @@ Proc* Proc_New(char* arg) {
     for (s32 i = 0; i < this->numArg; i++)
         this->arg[i] = args[i];
     
+    Free(arg);
+    
     return this;
 }
 
@@ -72,68 +82,25 @@ void Proc_SetState(Proc* this, StateProc state) {
     this->state = state;
 }
 
-void Proc_ClearState(Proc* this, StateProc state) {
-    this->state &= ~state;
+int Proc_SetPath(Proc* this, const char* path) {
+    if (Sys_IsDir(path))
+        return (this->path = strdup(path)) ? 0 : 1;
+    
+    return 1;
 }
 
-int Proc_Exec(Proc* this) {
-    bool exec;
-    reproc_options opt = {
-        .redirect.out.type = this->state & PROC_MUTE_STDOUT ? REPROC_REDIRECT_DISCARD : REPROC_REDIRECT_PARENT,
-        .redirect.err.type = this->state & PROC_MUTE_STDERR ? REPROC_REDIRECT_DISCARD : REPROC_REDIRECT_PARENT,
-    };
+static s32 Proc_SystemThread(Proc* this) {
+    char* args = StrCatArg(this->arg, ' ');
+    s32 sys = system(args);
     
-    this->status = PROC_EXEC;
+    Free(args);
     
-    exec = reproc_start(this->proc, this->arg, opt) < 0;
-    
-    if (exec && this->state & PROC_THROW_ERROR)
-        Proc_Error(this);
-    
-    return exec;
+    return sys;
 }
 
-static int Proc_Free(Proc* this) {
-    int signal;
-    
-    this->status = PROC_FREE;
-    
-    Log("Wait");
-    signal = reproc_wait(this->proc, REPROC_INFINITE);
-    Log("Destroy");
-    reproc_destroy(this->proc);
-    
-    Log("Free");
-    for (s32 i = 0; i < this->numArg; i++) {
-        Log("\t%s", this->arg[i]);
-        Free(this->arg[i]);
-    }
-    Free(this->arg);
-    Log("Return Signal: %d", signal);
-    Free(this);
-    
-    return signal;
-}
-
-int Proc_Kill(Proc* this) {
-    if (!this) return 0;
-    this->status = PROC_KILL;
-    reproc_kill(this->proc);
-    
-    return Proc_Free(this);
-    
-}
-
-int Proc_Join(Proc* this) {
-    if (!this) return 0;
-    this->status = PROC_JOIN;
-    
-    return Proc_Free(this);
-}
-
-void Proc_Error(Proc* this) {
+static void Proc_Error(Proc* this) {
     printf("\a");
-    switch (this->status) {
+    switch (this->localStatus) {
         case PROC_NEW:
             printf_warning("Proc New:");
             break;
@@ -155,4 +122,84 @@ void Proc_Error(Proc* this) {
         printf_warning("" PRNT_GRAY "%-6d" PRNT_YELW "%s", i, this->arg[i]);
     
     exit(1);
+}
+
+int Proc_Exec(Proc* this) {
+    bool exec;
+    reproc_options opt = {
+        .redirect.out.type = this->state & PROC_MUTE_STDOUT ? REPROC_REDIRECT_DISCARD : REPROC_REDIRECT_PARENT,
+        .redirect.err.type = this->state & PROC_MUTE_STDERR ? REPROC_REDIRECT_DISCARD : REPROC_REDIRECT_PARENT,
+        .redirect.in.type  = this->state & PROC_MUTE_STDIN ? REPROC_REDIRECT_DISCARD : REPROC_REDIRECT_PARENT,
+        .working_directory = this->path,
+    };
+    
+    this->localStatus = PROC_EXEC;
+    
+    if (this->state & PROC_SYSTEM_EXE) {
+        Thread_Create(&this->thd, Proc_SystemThread, this);
+        
+        return 0;
+    }
+    
+    exec = reproc_start(this->proc, this->arg, opt) < 0;
+    
+    if (exec && this->state & PROC_THROW_ERROR)
+        Proc_Error(this);
+    
+    return exec;
+}
+
+static int Proc_Free(Proc* this) {
+    int signal;
+    
+    this->localStatus = PROC_FREE;
+    
+    if (this->state & PROC_SYSTEM_EXE) {
+        signal = this->signal;
+    } else {
+        Log("Wait");
+        signal = reproc_wait(this->proc, REPROC_INFINITE);
+        Log("Destroy");
+        reproc_destroy(this->proc);
+    }
+    
+    Log("Free");
+    for (s32 i = 0; i < this->numArg; i++)
+        Free(this->arg[i]);
+    Free(this->path);
+    Free(this->arg);
+    Free(this);
+    
+    return signal;
+}
+
+int Proc_Kill(Proc* this) {
+    this->localStatus = PROC_KILL;
+    
+    if (this->state & PROC_SYSTEM_EXE) {
+        this->signal = 1;
+        
+        if (!pthread_kill(this->thd, 1))
+            return Proc_Free(this);
+        
+        return 1;
+    }
+    reproc_terminate(this->proc);
+    reproc_kill(this->proc);
+    
+    return Proc_Free(this);
+    
+}
+
+int Proc_Join(Proc* this) {
+    if (!this) return 0;
+    this->localStatus = PROC_JOIN;
+    
+    if (this->state & PROC_SYSTEM_EXE) {
+        pthread_join(this->thd, (void*)&this->signal);
+        
+        return Proc_Free(this);
+    }
+    
+    return Proc_Free(this);
 }
