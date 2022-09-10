@@ -73,11 +73,11 @@ void Profiler_I(u8 s);
 void Profiler_O(u8 s);
 f32 Profiler_Time(u8 s);
 
-void FileSys_MakePath(s32 flag);
+void FileSys_MakePath(bool flag);
 void FileSys_Path(const char* fmt, ...);
 char* FileSys_File(const char* str, ...);
 char* FileSys_FindFile(const char* str);
-void FileSys_Free();
+void __attribute__ ((deprecated)) FileSys_Free();
 
 bool Sys_IsDir(const char* path);
 void Sys_MakeDir(const char* dir, ...);
@@ -358,9 +358,9 @@ int strnicmp(const char* a, const char* b, Size size);
 #ifdef _WIN32
 static char* strndup(const char* s, size_t n) {
     if (!s) return NULL;
-	Size csz = strnlen(s, n);
+    Size csz = strnlen(s, n);
     char* new = (char*) malloc (n + 1);
-	Assert(new != NULL);
+    Assert(new != NULL);
     new[csz] = '\0';
     
     return (char*) memcpy (new, s, csz);

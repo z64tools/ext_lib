@@ -158,22 +158,19 @@ void MemFile_Align(MemFile* src, u32 align) {
 }
 
 s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
-    char* buffer;
+    char buffer[8192];
     va_list args;
     
     va_start(args, fmt);
-    vasprintf(
-        &buffer,
+    snprintf(
+        buffer,
+        8192,
         fmt,
         args
     );
     va_end(args);
     
-    return ({
-        s32 ret = MemFile_Write(dest, buffer, strlen(buffer));
-        Free(buffer);
-        ret;
-    });
+    return MemFile_Write(dest, buffer, strlen(buffer));
 }
 
 s32 MemFile_Read(MemFile* src, void* dest, Size size) {

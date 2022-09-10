@@ -438,19 +438,18 @@ f32 Profiler_Time(u8 s) {
 // # SYS                                 #
 // # # # # # # # # # # # # # # # # # # # #
 
-ThreadLocal static char* __sPath;
-ThreadLocal static s32 __sMakeDir;
+ThreadLocal static char __sPath[261];
+ThreadLocal static bool __sMakeDir;
 
-void FileSys_MakePath(s32 flag) {
+void FileSys_MakePath(bool flag) {
     __sMakeDir = flag;
 }
 
 void FileSys_Path(const char* fmt, ...) {
     va_list va;
     
-    Free(__sPath);
     va_start(va, fmt);
-    vasprintf(&__sPath, fmt, va);
+    snprintf(__sPath, 261, fmt, va);
     va_end(va);
     
     if (__sMakeDir)
@@ -458,12 +457,12 @@ void FileSys_Path(const char* fmt, ...) {
 }
 
 char* FileSys_File(const char* str, ...) {
-    char* buffer;
+    char buffer[261];
     char* ret;
     va_list va;
     
     va_start(va, str);
-    vasprintf(&buffer, str, va);
+    snprintf(buffer, 261, str, va);
     va_end(va);
     
     Log("%s", str);
@@ -472,7 +471,6 @@ char* FileSys_File(const char* str, ...) {
         ret = xFmt("%s%s", __sPath, buffer);
     else
         ret = xStrDup(buffer + 1);
-    Free(buffer);
     
     return ret;
 }
@@ -501,7 +499,6 @@ char* FileSys_FindFile(const char* str) {
 }
 
 void FileSys_Free() {
-    Free(__sPath);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -649,11 +646,11 @@ void __MakeDir(const char* buffer) {
 }
 
 void Sys_MakeDir(const char* dir, ...) {
-    char* buffer;
+    char buffer[261];
     va_list args;
     
     va_start(args, dir);
-    vasprintf(&buffer, dir, args);
+    snprintf(buffer, 261, dir, args);
     va_end(args);
     
 #ifdef _WIN32
@@ -687,8 +684,6 @@ void Sys_MakeDir(const char* dir, ...) {
     }
     
     __MakeDir(buffer);
-    
-    Free(buffer);
 }
 
 const char* Sys_WorkDir(void) {
@@ -1053,7 +1048,7 @@ const char* Sys_GetEnv(SysEnv env) {
 // # # # # # # # # # # # # # # # # # # # #
 
 bool Terminal_YesOrNo(void) {
-    char line[4096] = {};
+    char line[16] = {};
     u32 clear = 0;
     bool ret = true;
     
@@ -1064,7 +1059,7 @@ bool Terminal_YesOrNo(void) {
             Terminal_ClearLines(2);
         
         printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
-        fgets(line, 4096, stdin);
+        fgets(line, 16, stdin);
         
         while (StrEnd(line, "\n"))
             StrEnd(line, "\n")[0] = '\0';
@@ -1114,10 +1109,10 @@ const char* Terminal_GetStr(void) {
 }
 
 char Terminal_GetChar() {
-    char line[4096] = {};
+    char line[16] = {};
     
     printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
-    fgets(line, 4096, stdin);
+    fgets(line, 16, stdin);
     
     Terminal_ClearLines(2);
     
@@ -2549,7 +2544,6 @@ void Log_Init() {
         return;
     for (s32 i = 1; i < 16; i++)
         signal(i, Log_Signal);
-    
     for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
         sLogMsg[i] = Calloc(FAULT_BUFFER_SIZE);
         sLogFunc[i] = Calloc(FAULT_BUFFER_SIZE * 0.25);

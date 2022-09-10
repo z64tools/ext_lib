@@ -83,7 +83,7 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
     if (dir) {
         while ((entry = readdir(dir))) {
             StrNode* node;
-            char* path;
+            char path[261];
             u32 cont = 0;
             u32 containFlag = false;
             u32 contains = false;
@@ -139,7 +139,7 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
             if (((info->flags & LIST_NO_DOT) && entry->d_name[0] == '.') || cont)
                 continue;
             
-            asprintf(&path, "%s%s/", parent, entry->d_name);
+            snprintf(path, 261, "%s%s/", parent, entry->d_name);
             
             if (Sys_IsDir(path)) {
                 if (max == -1 || level < max)
@@ -147,7 +147,8 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
                 
                 if ((info->flags & 0xF) == LIST_FOLDERS) {
                     node = Calloc(sizeof(StrNode));
-                    asprintf(&node->txt, "%s%s/", entryPath, entry->d_name);
+                    node->txt = Alloc(261);
+                    snprintf(node->txt, 261, "%s%s/", entryPath, entry->d_name);
                     info->len += strlen(node->txt) + 1;
                     info->num++;
                     
@@ -159,7 +160,8 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
                         StrNode* node2;
                         
                         node2 = Calloc(sizeof(StrNode));
-                        asprintf(&node2->txt, "%s%s", entryPath, entry->d_name);
+                        node2->txt = Alloc(261);
+                        snprintf(node2->txt, 261, "%s%s", entryPath, entry->d_name);
                         info->len += strlen(node2->txt) + 1;
                         info->num++;
                         
@@ -167,8 +169,6 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
                     }
                 }
             }
-            
-            Free(path);
         }
         
         closedir(dir);
@@ -211,6 +211,7 @@ char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, .
     if (error) {
         char* text;
         va_list va;
+        
         va_start(va, error);
         vasprintf(&text, error, va);
         va_end(va);

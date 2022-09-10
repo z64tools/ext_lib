@@ -80,8 +80,8 @@ char* Config_GetVariable(const char* str, const char* name) {
         while (StrEnd(r, " "))
             StrEnd(r, " ")[0] = '\0';
     }
-	
-	Log("GetVariable: [%s]", r);
+    
+    Log("GetVariable: [%s]", r);
     
     return r;
 }
@@ -392,12 +392,12 @@ static void Config_FollowUpComment(MemFile* mem, const char* comment) {
 }
 
 s32 Config_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ...) {
-    char* replacement;
+    char replacement[4096];
     va_list va;
     char* p;
     
     va_start(va, fmt);
-    vasprintf(&replacement, fmt, va);
+    snprintf(replacement, 4096, fmt, va);
     va_end(va);
     
     p = Config_Variable(mem->str, variable);
@@ -409,12 +409,9 @@ s32 Config_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, 
         StrIns(p, replacement);
         
         mem->size = strlen(mem->str);
-        Free(replacement);
         
         return 0;
     }
-    
-    Free(replacement);
     
     return 1;
 }

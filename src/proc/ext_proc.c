@@ -45,17 +45,17 @@ static char* ArgToken_Copy(const char* s) {
 }
 
 Proc* Proc_New(char* fmt, ...) {
+    char buffer[8192];
     Proc* this = New(Proc);
-    char* arg;
     char* tok;
     char* args[512];
     va_list va;
     
     va_start(va, fmt);
-    vasprintf(&arg, fmt, va);
+    snprintf(buffer, 8192, fmt, va);
     va_end(va);
     
-    tok = arg;
+    tok = buffer;
     
     Assert(this != NULL);
     Assert(tok != NULL);
@@ -73,30 +73,26 @@ Proc* Proc_New(char* fmt, ...) {
     for (s32 i = 0; i < this->numArg; i++)
         this->arg[i] = args[i];
     
-    Free(arg);
-    
     return this;
 }
 
 void Proc_AddArg(Proc* this, char* fmt, ...) {
-    char* arg;
+    char buffer[8192];
     char* tok;
     char* args[512] = {};
     va_list va;
     u32 numArg = 0;
     
     va_start(va, fmt);
-    vasprintf(&arg, fmt, va);
+    snprintf(buffer, 8192, fmt, va);
     va_end(va);
     
-    tok = arg;
+    tok = buffer;
     
     while (tok) {
         args[numArg++] = ArgToken_Copy(tok);
         tok = ArgToken_Next(tok);
     }
-    
-    Free(arg);
     
     this->arg = Realloc(this->arg, sizeof(char*) * (this->numArg + numArg + 1));
     
