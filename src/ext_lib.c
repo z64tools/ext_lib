@@ -921,13 +921,36 @@ s32 Sys_Touch(const char* file) {
 }
 
 s32 Sys_Copy(const char* src, const char* dest) {
-    MemFile a = MemFile_Initialize();
-    
-    if (MemFile_LoadFile(&a, src))
-        return -1;
-    if (MemFile_SaveFile(&a, dest))
-        return 1;
-    MemFile_Free(&a);
+    if (Sys_IsDir(src)) {
+        ItemList list = ItemList_Initialize();
+        
+        ItemList_List(&list, src, -1, LIST_FILES);
+        
+        forlist(i, list) {
+            char* dfile = xFmt(
+                "%s%s%s",
+                dest,
+                StrEnd(dest, "/") ? "" : "/",
+                list.item[i] + strlen(src)
+            );
+            
+            Log("Copy: %s -> %s", list.item[i], dfile);
+            
+            Sys_MakeDir(Path(dfile));
+            if (Sys_Copy(list.item[i], dfile))
+                return 1;
+        }
+        
+        ItemList_Free(&list);
+    } else {
+        MemFile a = MemFile_Initialize();
+        
+        if (MemFile_LoadFile(&a, src))
+            return -1;
+        if (MemFile_SaveFile(&a, dest))
+            return 1;
+        MemFile_Free(&a);
+    }
     
     return 0;
 }
