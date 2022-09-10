@@ -155,9 +155,7 @@
         , 8, 7, 6, 5, 4, 3, 2, 1                 \
     )
 
-#define Main(y1, y2)  main(y1, y2)
-#define ParseArg(arg) ParseArgs(argv, arg, &parArg)
-#define Arg(arg)      ParseArgs(argv, arg, &parArg)
+#define Main(y1, y2) main(y1, y2)
 #define SEG_FAULT ((u32*)0)[0] = 0
 
 #if defined(_WIN32) && defined(UNICODE)

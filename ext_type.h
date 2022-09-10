@@ -281,4 +281,9 @@ typedef enum {
     ENV_HOME,
 } SysEnv;
 
+typedef struct {
+	const char* arg;
+	const char* help;
+} Arguments;
+
 #endif

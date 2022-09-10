@@ -1046,7 +1046,7 @@ bool Terminal_YesOrNo(void) {
             Terminal_ClearLines(2);
         
         printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
-        gets(line);
+        fgets(line, 4096, stdin);
     }
     
     if (!stricmp(line, "n"))
@@ -1092,7 +1092,7 @@ char Terminal_GetChar() {
     char line[4096] = {};
     
     printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
-    gets(line);
+    fgets(line, 4096, stdin);
     
     Terminal_ClearLines(2);
     
@@ -1358,24 +1358,16 @@ char* Fmt(const char* fmt, ...) {
     return s;
 }
 
-s32 ParseArgs(char* argv[], char* arg, u32* parArg) {
-    char* s = xFmt("%s", arg);
-    char* ss = xFmt("-%s", arg);
-    char* sss = xFmt("--%s", arg);
-    char* tst[] = {
-        s, ss, sss
-    };
+s32 ArgStr(const char* args[], const char* arg) {
     
-    for (s32 i = 1; argv[i] != NULL; i++) {
-        for (s32 j = 0; j < ArrayCount(tst); j++) {
-            if (strlen(argv[i]) == strlen(tst[j]))
-                if (!strcmp(argv[i], tst[j])) {
-                    if (parArg != NULL)
-                        *parArg = i + 1;
-                    
-                    return i + 1;
-                }
-        }
+    for (s32 i = 1; args[i] != NULL; i++) {
+        const char* this = args[i];
+        
+        if (this[0] != '-')
+            continue;
+        this += strspn(this, "-");
+        if (!strcmp(this, arg))
+            return i + 1;
     }
     
     return 0;
@@ -2103,25 +2095,25 @@ s32 StrComLen(const char* a, const char* b) {
     return s;
 }
 
-char* String_GetSpacedArg(char* argv[], s32 cur) {
+char* String_GetSpacedArg(const char** args, s32 cur) {
     char tempBuf[512];
     s32 i = cur + 1;
     
-    if (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
-        strcpy(tempBuf, argv[cur]);
+    if (args[i] && args[i][0] != '-' && args[i][1] != '-') {
+        strcpy(tempBuf, args[cur]);
         
-        while (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
+        while (args[i] && args[i][0] != '-' && args[i][1] != '-') {
             strcat(tempBuf, " ");
-            strcat(tempBuf, argv[i++]);
+            strcat(tempBuf, args[i++]);
         }
         
         return xStrDup(tempBuf);
     }
     
-    return argv[cur];
+    return xStrDup(args[cur]);
 }
 
-void String_SwapExtension(char* dest, char* src, const char* ext) {
+void String_SwapExtension(char* dest, const char* src, const char* ext) {
     strcpy(dest, Path(src));
     strcat(dest, Basename(src));
     strcat(dest, ext);
@@ -2862,6 +2854,11 @@ void printf_info_align(const char* info, const char* fmt, ...) {
     
     va_start(args, fmt);
     __printf_call(3, stdout);
+    fprintf(
+        stdout,
+        "%-16s " PRNT_RSET,
+        info
+    );
     vfprintf(
         stdout,
         fmt,
