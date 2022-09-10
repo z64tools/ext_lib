@@ -357,15 +357,13 @@ int strnicmp(const char* a, const char* b, Size size);
 
 #ifdef _WIN32
 static char* strndup(const char* s, size_t n) {
-    size_t len = strlen(s);
+    if (!s) return NULL;
+	Size csz = strnlen(s, n);
+    char* new = (char*) malloc (n + 1);
+	Assert(new != NULL);
+    new[csz] = '\0';
     
-    len = len > n ? n : len;
-    char* new = (char*) malloc (len + 1);
-    if (new == NULL)
-        return NULL;
-    new[len] = '\0';
-    
-    return (char*) memcpy (new, s, len);
+    return (char*) memcpy (new, s, csz);
 }
 #endif
 

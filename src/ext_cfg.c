@@ -80,6 +80,8 @@ char* Config_GetVariable(const char* str, const char* name) {
         while (StrEnd(r, " "))
             StrEnd(r, " ")[0] = '\0';
     }
+	
+	Log("GetVariable: [%s]", r);
     
     return r;
 }

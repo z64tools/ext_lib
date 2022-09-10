@@ -343,20 +343,12 @@ char* xStrDup(const char* str) {
     return xMemDup(str, strlen(str) + 1);
 }
 
-char* xStrNDup(const char* s, size_t n) {
+char* xStrNDup(const char* s, Size n) {
     if (!n) return NULL;
-    
-    for (size_t i = 0; i < n; i++) {
-        if (s[i] == '\0') {
-            n = i;
-            break;
-        }
-    }
-    
+    Size csz = strnlen(s, n);
     char* new = xAlloc(n + 1);
-    new[n] = '\0';
     
-    return (char*) memcpy (new, s, n);
+    return (char*) memcpy (new, s, csz);
 }
 
 char* xMemDup(const char* data, Size size) {
@@ -1070,6 +1062,9 @@ bool Terminal_YesOrNo(void) {
         
         printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
         fgets(line, 4096, stdin);
+        
+        while (StrEnd(line, "\n"))
+            StrEnd(line, "\n")[0] = '\0';
     }
     
     if (!stricmp(line, "n"))
@@ -1100,15 +1095,19 @@ void Terminal_Move_PrevLine(void) {
 }
 
 const char* Terminal_GetStr(void) {
-    static char str[512] = { 0 };
+    static char line[512] = { 0 };
     
     printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_RSET);
-    fgets(str, 511, stdin);
-    str[strlen(str) - 1] = '\0'; // remove newline
+    fgets(line, 511, stdin);
     
-    Log("[%s]", str);
+    while (StrEnd(line, "\n"))
+        StrEnd(line, "\n")[0] = '\0';
     
-    return str;
+    line[strlen(line) - 1] = '\0'; // remove newline
+    
+    Log("[%s]", line);
+    
+    return line;
 }
 
 char Terminal_GetChar() {
