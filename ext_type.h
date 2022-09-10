@@ -279,6 +279,7 @@ typedef enum {
     ENV_USER,
     ENV_APPDATA,
     ENV_HOME,
+    ENV_TEMP,
 } SysEnv;
 
 typedef struct {

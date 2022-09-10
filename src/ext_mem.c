@@ -240,6 +240,7 @@ s32 MemFile_LoadFile(MemFile* mem, const char* filepath) {
     fclose(file);
     
     mem->info.age = Sys_Stat(filepath);
+    Free(mem->info.name);
     mem->info.name = strdup(filepath);
     
     return 0;
@@ -275,6 +276,7 @@ s32 MemFile_LoadFile_String(MemFile* mem, const char* filepath) {
     mem->cast.u8[mem->size] = '\0';
     
     mem->info.age = Sys_Stat(filepath);
+    Free(mem->info.name);
     mem->info.name = strdup(filepath);
     
     return 0;

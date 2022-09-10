@@ -310,7 +310,7 @@ typedef struct {
 
 void* xAlloc(Size size) {
     static BufferX this = {
-        .max = MbToBin(16),
+        .max = MbToBin(4),
     };
     u8* ret;
     
@@ -359,21 +359,14 @@ char* xMemDup(const char* data, Size size) {
 }
 
 char* xFmt(const char* fmt, ...) {
-    Size sz;
-    char* r;
+    char buf[4096];
     va_list va;
     
     va_start(va, fmt);
-    sz = vsnprintf(NULL, 0, fmt, va);
-    Assert(sz > 0);
-    r = Alloc(sz + 1);
+    Assert(vsnprintf(buf, 4096, fmt, va) < 4096);
     va_end(va);
     
-    va_start(va, fmt);
-    vsprintf(r, fmt, va);
-    va_end(va);
-    
-    return r;
+    return xStrDup(buf);
 }
 
 char* xRep(const char* str, const char* a, const char* b) {
@@ -715,12 +708,18 @@ const char* Sys_WorkDir(void) {
     return buf;
 }
 
+char* sAppDir;
+
 const char* Sys_AppDir(void) {
-    char* path = Path(Sys_ThisApp());
+    if (!sAppDir) {
+        sAppDir = qFree(strndup(Path(Sys_ThisApp()), 512));
+        StrRep(sAppDir, "\\", "/");
+        
+        if (!StrEnd(sAppDir, "/"))
+            strcat(sAppDir, "/");
+    }
     
-    StrRep(path, "\\", "/");
-    
-    return path;
+    return sAppDir;
 }
 
 s32 Sys_Rename(const char* input, const char* output) {
@@ -1030,6 +1029,8 @@ const char* Sys_GetEnv(SysEnv env) {
             return StrSlash(xStrDup(getenv("APPDATA")));
         case ENV_HOME:
             return StrSlash(xStrDup(getenv("USERPROFILE")));
+        case ENV_TEMP:
+            return StrSlash(xStrDup(getenv("TMP")));
             
 #else // UNIX
         case ENV_USER:
@@ -1038,6 +1039,8 @@ const char* Sys_GetEnv(SysEnv env) {
             return NULL;
         case ENV_HOME:
             return xStrDup(getenv("HOME"));
+        case ENV_TEMP:
+            return xStrDup("/tmp");
             
 #endif
     }
@@ -1368,16 +1371,17 @@ char* StrDupClp(const char* str, u32 max) {
 }
 
 char* Fmt(const char* fmt, ...) {
-    char* s;
+    char s[4096];
     va_list va;
     
     va_start(va, fmt);
-    vasprintf(&s, fmt, va);
+    Assert(vsnprintf(s, 4096, fmt, va) < 4096);
     va_end(va);
     
-    Assert(s != NULL);
+    char* r = StrDup(s);
+    Assert(r != NULL);
     
-    return s;
+    return r;
 }
 
 s32 ArgStr(const char* args[], const char* arg) {
@@ -2183,35 +2187,23 @@ static char* StrCatAlloc(const char** list, Size size, char* separator) {
     
     for (s32 i = 0; list[i] != NULL; i++) {
         strcat(s, list[i]);
-        strcat(s, separator);
+        
+        if (list[i + 1])
+            strcat(s, separator);
     }
-    
-    if (*separator != '\0')
-        StrEnd(s, separator)[0] = '\0';
     
     return s;
 }
 
 char* StrCatArg(const char** list, char separator) {
     char sep[2] = { separator, '\0' };
-    u32 count = 0;
+    u32 i = 0;
     u32 ln = 0;
     
-    for (s32 i = 0; list[i] != NULL; i++, count++)
+    for (; list[i] != NULL; i++) {
         ln += strlen(list[i]);
-    ln += strlen(sep) * count;
-    
-    return StrCatAlloc(list, ln, sep);
-}
-
-char* StrCatArr(const char** list, u32 num, char separator) {
-    char sep[2] = { separator, '\0' };
-    u32 count = 0;
-    u32 ln = 0;
-    
-    for (s32 i = 0; i < num; i++, count++)
-        ln += strlen(list[i]);
-    ln += strlen(sep) * count;
+    }
+    ln += strlen(sep) * (i - 1);
     
     return StrCatAlloc(list, ln, sep);
 }
@@ -2514,13 +2506,12 @@ static void Log_Printinf(s32 arg, FILE* file) {
     
     for (s32 i = FAULT_LOG_NUM - 1, j = 0; i >= 0; i--, j++) {
         char* pfunc = j == 0 ? "__log_none__" : sLogFunc[i + 1];
-        char* fmt = Fmt("%d:", sLogLine[i]);
+        char fmt[16];
         
+        snprintf(fmt, 16, "%d:", sLogLine[i]);
         if (strcmp(sLogFunc[i], pfunc))
             fprintf(file, "" PRNT_YELW "%s" PRNT_GRAY "();\n", sLogFunc[i]);
         fprintf(file, "" PRNT_GRAY "%-8s" PRNT_RSET "%s\n", fmt, sLogMsg[i]);
-        
-        free(fmt);
     }
     
     if (arg == 16)
@@ -2761,7 +2752,7 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
     va_end(args);
 }
 
-static void printf_MuteOutput(FILE* output) {
+void printf_MuteOutput(FILE* output) {
 #ifdef _WIN32
     freopen ("NUL", "w", output);
 #else
@@ -2916,11 +2907,9 @@ void printf_progressFst(const char* info, u32 a, u32 b) {
     if (gKillFlag)
         return;
     
-    printf("\r");
-    __printf_call(3, stdout);
     printf(
         // "%-16s" PRNT_RSET "[%4d / %-4d]",
-        xFmt("%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
+        xFmt("\r" PRNT_BLUE ">" PRNT_GRAY ": " PRNT_RSET "%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
         info,
         a,
         b
@@ -2988,7 +2977,7 @@ void printf_lock(const char* fmt, ...) {
     va_start(va, fmt);
     Mutex_Lock();
     vprintf(fmt, va);
-    fflush(stdout);
+    fflush(NULL);
     Mutex_Unlock();
     va_end(va);
 }

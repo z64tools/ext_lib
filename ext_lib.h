@@ -266,7 +266,6 @@ char* StrLower(char* str);
 bool ChrPool(const char c, const char* pool);
 bool StrPool(const char* s, const char* pool);
 char* StrCatArg(const char** list, char separator);
-char* StrCatArr(const char** list, u32 num, char separator);
 
 char* StrU8(char* dst, const wchar* src);
 wchar* StrU16(wchar* dst, const char* src);
@@ -311,6 +310,7 @@ void __Log(const char* func, u32 line, const char* txt, ...);
 #define Log(...) __Log(__FUNCTION__, __LINE__, __VA_ARGS__)
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
+void printf_MuteOutput(FILE* output);
 void __attribute__ ((deprecated)) printf_SetPrefix(char* fmt);
 void printf_toolinfo(const char* toolname, const char* fmt, ...);
 void printf_warning(const char* fmt, ...);
