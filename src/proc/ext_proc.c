@@ -220,6 +220,8 @@ int Proc_Exec(Proc* this) {
 
 void Proc_Read(Proc* this, int (*callback)(void*, const char*), void* ctx) {
     char buffer[4096];
+    char* data = NULL;
+    Size dsize = 0;
     REPROC_STREAM s = -1;
     
     if (this->state & PROC_READ_STDOUT)
@@ -233,13 +235,24 @@ void Proc_Read(Proc* this, int (*callback)(void*, const char*), void* ctx) {
         return;
     
     while (true) {
-        if (reproc_read(this->proc, s, (u8*)buffer, sizeof(buffer)) < 0)
+        bool null = data == NULL;
+        Size sz = reproc_read(this->proc, s, (u8*)buffer, sizeof(buffer));
+        
+        if (sz < 0)
             break;
-        if (callback)
-            if (callback(ctx, buffer))
-                break;
+        
+        data = Realloc(data, dsize);
+        Assert(data != NULL);
+        if (null) data[0] = '\0';
+        dsize += 4096 + 1;
+        strcat(data, buffer);
     }
     
+    if (callback)
+        if (callback(ctx, data))
+            (void)0;
+    
+    Free(data);
 }
 
 static int Proc_Free(Proc* this) {
