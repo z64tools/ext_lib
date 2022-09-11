@@ -162,7 +162,7 @@ s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
     va_list args;
     
     va_start(args, fmt);
-    snprintf(
+    vsnprintf(
         buffer,
         8192,
         fmt,

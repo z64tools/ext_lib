@@ -186,6 +186,7 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags
     
     info.flags = flags;
     
+    Log("Walk: %s", path);
     ItemList_Walk(target, path, path, 0, depth, &info);
     
     target->buffer = Alloc(info.len);
@@ -201,6 +202,7 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags
         Free(node->txt);
         Node_Kill(info.node, info.node);
     }
+    Log("OK: %d", target->num);
 }
 
 char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, ...) {

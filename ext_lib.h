@@ -394,8 +394,8 @@ static inline void Mutex_Unlock(void) {
         pthread_mutex_unlock(&gThreadMutex);
 }
 
-static inline void Thread_Create(Thread* thread, void* func, void* arg) {
-    pthread_create(thread, NULL, (void*)func, (void*)(arg));
+static inline s32 Thread_Create(Thread* thread, void* func, void* arg) {
+    return pthread_create(thread, NULL, (void*)func, (void*)(arg));
 }
 
 static inline s32 Thread_Join(Thread* thread) {

@@ -52,7 +52,7 @@ Proc* Proc_New(char* fmt, ...) {
     va_list va;
     
     va_start(va, fmt);
-    snprintf(buffer, 8192, fmt, va);
+    vsnprintf(buffer, 8192, fmt, va);
     va_end(va);
     
     tok = buffer;
@@ -84,7 +84,7 @@ void Proc_AddArg(Proc* this, char* fmt, ...) {
     u32 numArg = 0;
     
     va_start(va, fmt);
-    snprintf(buffer, 8192, fmt, va);
+    vsnprintf(buffer, 8192, fmt, va);
     va_end(va);
     
     tok = buffer;

@@ -138,7 +138,7 @@ typedef struct ThdItem {
     vs32  dep[16];
 } ThdItem;
 
-static struct {
+typedef struct {
     ThdItem* head;
     vu32     num;
     vu16     dep[__UINT8_MAX__];
@@ -146,15 +146,29 @@ static struct {
         vbool mutex : 1;
         vbool on    : 1;
     };
-} gTPool;
+} ThdPool;
+
+static ThdPool* gTPool;
+
+static __attribute__((noinline)) void ThdPool_AddToHead(ThdItem* t) {
+    if (t->nid)
+        gTPool->dep[t->nid]++;
+    
+    Node_Add(gTPool->head, t);
+    gTPool->num++;
+}
 
 #undef ThdPool_Add
-
 void ThdPool_Add(void* function, void* arg, u32 n, ...) {
     ThdItem* t = New(ThdItem);
     va_list va;
     
-    Assert(gTPool.on == false);
+    if (!gTPool) {
+        gTPool = qFree(New(ThdPool));
+        Assert(gTPool);
+    }
+    
+    Assert(gTPool->on == false);
     
     t->function = function;
     t->arg = arg;
@@ -172,21 +186,14 @@ void ThdPool_Add(void* function, void* arg, u32 n, ...) {
     va_end(va);
     
     Mutex_Lock();
-    {
-        if (t->nid)
-            gTPool.dep[t->nid]++;
-        
-        Node_Add(gTPool.head, t);
-        gTPool.num++;
-    }
+    ThdPool_AddToHead(t);
     Mutex_Unlock();
+    Log("%d", gTPool->num);
 }
 
 static void ThdPool_RunThd(ThdItem* thd) {
     thd->function(thd->arg);
     thd->state = T_DONE;
-    
-    Log("Finished");
 }
 
 static bool ThdPool_CheckDep(ThdItem* t) {
@@ -194,7 +201,7 @@ static bool ThdPool_CheckDep(ThdItem* t) {
         return true;
     
     for (s32 i = 0; i < t->numDep; i++)
-        if (gTPool.dep[t->dep[i]] != 0)
+        if (gTPool->dep[t->dep[i]] != 0)
             return false;
     
     return true;
@@ -203,7 +210,7 @@ static bool ThdPool_CheckDep(ThdItem* t) {
 const char* gThdPool_ProgressMessage;
 
 void ThdPool_Exec(u32 max, bool mutex) {
-    u32 amount = gTPool.num;
+    u32 amount = gTPool->num;
     u32 prev = 1;
     u32 prog = 0;
     u32 cur = 0;
@@ -216,16 +223,19 @@ void ThdPool_Exec(u32 max, bool mutex) {
     if (mutex)
         Mutex_Enable();
     
-    gTPool.on = true;
-    while (gTPool.num) {
+    gTPool->on = true;
+    
+    Log("Num: %d", gTPool->num);
+    Log("Max: %d", max);
+    while (gTPool->num) {
         
         if (msg && prev != prog)
             printf_progressFst(gThdPool_ProgressMessage, prog + 1, amount);
         
-        max = Min(max, gTPool.num);
+        max = Min(max, gTPool->num);
         
         if (cur < max) { /* Assign */
-            t = gTPool.head;
+            t = gTPool->head;
             
             while (t) {
                 if (t->state == T_IDLE)
@@ -238,7 +248,10 @@ void ThdPool_Exec(u32 max, bool mutex) {
             if (t) {
                 while (t->state != T_RUN)
                     t->state = T_RUN;
-                Thread_Create(&t->thd, ThdPool_RunThd, t);
+                
+                Log("Create Thread");
+                if (Thread_Create(&t->thd, ThdPool_RunThd, t))
+                    printf_error("ThdPool: Could not create thread");
                 
                 cur++;
             }
@@ -247,7 +260,7 @@ void ThdPool_Exec(u32 max, bool mutex) {
         
         prev = prog;
         if (true) { /* Clean */
-            t = gTPool.head;
+            t = gTPool->head;
             while (t) {
                 if (t->state == T_DONE) {
                     Thread_Join(&t->thd);
@@ -259,12 +272,12 @@ void ThdPool_Exec(u32 max, bool mutex) {
             
             if (t) {
                 if (t->nid)
-                    gTPool.dep[t->nid]--;
+                    gTPool->dep[t->nid]--;
                 
-                Node_Kill(gTPool.head, t);
+                Node_Kill(gTPool->head, t);
                 
                 cur--;
-                gTPool.num--;
+                gTPool->num--;
                 prog++;
             }
         }
@@ -274,16 +287,22 @@ void ThdPool_Exec(u32 max, bool mutex) {
         Mutex_Disable();
     
     gThdPool_ProgressMessage = NULL;
-    gTPool.on = false;
+    gTPool->on = false;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
 // # SEGMENT                             #
 // # # # # # # # # # # # # # # # # # # # #
 
-static u8* sSegment[255];
+static u8** sSegment;
 
 void SetSegment(const u8 id, void* segment) {
+    Log("%-4d%08X", id, segment);
+    if (!sSegment) {
+        sSegment = qFree(New(char*[255]));
+        Assert(sSegment);
+    }
+    
     sSegment[id] = segment;
 }
 
@@ -321,19 +340,20 @@ void* xAlloc(Size size) {
         printf_error("");
     
     Mutex_Lock();
-    if (this.head == NULL) {
-        this.head = qFree(Alloc(this.max));
-        Assert(this.head != NULL);
+    {
+        if (this.head == NULL) {
+            this.head = qFree(Alloc(this.max));
+            Assert(this.head != NULL);
+        }
+        
+        if (this.offset + size + 10 >= this.max) {
+            Log("Rewind: [ %.3fkB / %.3fkB ]", BinToKb(this.offset), BinToKb(this.max));
+            this.offset = 0;
+        }
+        
+        ret = &this.head[this.offset];
+        this.offset += size + 1;
     }
-    
-    if (this.offset + size + 10 >= this.max) {
-        Log("Rewind: [ %.3fkB / %.3fkB ]", BinToKb(this.offset), BinToKb(this.max));
-        this.offset = 0;
-    }
-    
-    ret = &this.head[this.offset];
-    this.offset += size + 1;
-    
     Mutex_Unlock();
     
     return memset(ret, 0, size + 1);
@@ -383,16 +403,17 @@ char* xRep(const char* str, const char* a, const char* b) {
 // # # # # # # # # # # # # # # # # # # # #
 
 ThreadLocal static struct timeval sTimeStart[255];
-ThreadLocal static struct timeval sTimeStop[255];
 
 void Time_Start(u32 slot) {
     gettimeofday(&sTimeStart[slot], NULL);
 }
 
 f64 Time_Get(u32 slot) {
-    gettimeofday(&sTimeStop[slot], NULL);
+    struct timeval sTimeStop;
     
-    return (sTimeStop[slot].tv_sec - sTimeStart[slot].tv_sec) + (f32)(sTimeStop[slot].tv_usec - sTimeStart[slot].tv_usec) / 1000000;
+    gettimeofday(&sTimeStop, NULL);
+    
+    return (sTimeStop.tv_sec - sTimeStart[slot].tv_sec) + (f32)(sTimeStop.tv_usec - sTimeStart[slot].tv_usec) / 1000000;
 }
 
 typedef struct {
@@ -449,7 +470,7 @@ void FileSys_Path(const char* fmt, ...) {
     va_list va;
     
     va_start(va, fmt);
-    snprintf(__sPath, 261, fmt, va);
+    vsnprintf(__sPath, 261, fmt, va);
     va_end(va);
     
     if (__sMakeDir)
@@ -462,7 +483,7 @@ char* FileSys_File(const char* str, ...) {
     va_list va;
     
     va_start(va, str);
-    snprintf(buffer, 261, str, va);
+    vsnprintf(buffer, 261, str, va);
     va_end(va);
     
     Log("%s", str);
@@ -650,7 +671,7 @@ void Sys_MakeDir(const char* dir, ...) {
     va_list args;
     
     va_start(args, dir);
-    snprintf(buffer, 261, dir, args);
+    vsnprintf(buffer, 261, dir, args);
     va_end(args);
     
 #ifdef _WIN32
@@ -2546,7 +2567,7 @@ void Log_Init() {
         signal(i, Log_Signal);
     for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
         sLogMsg[i] = Calloc(FAULT_BUFFER_SIZE);
-        sLogFunc[i] = Calloc(FAULT_BUFFER_SIZE * 0.25);
+        sLogFunc[i] = Calloc(128);
     }
     
     sLogInit = true;
@@ -2575,29 +2596,29 @@ void __Log(const char* func, u32 line, const char* txt, ...) {
     if (!sLogInit)
         return;
     
-    va_list args;
-    
     if (sLogMsg[0] == NULL)
         return;
     
     Mutex_Lock();
-    ArrMoveR(sLogMsg, 0, FAULT_LOG_NUM);
-    ArrMoveR(sLogFunc, 0, FAULT_LOG_NUM);
-    ArrMoveR(sLogLine, 0, FAULT_LOG_NUM);
-    
-    va_start(args, txt);
-    vsnprintf(sLogMsg[0], FAULT_BUFFER_SIZE, txt, args);
-    va_end(args);
-    
-    strcpy(sLogFunc[0], func);
-    sLogLine[0] = line;
-    
-#if 0
-    if (strcmp(sLogFunc[0], sLogFunc[1]))
-        fprintf(stdlog, "" PRNT_REDD "%s" PRNT_GRAY "();\n", sLogFunc[0]);
-    fprintf(stdlog, "" PRNT_GRAY "%-8d" PRNT_RSET "%s\n", sLogLine[0], sLogMsg[0]);
+    {
+        ArrMoveR(sLogMsg, 0, FAULT_LOG_NUM);
+        ArrMoveR(sLogFunc, 0, FAULT_LOG_NUM);
+        ArrMoveR(sLogLine, 0, FAULT_LOG_NUM);
+        
+        va_list args;
+        va_start(args, txt);
+        vsnprintf(sLogMsg[0], FAULT_BUFFER_SIZE, txt, args);
+        va_end(args);
+        
+        strcpy(sLogFunc[0], func);
+        sLogLine[0] = line;
+        
+#if 1
+        if (strcmp(sLogFunc[0], sLogFunc[1]))
+            fprintf(stdlog, "" PRNT_REDD "%s" PRNT_GRAY "();\n", sLogFunc[0]);
+        fprintf(stdlog, "" PRNT_GRAY "%-8d" PRNT_RSET "%s\n", sLogLine[0], sLogMsg[0]);
 #endif
-    
+    }
     Mutex_Unlock();
 }
 

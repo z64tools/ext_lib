@@ -30,7 +30,6 @@ static const char* __Config_GotoSection(const char* str) {
 char* Config_Variable(const char* str, const char* name) {
     char* s;
     
-    Log("Variable: %s", name);
     str = __Config_GotoSection(str);
     if (str == NULL) return NULL;
     s = (char*)str;
@@ -81,7 +80,10 @@ char* Config_GetVariable(const char* str, const char* name) {
             StrEnd(r, " ")[0] = '\0';
     }
     
-    Log("GetVariable: [%s]", r);
+    char varbuf[512];
+    
+    snprintf(varbuf, 512, "[%s]", name);
+    Log("%-16s = [%s]", name, r);
     
     return r;
 }
@@ -258,11 +260,8 @@ char* Config_GetStr(MemFile* mem, const char* variable) {
     char* ptr;
     
     ptr = Config_GetVariable(mem->str, variable);
-    if (ptr) {
-        Log("\"%s\" [%s]", ptr, mem->info.name);
-        
+    if (ptr)
         return ptr;
-    }
     
     sCfgError = true;
     printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
@@ -397,7 +396,7 @@ s32 Config_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, 
     char* p;
     
     va_start(va, fmt);
-    snprintf(replacement, 4096, fmt, va);
+    vsnprintf(replacement, 4096, fmt, va);
     va_end(va);
     
     p = Config_Variable(mem->str, variable);
