@@ -137,6 +137,8 @@ static s32 Proc_SystemThread(Proc* this) {
 static void Proc_Error(Proc* this) {
     char* msg = "Unknown";
     
+    Log("ProcError");
+    
     Mutex_Enable();
     Mutex_Lock();
     
@@ -173,7 +175,7 @@ static void Proc_Error(Proc* this) {
     
     printf_warning("Proc Path:\n      %s", this->path ? this->path : Sys_WorkDir());
     
-    #define fprintf_proc_enum(enum) fprintf(stderr, "" PRNT_GRAY "%-6s" PRNT_RSET "%s\n", this->state & enum ? "true" : "false", #enum);
+    #define fprintf_proc_enum(enum) fprintf(stderr, "" PRNT_GRAY "%-20s" PRNT_RSET "%s\n", #enum, this->state & enum ? "" PRNT_BLUE "true" : "" PRNT_REDD "false");
     printf_warning("Proc State:");
     fprintf_proc_enum(PROC_MUTE_STDOUT);
     fprintf_proc_enum(PROC_MUTE_STDERR);
@@ -241,14 +243,12 @@ void Proc_Read(Proc* this, int (*callback)(void*, const char*), void* ctx) {
 }
 
 static int Proc_Free(Proc* this) {
-    int signal;
+    int signal = 0;
     
     if (this->state & PROC_SYSTEM_EXE) {
         signal = this->signal;
     } else {
-        Log("Wait");
-        signal = reproc_wait(this->proc, REPROC_INFINITE);
-        Log("Destroy");
+        this->signal = signal = reproc_wait(this->proc, REPROC_INFINITE);
         reproc_destroy(this->proc);
     }
     

@@ -329,7 +329,7 @@ typedef struct {
 
 void* xAlloc(Size size) {
     static BufferX this = {
-        .max = MbToBin(4),
+        .max = MbToBin(8),
     };
     u8* ret;
     
@@ -340,20 +340,18 @@ void* xAlloc(Size size) {
         printf_error("");
     
     Mutex_Lock();
-    {
-        if (this.head == NULL) {
-            this.head = qFree(Alloc(this.max));
-            Assert(this.head != NULL);
-        }
-        
-        if (this.offset + size + 10 >= this.max) {
-            Log("Rewind: [ %.3fkB / %.3fkB ]", BinToKb(this.offset), BinToKb(this.max));
-            this.offset = 0;
-        }
-        
-        ret = &this.head[this.offset];
-        this.offset += size + 1;
+    if (this.head == NULL) {
+        this.head = qFree(Alloc(this.max));
+        Assert(this.head != NULL);
     }
+    
+    if (this.offset + size + 10 >= this.max) {
+        Log("Rewind: [ %.3fkB / %.3fkB ]", BinToKb(this.offset), BinToKb(this.max));
+        this.offset = 0;
+    }
+    
+    ret = &this.head[this.offset];
+    this.offset += size + 1;
     Mutex_Unlock();
     
     return memset(ret, 0, size + 1);
@@ -367,8 +365,9 @@ char* xStrNDup(const char* s, Size n) {
     if (!n) return NULL;
     Size csz = strnlen(s, n);
     char* new = xAlloc(n + 1);
+    char* res = memcpy (new, s, csz);
     
-    return (char*) memcpy (new, s, csz);
+    return res;
 }
 
 char* xMemDup(const char* data, Size size) {
@@ -390,7 +389,7 @@ char* xFmt(const char* fmt, ...) {
 }
 
 char* xRep(const char* str, const char* a, const char* b) {
-    char* r = xAlloc(strlen(str) + (strlen(b) - strlen(a)) + 1 );
+    char* r = xAlloc(strlen(str) * 4 + strlen(b) * 8);
     
     strcpy(r, str);
     StrRep(r, a, b);
@@ -804,13 +803,11 @@ void SysExeD(const char* cmd) {
 #endif
 }
 
-ThreadLocal char sExeBuffer[MbToBin(15)];
-
 char* SysExeO(const char* cmd) {
+    char* sExeBuffer;
     char result[1025];
     FILE* file = NULL;
     u32 size = 0;
-    char* out;
     
     if ((file = popen(cmd, "r")) == NULL) {
         Log(PRNT_REDD "SysExeO(%s);", cmd);
@@ -819,10 +816,13 @@ char* SysExeO(const char* cmd) {
         return NULL;
     }
     
+    sExeBuffer = Alloc(MbToBin(4));
+    Assert(sExeBuffer != NULL);
     sExeBuffer[0] = '\0';
+    
     while (fgets(result, 1024, file)) {
         size += strlen(result);
-        Assert (size < MbToBin(15));
+        Assert (size < MbToBin(4));
         strcat(sExeBuffer, result);
     }
     
@@ -834,11 +834,7 @@ char* SysExeO(const char* cmd) {
         }
     }
     
-    sSysIgnore = 0;
-    out = StrDup(sExeBuffer);
-    Assert(out != NULL);
-    
-    return out;
+    return sExeBuffer;
 }
 
 s32 SysExeC(const char* cmd, s32 (*callback)(void*, const char*), void* arg) {
@@ -1309,10 +1305,11 @@ char* StrEndCase(const char* src, const char* ext) {
 }
 
 char* StrStart(const char* src, const char* ext) {
-    if (strlen(src) < strlen(ext))
+    Size extlen = strlen(ext);
+    if (strnlen(src, extlen) < extlen)
         return NULL;
     
-    if (!strncmp(src, ext, strlen(ext)))
+    if (!strncmp(src, ext, extlen))
         return (char*)src;
     
     return NULL;
@@ -1510,7 +1507,7 @@ char* Basename(const char* src) {
     if (!ls++)
         ls = (char*)src;
     
-    return xMemDup(ls, strcspn(ls, "."));
+    return xStrNDup(ls, strcspn(ls, "."));
 }
 
 char* Filename(const char* src) {
@@ -2554,10 +2551,12 @@ static void Log_Signal(s32 arg) {
     Log_Signal_PrintTitle(arg, stdlog);
     Log_Printinf(arg, stdlog);
     
+#ifdef _WIN32
     if (arg != 16) {
         printf_getchar("Press enter to exit");
         exit(1);
     }
+#endif
 }
 
 void Log_Init() {
@@ -2613,7 +2612,7 @@ void __Log(const char* func, u32 line, const char* txt, ...) {
         strcpy(sLogFunc[0], func);
         sLogLine[0] = line;
         
-#if 1
+#if 0
         if (strcmp(sLogFunc[0], sLogFunc[1]))
             fprintf(stdlog, "" PRNT_REDD "%s" PRNT_GRAY "();\n", sLogFunc[0]);
         fprintf(stdlog, "" PRNT_GRAY "%-8d" PRNT_RSET "%s\n", sLogLine[0], sLogMsg[0]);
