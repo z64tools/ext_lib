@@ -30,7 +30,7 @@ def compile(executable: str, input: io.TextIOWrapper, output: str) -> None:
         writeline("unsigned int size;", indent=1)
         writeline("unsigned char data[];", indent=1)
         writeline("}")
-        writeline(f"g{Path(input.name).stem.capitalize()} = {{")
+        writeline(f"g{Path(input.name).stem} = {{")
         writeline(f".size = {os.stat(input.name).st_size},", indent=1)
         writeline(f".data = {{", indent=1)
 
