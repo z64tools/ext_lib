@@ -2993,6 +2993,7 @@ void printf_lock(const char* fmt, ...) {
     
     va_start(va, fmt);
     Mutex_Lock();
+    printf_WinFix();
     vprintf(fmt, va);
     fflush(NULL);
     Mutex_Unlock();
