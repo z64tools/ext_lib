@@ -257,9 +257,10 @@ char* Proc_Read(Proc* this, ProcReadTarget target) {
 static int Proc_Free(Proc* this) {
     int signal = 0;
     
-    if (this->state & PROC_SYSTEM_EXE) {
+    if (this->state & PROC_SYSTEM_EXE)
         signal = this->signal;
-    } else {
+    
+    else {
         this->signal = signal = reproc_wait(this->proc, REPROC_INFINITE);
         reproc_destroy(this->proc);
     }
@@ -273,6 +274,7 @@ static int Proc_Free(Proc* this) {
     if (this->env) {
         for (s32 i = 0; i < 32; i++)
             Free(this->env[i]);
+        
         Free(this->env);
     }
     

@@ -358,6 +358,10 @@ int strnicmp(const char* a, const char* b, Size size);
 
 #ifdef _WIN32
 static char* strndup(const char* s, size_t n) {
+#else
+#define strndup(s, n) __ext_strndup(s, n)
+static char* __ext_strndup(const char* s, size_t n) {
+#endif
     if (!s) return NULL;
     Size csz = strnlen(s, n);
     char* new = (char*) malloc (n + 1);
@@ -366,7 +370,6 @@ static char* strndup(const char* s, size_t n) {
     
     return (char*) memcpy (new, s, csz);
 }
-#endif
 
 extern vbool gThreadMode;
 extern Mutex gThreadMutex;
