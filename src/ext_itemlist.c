@@ -529,3 +529,26 @@ void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b) {
         ItemList_AddItem(out, b->item[i]);
     }
 }
+
+void ItemList_Tokenize(ItemList* this, const char* s, char r) {
+    char* token;
+    char sep[2] = { r };
+    
+    Assert(( this->buffer = StrDup(s) ) != NULL);
+    this->writePoint = strlen(this->buffer) + 1;
+    
+    token = strtok(this->buffer, sep);
+    while (token) {
+        this->num++;
+        token = strtok(NULL, sep);
+    }
+    if (!this->num) return;
+    this->item = Calloc(sizeof(char*) * this->num);
+    
+    token = this->buffer;
+    for (s32 i = 0; i < this->num; i++) {
+        this->item[i] = token;
+        
+        token += strlen(token) + 1;
+    }
+}

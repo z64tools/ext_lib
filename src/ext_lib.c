@@ -1306,6 +1306,7 @@ char* StrEndCase(const char* src, const char* ext) {
 
 char* StrStart(const char* src, const char* ext) {
     Size extlen = strlen(ext);
+    
     if (strnlen(src, extlen) < extlen)
         return NULL;
     

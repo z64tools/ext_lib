@@ -180,12 +180,12 @@ static void Proc_Error(Proc* this) {
     fprintf_proc_enum(PROC_MUTE_STDOUT);
     fprintf_proc_enum(PROC_MUTE_STDERR);
     fprintf_proc_enum(PROC_MUTE_STDIN);
-    fprintf_proc_enum(PROC_READ_STDOUT);
-    fprintf_proc_enum(PROC_READ_STDERR);
     fprintf_proc_enum(PROC_WRITE_STDIN);
     fprintf_proc_enum(PROC_THROW_ERROR);
     fprintf_proc_enum(PROC_SYSTEM_EXE);
     
+    if (this->msg)
+        printf_warning("Proc Signal: \n%s", this->msg);
     printf_error("Proc Signal: %d", this->signal);
     
     Mutex_Unlock();
@@ -194,9 +194,9 @@ static void Proc_Error(Proc* this) {
 int Proc_Exec(Proc* this) {
     bool exec;
     reproc_options opt = {
-        .redirect.out.type = this->state & PROC_MUTE_STDOUT ? REPROC_REDIRECT_DISCARD : this->state & PROC_READ_STDOUT ? REPROC_REDIRECT_PIPE : REPROC_REDIRECT_PARENT,
-        .redirect.err.type = this->state & PROC_MUTE_STDERR ? REPROC_REDIRECT_DISCARD : this->state & PROC_READ_STDERR ? REPROC_REDIRECT_PIPE : REPROC_REDIRECT_PARENT,
-        .redirect.in.type  = this->state & PROC_MUTE_STDIN ? REPROC_REDIRECT_DISCARD : this->state & PROC_WRITE_STDIN ? REPROC_REDIRECT_PIPE : REPROC_REDIRECT_PARENT,
+        .redirect.out.type = this->state & PROC_MUTE_STDOUT ? REPROC_REDIRECT_PIPE : REPROC_REDIRECT_PARENT,
+        .redirect.err.type = this->state & PROC_MUTE_STDERR ? REPROC_REDIRECT_PIPE : REPROC_REDIRECT_PARENT,
+        .redirect.in.type  = this->state & PROC_MUTE_STDIN ? REPROC_REDIRECT_PIPE : REPROC_REDIRECT_PARENT,
         .working_directory = this->path,
         .env.extra         = this->env,
         .env.behavior      = this->env ? REPROC_ENV_EMPTY : 0,
@@ -218,41 +218,40 @@ int Proc_Exec(Proc* this) {
     return exec;
 }
 
-void Proc_Read(Proc* this, int (*callback)(void*, const char*), void* ctx) {
-    char buffer[4096];
-    char* data = NULL;
-    Size dsize = 0;
+char* Proc_Read(Proc* this, ProcReadTarget target) {
+    MemFile mem = MemFile_Initialize();
     REPROC_STREAM s = -1;
     
-    if (this->state & PROC_READ_STDOUT)
+    if (target == READ_STDOUT && this->state & PROC_MUTE_STDOUT)
         s = REPROC_STREAM_OUT;
-    else if (this->state & PROC_READ_STDERR)
+    else if (target == READ_STDERR && this->state & PROC_MUTE_STDERR)
         s = REPROC_STREAM_ERR;
     else if (this->state & PROC_THROW_ERROR) {
-        printf_warning("No Stream Marked for Reading!");
+        printf_warning("Could not read [%s] because it hasn't been muted!", target == READ_STDOUT ? "stdout" : "stderr");
         Proc_Error(this);
     } else
-        return;
+        return NULL;
     
     while (true) {
-        bool null = data == NULL;
-        Size sz = reproc_read(this->proc, s, (u8*)buffer, sizeof(buffer));
+        char buffer[4096];
+        s32 readSize = reproc_read(this->proc, s, (u8*)buffer, sizeof(buffer));
         
-        if (sz < 0)
+        if (readSize < 0)
             break;
+        if (readSize == 0)
+            continue;
+        if (mem.data == NULL)
+            MemFile_Alloc(&mem, 4096);
         
-        data = Realloc(data, dsize);
-        Assert(data != NULL);
-        if (null) data[0] = '\0';
-        dsize += 4096 + 1;
-        strcat(data, buffer);
+        if (!MemFile_Write(&mem, buffer, readSize)) {
+            printf_warning("Failed to write buffer!");
+            Proc_Error(this);
+        }
+        
+        mem.cast.u8[mem.seekPoint] = '\0';
     }
     
-    if (callback)
-        if (callback(ctx, data))
-            (void)0;
-    
-    Free(data);
+    return this->msg = mem.data;
 }
 
 static int Proc_Free(Proc* this) {
