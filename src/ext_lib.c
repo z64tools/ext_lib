@@ -502,6 +502,8 @@ char* FileSys_FindFile(const char* str) {
     
     if (*str == '*') str++;
     
+    Log("Find: [%s] in [%s]", str, __sPath);
+    
     ItemList_List(&list, __sPath, 0, LIST_FILES | LIST_NO_DOT);
     for (s32 i = 0; i < list.num; i++) {
         if (StrEndCase(list.item[i], str) && Sys_Stat(list.item[i]) > stat) {
@@ -510,8 +512,10 @@ char* FileSys_FindFile(const char* str) {
         }
     }
     
-    if (file)
+    if (file) {
         file = xStrDup(file);
+        Log("Found: %s", file);
+    }
     
     ItemList_Free(&list);
     
@@ -1117,8 +1121,6 @@ const char* Terminal_GetStr(void) {
     
     while (StrEnd(line, "\n"))
         StrEnd(line, "\n")[0] = '\0';
-    
-    line[strlen(line) - 1] = '\0'; // remove newline
     
     Log("[%s]", line);
     

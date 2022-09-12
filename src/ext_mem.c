@@ -132,16 +132,17 @@ s32 MemFile_Write(MemFile* dest, const void* src, u32 size) {
 /*
  * If pos is 0 or bigger: override seekPoint
  */
-s32 MemFile_Insert(MemFile* mem, const void* src, u32 size, s64 pos) {
-    u32 p = pos < 0 ? mem->seekPoint : pos;
-    u32 remasize = mem->size - p;
+s32 MemFile_Insert(MemFile* mem, const void* src, u32 size) {
+    u32 remasize = mem->size - mem->seekPoint;
     
-    if (p + size + remasize >= mem->memSize)
+    if (mem->size + size + 1 >= mem->memSize)
         MemFile_Realloc(mem, mem->memSize * 2 + size * 2);
     
-    memmove(&mem->cast.u8[p + remasize], &mem->cast.u8[p], remasize);
+    memmove(&mem->cast.u8[mem->seekPoint + size], &mem->cast.u8[mem->seekPoint], remasize + 1);
+    memcpy(&mem->cast.u8[mem->seekPoint], src, size);
+    mem->size += size;
     
-    return MemFile_Write(mem, src, size);
+    return 0;
 }
 
 s32 MemFile_Append(MemFile* dest, MemFile* src) {
@@ -323,6 +324,8 @@ void MemFile_Free(MemFile* mem) {
 void MemFile_Reset(MemFile* mem) {
     mem->size = 0;
     mem->seekPoint = 0;
+    if (mem->data)
+        mem->str[0] = '\0';
 }
 
 void MemFile_Clear(MemFile* mem) {

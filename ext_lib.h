@@ -215,7 +215,7 @@ void MemFile_Alloc(MemFile* memFile, u32 size);
 void MemFile_Realloc(MemFile* memFile, u32 size);
 void MemFile_Rewind(MemFile* memFile);
 s32 MemFile_Write(MemFile* dest, const void* src, u32 size);
-s32 MemFile_Insert(MemFile* mem, const void* src, u32 size, s64 pos);
+s32 MemFile_Insert(MemFile* mem, const void* src, u32 size);
 s32 MemFile_Append(MemFile* dest, MemFile* src);
 void MemFile_Align(MemFile* src, u32 align);
 s32 MemFile_Printf(MemFile* dest, const char* fmt, ...);

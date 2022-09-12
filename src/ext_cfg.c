@@ -168,6 +168,10 @@ s32 Config_GetErrorState(void) {
     return ret;
 }
 
+static inline void Config_Warning(MemFile* mem, const char* variable, const char* function) {
+    printf_warning("[%s]: Variable \"%s\" not found from [%s]", function + strlen("Config_"), variable, mem->info.name);
+}
+
 void Config_GetArray(MemFile* mem, const char* variable, ItemList* list) {
     char* array;
     char* tmp;
@@ -180,7 +184,7 @@ void Config_GetArray(MemFile* mem, const char* variable, ItemList* list) {
         *list = ItemList_Initialize();
         
         sCfgError = true;
-        printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+        Config_Warning(mem, variable, __FUNCTION__);
         
         return;
     }
@@ -216,7 +220,7 @@ s32 Config_GetBool(MemFile* mem, const char* variable) {
     }
     
     sCfgError = true;
-    printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+    Config_Warning(mem, variable, __FUNCTION__);
     
     return 0;
 }
@@ -237,7 +241,7 @@ s32 Config_GetOption(MemFile* mem, const char* variable, char* strList[]) {
     }
     
     sCfgError = true;
-    printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+    Config_Warning(mem, variable, __FUNCTION__);
     
     return 0;
 }
@@ -251,7 +255,7 @@ s32 Config_GetInt(MemFile* mem, const char* variable) {
     }
     
     sCfgError = true;
-    printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+    Config_Warning(mem, variable, __FUNCTION__);
     
     return 0;
 }
@@ -264,7 +268,7 @@ char* Config_GetStr(MemFile* mem, const char* variable) {
         return ptr;
     
     sCfgError = true;
-    printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+    Config_Warning(mem, variable, __FUNCTION__);
     
     return NULL;
 }
@@ -278,7 +282,7 @@ f32 Config_GetFloat(MemFile* mem, const char* variable) {
     }
     
     sCfgError = true;
-    printf_warning("[%s] Variable [%s] not found", __FUNCTION__, variable);
+    Config_Warning(mem, variable, __FUNCTION__);
     
     return 0.0f;
 }
