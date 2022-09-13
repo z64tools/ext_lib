@@ -79,6 +79,7 @@ bin/win32/src/xzip/%.o: CFLAGS += -Wno-stringop-truncation
 bin/linux/src/gui/%.o: CFLAGS += -Wno-misleading-indentation
 bin/linux/src/xzip/%.o: CFLAGS += -Wno-stringop-truncation
 bin/linux/src/xaudio/__ma__.o: CFLAGS += -Wno-maybe-uninitialized
+bin/win32/src/xaudio/__ma__.o: CFLAGS += -Wno-maybe-uninitialized
 bin/linux/src/proc/%.o: CFLAGS += -I $(PATH_EXTLIB)reproc/reproc/include -I$(PATH_EXTLIB)reproc/reproc/src
 bin/win32/src/proc/%.o: CFLAGS += -I $(PATH_EXTLIB)reproc/reproc/include -I$(PATH_EXTLIB)reproc/reproc/src
 bin/linux/reproc/reproc/src/%.o: CFLAGS += -Wno-cpp -I $(PATH_EXTLIB)reproc/reproc/include -I$(PATH_EXTLIB)reproc/reproc/src

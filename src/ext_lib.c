@@ -3238,7 +3238,7 @@ static u32 Sha_Major(u32 x, u32 y, u32 z) {
 static u8 Sha_CreateCompleteScheduleArray(u8* Data, u64 DataSizeByte, u64* RemainingDataSizeByte, u32* W) {
     u8 TmpBlock[64];
     u8 IsFinishedFlag = 0;
-    static u8 SetEndOnNextBlockFlag = 0;
+    ThreadLocal static u8 SetEndOnNextBlockFlag = 0;
     
     for (u8 i = 0; i < 64; i++) {
         W[i] = 0x0;
@@ -3401,6 +3401,33 @@ u8* Sys_Sha256(u8* data, u64 size) {
     Digest = Sha_ExtractDigest(Hash);
     
     return Digest;
+}
+
+static void Sha_ExtractDigestCpy(u8 Digest[32], u32* Hash) {
+    for (u32 i = 0; i < 32; i += 4) {
+        Digest[i] = (u8)((Hash[i / 4] >> 24) & 0x000000FF);
+        Digest[i + 1] = (u8)((Hash[i / 4] >> 16) & 0x000000FF);
+        Digest[i + 2] = (u8)((Hash[i / 4] >> 8) & 0x000000FF);
+        Digest[i + 3] = (u8)(Hash[i / 4] & 0x000000FF);
+    }
+}
+
+void Sys_Sha256Cpy(u8 dest[32], u8* data, u64 size) {
+    u32 W[64];
+    u32 Hash[8] = {
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+        0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+    };
+    u64 RemainingDataSizeByte = size;
+    
+    while (Sha_CreateCompleteScheduleArray(data, size, &RemainingDataSizeByte, W) == 1) {
+        Sha_CompleteScheduleArray(W);
+        Sha_Compression(Hash, W);
+    }
+    Sha_CompleteScheduleArray(W);
+    Sha_Compression(Hash, W);
+    
+    Sha_ExtractDigestCpy(dest, Hash);
 }
 
 #undef Free

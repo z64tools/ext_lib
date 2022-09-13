@@ -97,6 +97,7 @@ void Sys_TerminalCursorPos(s32* r);
 s32 Sys_Touch(const char* file);
 s32 Sys_Copy(const char* src, const char* dest);
 u8* Sys_Sha256(u8* data, u64 size);
+void Sys_Sha256Cpy(u8 dest[32], u8* data, u64 size);
 void Sys_Sleep(f64 sec);
 Date Sys_Date(Time time);
 s32 Sys_GetCoreCount(void);

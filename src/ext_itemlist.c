@@ -534,12 +534,18 @@ void ItemList_Tokenize(ItemList* this, const char* s, char r) {
     char* token;
     char sep[2] = { r };
     
+    ItemList_Free(this);
+    
+    Log("Tokenize: [%s]", s);
+    Log("Separator: [%c]", r);
+    
     Assert(( this->buffer = StrDup(s) ) != NULL);
     this->writePoint = strlen(this->buffer) + 1;
     
     token = strtok(this->buffer, sep);
     while (token) {
         this->num++;
+        Log("%d: %s", this->num - 1, token);
         token = strtok(NULL, sep);
     }
     if (!this->num) return;
@@ -547,8 +553,11 @@ void ItemList_Tokenize(ItemList* this, const char* s, char r) {
     
     token = this->buffer;
     for (s32 i = 0; i < this->num; i++) {
-        this->item[i] = token;
+        char* end;
         
+        this->item[i] = token + strspn(token, " ");
         token += strlen(token) + 1;
+        while (( end = StrEnd(this->item[i], " ") ))
+            *end = '\0';
     }
 }
