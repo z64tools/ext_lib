@@ -129,6 +129,26 @@ s32 MemFile_Write(MemFile* dest, const void* src, u32 size) {
     return size;
 }
 
+s32 MemFile_WriteFile(MemFile* this, const char* source) {
+    FILE* f;
+    u8 buffer[256];
+    u32 size;
+    u32 amount = 0;
+    
+    if (!(f = fopen(source, "rb")))
+        return false;
+    
+    while ((size = fread(buffer, 1, sizeof(buffer), f))) {
+        if (MemFile_Write(this, buffer, size) != size)
+            printf_error("MemFile: Could not successfully write from fread [%s]", source);
+        amount += size;
+    }
+    
+    fclose(f);
+    
+    return amount;
+}
+
 /*
  * If pos is 0 or bigger: override seekPoint
  */
