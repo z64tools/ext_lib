@@ -205,6 +205,7 @@ char* PathRel(const char* item);
 char* PathAbs(const char* item);
 s32 PathIsAbs(const char* item);
 s32 PathIsRel(const char* item);
+char* Enumify(const char* str);
 
 void Color_ToHSL(HSL8* hsl, RGB8* rgb);
 void Color_ToRGB(RGB8* rgb, HSL8* hsl);

@@ -15,13 +15,23 @@ static Size ArgToken_Size(const char* s) {
     
     if (string) {
         sz = 2;
+isString:
         while (!(s[sz - 1] == '"' && s[sz - 2] != '\\') && s[sz] != '\0')
             sz++;
         
         return sz;
     } else {
-        while (!(s[sz] == ' ' && s[sz - 1] != '\\') && s[sz] != '\0' && s[sz] != '&')
+        while (!(s[sz] == ' ' && s[sz - 1] != '\\') && s[sz] != '\0' && s[sz] != '&') {
             sz++;
+            
+            if (s[sz] == '\"') {
+                if (strlen(&s[sz]) > 2) {
+                    
+                    sz += 2;
+                    goto isString;
+                }
+            }
+        }
         
         return sz;
     }

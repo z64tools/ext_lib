@@ -1732,6 +1732,24 @@ s32 PathIsRel(const char* item) {
     return !PathIsAbs(item);
 }
 
+char* Enumify(const char* str) {
+    char* new = xAlloc(strlen(str) * 16);
+    u32 write = 0;
+    u32 len = strlen(str);
+    
+    for (s32 i = 0; i < len; i++) {
+        if (i != 0) {
+            if (isalpha(str[i]) && isalpha(str[i - 1]))
+                if (isupper(str[i]) && !isupper(str[i - 1]))
+                    new[write++] = '_';
+        }
+        
+        new[write++] = toupper(str[i]);
+    }
+    
+    return new;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # COLOR                               #
 // # # # # # # # # # # # # # # # # # # # #
