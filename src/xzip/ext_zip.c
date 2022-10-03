@@ -9,7 +9,19 @@
 void* ZipFile_Load(ZipFile* zip, const char* file, ZipParam mode) {
     zip->filename = StrDup(file);
     
-    return zip->pkg = zip_open(file, 0, mode);
+    switch (mode) {
+        case ZIP_READ:
+            return zip->pkg = zip_open(file, 0, mode);
+            
+        case ZIP_WRITE:
+            return zip->pkg = zip_open(file, 9, mode);
+            
+        case ZIP_APPEND:
+            return zip->pkg = zip_open(file, 0, mode);
+        
+        default:
+            printf_error("Unknown ZipFile Load Mode: [%c] [%s]", mode, file);
+    }
 }
 
 u32 ZipFile_GetEntriesNum(ZipFile* zip) {
