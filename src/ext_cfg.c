@@ -169,7 +169,12 @@ s32 Config_GetErrorState(void) {
 }
 
 static inline void Config_Warning(MemFile* mem, const char* variable, const char* function) {
-    printf_warning("[%s]: Variable \"%s\" not found from [%s]", function + strlen("Config_"), variable, mem->info.name);
+    printf_warning(
+        "[%s]: Variable "PRNT_BLUE "\"%s\""PRNT_RSET " not found from " PRNT_BLUE "[%s]" PRNT_RSET " %s",
+        function + strlen("Config_"),
+        variable, mem->info.name,
+        sCfgSection ? xFmt("from section " PRNT_BLUE "%s", sCfgSection) : ""
+    );
 }
 
 void Config_GetArray(MemFile* mem, const char* variable, ItemList* list) {
@@ -180,11 +185,20 @@ void Config_GetArray(MemFile* mem, const char* variable, ItemList* list) {
     Log("Build List from [%s]", variable);
     array = Config_Variable(mem->str, variable);
     
-    if (array == NULL || (array[0] != '[' && array[0] != '{')) {
+    if (array == NULL) {
         *list = ItemList_Initialize();
         
         sCfgError = true;
         Config_Warning(mem, variable, __FUNCTION__);
+        
+        return;
+    }
+    
+    if ((array[0] != '[' && array[0] != '{')) {
+        char* str = Config_GetVariable(mem->str, variable);
+        
+        ItemList_Alloc(list, 1, strlen(str) + 2);
+        ItemList_AddItem(list, str);
         
         return;
     }
@@ -338,11 +352,10 @@ void Config_ListVariables(MemFile* mem, ItemList* list, const char* section) {
 
 void Config_ListSections(MemFile* cfg, ItemList* list) {
     char* p = cfg->str;
-    s32 ln = LineNum(p);
     s32 sctCount = 0;
     s32 sctSize = 0;
     
-    for (s32 i = 0; i < ln; i++, p = Line(p, 1)) {
+    for (s32 i = 0; p != NULL; i++, p = Line(p, 1)) {
         s32 sz = 0;
         
         while (!isgraph(*p)) p++;
@@ -362,7 +375,7 @@ void Config_ListSections(MemFile* cfg, ItemList* list) {
     ItemList_Alloc(list, sctCount, sctSize + sctCount);
     
     p = cfg->str;
-    for (s32 i = 0; i < ln; i++, p = Line(p, 1)) {
+    for (s32 i = 0; p != NULL; i++, p = Line(p, 1)) {
         char* word;
         
         while (!isgraph(*p)) p++;

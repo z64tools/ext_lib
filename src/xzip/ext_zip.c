@@ -12,6 +12,10 @@ void* ZipFile_Load(ZipFile* zip, const char* file, ZipParam mode) {
     return zip->pkg = zip_open(file, 0, mode);
 }
 
+u32 ZipFile_GetEntriesNum(ZipFile* zip) {
+    return zip_entries_total(zip->pkg);
+}
+
 s32 ZipFile_ReadEntry_Name(ZipFile* zip, const char* entry, MemFile* mem) {
     void* data = NULL;
     Size sz;
@@ -43,6 +47,13 @@ s32 ZipFile_ReadEntry_Index(ZipFile* zip, Size index, MemFile* mem) {
         return ZIP_ERROR_OPEN_ENTRY;
     mem->info.name = strdup(zip_entry_name(zip->pkg));
     Log("Reading Entry \"%s\"", mem->info.name);
+    
+    if (zip_entry_isdir(zip->pkg)) {
+        if (zip_entry_close(zip->pkg))
+            return ZIP_ERROR_CLOSE;
+        
+        return 0;
+    }
     
     if (zip_entry_read(zip->pkg, &data, &sz) < 0) {
         if (zip_entry_close(zip->pkg))
