@@ -314,7 +314,6 @@ void Config_GotoSection(const char* section) {
 
 void Config_ListVariables(MemFile* mem, ItemList* list, const char* section) {
     char* line = mem->str;
-    u32 lineNum;
     char* wordA = xAlloc(64);
     
     ItemList_Validate(list);
@@ -324,9 +323,7 @@ void Config_ListVariables(MemFile* mem, ItemList* list, const char* section) {
         line = (void*)__Config_GotoSection(line);
     if (line == NULL) return;
     
-    lineNum = LineNum(line);
-    
-    for (s32 i = 0; i < lineNum; i++, line = Line(line, 1)) {
+    for (; line != NULL; line = Line(line, 1)) {
         while (*line == ' ' || *line == '\t')
             line++;
         if (*line == '#' || *line == '\n')

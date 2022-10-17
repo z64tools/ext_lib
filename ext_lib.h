@@ -50,6 +50,8 @@ void* PostFree_Queue(void* ptr);
 void* PostFree_QueueCallback(void* callback, void* ptr);
 void PostFree_Free(void);
 
+void Sys_SetDestFunc(void* func, void* arg);
+
 extern const char* gThdPool_ProgressMessage;
 void ThdPool_Add(void* function, void* arg, u32 n, ...);
 void ThdPool_Exec(u32 max, bool mutex);

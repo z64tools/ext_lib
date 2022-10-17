@@ -194,10 +194,12 @@ static void Proc_Error(Proc* this) {
     fprintf_proc_enum(PROC_THROW_ERROR);
     fprintf_proc_enum(PROC_SYSTEM_EXE);
     
-    printf_warning("Proc Signal: %d", this->signal);
+    printf_warning("Proc Signal: %d\n\n", this->signal);
     if (this->msg)
-        fprintf(stderr, "%s", this->msg);
-    printf_error("Exit!");
+        printf_error("%s", this->msg);
+    
+    else
+        printf_error("Closing!");
     
     Mutex_Unlock();
 }

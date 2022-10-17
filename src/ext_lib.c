@@ -24,8 +24,8 @@
 //uncrustify
 
 #ifdef _WIN32
-    #include <windows.h>
-    #include <libloaderapi.h>
+#include <windows.h>
+#include <libloaderapi.h>
 #endif
 
 #define stdlog stderr
@@ -108,11 +108,22 @@ __attribute__ ((constructor)) void ExtLib_Init(void) {
 #endif
 }
 
+static void* sDestructorArg;
+static void (*sDestructor)(void*);
+
+void Sys_SetDestFunc(void* func, void* arg) {
+    sDestructor = func;
+    sDestructorArg = arg;
+}
+
 __attribute__ ((destructor)) void ExtLib_Destroy(void) {
     while (sPostFreeHead) {
         Free(sPostFreeHead->ptr);
         Node_Kill(sPostFreeHead, sPostFreeHead);
     }
+    
+    if (sDestructor)
+        sDestructor(sDestructorArg);
     
     Log_Free();
 }
@@ -873,15 +884,15 @@ void Sys_TerminalSize(s32* r) {
     x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
     y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 #else
-    #ifndef __clang__
-        #include <sys/ioctl.h>
+#ifndef __clang__
+#include <sys/ioctl.h>
     struct winsize w;
     
     ioctl(0, TIOCGWINSZ, &w);
     
     x = w.ws_col;
     y = w.ws_row;
-    #endif // __clang__
+#endif // __clang__
 #endif // _WIN32
     
     r[0] = x;
@@ -982,28 +993,28 @@ Date Sys_Date(Time time) {
 s32 Sys_GetCoreCount(void) {
     {
 #ifndef __clang__
-    #ifdef _WIN32
+#ifdef _WIN32
         #define WIN32_LEAN_AND_MEAN
-        #include <windows.h>
-    #else
-        #include <unistd.h>
-    #endif
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <string.h>
-    #include <errno.h>
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
         s64 nprocs = -1;
         s64 nprocs_max = -1;
         
-    #ifdef _WIN32
-        #ifndef _SC_NPROCESSORS_ONLN
+#ifdef _WIN32
+#ifndef _SC_NPROCESSORS_ONLN
         SYSTEM_INFO info;
         GetSystemInfo(&info);
         #define sysconf(a) info.dwNumberOfProcessors
         #define _SC_NPROCESSORS_ONLN
-        #endif
-    #endif
-    #ifdef _SC_NPROCESSORS_ONLN
+#endif
+#endif
+#ifdef _SC_NPROCESSORS_ONLN
         nprocs = sysconf(_SC_NPROCESSORS_ONLN);
         if (nprocs < 1) {
             return 0;
@@ -1014,9 +1025,9 @@ s32 Sys_GetCoreCount(void) {
         }
         
         return nprocs;
-    #else
+#else
         
-    #endif
+#endif
 #endif
     }
     
