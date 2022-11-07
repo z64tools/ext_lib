@@ -185,6 +185,7 @@
 #define forlist(val, list)       for (int val = 0; val < (list).num; val++)
 #define fornode(type, val, head) for (type* val = head; val != NULL; val = val->next)
 #define forstr(val, str)         for (int val = 0; val < strlen(str); val++)
+#define forline(val, str)        for (const char* val = str; val; val = Line(val, 1))
 
 #define ArrMoveR(arr, start, count) do {                      \
         var v = (arr)[(start) + (count) - 1];                 \
