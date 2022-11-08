@@ -13,6 +13,7 @@ Rect gZeroRect;
 
 static s32 sDebugMode;
 
+#if 0
 static void ggDebug(const char* fmt, ...) {
     if (sDebugMode == false)
         return;
@@ -24,6 +25,7 @@ static void ggDebug(const char* fmt, ...) {
     va_end(va);
     printf("\n");
 }
+#endif
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
