@@ -189,20 +189,22 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags
     Log("Walk: %s", path);
     ItemList_Walk(target, path, path, 0, depth, &info);
     
-    target->buffer = Alloc(info.len);
-    target->item = Alloc(sizeof(char*) * info.num);
-    target->num = info.num;
-    
-    for (s32 i = 0; i < info.num; i++) {
-        StrNode* node = info.node;
-        target->item[i] = &target->buffer[target->writePoint];
-        strcpy(target->item[i], node->txt);
-        target->writePoint += strlen(target->item[i]) + 1;
+    if (info.num) {
+        target->buffer = Alloc(info.len);
+        target->item = Alloc(sizeof(char*) * info.num);
+        target->num = info.num;
         
-        Free(node->txt);
-        Node_Kill(info.node, info.node);
+        for (s32 i = 0; i < info.num; i++) {
+            StrNode* node = info.node;
+            target->item[i] = &target->buffer[target->writePoint];
+            strcpy(target->item[i], node->txt);
+            target->writePoint += strlen(target->item[i]) + 1;
+            
+            Free(node->txt);
+            Node_Kill(info.node, info.node);
+        }
+        Log("OK: %d", target->num);
     }
-    Log("OK: %d", target->num);
 }
 
 char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, ...) {
@@ -481,12 +483,15 @@ s32 ItemList_NumericalSlotSort(ItemList* list, bool checkOverlaps) {
 }
 
 void ItemList_Free(ItemList* itemList) {
+    Assert(itemList != NULL);
+    
     if (itemList->initKey == 0xDEFABEBACECAFAFF) {
         Free(itemList->buffer);
         Free(itemList->item);
         ItemList_FreeFilters(itemList);
     }
-    itemList[0] = ItemList_Initialize();
+    
+    *itemList = ItemList_Initialize();
 }
 
 void ItemList_Alloc(ItemList* list, u32 num, Size size) {
@@ -548,6 +553,7 @@ void ItemList_Tokenize(ItemList* this, const char* s, char r) {
         Log("%d: %s", this->num - 1, token);
         token = strtok(NULL, sep);
     }
+    
     if (!this->num) return;
     this->item = Calloc(sizeof(char*) * this->num);
     

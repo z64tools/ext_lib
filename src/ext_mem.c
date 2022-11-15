@@ -6,6 +6,15 @@
 // # MEMFILE                             #
 // # # # # # # # # # # # # # # # # # # # #
 
+static void MemFile_ThrowError(MemFile* this, const char* msg, const char* info) {
+    printf_warning_align("" PRNT_REDD "Work Directory" PRNT_RSET ":", PRNT_YELW "%s", Sys_WorkDir());
+    printf_warning_align("" PRNT_REDD "File" PRNT_RSET ":", PRNT_YELW "%s", this->info.name);
+    printf_warning_align("" PRNT_REDD "Error" PRNT_RSET ":", "%s", msg);
+    if (info)
+        printf_warning_align("" PRNT_REDD "Info" PRNT_RSET ":", "%s", info);
+    printf_error("Stopping Process");
+}
+
 static FILE* MemFOpen(const char* name, const char* mode) {
     FILE* file;
     
@@ -36,7 +45,10 @@ void MemFile_Validate(MemFile* mem) {
 }
 
 MemFile MemFile_Initialize() {
-    return (MemFile) { .param.initKey = 0xD0E0A0D0B0E0E0F0 };
+    return (MemFile) {
+               .param.initKey = 0xD0E0A0D0B0E0E0F0,
+               .param.throwError = true,
+    };
 }
 
 void MemFile_Params(MemFile* mem, ...) {
@@ -54,7 +66,13 @@ void MemFile_Params(MemFile* mem, ...) {
         if (cmd == MEM_END)
             break;
         
-        arg = va_arg(args, uptr);
+        switch (cmd) {
+            case MEM_ALIGN:
+            case MEM_CRC32:
+            case MEM_REALLOC:
+                arg = va_arg(args, uptr);
+                break;
+        }
         
         if (cmd == MEM_CLEAR) {
             cmd = arg;
@@ -62,6 +80,8 @@ void MemFile_Params(MemFile* mem, ...) {
         }
         
         switch (cmd) {
+            case MEM_THROW_ERROR:
+                mem->param.throwError = true;
             case MEM_ALIGN:
                 mem->param.align = arg;
                 break;
@@ -235,6 +255,12 @@ s32 MemFile_LoadFile(MemFile* mem, const char* filepath) {
     if (file == NULL) {
         Log("Could not fopen file [%s]", filepath);
         
+        if (mem->param.throwError) {
+            if (Sys_Stat(mem->info.name))
+                MemFile_ThrowError(mem, "Could not load file!", xFmt("Arg: [%s]", filepath));
+            MemFile_ThrowError(mem, "Can't load because file does not exist!", xFmt("Arg: [%s]", filepath));
+        }
+        
         return 1;
     }
     
@@ -271,6 +297,12 @@ s32 MemFile_LoadFile_String(MemFile* mem, const char* filepath) {
     if (file == NULL) {
         Log("Could not fopen file [%s]", filepath);
         
+        if (mem->param.throwError) {
+            if (Sys_Stat(mem->info.name))
+                MemFile_ThrowError(mem, "Could not load file!", xFmt("Arg: [%s]", filepath));
+            MemFile_ThrowError(mem, "Can't load because file does not exist!", xFmt("Arg: [%s]", filepath));
+        }
+        
         return 1;
     }
     
@@ -306,6 +338,12 @@ s32 MemFile_SaveFile(MemFile* mem, const char* filepath) {
     if (file == NULL) {
         Log("Could not fopen file [%s]", filepath);
         
+        if (mem->param.throwError) {
+            if (Sys_Stat(mem->info.name))
+                MemFile_ThrowError(mem, "Can't save over file!", xFmt("Arg: [%s]", filepath));
+            MemFile_ThrowError(mem, "Can't save file!", xFmt("Arg: [%s]", filepath));
+        }
+        
         return 1;
     }
     
@@ -321,6 +359,12 @@ s32 MemFile_SaveFile_String(MemFile* mem, const char* filepath) {
     
     if (file == NULL) {
         Log("Could not fopen file [%s]", filepath);
+        
+        if (mem->param.throwError) {
+            if (Sys_Stat(mem->info.name))
+                MemFile_ThrowError(mem, "Can't save over file!", xFmt("Arg: [%s]", filepath));
+            MemFile_ThrowError(mem, "Can't save file!", xFmt("Arg: [%s]", filepath));
+        }
         
         return 1;
     }

@@ -90,71 +90,74 @@ char* Config_GetVariable(const char* str, const char* name) {
 
 static ThreadLocal bool sCfgError;
 
+static char* Config_GetIncludeName(const char* line) {
+    u32 size;
+    
+    line += strcspn(line, "<\n\r");
+    if (*line != '<') return NULL;
+    line++;
+    size = strcspn(line, ">\n\r");
+    if (line[size] != '>') return NULL;
+    
+    return xStrNDup(line, size);
+}
+
+static void Config_RecurseIncludes(MemFile* dst, const char* file, StrNode** nodeHead) {
+    MemFile cfg = MemFile_Initialize();
+    StrNode* strNode;
+    
+    if (*nodeHead) {
+        strNode = *nodeHead;
+        
+        for (; strNode != NULL; strNode = strNode->next) {
+            if (!strcmp(file, strNode->txt))
+                printf_error("onfigInclude: Recursive Include! [%s] -> [%s]", dst->info.name, file);
+        }
+    }
+    
+    strNode = Calloc(sizeof(*strNode));
+    strNode->txt = (void*)file;
+    Node_Add(*nodeHead, strNode);
+    
+    Log("Load File [%s]", file);
+    MemFile_LoadFile(&cfg, file);
+    MemFile_Realloc(dst, dst->memSize + cfg.memSize * 2);
+    
+    forline(line, cfg.str) {
+        if (StrStart(line, "include ")) {
+            const char* include;
+            
+            Assert((include = Config_GetIncludeName(line)) != NULL);
+            
+            Log("ConfigInclude: From [%s] open [%s]", file, include);
+            
+            Config_RecurseIncludes(dst, xFmt("%s%s", Path(file), include), nodeHead);
+        } else {
+            u32 size = strcspn(line, "\n\r");
+            
+            if (size) MemFile_Write(dst, line, size);
+            MemFile_Printf(dst, "\n");
+        }
+    }
+    
+    MemFile_Free(&cfg);
+};
+
 void Config_ProcessIncludes(MemFile* mem) {
     StrNode* strNodeHead = NULL;
-    StrNode* strNode = NULL;
+    MemFile dst = MemFile_Initialize();
     
-    strNode = Calloc(sizeof(StrNode));
-    strNode->txt = xStrDup(mem->info.name);
-    Node_Add(strNodeHead, strNode);
+    dst.info.name = mem->info.name;
+    Config_RecurseIncludes(&dst, mem->info.name, &strNodeHead);
+    dst.str[dst.size] = '\0';
     
-reprocess:
-    (void)0;
-    char* line = mem->str;
+    Free(mem->data);
+    mem->data = dst.data;
+    mem->memSize = dst.memSize;
+    mem->size = dst.size;
     
-    do {
-        if (memcmp(line, "include ", 8))
-            continue;
-        char* head = CopyLine(line, 0);
-        
-        while (line[-1] != '<') {
-            line++;
-            if (*line == '\n' || *line == '\r' || *line == '\0')
-                goto free;
-        }
-        
-        s32 ln = 0;
-        
-        for (;; ln++) {
-            if (line[ln] == '>')
-                break;
-            if (*line == '\0')
-                goto free;
-        }
-        
-        char* name;
-        MemFile in = MemFile_Initialize();
-        
-        name = Calloc(ln + 1);
-        memcpy(name, line, ln);
-        
-        FileSys_Path(Path(mem->info.name));
-        MemFile_LoadFile_String(&in, FileSys_File(name));
-        
-        strNode = strNodeHead;
-        while (strNode) {
-            if (!strcmp(in.info.name, strNode->txt))
-                printf_error("Recursive inclusion in patch [%s] including [%s]", mem->info.name, in.info.name);
-            
-            strNode = strNode->next;
-        }
-        
-        if (!StrRep(mem->str, head, in.str))
-            printf_error("Replacing Failed: [%s] [%X]", head, (u32) * head);
-        
-        strNode = Calloc(sizeof(StrNode));
-        strNode->txt = FileSys_File(name);
-        Node_Add(strNodeHead, strNode);
-        
-        MemFile_Free(&in);
-        Free(name);
-        goto reprocess;
-    } while ( (line = Line(line, 1)) );
-    
-free:
     while (strNodeHead)
         Node_Kill(strNodeHead, strNodeHead);
-    mem->size = strlen(mem->str);
     Log("Done");
 }
 
@@ -348,49 +351,39 @@ void Config_ListVariables(MemFile* mem, ItemList* list, const char* section) {
 }
 
 void Config_ListSections(MemFile* cfg, ItemList* list) {
-    char* p = cfg->str;
     s32 sctCount = 0;
     s32 sctSize = 0;
+    s32 line = -1;
     
-    for (s32 i = 0; p != NULL; i++, p = Line(p, 1)) {
+    forline(p, cfg->str) {
         s32 sz = 0;
         
-        while (!isgraph(*p)) p++;
-        if (*p != '[')
-            continue;
+        line++;
+        p += strspn(p, " \t");
+        if (*p != '[') continue;
         sctCount++;
         
-        while (p[sz] != ']') {
-            sz++;
-            sctSize++;
-            
-            if (p[sz] == '\0')
-                printf_error("Missing ']' from section name at line %d for [%s]", i, cfg->info.name);
-        }
+        sz = strcspn(p, "]\n");
+        
+        if (p[sz] == '\n' || p[sz] == '\0')
+            printf_error("Missing ']' from section name at line %d for [%s]", line, cfg->info.name);
+        
+        sctSize += sz + 1;
+    }
+    
+    if (sctCount == 0) {
+        *list = ItemList_Initialize();
+        return;
     }
     
     ItemList_Alloc(list, sctCount, sctSize + sctCount);
     
-    p = cfg->str;
-    for (s32 i = 0; p != NULL; i++, p = Line(p, 1)) {
-        char* word;
-        
-        while (!isgraph(*p)) p++;
-        if (*p != '[')
-            continue;
+    forline(p, cfg->str) {
+        p += strspn(p, " \t");
+        if (*p != '[') continue;
         sctCount++;
         
-        word = StrDup(p + 1);
-        
-        for (s32 j = 0; ; j++) {
-            if (word[j] == ']') {
-                word[j] = '\0';
-                break;
-            }
-        }
-        
-        ItemList_AddItem(list, word);
-        Free(word);
+        ItemList_AddItem(list, xStrNDup(p + 1, strcspn(p, "]\n")));
     }
 }
 

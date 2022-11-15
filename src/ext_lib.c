@@ -3461,7 +3461,7 @@ void Sys_Sha256Cpy(u8 dest[32], u8* data, u64 size) {
 
 #undef Free
 void* Free(const void* data) {
-    if (data)
+    if (data != NULL)
         free((void*)data);
     
     return NULL;

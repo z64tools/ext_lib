@@ -132,13 +132,14 @@ typedef struct Node {
 } Node;
 
 typedef enum {
-    MEM_CRC32    = 1 << 17,
-    MEM_ALIGN    = 1 << 18,
-    MEM_REALLOC  = 1 << 19,
-    MEM_FILENAME = 1 << 20,
+    MEM_CRC32       = 1 << 17,
+    MEM_ALIGN       = 1 << 18,
+    MEM_REALLOC     = 1 << 19,
+    MEM_FILENAME    = 1 << 20,
+    MEM_THROW_ERROR = 1 << 21,
     
-    MEM_CLEAR    = 1 << 30,
-    MEM_END      = 1 << 31,
+    MEM_CLEAR       = 1 << 30,
+    MEM_END         = 1 << 31,
 } MemInit;
 
 typedef struct MemFile {
@@ -156,10 +157,11 @@ typedef struct MemFile {
         u32   crc32;
     } info;
     struct {
-        u32 align;
-        u32 realloc : 1;
-        u32 getCrc  : 1;
-        u64 initKey;
+        u32  align;
+        bool realloc    : 1;
+        bool getCrc     : 1;
+        bool throwError : 1;
+        u64  initKey;
     } param;
 } MemFile;
 
