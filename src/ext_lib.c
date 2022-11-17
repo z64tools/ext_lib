@@ -963,6 +963,8 @@ s32 Sys_Copy(const char* src, const char* dest) {
     } else {
         MemFile a = MemFile_Initialize();
         
+        a.param.throwError = false;
+        
         if (MemFile_LoadFile(&a, src))
             return -1;
         if (MemFile_SaveFile(&a, dest))

@@ -48,8 +48,8 @@ ReProc_Win32_C   = $(shell cd $(PATH_EXTLIB) && find reproc/reproc/src/* -type f
 ReProc_Linux_O   = $(foreach f,$(ReProc_Linux_C:.c=.o), bin/linux/$f)
 ReProc_Win32_O   = $(foreach f,$(ReProc_Win32_C:.c=.o), bin/win32/$f)
 
-DataFileCompiler := $(PATH_EXTLIB)tools/dfc.py
-ExtPkg           := $(PATH_EXTLIB)tools/pkg.py
+DataFileCompiler := $(PATH_EXTLIB)/tools/dfc.py
+ExtPkg           := $(PATH_EXTLIB)/tools/pkg.py
 XFLAGS            = $(shell $(ExtPkg) $^)
 
 # Make build directories
@@ -80,10 +80,10 @@ bin/linux/src/gui/%.o: CFLAGS += -Wno-misleading-indentation
 bin/linux/src/xzip/%.o: CFLAGS += -Wno-stringop-truncation
 bin/linux/src/xaudio/__ma__.o: CFLAGS += -Wno-maybe-uninitialized
 bin/win32/src/xaudio/__ma__.o: CFLAGS += -Wno-maybe-uninitialized
-bin/linux/src/proc/%.o: CFLAGS += -I $(PATH_EXTLIB)reproc/reproc/include -I$(PATH_EXTLIB)reproc/reproc/src
-bin/win32/src/proc/%.o: CFLAGS += -I $(PATH_EXTLIB)reproc/reproc/include -I$(PATH_EXTLIB)reproc/reproc/src
-bin/linux/reproc/reproc/src/%.o: CFLAGS += -Wno-cpp -I $(PATH_EXTLIB)reproc/reproc/include -I$(PATH_EXTLIB)reproc/reproc/src
-bin/win32/reproc/reproc/src/%.o: CFLAGS += -Wno-cpp -I $(PATH_EXTLIB)reproc/reproc/include -I$(PATH_EXTLIB)reproc/reproc/src
+bin/linux/src/proc/%.o: CFLAGS += -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
+bin/win32/src/proc/%.o: CFLAGS += -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
+bin/linux/reproc/reproc/src/%.o: CFLAGS += -Wno-cpp -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
+bin/win32/reproc/reproc/src/%.o: CFLAGS += -Wno-cpp -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
 
 bin/linux/libreproc.a: $(ReProc_Linux_O)
 	@echo "$(PRNT_RSET)[$(PRNT_PRPL)$(notdir $@)$(PRNT_RSET)]"
@@ -107,20 +107,20 @@ define GD_LINUX
 	@gcc -MM $(CFLAGS) $< >> $(@:.o=.d)
 endef
 
-bin/win32/%.o: $(PATH_EXTLIB)%.ttf
+bin/win32/%.o: $(PATH_EXTLIB)/%.ttf
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
 	@$(DataFileCompiler) --cc i686-w64-mingw32.static-gcc --i $< --o $@
 	
-bin/linux/%.o: $(PATH_EXTLIB)%.ttf
+bin/linux/%.o: $(PATH_EXTLIB)/%.ttf
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
 	@$(DataFileCompiler) --cc gcc --i $< --o $@
 
-bin/win32/%.o: $(PATH_EXTLIB)%.c
+bin/win32/%.o: $(PATH_EXTLIB)/%.c
 	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
 	@i686-w64-mingw32.static-gcc -c -o $@ $< $(CFLAGS) -D_WIN32
 	$(GD_WIN32)
 	
-bin/linux/%.o: $(PATH_EXTLIB)%.c
+bin/linux/%.o: $(PATH_EXTLIB)/%.c
 	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
 	@gcc -c -o $@ $< $(CFLAGS)
 	$(GD_LINUX)
