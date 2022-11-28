@@ -40,7 +40,9 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <string.h>
-#include <float.h>
+
+#define FLT_MAX __FLT_MAX__
+#define FLT_MIN __FLT_MIN__
 
 extern PrintfSuppressLevel gPrintfSuppress;
 extern u8 gPrintfProgressing;
@@ -209,6 +211,9 @@ s32 PathIsAbs(const char* item);
 s32 PathIsRel(const char* item);
 char* Enumify(const char* str);
 
+HSL8 Color_GetHSL(f32 r, f32 g, f32 b);
+RGBA8 Color_GetRGBA8(f32 h, f32 s, f32 l);
+RGB8 Color_GetRGB8(f32 h, f32 s, f32 l);
 void Color_ToHSL(HSL8* hsl, RGB8* rgb);
 void Color_ToRGB(RGB8* rgb, HSL8* hsl);
 
@@ -336,7 +341,6 @@ void printf_bit(const char* txt, const void* data, u32 size, u32 dispOffset);
 void printf_nl(void);
 
 f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep);
-f32 Math_Spline_Audio(float k, float xm1, float x0, float x1, float x2);
 f32 Math_Spline(f32 k, f32 xm1, f32 x0, f32 x1, f32 x2);
 void Math_ApproachF(f32* pValue, f32 target, f32 fraction, f32 step);
 void Math_ApproachS(s16* pValue, s16 target, s16 scale, s16 step);

@@ -1767,13 +1767,24 @@ char* Enumify(const char* str) {
 // # COLOR                               #
 // # # # # # # # # # # # # # # # # # # # #
 
-void Color_ToHSL(HSL8* dest, RGB8* src) {
-    f32 r, g, b;
+static f32 hue2rgb(f32 p, f32 q, f32 t) {
+    if (t < 0.0) t += 1;
+    if (t > 1.0) t -= 1;
+    if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t;
+    if (t < 1.0 / 2.0) return q;
+    if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
+    
+    return p;
+}
+
+HSL8 Color_GetHSL(f32 r, f32 g, f32 b) {
+    HSL8 hsl;
+    HSL8* dest = &hsl;
     f32 cmax, cmin, d;
     
-    r = (f32)src->r / 255;
-    g = (f32)src->g / 255;
-    b = (f32)src->b / 255;
+    r /= 255;
+    g /= 255;
+    b /= 255;
     
     cmax = fmax(r, (fmax(g, b)));
     cmin = fmin(r, (fmin(g, b)));
@@ -1794,28 +1805,45 @@ void Color_ToHSL(HSL8* dest, RGB8* src) {
         }
         dest->h /= 6.0;
     }
+    
+    return hsl;
 }
 
-static f32 hue2rgb(f32 p, f32 q, f32 t) {
-    if (t < 0.0) t += 1;
-    if (t > 1.0) t -= 1;
-    if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t;
-    if (t < 1.0 / 2.0) return q;
-    if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
+RGB8 Color_GetRGB8(f32 h, f32 s, f32 l) {
+    RGB8 rgb = { };
     
-    return p;
+    if (s == 0) {
+        rgb.r = rgb.g = rgb.b = l * 255;
+    } else {
+        f32 q = l < 0.5f ? l * (1 + s) : l + s - l * s;
+        f32 p = 2.0f * l - q;
+        rgb.r = hue2rgb(p, q, h + 1.0f / 3.0f) * 255;
+        rgb.g = hue2rgb(p, q, h) * 255;
+        rgb.b = hue2rgb(p, q, h - 1.0f / 3.0f) * 255;
+    }
+    
+    return rgb;
+}
+
+RGBA8 Color_GetRGBA8(f32 h, f32 s, f32 l) {
+    RGBA8 rgb = { .a = 0xFF };
+    RGB8* d = (void*)&rgb;
+    
+    *d = Color_GetRGB8(h, s, l);
+    
+    return rgb;
+}
+
+void Color_ToHSL(HSL8* dest, RGB8* src) {
+    *dest = Color_GetHSL(UnfoldRGB(*src));
 }
 
 void Color_ToRGB(RGB8* dest, HSL8* src) {
-    if (src->s == 0) {
-        dest->r = dest->g = dest->b = src->l;
-    } else {
-        f32 q = src->l < 0.5 ? src->l * (1 + src->s) : src->l + src->s - src->l * src->s;
-        f32 p = 2.0 * src->l - q;
-        dest->r = hue2rgb(p, q, src->h + 1.0 / 3.0) * 255;
-        dest->g = hue2rgb(p, q, src->h) * 255;
-        dest->b = hue2rgb(p, q, src->h - 1.0 / 3.0) * 255;
-    }
+    RGBA8 c = Color_GetRGBA8(src->h, src->s, src->l);
+    
+    dest->r = c.r;
+    dest->g = c.g;
+    dest->b = c.b;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -3161,23 +3189,12 @@ f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minS
     return fabsf(target - *pValue);
 }
 
-f32 Math_Spline_Audio(f32 k, f32 xm1, f32 x0, f32 x1, f32 x2) {
+f32 Math_Spline(f32 k, f32 xm1, f32 x0, f32 x1, f32 x2) {
     f32 a = (3.0f * (x0 - x1) - xm1 + x2) * 0.5f;
     f32 b = 2.0f * x1 + xm1 - (5.0f * x0 + x2) * 0.5f;
     f32 c = (x1 - xm1) * 0.5f;
     
     return (((((a * k) + b) * k) + c) * k) + x0;
-}
-
-f32 Math_Spline(f32 k, f32 xm1, f32 x0, f32 x1, f32 x2) {
-    f32 coeff[4];
-    
-    coeff[0] = (1.0f - k) * (1.0f - k) * (1.0f - k) / 6.0f;
-    coeff[1] = k * k * k / 2.0f - k * k + 2.0f / 3.0f;
-    coeff[2] = -k * k * k / 2.0f + k * k / 2.0f + k / 2.0f + 1.0f / 6.0f;
-    coeff[3] = k * k * k / 6.0f;
-    
-    return (coeff[0] * xm1) + (coeff[1] * x0) + (coeff[2] * x1) + (coeff[3] * x2);
 }
 
 void Math_ApproachF(f32* pValue, f32 target, f32 fraction, f32 step) {

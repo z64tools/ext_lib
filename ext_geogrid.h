@@ -136,7 +136,7 @@ typedef struct {
 
 typedef struct Split {
     struct Split*    next;
-    struct PropEnum* taskEnum;
+    struct PropList* taskEnum;
     struct ElCombo*  taskCombo;
     
     u32 id;
@@ -201,13 +201,14 @@ typedef struct {
     Rect     rectOrigin;
     Rect     rect;
     Vec2s    pos;
-    s32      key;
     struct {
-        s32 init         : 1;
-        s32 setCondition : 1;
-        s32 up           : 2;
+        bool init                 : 1;
+        bool setCondition         : 1;
+        bool blockWidthAdjustment : 1;
+        s32  up                   : 2;
+        s32  side                 : 2;
     } state;
-} DropMenu;
+} ContextMenu;
 
 typedef struct GeoGrid {
     StatusBar bar[2];
@@ -234,30 +235,39 @@ typedef struct GeoGrid {
     void*  vg;
     void*  passArg;
     
-    GeoState state;
-    DropMenu dropMenu;
+    GeoState    state;
+    ContextMenu dropMenu;
 } GeoGrid;
 
 // # # # # # # # # # # # # # # # # # # # #
 // # Elements                            #
 // # # # # # # # # # # # # # # # # # # # #
 
-struct PropEnum;
+struct PropList;
 
-typedef struct PropEnum {
+typedef struct PropList {
     void*  argument;
     char** list;
-    char* (*get)(struct PropEnum*, s32);
-    void (*set)(struct PropEnum*, s32);
+    char* (*get)(struct PropList*, s32);
+    void (*set)(struct PropList*, s32);
     s32 num;
     s32 key;
-} PropEnum;
+    s32 vkey;
+} PropList;
 
 typedef struct PropColor {
     void* argument;
-    void* color;
-    char* (*get)(struct PropColor*);
-    void (*set)(struct PropColor*);
+    f32   hue;
+    Vec2f pos;
+    union {
+        RGBA8* rgba8;
+        RGB8*  rgb8;
+    };
+    struct {
+        bool updateImg  : 1;
+        bool holdLumSat : 1;
+        bool holdHue    : 1;
+    };
 } PropColor;
 
 typedef struct Element {
@@ -270,12 +280,14 @@ typedef struct Element {
     NVGcolor    light;
     NVGcolor    texcol;
     u32 heightAdd;
-    u32 disabled : 1;
-    u32 hover    : 1;
-    u32 press    : 1;
-    u32 toggle   : 2;
-    u32 dispText : 1;
-    u32 header   : 1;
+    struct {
+        bool disabled : 1;
+        bool hover    : 1;
+        bool press    : 1;
+        bool dispText : 1;
+        bool header   : 1;
+        u32  toggle   : 2;
+    };
     
     u32 __pad;
 } Element;
@@ -285,6 +297,11 @@ typedef struct {
     u8      state;
     u8      autoWidth;
 } ElButton;
+
+typedef struct {
+    Element   element;
+    PropColor prop;
+} ElColor;
 
 typedef struct {
     Element   element;
@@ -329,12 +346,12 @@ typedef struct {
 
 typedef struct ElCombo {
     Element   element;
-    PropEnum* prop;
+    PropList* prop;
 } ElCombo;
 
 typedef struct {
     Element     element;
-    PropEnum*   prop;
+    PropList*   prop;
     SplitScroll scroll;
     
     struct {
@@ -364,17 +381,18 @@ void GeoGrid_Init(GeoGrid* geo, Vec2s* wdim, Input* input, void* vg);
 void GeoGrid_Update(GeoGrid* geo);
 void GeoGrid_Draw(GeoGrid* geo);
 
-void DropMenu_Init(GeoGrid* geo, void* uprop, PropType type, Rect rect);
-void DropMenu_Update(GeoGrid* geo);
-void DropMenu_Draw(GeoGrid* geo);
+void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, Rect rect);
+void ContextMenu_Draw(GeoGrid* geo);
+void ContextMenu_Close(GeoGrid* geo);
 
-s32 Element_Button(ElButton * this);
-void Element_Textbox(ElTextbox * this);
+s32 Element_Button(ElButton* this);
+void Element_Color(ElColor* this);
+void Element_Textbox(ElTextbox* this);
 ElText* Element_Text(const char* txt);
-s32 Element_Checkbox(ElCheckbox * this);
-f32 Element_Slider(ElSlider * this);
-s32 Element_Combo(ElCombo * this);
-s32 Element_Container(ElContainer * this);
+s32 Element_Checkbox(ElCheckbox* this);
+f32 Element_Slider(ElSlider* this);
+s32 Element_Combo(ElCombo* this);
+s32 Element_Container(ElContainer* this);
 
 void Element_Separator(bool drawLine);
 typedef enum {
@@ -382,15 +400,16 @@ typedef enum {
     BOX_END,
 } BoxInit;
 void Element_Box(BoxInit io);
-void Element_DisplayName(Element * this);
+void Element_DisplayName(Element* this, f32 lerp);
 
-void Element_Slider_SetParams(ElSlider * this, f32 min, f32 max, char* type);
-void Element_Slider_SetValue(ElSlider * this, f64 val);
-void Element_Button_SetValue(ElButton * this, bool toggle, bool state);
-void Element_Combo_SetPropEnum(ElCombo * this, PropEnum * prop);
-void Element_Container_SetPropEnumAndHeight(ElContainer * this, PropEnum * prop, u32 num);
+void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type);
+void Element_Slider_SetValue(ElSlider* this, f64 val);
+void Element_Button_SetValue(ElButton* this, bool toggle, bool state);
+void Element_Combo_SetPropList(ElCombo* this, PropList* prop);
+void Element_Color_SetColor(ElColor* this, void* color);
+void Element_Container_SetPropList(ElContainer* this, PropList* prop, u32 num);
 
-void Element_Name(Element * this, const char* name);
+void Element_Name(Element* this, const char* name);
 void Element_Disable(Element* element);
 void Element_Enable(Element* element);
 void Element_Condition(Element* element, s32 condition);
@@ -401,21 +420,21 @@ void Element_Header(Split* split, s32 num, ...);
 void Element_Update(GeoGrid* geo);
 void Element_Draw(GeoGrid* geo, Split* split, bool header);
 
-#define Element_Name(el, name)      Element_Name(el.element, name)
-#define Element_Disable(el)         Element_Disable(el.element)
-#define Element_Enable(el)          Element_Enable(el.element)
-#define Element_Condition(el, cond) Element_Condition(el.element, cond)
-#define Element_DisplayName(this)   Element_DisplayName(this.element)
-#define Element_Row(split, ...)     Element_Row(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
-#define Element_Header(split, ...)  Element_Header(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
+#define Element_Name(el, name)          Element_Name(el.element, name)
+#define Element_Disable(el)             Element_Disable(el.element)
+#define Element_Enable(el)              Element_Enable(el.element)
+#define Element_Condition(el, cond)     Element_Condition(el.element, cond)
+#define Element_DisplayName(this, lerp) Element_DisplayName(this.element, lerp)
+#define Element_Row(split, ...)         Element_Row(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
+#define Element_Header(split, ...)      Element_Header(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
 
-PropEnum* PropEnum_Init(s32 defaultVal);
-PropEnum* PropEnum_InitList(s32 def, s32 num, ...);
-void PropEnum_Add(PropEnum * this, char* item);
-void PropEnum_Insert(PropEnum * this, char* item, s32 slot);
-void PropEnum_Remove(PropEnum * this, s32 key);
-void PropEnum_Free(PropEnum * this);
+PropList* PropList_Init(s32 defaultVal);
+PropList* PropList_InitList(s32 def, s32 num, ...);
+void PropList_Add(PropList* this, char* item);
+void PropList_Insert(PropList* this, char* item, s32 slot);
+void PropList_Remove(PropList* this, s32 key);
+void PropList_Free(PropList* this);
 
-#define PropEnum_InitList(default, ...) PropEnum_InitList(default, NARGS(__VA_ARGS__), __VA_ARGS__)
+#define PropList_InitList(default, ...) PropList_InitList(default, NARGS(__VA_ARGS__), __VA_ARGS__)
 
 #endif

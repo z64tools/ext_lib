@@ -192,28 +192,16 @@ static SplitState Split_GetCursorPosState(Split* split, s32 range) {
     return SPLIT_POINT_NONE;
 }
 
-bool Split_CursorInRect(Split* split, Rect* rect) {
-    return Rect_PointIntersect(rect, split->mousePos.x, split->mousePos.y);
-}
-
-bool Split_CursorInSplit(Split* split) {
-    Rect r = split->rect;
-    
-    r.x = r.y = 0;
-    
-    return Rect_PointIntersect(&r, split->mousePos.x, split->mousePos.y);
-}
-
 static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
-    this->taskEnum = PropEnum_Init(this->id);
+    this->taskEnum = PropList_Init(this->id);
     this->taskCombo = Calloc(sizeof(*this->taskCombo));
     
     Assert(this->taskEnum != NULL);
     Assert(this->taskCombo != NULL);
     
     for (s32 i = 0; i < geo->numTaskTable; i++)
-        PropEnum_Add(this->taskEnum, geo->taskTable[i]->taskName);
-    Element_Combo_SetPropEnum(this->taskCombo, this->taskEnum);
+        PropList_Add(this->taskEnum, geo->taskTable[i]->taskName);
+    Element_Combo_SetPropList(this->taskCombo, this->taskEnum);
 }
 
 static Split* Split_Alloc(GeoGrid* geo, s32 id) {
@@ -224,24 +212,6 @@ static Split* Split_Alloc(GeoGrid* geo, s32 id) {
     split->id = id;
     
     Split_SetupTaskEnum(geo, split);
-    
-    return split;
-}
-
-Split* GeoGrid_AddSplit(GeoGrid* geo, Rectf32* rect, s32 id) {
-    Split* split = Split_Alloc(geo, id);
-    
-    split->vtx[VTX_BOT_L] = GeoGrid_AddVtx(geo, rect->x, rect->y + rect->h);
-    split->vtx[VTX_TOP_L] = GeoGrid_AddVtx(geo, rect->x, rect->y);
-    split->vtx[VTX_TOP_R] = GeoGrid_AddVtx(geo, rect->x + rect->w, rect->y);
-    split->vtx[VTX_BOT_R] = GeoGrid_AddVtx(geo, rect->x + rect->w, rect->y + rect->h);
-    
-    split->edge[EDGE_L] = GeoGrid_AddEdge(geo, split->vtx[VTX_BOT_L], split->vtx[VTX_TOP_L]);
-    split->edge[EDGE_T] = GeoGrid_AddEdge(geo, split->vtx[VTX_TOP_L], split->vtx[VTX_TOP_R]);
-    split->edge[EDGE_R] = GeoGrid_AddEdge(geo, split->vtx[VTX_TOP_R], split->vtx[VTX_BOT_R]);
-    split->edge[EDGE_B] = GeoGrid_AddEdge(geo, split->vtx[VTX_BOT_R], split->vtx[VTX_BOT_L]);
-    
-    Node_Add(geo->splitHead, split);
     
     return split;
 }
@@ -442,23 +412,11 @@ static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
     split->edge[dir] = killSplit->edge[dir];
     geo->taskTable[killSplit->id]->destroy(geo->passArg, killSplit->instance, killSplit);
     
-    PropEnum_Free(killSplit->taskEnum);
+    PropList_Free(killSplit->taskEnum);
     Free(killSplit->taskCombo);
     Node_Kill(geo->splitHead, killSplit);
     GeoGrid_RemoveDuplicates(geo);
     Split_UpdateRect(split);
-}
-
-s32 Split_GetCursor(GeoGrid* geo, Split* split, s32 result) {
-    if (
-        geo->state.noClickInput ||
-        !split->mouseInSplit ||
-        split->blockMouse ||
-        split->elemBlockMouse
-    )
-        return 0;
-    
-    return result;
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */
@@ -1150,6 +1108,48 @@ static void GeoGrid_SetBotBarHeight(GeoGrid* geo, s32 h) {
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
+bool Split_CursorInRect(Split* split, Rect* rect) {
+    return Rect_PointIntersect(rect, split->mousePos.x, split->mousePos.y);
+}
+
+bool Split_CursorInSplit(Split* split) {
+    Rect r = split->rect;
+    
+    r.x = r.y = 0;
+    
+    return Rect_PointIntersect(&r, split->mousePos.x, split->mousePos.y);
+}
+
+Split* GeoGrid_AddSplit(GeoGrid* geo, Rectf32* rect, s32 id) {
+    Split* split = Split_Alloc(geo, id);
+    
+    split->vtx[VTX_BOT_L] = GeoGrid_AddVtx(geo, rect->x, rect->y + rect->h);
+    split->vtx[VTX_TOP_L] = GeoGrid_AddVtx(geo, rect->x, rect->y);
+    split->vtx[VTX_TOP_R] = GeoGrid_AddVtx(geo, rect->x + rect->w, rect->y);
+    split->vtx[VTX_BOT_R] = GeoGrid_AddVtx(geo, rect->x + rect->w, rect->y + rect->h);
+    
+    split->edge[EDGE_L] = GeoGrid_AddEdge(geo, split->vtx[VTX_BOT_L], split->vtx[VTX_TOP_L]);
+    split->edge[EDGE_T] = GeoGrid_AddEdge(geo, split->vtx[VTX_TOP_L], split->vtx[VTX_TOP_R]);
+    split->edge[EDGE_R] = GeoGrid_AddEdge(geo, split->vtx[VTX_TOP_R], split->vtx[VTX_BOT_R]);
+    split->edge[EDGE_B] = GeoGrid_AddEdge(geo, split->vtx[VTX_BOT_R], split->vtx[VTX_BOT_L]);
+    
+    Node_Add(geo->splitHead, split);
+    
+    return split;
+}
+
+s32 Split_GetCursor(GeoGrid* geo, Split* split, s32 result) {
+    if (
+        geo->state.noClickInput ||
+        !split->mouseInSplit ||
+        split->blockMouse ||
+        split->elemBlockMouse
+    )
+        return 0;
+    
+    return result;
+}
+
 void GeoGrid_Debug(bool b) {
     sDebugMode = b;
 }
@@ -1160,10 +1160,9 @@ void GeoGrid_TaskTable(GeoGrid* geo, SplitTask** taskTable, u32 num) {
     geo->numTaskTable = num;
 }
 
-extern DataFile gMenloRegular;
-extern DataFile gMenloBold;
-
 void GeoGrid_Init(GeoGrid* geo, Vec2s* wdim, Input* inputCtx, void* vg) {
+    extern DataFile gVera;
+    
     geo->wdim = wdim;
     geo->input = inputCtx;
     geo->vg = vg;
@@ -1171,8 +1170,8 @@ void GeoGrid_Init(GeoGrid* geo, Vec2s* wdim, Input* inputCtx, void* vg) {
     GeoGrid_SetTopBarHeight(geo, SPLIT_BAR_HEIGHT);
     GeoGrid_SetBotBarHeight(geo, SPLIT_BAR_HEIGHT);
     
-    nvgCreateFontMem(vg, "default", gMenloRegular.data, gMenloRegular.size, 0);
-    nvgCreateFontMem(vg, "default-bold", gMenloBold.data, gMenloBold.size, 0);
+    nvgCreateFontMem(vg, "default", gVera.data, gVera.size, 0);
+    nvgCreateFontMem(vg, "default-bold", gVera.data, gVera.size, 0);
     
     geo->prevWorkRect = geo->workRect;
 }
@@ -1217,5 +1216,5 @@ void GeoGrid_Draw(GeoGrid* geo) {
     Split_Draw(geo);
     if (sDebugMode)
         Split_DrawDebug(geo);
-    DropMenu_Draw(geo);
+    ContextMenu_Draw(geo);
 }

@@ -1,12 +1,12 @@
 #include <ext_geogrid.h>
 
 // # # # # # # # # # # # # # # # # # # # #
-// # PropEnum                            #
+// # PropList                            #
 // # # # # # # # # # # # # # # # # # # # #
 
-#undef PropEnum_InitList
+#undef PropList_InitList
 
-static char* PropEnum_Get(PropEnum* this, s32 i) {
+static char* PropList_Get(PropList* this, s32 i) {
     char** list = this->list;
     
     if (i >= this->num) {
@@ -24,49 +24,49 @@ static char* PropEnum_Get(PropEnum* this, s32 i) {
     return list[i];
 }
 
-static void PropEnum_Set(PropEnum* this, s32 i) {
+static void PropList_Set(PropList* this, s32 i) {
     this->key = Clamp(i, 0, this->num - 1);
     
     if (i != this->key)
         Log("Out of range set!");
 }
 
-PropEnum* PropEnum_Init(s32 defaultVal) {
-    PropEnum* this = Calloc(sizeof(PropEnum));
+PropList* PropList_Init(s32 defaultVal) {
+    PropList* this = Calloc(sizeof(PropList));
     
-    this->get = PropEnum_Get;
-    this->set = PropEnum_Set;
+    this->get = PropList_Get;
+    this->set = PropList_Set;
     this->key = defaultVal;
     
     return this;
 }
 
-PropEnum* PropEnum_InitList(s32 def, s32 num, ...) {
-    PropEnum* prop = PropEnum_Init(def);
+PropList* PropList_InitList(s32 def, s32 num, ...) {
+    PropList* prop = PropList_Init(def);
     va_list va;
     
     va_start(va, num);
     
     for (s32 i = 0; i < num; i++)
-        PropEnum_Add(prop, va_arg(va, char*));
+        PropList_Add(prop, va_arg(va, char*));
     
     va_end(va);
     
     return prop;
 }
 
-void PropEnum_Add(PropEnum* this, char* item) {
+void PropList_Add(PropList* this, char* item) {
     this->list = Realloc(this->list, sizeof(char*) * (this->num + 1));
     this->list[this->num++] = StrDup(item);
 }
 
-void PropEnum_Insert(PropEnum* this, char* item, s32 slot) {
+void PropList_Insert(PropList* this, char* item, s32 slot) {
     this->list = Realloc(this->list, sizeof(char*) * (this->num + 1));
     ArrMoveR(this->list, slot, this->num - slot);
     this->list[slot] = StrDup(item);
 }
 
-void PropEnum_Remove(PropEnum* this, s32 key) {
+void PropList_Remove(PropList* this, s32 key) {
     Assert(this->list);
     
     this->num--;
@@ -75,7 +75,7 @@ void PropEnum_Remove(PropEnum* this, s32 key) {
         this->list[i] = this->list[i + 1];
 }
 
-void PropEnum_Free(PropEnum* this) {
+void PropList_Free(PropList* this) {
     if (!this)
         return;
     for (s32 i = 0; i < this->num; i++)

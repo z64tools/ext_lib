@@ -70,4 +70,17 @@ void Interface_Main(AppInfo* app);
 void Interface_Destroy(AppInfo* app);
 SubWindow* Interface_MessageWindow(AppInfo* parentApp, const char* title, const char* message);
 
+#define GUI_INITIALIZE(                             \
+        mainContext, title,                         \
+        width, height, antialias,                   \
+        Update, Draw, DropCallback)                 \
+                                                    \
+    (mainContext)->vg = Interface_Init(             \
+        title,                                      \
+        &(mainContext)->app, &(mainContext)->input, \
+        (mainContext), (void*)Update,               \
+        (void*)Draw, DropCallback,                  \
+        width, height, antialias                    \
+        );
+
 #endif

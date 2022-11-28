@@ -67,6 +67,13 @@ static const char* sFmt[] = {
 // #                                     #
 // # # # # # # # # # # # # # # # # # # # #
 
+void Gfx_SetDefaultTextParams(void* vg) {
+    nvgFontFace(vg, "default");
+    nvgFontSize(vg, SPLIT_TEXT);
+    nvgFontBlur(vg, 0.0);
+    nvgTextLetterSpacing(vg, -0.5f);
+}
+
 void Gfx_Shape(void* vg, Vec2f center, f32 scale, s16 rot, Vec2f* p, u32 num) {
     for (s32 i = 0; i < num; i++) {
         s32 wi = WrapS(i, 0, num - 1);
@@ -127,12 +134,9 @@ void Gfx_DrawRounderRect(void* vg, Rect rect, NVGcolor color) {
 }
 
 void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* txt) {
-    nvgFontFace(vg, "default");
-    nvgFontSize(vg, SPLIT_TEXT);
-    nvgFontBlur(vg, 0.0);
+    Gfx_SetDefaultTextParams(vg);
     nvgTextAlign(vg, align);
     nvgFillColor(vg, col);
-    
     nvgText(
         vg,
         r.x + SPLIT_ELEM_X_PADDING,
@@ -145,9 +149,7 @@ void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* t
 f32 Gfx_TextWidth(void* vg, const char* txt) {
     f32 bounds[4];
     
-    nvgFontFace(vg, "default");
-    nvgFontSize(vg, SPLIT_TEXT);
-    nvgFontBlur(vg, 0.0);
+    Gfx_SetDefaultTextParams(vg);
     nvgTextBounds(vg, 0, 0, txt, 0, bounds);
     
     return bounds[2];
@@ -170,8 +172,6 @@ static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, v
     
     node->elemFunc = elemFunc;
 }
-
-#define Element_QueueElement(geo, split, func, arg) Element_QueueElement(geo, split, func, arg, __FUNCTION__)
 
 static s32 Element_PressCondition(GeoGrid* geo, Split* split, Element* this) {
     if (
@@ -229,11 +229,26 @@ static Rect Container_GetPropRect(ElContainer* container, s32 i) {
     );
 }
 
+void Element_SetContext(GeoGrid* setGeo, Split* setSplit) {
+    gElementState.split = setSplit;
+    gElementState.geo = setGeo;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
-// # Element Draw                        #
+// #                                     #
 // # # # # # # # # # # # # # # # # # # # #
 
-static void Element_Draw_Button(ElementCallInfo* info) {
+#define ELEMENT_TRY_FORCEQUE() if (this->element.disabled || gElementState.geo->state.noClickInput) \
+    goto queue_element;
+#define ELEMENT_QUEUE(draw)    goto queue_element; queue_element: \
+    Element_QueueElement(gElementState.geo, gElementState.split,  \
+        draw, this, __FUNCTION__);
+
+// # # # # # # # # # # # # # # # # # # # #
+// #                                     #
+// # # # # # # # # # # # # # # # # # # # #
+
+static void Element_ButtonDraw(ElementCallInfo* info) {
     void* vg = info->geo->vg;
     ElButton* this = info->arg;
     
@@ -249,26 +264,110 @@ static void Element_Draw_Button(ElementCallInfo* info) {
         f32 width;
         
         nvgScissor(vg, UnfoldRect(this->element.rect));
-        nvgFontFace(vg, "default");
-        nvgFontSize(vg, SPLIT_TEXT);
-        nvgFontBlur(vg, 0.0);
+        Gfx_SetDefaultTextParams(vg);
         nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
         
         width = Gfx_TextWidth(vg, txt);
         
         nvgFillColor(vg, this->element.texcol);
-        nvgText(
-            vg,
+        nvgText(vg,
             this->element.rect.x + ClampMin((this->element.rect.w - width) * 0.5, SPLIT_ELEM_X_PADDING),
             this->element.rect.y + this->element.rect.h * 0.5 + 1,
-            txt,
-            NULL
-        );
+            txt, NULL);
         nvgResetScissor(vg);
     }
 }
 
-static void Element_Draw_Textbox(ElementCallInfo* info) {
+s32 Element_Button(ElButton* this) {
+    void* vg = gElementState.geo->vg;
+    
+    Assert(gElementState.geo && gElementState.split);
+    
+    if (!this->element.toggle)
+        this->state = 0;
+    
+    if (this->autoWidth) {
+        f32 bounds[4] = { 0.0f };
+        
+        nvgFontFace(vg, "default");
+        nvgFontSize(vg, SPLIT_TEXT);
+        nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+        nvgTextBounds(vg, 0, 0, this->element.name, NULL, bounds);
+        
+        this->element.rect.w = bounds[2] + SPLIT_TEXT_PADDING * 2;
+    }
+    
+    ELEMENT_TRY_FORCEQUE();
+    
+    if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
+        if (Input_GetMouse(gElementState.geo->input, MOUSE_L)->press) {
+            this->state ^= 1;
+            if (this->element.toggle)
+                this->element.toggle ^= 0b10;
+        }
+    }
+    
+    ELEMENT_QUEUE(Element_ButtonDraw);
+    
+    return this->state;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+
+static void Element_ColorBoxDraw(ElementCallInfo* info) {
+    void* vg = info->geo->vg;
+    ElColor* this = info->arg;
+    RGB8 color = {
+        0x20, 0x20, 0x20,
+    };
+    
+    if (this->prop.rgb8) {
+        color = *this->prop.rgb8;
+        Gfx_DrawRounderRect(vg, this->element.rect, Theme_Mix(0.10, nvgRGBA(UnfoldRGB(color), 0xFF), this->element.light));
+    } else {
+        Vec2f shape[] = {
+            { 0,    0    }, { 0.6f, 1 },
+            { 0.8f, 1    }, { 0.2f, 0 },
+            { 0,    0    },
+        };
+        
+        Gfx_DrawRounderRect(vg, this->element.rect, Theme_Mix(0.10, nvgRGBA(UnfoldRGB(color), 0xFF), this->element.light));
+        
+        nvgScissor(vg, UnfoldRect(this->element.rect));
+        nvgFillColor(vg, Theme_GetColor(THEME_HIGHLIGHT, 20, 1.f));
+        
+        nvgBeginPath(vg);
+        for (s32 i = -8; i < this->element.rect.w; i += 8)
+            Gfx_Shape(vg, Math_Vec2f_New(this->element.rect.x + i, this->element.rect.y), 20.0f, 0, shape, ArrayCount(shape));
+        
+        nvgFill(vg);
+        nvgResetScissor(vg);
+    }
+    
+    Gfx_DrawRounderOutline(vg, this->element.rect, this->element.light);
+}
+
+void Element_Color(ElColor* this) {
+    this->element.disabled = (this->prop.rgb8 == NULL);
+    
+    ELEMENT_TRY_FORCEQUE();
+    
+    if (this->prop.rgb8) {
+        if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
+            if (Input_GetMouse(gElementState.geo->input, MOUSE_L)->press) {
+                Rect* rect[] = { &gElementState.split->rect, &gElementState.split->headRect };
+                
+                ContextMenu_Init(gElementState.geo, &this->prop, this, PROP_COLOR, Rect_AddPos(this->element.rect, *rect[this->element.header]));
+            }
+        }
+    }
+    
+    ELEMENT_QUEUE(Element_ColorBoxDraw);
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+
+static void Element_TextboxDraw(ElementCallInfo* info) {
     void* vg = info->geo->vg;
     GeoGrid* geo = info->geo;
     Split* split = info->split;
@@ -482,14 +581,36 @@ static void Element_Draw_Textbox(ElementCallInfo* info) {
     );
 }
 
-static void Element_Draw_Text(ElementCallInfo* info) {
+void Element_Textbox(ElTextbox* this) {
+    Assert(gElementState.geo && gElementState.split);
+    
+    ELEMENT_TRY_FORCEQUE();
+    
+    if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
+        if (Input_GetMouse(gElementState.geo->input, MOUSE_L)->press) {
+            if (this != gElementState.curTextbox) {
+                gElementState.ctrlA = 1;
+                this->isHintText = 2;
+                gElementState.posText = 0;
+                gElementState.posSel = strlen(this->txt);
+            }
+            
+            gElementState.curTextbox = this;
+            gElementState.curSplitTextbox = gElementState.split;
+        }
+    }
+    
+    ELEMENT_QUEUE(Element_TextboxDraw);
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+
+static void Element_TextDraw(ElementCallInfo* info) {
     void* vg = info->geo->vg;
     // Split* split = info->split;
     ElText* this = info->arg;
     
-    nvgFontFace(vg, "default");
-    nvgFontSize(vg, SPLIT_TEXT);
-    nvgFontBlur(vg, 0.0);
+    Gfx_SetDefaultTextParams(vg);
     
     if (this->element.disabled == false)
         nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
@@ -526,7 +647,21 @@ static void Element_Draw_Text(ElementCallInfo* info) {
     nvgResetScissor(vg);
 }
 
-static void Element_Draw_Checkbox(ElementCallInfo* info) {
+ElText* Element_Text(const char* txt) {
+    ElText* this = Calloc(sizeof(ElText));
+    
+    Assert(gElementState.geo && gElementState.split);
+    this->element.name = txt;
+    this->element.disabled = false;
+    
+    ELEMENT_QUEUE(Element_TextDraw);
+    
+    return this;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+
+static void Element_CheckboxDraw(ElementCallInfo* info) {
     void* vg = info->geo->vg;
     // Split* split = info->split;
     ElCheckbox* this = info->arg;
@@ -587,7 +722,26 @@ static void Element_Draw_Checkbox(ElementCallInfo* info) {
     nvgFill(vg);
 }
 
-static void Element_Draw_Slider(ElementCallInfo* info) {
+s32 Element_Checkbox(ElCheckbox* this) {
+    Assert(gElementState.geo && gElementState.split);
+    this->element.rect.w = this->element.rect.h;
+    
+    ELEMENT_TRY_FORCEQUE();
+    
+    if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
+        if (Input_GetMouse(gElementState.geo->input, MOUSE_L)->press) {
+            this->element.toggle ^= 1;
+        }
+    }
+    
+    ELEMENT_QUEUE(Element_CheckboxDraw);
+    
+    return this->element.toggle;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+
+static void Element_SliderDraw(ElementCallInfo* info) {
     void* vg = info->geo->vg;
     // Split* split = info->split;
     ElSlider* this = info->arg;
@@ -646,9 +800,7 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
     }
     
     nvgScissor(vg, UnfoldRect(this->element.rect));
-    nvgFontFace(vg, "default");
-    nvgFontSize(vg, SPLIT_TEXT);
-    nvgFontBlur(vg, 0.0);
+    Gfx_SetDefaultTextParams(vg);
     nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
     
     nvgFillColor(vg, this->element.texcol);
@@ -662,256 +814,13 @@ static void Element_Draw_Slider(ElementCallInfo* info) {
     nvgResetScissor(vg);
 }
 
-static void Element_Draw_Combo(ElementCallInfo* info) {
-    ElCombo* this = info->arg;
-    GeoGrid* geo = info->geo;
-    void* vg = geo->vg;
-    PropEnum* prop = this->prop;
-    Rect r = this->element.rect;
-    Vec2f center;
-    Vec2f arrow[] = {
-        { -5.0f, -2.5f  },
-        { 0.0f,  2.5f   },
-        { 5.0f,  -2.5f  },
-        { -5.0f, -2.5f  },
-    };
-    
-    Gfx_DrawRounderOutline(vg, r, this->element.light);
-    Gfx_DrawRounderRect(vg, r, this->element.shadow);
-    
-    r = this->element.rect;
-    
-    if (prop && prop->get(prop, prop->key)) {
-        nvgScissor(vg, UnfoldRect(this->element.rect));
-        nvgFontFace(vg, "default");
-        nvgFontSize(vg, SPLIT_TEXT);
-        nvgFontBlur(vg, 0.0);
-        nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-        
-        if (geo->dropMenu.element == (void*)this)
-            nvgFillColor(vg, this->element.light);
-        
-        else
-            nvgFillColor(vg, this->element.texcol);
-        
-        nvgText(
-            vg,
-            r.x + SPLIT_ELEM_X_PADDING,
-            r.y + r.h * 0.5 + 1,
-            prop->get(prop, prop->key),
-            NULL
-        );
-        nvgResetScissor(vg);
-    }
-    
-    center.x = r.x + r.w - 5 - 5;
-    center.y = r.y + r.h * 0.5f;
-    
-    nvgBeginPath(vg);
-    nvgFillColor(vg, this->element.light);
-    Gfx_Shape(vg, center, 0.95, 0, arrow, ArrayCount(arrow));
-    nvgFill(vg);
-}
-
-static void Element_Draw_Line(ElementCallInfo* info) {
-    Element* this = info->arg;
-    
-    Gfx_DrawRounderOutline(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 255, 1.0f));
-    Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 175, 1.0f));
-    
-    Free(this);
-}
-
-static void Element_Draw_Box(ElementCallInfo* info) {
-    Element* this = info->arg;
-    
-    Gfx_DrawRounderOutline(info->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 45, 1.0f));
-    Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 45, 1.0f));
-    
-    Free(this);
-}
-
-static void Element_Draw_Container(ElementCallInfo* info) {
-    ElContainer* this = info->arg;
-    GeoGrid* geo = info->geo;
-    void* vg = geo->vg;
-    PropEnum* prop = this->prop;
-    Rect r = this->element.rect;
-    Rect scissor = this->element.rect;
-    NVGcolor cornerCol = this->element.shadow;
-    SplitScroll* scroll = &this->scroll;
-    
-    cornerCol.a = 2.5f;
-    Gfx_DrawRounderOutline(vg, r, cornerCol);
-    Gfx_DrawRounderRect(vg, r, this->element.shadow);
-    
-    Math_SmoothStepToF(
-        &scroll->voffset, scroll->offset,
-        0.25f, fabsf(scroll->offset - scroll->voffset) * 0.5f, 0.1f
-    );
-    
-    if (!prop)
-        return;
-    
-    scissor.x += 1;
-    scissor.y += 1;
-    scissor.w -= 2;
-    scissor.h -= 2;
-    
-    nvgScissor(vg, UnfoldRect(scissor));
-    for (s32 i = 0; i < prop->num; i++) {
-        Rect tr = Container_GetPropRect(this, i);
-        
-        if (prop->key == i) {
-            Rect vt = tr;
-            NVGcolor col = this->element.prim;
-            
-            vt.x += 1; vt.w -= 2;
-            vt.y += 1; vt.h -= 2;
-            col.a = 0.85f;
-            
-            Gfx_DrawRounderRect(
-                vg, vt, col
-            );
-        }
-        
-        Gfx_Text(
-            vg, tr, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE,
-            this->element.texcol,
-            prop->get(prop, i)
-        );
-    }
-    nvgResetScissor(vg);
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # Element Update                      #
-// # # # # # # # # # # # # # # # # # # # #
-
-void Element_SetContext(GeoGrid* setGeo, Split* setSplit) {
-    gElementState.split = setSplit;
-    gElementState.geo = setGeo;
-}
-
-// Returns button state, 0bXY, X == toggle, Y == pressed
-s32 Element_Button(ElButton* this) {
-    void* vg = gElementState.geo->vg;
-    
-    Assert(gElementState.geo && gElementState.split);
-    
-    if (!this->element.toggle)
-        this->state = 0;
-    
-    if (this->autoWidth) {
-        f32 bounds[4] = { 0.0f };
-        
-        nvgFontFace(vg, "default");
-        nvgFontSize(vg, SPLIT_TEXT);
-        nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
-        nvgTextBounds(vg, 0, 0, this->element.name, NULL, bounds);
-        
-        this->element.rect.w = bounds[2] + SPLIT_TEXT_PADDING * 2;
-    }
-    
-    if (this->element.disabled || gElementState.geo->state.noClickInput)
-        goto queue_element;
-    
-    if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
-        if (Input_GetMouse(gElementState.geo->input, MOUSE_L)->press) {
-            this->state ^= 1;
-            if (this->element.toggle)
-                this->element.toggle ^= 0b10;
-        }
-    }
-    
-queue_element:
-    Element_QueueElement(
-        gElementState.geo,
-        gElementState.split,
-        Element_Draw_Button,
-        this
-    );
-    
-    return this->state;
-}
-
-void Element_Textbox(ElTextbox* this) {
-    Assert(gElementState.geo && gElementState.split);
-    if (this->element.disabled || gElementState.geo->state.noClickInput)
-        goto queue_element;
-    
-    if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
-        if (Input_GetMouse(gElementState.geo->input, MOUSE_L)->press) {
-            if (this != gElementState.curTextbox) {
-                gElementState.ctrlA = 1;
-                this->isHintText = 2;
-                gElementState.posText = 0;
-                gElementState.posSel = strlen(this->txt);
-            }
-            
-            gElementState.curTextbox = this;
-            gElementState.curSplitTextbox = gElementState.split;
-        }
-    }
-    
-queue_element:
-    Element_QueueElement(
-        gElementState.geo,
-        gElementState.split,
-        Element_Draw_Textbox,
-        this
-    );
-}
-
-// Returns text width
-ElText* Element_Text(const char* txt) {
-    ElText* this = Calloc(sizeof(ElText));
-    
-    Assert(gElementState.geo && gElementState.split);
-    this->element.name = txt;
-    this->element.disabled = false;
-    
-    Element_QueueElement(
-        gElementState.geo,
-        gElementState.split,
-        Element_Draw_Text,
-        this
-    );
-    
-    return this;
-}
-
-s32 Element_Checkbox(ElCheckbox* this) {
-    Assert(gElementState.geo && gElementState.split);
-    this->element.rect.w = this->element.rect.h;
-    
-    if (this->element.disabled || gElementState.geo->state.noClickInput)
-        goto queue_element;
-    
-    if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
-        if (Input_GetMouse(gElementState.geo->input, MOUSE_L)->press) {
-            this->element.toggle ^= 1;
-        }
-    }
-    
-queue_element:
-    Element_QueueElement(
-        gElementState.geo,
-        gElementState.split,
-        Element_Draw_Checkbox,
-        this
-    );
-    
-    return this->element.toggle;
-}
-
 f32 Element_Slider(ElSlider* this) {
     Assert(gElementState.geo && gElementState.split);
+    
     if (this->min == 0.0f && this->max == 0.0f)
         this->max = 1.0f;
     
-    if (this->element.disabled || gElementState.geo->state.noClickInput)
-        goto queue_element;
+    ELEMENT_TRY_FORCEQUE();
     
     if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element) || this->holdState) {
         u32 pos = false;
@@ -989,18 +898,11 @@ f32 Element_Slider(ElSlider* this) {
         if (pos) Element_Slider_SetCursorToVal(gElementState.geo, gElementState.split, this);
     }
     
-queue_element:
+    ELEMENT_QUEUE(Element_SliderDraw);
     this->value = Clamp(this->value, 0.0f, 1.0f);
     
     if (this->isSliding)
         Cursor_SetCursor(CURSOR_EMPTY);
-    
-    Element_QueueElement(
-        gElementState.geo,
-        gElementState.split,
-        Element_Draw_Slider,
-        this
-    );
     
     if (this->isInt)
         return (s32)rint(Lerp(this->value, this->min, this->max));
@@ -1008,11 +910,61 @@ queue_element:
         return Lerp(this->value, this->min, this->max);
 }
 
+// # # # # # # # # # # # # # # # # # # # #
+
+static void Element_ComboDraw(ElementCallInfo* info) {
+    ElCombo* this = info->arg;
+    GeoGrid* geo = info->geo;
+    void* vg = geo->vg;
+    PropList* prop = this->prop;
+    Rect r = this->element.rect;
+    Vec2f center;
+    Vec2f arrow[] = {
+        { -5.0f, -2.5f  },
+        { 0.0f,  2.5f   },
+        { 5.0f,  -2.5f  },
+        { -5.0f, -2.5f  },
+    };
+    
+    Gfx_DrawRounderOutline(vg, r, this->element.light);
+    Gfx_DrawRounderRect(vg, r, this->element.shadow);
+    
+    r = this->element.rect;
+    
+    if (prop && prop->get(prop, prop->key)) {
+        nvgScissor(vg, UnfoldRect(this->element.rect));
+        Gfx_SetDefaultTextParams(vg);
+        nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+        
+        if (geo->dropMenu.element == (void*)this)
+            nvgFillColor(vg, this->element.light);
+        
+        else
+            nvgFillColor(vg, this->element.texcol);
+        
+        nvgText(
+            vg,
+            r.x + SPLIT_ELEM_X_PADDING,
+            r.y + r.h * 0.5 + 1,
+            prop->get(prop, prop->key),
+            NULL
+        );
+        nvgResetScissor(vg);
+    }
+    
+    center.x = r.x + r.w - 5 - 5;
+    center.y = r.y + r.h * 0.5f;
+    
+    nvgBeginPath(vg);
+    nvgFillColor(vg, this->element.light);
+    Gfx_Shape(vg, center, 0.95, 0, arrow, ArrayCount(arrow));
+    nvgFill(vg);
+}
+
 s32 Element_Combo(ElCombo* this) {
     Assert(gElementState.geo && gElementState.split);
     
-    if (this->element.disabled || gElementState.geo->state.noClickInput)
-        goto queue_element;
+    ELEMENT_TRY_FORCEQUE();
     
     Log("PROP %X", this->prop);
     if (this->prop && this->prop->num) {
@@ -1020,28 +972,12 @@ s32 Element_Combo(ElCombo* this) {
             s32 scrollY = Clamp(gElementState.geo->input->mouse.scrollY, -1, 1);
             
             if (Input_GetMouse(gElementState.geo->input, MOUSE_L)->press) {
-                gElementState.geo->dropMenu.element = (void*)this;
+                Rect* rect[] = {
+                    &gElementState.split->rect,
+                    &gElementState.split->headRect
+                };
                 
-                if (this->element.header)
-                    DropMenu_Init(
-                        gElementState.geo,
-                        this->prop,
-                        PROP_ENUM,
-                        Rect_AddPos(
-                            this->element.rect,
-                            gElementState.split->headRect
-                        )
-                    );
-                else
-                    DropMenu_Init(
-                        gElementState.geo,
-                        this->prop,
-                        PROP_ENUM,
-                        Rect_AddPos(
-                            this->element.rect,
-                            gElementState.split->rect
-                        )
-                    );
+                ContextMenu_Init(gElementState.geo, this->prop, this, PROP_ENUM, Rect_AddPos(this->element.rect, *rect[this->element.header]));
             }
             
             if (scrollY)
@@ -1049,19 +985,68 @@ s32 Element_Combo(ElCombo* this) {
         }
     }
     
-queue_element:
-    Element_QueueElement(
-        gElementState.geo,
-        gElementState.split,
-        Element_Draw_Combo,
-        this
-    );
+    ELEMENT_QUEUE(Element_ComboDraw);
     
     if (this->prop)
         return this->prop->key;
     
     else
         return 0;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+
+static void Element_ContainerDraw(ElementCallInfo* info) {
+    ElContainer* this = info->arg;
+    GeoGrid* geo = info->geo;
+    void* vg = geo->vg;
+    PropList* prop = this->prop;
+    Rect r = this->element.rect;
+    Rect scissor = this->element.rect;
+    NVGcolor cornerCol = this->element.shadow;
+    SplitScroll* scroll = &this->scroll;
+    
+    cornerCol.a = 2.5f;
+    Gfx_DrawRounderOutline(vg, r, cornerCol);
+    Gfx_DrawRounderRect(vg, r, this->element.shadow);
+    
+    Math_SmoothStepToF(
+        &scroll->voffset, scroll->offset,
+        0.25f, fabsf(scroll->offset - scroll->voffset) * 0.5f, 0.1f
+    );
+    
+    if (!prop)
+        return;
+    
+    scissor.x += 1;
+    scissor.y += 1;
+    scissor.w -= 2;
+    scissor.h -= 2;
+    
+    nvgScissor(vg, UnfoldRect(scissor));
+    for (s32 i = 0; i < prop->num; i++) {
+        Rect tr = Container_GetPropRect(this, i);
+        
+        if (prop->key == i) {
+            Rect vt = tr;
+            NVGcolor col = this->element.prim;
+            
+            vt.x += 1; vt.w -= 2;
+            vt.y += 1; vt.h -= 2;
+            col.a = 0.85f;
+            
+            Gfx_DrawRounderRect(
+                vg, vt, col
+            );
+        }
+        
+        Gfx_Text(
+            vg, tr, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE,
+            this->element.texcol,
+            prop->get(prop, i)
+        );
+    }
+    nvgResetScissor(vg);
 }
 
 s32 Element_Container(ElContainer* this) {
@@ -1076,8 +1061,8 @@ s32 Element_Container(ElContainer* this) {
         scroll->max = SPLIT_TEXT_H * this->prop->num - this->element.rect.h;
         scroll->max = ClampMin(scroll->max, 0);
         
-        if (this->element.disabled || gElementState.geo->state.noClickInput)
-            goto queue_element;
+        ELEMENT_TRY_FORCEQUE();
+        
         if (!Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
             this->pressed = false;
             
@@ -1103,22 +1088,25 @@ s32 Element_Container(ElContainer* this) {
         }
     }
     
-queue_element:
-    
+    ELEMENT_QUEUE(Element_ContainerDraw);
     scroll->offset = Clamp(scroll->offset, 0, scroll->max);
-    
-    Element_QueueElement(
-        gElementState.geo,
-        gElementState.split,
-        Element_Draw_Container,
-        this
-    );
     
     if (this->prop)
         return this->prop->key;
     
     else
         return 0;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+
+static void Element_SeparatorDraw(ElementCallInfo* info) {
+    Element* this = info->arg;
+    
+    Gfx_DrawRounderOutline(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 255, 1.0f));
+    Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 175, 1.0f));
+    
+    Free(this);
 }
 
 void Element_Separator(bool drawLine) {
@@ -1138,10 +1126,21 @@ void Element_Separator(bool drawLine) {
         
         gElementState.rowY += SPLIT_ELEM_X_PADDING;
         
-        Element_QueueElement(gElementState.geo, gElementState.split, Element_Draw_Line, this);
+        ELEMENT_QUEUE(Element_SeparatorDraw);
     } else {
         gElementState.rowY += SPLIT_ELEM_X_PADDING * 2;
     }
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+
+static void Element_BoxDraw(ElementCallInfo* info) {
+    Element* this = info->arg;
+    
+    Gfx_DrawRounderOutline(info->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 45, 1.0f));
+    Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 45, 1.0f));
+    
+    Free(this);
 }
 
 void Element_Box(BoxInit io) {
@@ -1167,7 +1166,8 @@ void Element_Box(BoxInit io) {
         gElementState.rowX += SPLIT_ELEM_X_PADDING;
         gElementState.split->rect.w -= SPLIT_ELEM_X_PADDING * 2;
         
-        Element_QueueElement(gElementState.geo, gElementState.split, Element_Draw_Box, THIS);
+        Element_QueueElement(gElementState.geo, gElementState.split,
+            Element_BoxDraw, THIS, __FUNCTION__);
         
         BOX_PUSH();
     }
@@ -1186,9 +1186,11 @@ void Element_Box(BoxInit io) {
 #undef BoxPop
 }
 
-void Element_DisplayName(Element* this) {
+// # # # # # # # # # # # # # # # # # # # #
+
+void Element_DisplayName(Element* this, f32 lerp) {
     ElementCallInfo* node;
-    s32 w = this->rect.w * 0.25f;
+    s32 w = this->rect.w * lerp;
     
     Assert(gElementState.geo && gElementState.split);
     
@@ -1204,7 +1206,7 @@ void Element_DisplayName(Element* this) {
     Node_Add(gElementState.head, node);
     node->geo = gElementState.geo;
     node->split = gElementState.split;
-    node->func = Element_Draw_Text;
+    node->func = Element_TextDraw;
     node->arg = this;
     node->elemFunc = "Element_DisplayName";
     node->update = false;
@@ -1233,11 +1235,15 @@ void Element_Button_SetValue(ElButton* this, bool toggle, bool state) {
     this->state = state;
 }
 
-void Element_Combo_SetPropEnum(ElCombo* this, PropEnum* prop) {
+void Element_Combo_SetPropList(ElCombo* this, PropList* prop) {
     this->prop = prop;
 }
 
-void Element_Container_SetPropEnumAndHeight(ElContainer* this, PropEnum* prop, u32 num) {
+void Element_Color_SetColor(ElColor* this, void* color) {
+    this->prop.rgb8 = color;
+}
+
+void Element_Container_SetPropList(ElContainer* this, PropList* prop, u32 num) {
     this->prop = prop;
     this->element.heightAdd = SPLIT_TEXT_H * ClampMin(num - 3, 0);
 }

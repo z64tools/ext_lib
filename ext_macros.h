@@ -178,6 +178,10 @@
 #define TIME_I() Time_Start(45)
 #define TIME_O() printf_info("%s %d: %.3fs", __FUNCTION__, __LINE__, Time_Get(45))
 
+#define UnfoldRGB(color)  (color).r, (color).g, (color).b
+#define UnfoldRGBA(color) (color).r, (color).g, (color).b, (color).a
+#define UnfoldHSL(color)  (color).h, (color).s, (color).l
+
 #define New(type)              Calloc(sizeof(type))
 #define SleepF(sec)            usleep((u32)((f32)(sec) * 1000 * 1000))
 #define SleepS(sec)            sleep(sec)
