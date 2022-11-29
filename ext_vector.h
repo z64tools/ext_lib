@@ -246,7 +246,6 @@ static inline Vec3f* Math_CalcUpFromPitchYawRoll(Vec3f* dest, s16 pitch, s16 yaw
 static inline f32 Math_DelSmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep) {
     step *= gDeltaTime;
     minStep *= gDeltaTime;
-    fraction *= gDeltaTime;
     
     if (*pValue != target) {
         f32 stepSize = (target - *pValue) * fraction;
@@ -286,36 +285,26 @@ static inline f32 Math_DelSmoothStepToF(f32* pValue, f32 target, f32 fraction, f
 static inline f64 Math_DelSmoothStepToD(f64* pValue, f64 target, f64 fraction, f64 step, f64 minStep) {
     step *= gDeltaTime;
     minStep *= gDeltaTime;
-    fraction *= gDeltaTime;
     
     if (*pValue != target) {
         f64 stepSize = (target - *pValue) * fraction;
         
-        if ((stepSize >= minStep) || (stepSize <= -minStep)) {
-            if (stepSize > step) {
-                stepSize = step;
-            }
-            
-            if (stepSize < -step) {
-                stepSize = -step;
-            }
-            
-            *pValue += stepSize;
-        } else {
+        if ((stepSize >= minStep) || (stepSize <= -minStep))
+            *pValue += Clamp(stepSize, -step, step);
+        
+        else {
             if (stepSize < minStep) {
                 *pValue += minStep;
                 stepSize = minStep;
                 
-                if (target < *pValue) {
+                if (target < *pValue)
                     *pValue = target;
-                }
             }
             if (stepSize > -minStep) {
                 *pValue += -minStep;
                 
-                if (*pValue < target) {
+                if (*pValue < target)
                     *pValue = target;
-                }
             }
         }
     }
@@ -330,29 +319,20 @@ static inline s16 Math_SmoothStepToS(s16* pValue, s16 target, s16 scale, s16 ste
     if (*pValue != target) {
         stepSize = diff / scale;
         
-        if ((stepSize > minStep) || (stepSize < -minStep)) {
-            if (stepSize > step) {
-                stepSize = step;
-            }
-            
-            if (stepSize < -step) {
-                stepSize = -step;
-            }
-            
-            *pValue += stepSize;
-        } else {
+        if ((stepSize > minStep) || (stepSize < -minStep))
+            *pValue += Clamp(stepSize, -step, step);
+        
+        else {
             if (diff >= 0) {
                 *pValue += minStep;
                 
-                if ((s16)(target - *pValue) <= 0) {
+                if ((s16)(target - *pValue) <= 0)
                     *pValue = target;
-                }
             } else {
                 *pValue -= minStep;
                 
-                if ((s16)(target - *pValue) >= 0) {
+                if ((s16)(target - *pValue) >= 0)
                     *pValue = target;
-                }
             }
         }
     }

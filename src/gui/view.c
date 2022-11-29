@@ -40,12 +40,12 @@ static void Camera_FlyMode(View3D* this, Input* inputCtx) {
         
         if (inputCtx->key[KEY_LEFT_SHIFT].hold) {
             step *= 4;
-            Math_DelSmoothStepToF(&cam->speed, cam->speedMod * 4 * gDeltaTime, 0.25f, 1.00f, 0.1f);
+            Math_DelSmoothStepToF(&cam->speed, cam->speedMod * 4, 0.25f, 1.00f, 0.1f);
         } else if (inputCtx->key[KEY_SPACE].hold) {
             step *= 8;
-            Math_DelSmoothStepToF(&cam->speed, cam->speedMod * 8 * gDeltaTime, 0.25f, 1.00f, 0.1f);
+            Math_DelSmoothStepToF(&cam->speed, cam->speedMod * 8, 0.25f, 1.00f, 0.1f);
         } else {
-            Math_DelSmoothStepToF(&cam->speed, cam->speedMod * gDeltaTime, 0.25f, 1.00f, 0.1f);
+            Math_DelSmoothStepToF(&cam->speed, cam->speedMod, 0.25f, 1.00f, 0.1f);
         }
         
         if (inputCtx->key[KEY_A].hold || inputCtx->key[KEY_D].hold) {
@@ -75,15 +75,15 @@ static void Camera_FlyMode(View3D* this, Input* inputCtx) {
             Math_DelSmoothStepToF(&cam->vel.y, 0, 0.25f, step, min);
         }
         
-        if (Input_GetMouse(inputCtx, MOUSE_L)->hold) {
+        if (Input_GetMouse(inputCtx, CLICK_L)->hold) {
             const Vec3f up = { 0, 1, 0 };
             f32 dot = Math_Vec3f_Dot(cam->up, up);
             s32 s = dot >= 0.0f ? 1 : -1;
             
             dot = powf(fabsf(dot), 0.5f) * s;
             
-            cam->pitch = (s32)(cam->pitch + inputCtx->mouse.vel.y * 55.5f);
-            cam->yaw = (s32)(cam->yaw - inputCtx->mouse.vel.x * 55.5f * dot);
+            cam->pitch = (s32)(cam->pitch + inputCtx->cursor.vel.y * 55.5f);
+            cam->yaw = (s32)(cam->yaw - inputCtx->cursor.vel.x * 55.5f * dot);
         }
     } else {
         Math_DelSmoothStepToF(&cam->speed, 0.5f, 0.5f, 1.00f, 0.1f);
@@ -134,29 +134,29 @@ static void Camera_OrbitMode(View3D* this, Input* inputCtx) {
     f32 fovDiff = fabsf(this->fovy - this->fovyTarget);
     
     if (this->cameraControl) {
-        if (inputCtx->key[KEY_LEFT_CONTROL].hold && inputCtx->mouse.clickMid.hold && inputCtx->mouse.scrollY == 0)
-            cam->targetDist += inputCtx->mouse.vel.y;
+        if (inputCtx->key[KEY_LEFT_CONTROL].hold && inputCtx->cursor.clickMid.hold && Input_GetScroll(inputCtx) == 0)
+            cam->targetDist += inputCtx->cursor.vel.y;
         
-        if (inputCtx->mouse.clickMid.hold || inputCtx->mouse.scrollY || disdiff || fovDiff) {
-            if (inputCtx->key[KEY_LEFT_CONTROL].hold && inputCtx->mouse.scrollY) {
+        if (inputCtx->cursor.clickMid.hold || Input_GetScroll(inputCtx) || disdiff || fovDiff) {
+            if (inputCtx->key[KEY_LEFT_CONTROL].hold && Input_GetScroll(inputCtx)) {
                 cam->targetDist = cam->dist;
-                this->fovyTarget = Clamp(this->fovyTarget * (1.0 + (inputCtx->mouse.scrollY / 20)), 30, 120);
+                this->fovyTarget = Clamp(this->fovyTarget * (1.0 + (Input_GetScroll(inputCtx) / 20)), 30, 120);
                 fovDiff = -this->fovy;
             } else {
-                if (inputCtx->mouse.scrollY) {
-                    cam->targetDist -= inputCtx->mouse.scrollY * distMult * 0.75f;
+                if (Input_GetScroll(inputCtx)) {
+                    cam->targetDist -= Input_GetScroll(inputCtx) * distMult * 0.75f;
                 }
                 
                 cam->targetDist = ClampMin(cam->targetDist, 1.0f);
             }
             
-            if (inputCtx->mouse.clickMid.hold) {
+            if (inputCtx->cursor.clickMid.hold) {
                 if (inputCtx->key[KEY_LEFT_SHIFT].hold) {
-                    cam->offset.y += inputCtx->mouse.vel.y * distMult * 0.01f;
-                    cam->offset.x += inputCtx->mouse.vel.x * distMult * 0.01f;
+                    cam->offset.y += inputCtx->cursor.vel.y * distMult * 0.01f;
+                    cam->offset.x += inputCtx->cursor.vel.x * distMult * 0.01f;
                 } else if (inputCtx->key[KEY_LEFT_CONTROL].hold == false) {
-                    cam->yaw -= inputCtx->mouse.vel.x * 67;
-                    cam->pitch += inputCtx->mouse.vel.y * 67;
+                    cam->yaw -= inputCtx->cursor.vel.x * 67;
+                    cam->pitch += inputCtx->cursor.vel.y * 67;
                 }
             }
         }
@@ -210,7 +210,7 @@ static void Camera_CalculateMove(Camera* cam, f32 x, f32 y, f32 z) {
 static void Camera_UpdateMoveTo(View3D* this, Input* input) {
     Camera* cam = this->currentCamera;
     
-    if (this->moveToTarget && input->mouse.clickL.hold == false) {
+    if (this->moveToTarget) {
         Vec3f p = this->targetPos;
         
         f32 x = Math_DelSmoothStepToF(&this->targetPos.x, 0, 0.25f, this->targetStep, 0.001f);
@@ -313,7 +313,7 @@ static void Camera_UpdateSwapTo(View3D* this, Input* input) {
             this->ortho ^= true;
     }
     
-    if (this->flagSwapTo && input->mouse.click.hold == false) {
+    if (this->flagSwapTo) {
         s16 x = Math_SmoothStepToS(&cam->pitch, this->rotSwapTo.x, 3, DegToBin(45), 1);
         s16 z = Math_SmoothStepToS(&cam->yaw, this->rotSwapTo.y, 3, DegToBin(45), 1);
         s16 y = Math_SmoothStepToS(&cam->roll, this->rotSwapTo.z, 3, DegToBin(45), 1);
@@ -412,9 +412,9 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
 // # # # # # # # # # # # # # # # # # # # #
 
 bool View_CheckControlKeys(Input* input) {
-    if (Input_GetMouse(input, MOUSE_L)->hold)
+    if (Input_GetMouse(input, CLICK_L)->hold)
         return true;
-    if (Input_GetMouse(input, MOUSE_M)->hold)
+    if (Input_GetMouse(input, CLICK_M)->hold)
         return true;
     if (Input_GetKey(input, KEY_W)->hold)
         return true;
@@ -431,7 +431,7 @@ bool View_CheckControlKeys(Input* input) {
     for (s32 i = KEY_KP_0; i <= KEY_KP_9; i++)
         if (Input_GetKey(input, i)->hold)
             return true;
-    if (input->mouse.scrollY)
+    if (Input_GetScroll(input))
         return true;
     
     return false;
@@ -462,6 +462,13 @@ void View_MoveTo(View3D* this, Vec3f pos) {
     this->targetPos = Math_Vec3f_Sub(pos, this->currentCamera->at);
     this->moveToTarget = true;
     this->targetStep = Math_Vec3f_DistXYZ(pos, this->currentCamera->at) * 0.25f;
+}
+
+void View_RotTo(View3D* this, Vec3s rot) {
+    this->rotSwapTo.x = rot.x;
+    this->rotSwapTo.y = rot.y;
+    this->rotSwapTo.z = rot.z;
+    this->flagSwapTo = true;
 }
 
 Vec3f View_OrientDirToView(View3D* this, Vec3f dir) {

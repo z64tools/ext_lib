@@ -129,10 +129,10 @@ static s32 Split_CursorDistToFlagPos(SplitState flag, Split* split) {
     /*
      * Manipulate distance check based on the flag so that we get the
      * distance always to the point or line we need. For points we
-     * utilize both mouse positions, for sides (edge) we utilize only
+     * utilize both cursor positions, for sides (edge) we utilize only
      * one axis that makes sense for the direction of that side.
      */
-    Vec2s mouse[] = {
+    Vec2s cursor[] = {
         { split->mousePos.x, split->mousePos.y, }, /* SPLIT_POINT_BL */
         { split->mousePos.x, split->mousePos.y, }, /* SPLIT_POINT_TL */
         { split->mousePos.x, split->mousePos.y, }, /* SPLIT_POINT_TR */
@@ -156,7 +156,7 @@ static s32 Split_CursorDistToFlagPos(SplitState flag, Split* split) {
     
     i = bitscan32(flag);
     
-    return Math_Vec2s_DistXZ(mouse[i], pos[i]);
+    return Math_Vec2s_DistXZ(cursor[i], pos[i]);
 }
 
 static SplitState Split_GetCursorPosState(Split* split, s32 range) {
@@ -291,7 +291,7 @@ static void Split_ClearActionSplit(GeoGrid* geo) {
 
 static void Split_Split(GeoGrid* geo, Split* split, SplitDir dir) {
     Split* newSplit;
-    f64 splitPos = (dir == DIR_L || dir == DIR_R) ? geo->input->mouse.pos.x : geo->input->mouse.pos.y;
+    f64 splitPos = (dir == DIR_L || dir == DIR_R) ? geo->input->cursor.pos.x : geo->input->cursor.pos.y;
     
     newSplit = Split_Alloc(geo, split->id);
     Node_Add(geo->splitHead, newSplit);
@@ -352,8 +352,11 @@ static void Split_Split(GeoGrid* geo, Split* split, SplitDir dir) {
     geo->actionEdge = newSplit->edge[dir];
     GeoGrid_RemoveDuplicates(geo);
     Edge_SetSlideClamp(geo);
+#if 0
+    // @notice: Possibly not needed but might be something required
     Split_UpdateRect(split);
     Split_UpdateRect(newSplit);
+#endif
     Log("Done");
 }
 
@@ -416,7 +419,10 @@ static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
     Free(killSplit->taskCombo);
     Node_Kill(geo->splitHead, killSplit);
     GeoGrid_RemoveDuplicates(geo);
+#if 0
+    // @notice: Possibly not needed but might be something required
     Split_UpdateRect(split);
+#endif
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */
@@ -593,10 +599,10 @@ static void Edge_SetSlide(GeoGrid* geo) {
             
             if (geo->slide.clampMax - SPLIT_CLAMP > geo->slide.clampMin + SPLIT_CLAMP) {
                 if (edge->state & EDGE_HORIZONTAL) {
-                    edge->pos = geo->input->mouse.pos.y;
+                    edge->pos = geo->input->cursor.pos.y;
                 }
                 if (edge->state & EDGE_VERTICAL) {
-                    edge->pos = geo->input->mouse.pos.x;
+                    edge->pos = geo->input->cursor.pos.x;
                 }
                 edge->pos = ClampMin(edge->pos, geo->slide.clampMin + SPLIT_CLAMP);
                 edge->pos = ClampMax(edge->pos, geo->slide.clampMax - SPLIT_CLAMP);
@@ -630,7 +636,7 @@ static void Edge_SetSlide(GeoGrid* geo) {
 static void Edge_Update(GeoGrid* geo) {
     SplitEdge* edge = geo->edgeHead;
     
-    if (!Input_GetMouse(geo->input, MOUSE_ANY)->hold)
+    if (!Input_GetMouse(geo->input, CLICK_ANY)->hold)
         geo->actionEdge = NULL;
     
     while (edge) {
@@ -660,7 +666,7 @@ static void Edge_Update(GeoGrid* geo) {
 static void Split_UpdateActionSplit(GeoGrid* geo) {
     Split* split = geo->actionSplit;
     
-    if (Input_GetMouse(geo->input, MOUSE_ANY)->press) {
+    if (Input_GetMouse(geo->input, CLICK_ANY)->press) {
         SplitState tempStateA = Split_GetCursorPosState(split, SPLIT_GRAB_DIST);
         SplitState tempStateB = Split_GetCursorPosState(split, SPLIT_GRAB_DIST * 3);
         
@@ -685,7 +691,7 @@ static void Split_UpdateActionSplit(GeoGrid* geo) {
         }
     }
     
-    if (Input_GetMouse(geo->input, MOUSE_ANY)->hold) {
+    if (Input_GetMouse(geo->input, CLICK_ANY)->hold) {
         if (split->state & SPLIT_POINTS) {
             s32 dist = Math_Vec2s_DistXZ(split->mousePos, split->mousePressPos);
             SplitDir dir = GeoGrid_GetDir_MouseToPressPos(split);
@@ -746,7 +752,7 @@ static void Split_UpdateRect(Split* split) {
     
     split->headRect.x = split->rect.x;
     split->headRect.y = split->rect.y + split->rect.h;
-    split->headRect.h = SPLIT_ELEM_Y_PADDING + 4;
+    split->headRect.h = split->dispRect.h - split->rect.h;
     split->headRect.w = split->rect.w;
 }
 
@@ -765,12 +771,12 @@ static void Split_SwapInstance(GeoGrid* geo, Split* split) {
     geo->taskTable[split->id]->init(geo->passArg, split->instance, split);
 }
 
-static void Split_UpdateScroll(Split* split, MouseInput* mouse) {
+static void Split_UpdateScroll(Split* split, CursorInput* cursor) {
     SplitScroll* scroll = &split->scroll;
     
     if (split->scroll.enabled) {
         if (split->mouseInSplit) {
-            s32 val = Clamp(mouse->scrollY, -1, 1);
+            s32 val = Clamp(cursor->scrollY, -1, 1);
             
             scroll->offset = scroll->offset + SPLIT_ELEM_Y_PADDING * -val;
         }
@@ -782,11 +788,11 @@ static void Split_UpdateScroll(Split* split, MouseInput* mouse) {
 
 static void Split_Update(GeoGrid* geo) {
     Split* split = geo->splitHead;
-    MouseInput* mouse = &geo->input->mouse;
+    CursorInput* cursor = &geo->input->cursor;
     
     Cursor_SetCursor(CURSOR_DEFAULT);
     
-    if (geo->actionSplit != NULL && mouse->cursorAction == false)
+    if (geo->actionSplit != NULL && cursor->cursorAction == false)
         Split_ClearActionSplit(geo);
     
     while (split) {
@@ -794,18 +800,18 @@ static void Split_Update(GeoGrid* geo) {
         Vec2s rectPos = { split->rect.x, split->rect.y };
         SplitTask** table = geo->taskTable;
         
-        split->mousePos = Math_Vec2s_Sub(mouse->pos, rectPos);
-        split->mouseInSplit = Rect_PointIntersect(&split->rect, mouse->pos.x, mouse->pos.y);
-        split->mouseInDispRect = Rect_PointIntersect(&split->dispRect, mouse->pos.x, mouse->pos.y);
-        split->mouseInHeader = Rect_PointIntersect(&split->headRect, mouse->pos.x, mouse->pos.y);
+        split->mousePos = Math_Vec2s_Sub(cursor->pos, rectPos);
+        split->mouseInSplit = Rect_PointIntersect(&split->rect, cursor->pos.x, cursor->pos.y);
+        split->mouseInDispRect = Rect_PointIntersect(&split->dispRect, cursor->pos.x, cursor->pos.y);
+        split->mouseInHeader = Rect_PointIntersect(&split->headRect, cursor->pos.x, cursor->pos.y);
         split->blockMouse = false;
         
-        Split_UpdateScroll(split, mouse);
+        Split_UpdateScroll(split, cursor);
         
-        if (mouse->click.press)
+        if (cursor->clickAny.press)
             split->mousePressPos = split->mousePos;
         
-        if (geo->state.noSplit != true) {
+        if (!geo->state.noSplit) {
             
             if (split->mouseInDispRect) {
                 SplitState splitRangeState = Split_GetCursorPosState(split, SPLIT_GRAB_DIST * 3) & SPLIT_POINTS;
@@ -823,8 +829,8 @@ static void Split_Update(GeoGrid* geo) {
                 split->blockMouse = splitRangeState + slideRangeState;
             }
             
-            if (geo->actionSplit == NULL && split->mouseInDispRect && mouse->cursorAction) {
-                if (mouse->click.press)
+            if (geo->actionSplit == NULL && split->mouseInDispRect && cursor->cursorAction) {
+                if (cursor->clickAny.press)
                     geo->actionSplit = split;
             }
             
@@ -844,6 +850,9 @@ static void Split_Update(GeoGrid* geo) {
         Log("Run Split ID %d Update Func", split->id);
         Element_SetContext(geo, split);
         table[split->id]->update(geo->passArg, split->instance, split);
+        if (Element_Box(BOX_GET_NUM) != 0) {
+            printf_error("Element_Box Overflow in Split: "PRNT_YELW "[%d] [%s]", split->id, table[split->id]->taskName);
+        }
         
         for (s32 i = 0; i < 4; i++) {
             Assert(split->edge[i] != NULL);
@@ -1000,8 +1009,11 @@ static void Split_Draw(GeoGrid* geo) {
             nvgBeginPath(vg);
             nvgRect(vg, 0, 0, split->dispRect.w, split->dispRect.h);
             
-            if (split->bg.useCustomBG == true)
+            if (split->bg.useCustomColor)
                 nvgFillColor(vg, nvgRGBA(split->bg.color.r, split->bg.color.g, split->bg.color.b, 255));
+            
+            else if (split->bg.useCustomPaint)
+                nvgFillPaint(vg, split->bg.paint);
             
             else
                 nvgFillPaint(vg, nvgBoxGradient(vg, UnfoldRect(r), SPLIT_ROUND_R, 8.0f, Theme_GetColor(THEME_BASE, 255, 1.0f), Theme_GetColor(THEME_BASE, 255, 0.8f)));

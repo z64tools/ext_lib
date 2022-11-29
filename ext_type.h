@@ -7,6 +7,9 @@
 #include <pthread.h>
 #include <stdbool.h>
 
+#define FLT_MAX __FLT_MAX__
+#define FLT_MIN __FLT_MIN__
+
 #pragma GCC diagnostic ignored "-Wscalar-storage-order"
 #define StructBE     __attribute__((scalar_storage_order("big-endian")))
 #define StructPacked __attribute__ ((packed))

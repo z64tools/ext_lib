@@ -10,6 +10,10 @@
 #include "ext_geogrid.h"
 #include "ext_collision.h"
 
+extern bool gTick;
+extern const f64 gNativeFPS;
+extern ThreadLocal bool gLimitFPS;
+
 struct MessageWindow;
 
 typedef void (*CallbackFunc)(void*);
@@ -50,9 +54,6 @@ typedef struct MessageWindow {
 
 AppInfo* GetAppInfo(void* window);
 void* GetUserCtx(void* window);
-
-extern const f64 gNativeFPS;
-extern ThreadLocal bool gLimitFPS;
 
 void* Interface_Init(
     const char* title,

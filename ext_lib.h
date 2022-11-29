@@ -41,9 +41,6 @@
 #include <stdarg.h>
 #include <string.h>
 
-#define FLT_MAX __FLT_MAX__
-#define FLT_MIN __FLT_MIN__
-
 extern PrintfSuppressLevel gPrintfSuppress;
 extern u8 gPrintfProgressing;
 

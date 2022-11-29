@@ -78,6 +78,7 @@ bool View_CheckControlKeys(Input* input);
 RayLine View_GetPointRayLine(View3D * this, Vec2f point);
 RayLine View_GetCursorRayLine(View3D * this);
 void View_MoveTo(View3D * this, Vec3f pos);
+void View_RotTo(View3D* this, Vec3s rot);
 Vec3f View_OrientDirToView(View3D * this, Vec3f dir);
 Vec2f View_GetScreenPos(View3D * this, Vec3f point);
 bool View_PointInScreen(View3D * this, Vec3f point);

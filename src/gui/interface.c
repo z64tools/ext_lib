@@ -4,9 +4,10 @@
 #define NANOVG_GL3_IMPLEMENTATION
 #include <nanovg/src/nanovg_gl.h>
 
+bool gTick;
 const f64 gNativeFPS = 60;
-ThreadLocal static bool gPrevLimitFPS;
 ThreadLocal bool gLimitFPS = true;
+ThreadLocal static bool sPrevLimitFPS;
 
 AppInfo* GetAppInfo(void* window) {
     return glfwGetWindowUserPointer(window);
@@ -123,6 +124,8 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
 }
 
 void Interface_Main(AppInfo* app) {
+    static f32 tickMod;
+    
     while (!glfwWindowShouldClose(app->window)) {
         Profiler_I(0xF0);
         Time_Start(0xF0);
@@ -135,11 +138,17 @@ void Interface_Main(AppInfo* app) {
         Profiler_O(0xF0);
         
         glfwSwapBuffers(app->window);
-        if (gPrevLimitFPS != gLimitFPS)
+        if (sPrevLimitFPS != gLimitFPS)
             glfwSwapInterval(gLimitFPS);
-        gPrevLimitFPS = gLimitFPS;
+        sPrevLimitFPS = gLimitFPS;
         
         gDeltaTime = Time_Get(0xF0) / (1.0 / gNativeFPS);
+        
+        tickMod += gDeltaTime;
+        if (tickMod >= 1.0f) {
+            tickMod = WrapF(tickMod, 0.0f, 1.0f);
+            gTick = true;
+        } else gTick = false;
     }
     
     app->state |= APP_CLOSED;

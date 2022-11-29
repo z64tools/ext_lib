@@ -215,12 +215,15 @@
 #ifdef __clang__
 #define Block(type, name, args) \
     type (^ name) args = ^ type args
+#define BlockDecl(type, name, args) \
+    type (^ name) args
 #define BlockVar(var) typeof(var) var
 
 #else
 #define Block(type, name, args) \
     type name args
-#define BlockVar(var)
+#define BlockDecl(type, name, args) (void)0
+#define BlockVar(var)               (void)0
 #endif
 
 #define FOPEN(file, mode) ({                                    \

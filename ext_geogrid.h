@@ -153,8 +153,10 @@ typedef struct Split {
     Vec2s mousePressPos;
     
     struct {
-        u32  useCustomBG : 1;
-        RGB8 color;
+        bool     useCustomColor : 1;
+        bool     useCustomPaint : 1;
+        RGB8     color;
+        NVGpaint paint;
     } bg;
     
     void* instance;
@@ -183,18 +185,12 @@ typedef struct {
     s32       size;
 } SplitTask;
 
-typedef struct {
-    u32 noSplit;
-    u32 noClickInput;
-    u32 cleanVtx : 1;
-} GeoState;
-
 typedef enum {
     PROP_ENUM,
     PROP_COLOR,
 } PropType;
 
-typedef struct {
+typedef struct ContextMenu {
     struct Element* element;
     void*    prop;
     PropType type;
@@ -235,15 +231,17 @@ typedef struct GeoGrid {
     void*  vg;
     void*  passArg;
     
-    GeoState    state;
-    ContextMenu dropMenu;
+    struct {
+        s32  noSplit;
+        s32  noClickInput;
+        bool cleanVtx : 1;
+    } state;
+    struct ContextMenu dropMenu;
 } GeoGrid;
 
 // # # # # # # # # # # # # # # # # # # # #
-// # Elements                            #
+// # Prop                                #
 // # # # # # # # # # # # # # # # # # # # #
-
-struct PropList;
 
 typedef struct PropList {
     void*  argument;
@@ -270,6 +268,15 @@ typedef struct PropColor {
     };
 } PropColor;
 
+// # # # # # # # # # # # # # # # # # # # #
+// # Elements                            #
+// # # # # # # # # # # # # # # # # # # # #
+
+typedef struct {
+    Vec2f* pos;
+    u32    num;
+} VectorGfx;
+
 typedef struct Element {
     Rect        rect;
     Vec2f       posTxt;
@@ -286,6 +293,7 @@ typedef struct Element {
         bool press    : 1;
         bool dispText : 1;
         bool header   : 1;
+        bool doFree   : 1;
         u32  toggle   : 2;
     };
     
@@ -293,9 +301,11 @@ typedef struct Element {
 } Element;
 
 typedef struct {
-    Element element;
-    u8      state;
-    u8      autoWidth;
+    Element    element;
+    VectorGfx* icon;
+    TextAlign  align;
+    u8 state;
+    u8 autoWidth;
 } ElButton;
 
 typedef struct {
@@ -336,11 +346,13 @@ typedef struct {
     f32 min;
     f32 max;
     
-    u8 isSliding : 1;
-    u8 isInt     : 1;
-    u8 holdState : 1;
+    struct {
+        bool isInt     : 1;
+        bool isSliding : 1;
+        bool holdState : 1;
+        bool isTextbox : 1;
+    };
     
-    s32       isTextbox;
     ElTextbox textBox;
 } ElSlider;
 
@@ -363,7 +375,11 @@ extern Vec2f gZeroVec2f;
 extern Vec2s gZeroVec2s;
 extern Rect gZeroRect;
 
-void Gfx_Shape(void* vg, Vec2f center, f32 scale, s16 rot, Vec2f* p, u32 num);
+VectorGfx VectorGfx_New(VectorGfx* this, const void* data, f32 fidelity);
+void VectorGfx_Free(VectorGfx* this);
+
+void Gfx_Shape(void* vg, Vec2f center, f32 scale, s16 rot, const Vec2f* p, u32 num);
+void Gfx_Vector(void* vg, Vec2f center, f32 scale, s16 rot, const VectorGfx* gfx);
 void Gfx_DrawRounderOutline(void* vg, Rect rect, NVGcolor color);
 void Gfx_DrawRounderRect(void* vg, Rect rect, NVGcolor color);
 void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* txt);
@@ -398,8 +414,9 @@ void Element_Separator(bool drawLine);
 typedef enum {
     BOX_START,
     BOX_END,
+    BOX_GET_NUM,
 } BoxInit;
-void Element_Box(BoxInit io);
+s32 Element_Box(BoxInit io);
 void Element_DisplayName(Element* this, f32 lerp);
 
 void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type);
@@ -410,9 +427,9 @@ void Element_Color_SetColor(ElColor* this, void* color);
 void Element_Container_SetPropList(ElContainer* this, PropList* prop, u32 num);
 
 void Element_Name(Element* this, const char* name);
-void Element_Disable(Element* element);
-void Element_Enable(Element* element);
-void Element_Condition(Element* element, s32 condition);
+Element* Element_Disable(Element* element);
+Element* Element_Enable(Element* element);
+Element* Element_Condition(Element* element, s32 condition);
 void Element_RowY(f32 y);
 void Element_Row(Split* split, s32 rectNum, ...);
 void Element_Header(Split* split, s32 num, ...);
@@ -420,11 +437,11 @@ void Element_Header(Split* split, s32 num, ...);
 void Element_Update(GeoGrid* geo);
 void Element_Draw(GeoGrid* geo, Split* split, bool header);
 
-#define Element_Name(el, name)          Element_Name(el.element, name)
-#define Element_Disable(el)             Element_Disable(el.element)
-#define Element_Enable(el)              Element_Enable(el.element)
-#define Element_Condition(el, cond)     Element_Condition(el.element, cond)
-#define Element_DisplayName(this, lerp) Element_DisplayName(this.element, lerp)
+#define Element_Name(this, name)        Element_Name(&(this)->element, name)
+#define Element_Disable(this)           Element_Disable(&(this)->element)
+#define Element_Enable(this)            Element_Enable(&(this)->element)
+#define Element_Condition(this, cond)   Element_Condition(&(this)->element, cond)
+#define Element_DisplayName(this, lerp) Element_DisplayName(&(this)->element, lerp)
 #define Element_Row(split, ...)         Element_Row(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
 #define Element_Header(split, ...)      Element_Header(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
 

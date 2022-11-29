@@ -5,7 +5,7 @@
 // # ContextMenu                            #
 // # # # # # # # # # # # # # # # # # # # #
 
-static void DropProp_InitEnum(GeoGrid* geo, ContextMenu* this) {
+static void ContextProp_List_Init(GeoGrid* geo, ContextMenu* this) {
     PropList* prop = this->prop;
     
     nvgFontFace(geo->vg, "default");
@@ -28,10 +28,10 @@ static void DropProp_InitEnum(GeoGrid* geo, ContextMenu* this) {
     this->state.setCondition = false;
 };
 
-static void DropProp_DrawEnum(GeoGrid* geo, ContextMenu* this) {
+static void ContextProp_List_Draw(GeoGrid* geo, ContextMenu* this) {
     PropList* prop = this->prop;
     f32 height = SPLIT_ELEM_X_PADDING;
-    MouseInput* mouse = &geo->input->mouse;
+    CursorInput* cursor = &geo->input->cursor;
     void* vg = geo->vg;
     Rect r = this->rect;
     
@@ -41,10 +41,10 @@ static void DropProp_DrawEnum(GeoGrid* geo, ContextMenu* this) {
         r.y = this->rect.y + height;
         r.h = SPLIT_TEXT_H;
         
-        if (Rect_PointIntersect(&r, mouse->pos.x, mouse->pos.y) && prop->get(prop, i)) {
+        if (Rect_PointIntersect(&r, cursor->pos.x, cursor->pos.y) && prop->get(prop, i)) {
             prop->vkey = i;
             
-            if (Input_GetMouse(geo->input, MOUSE_L)->press)
+            if (Input_GetMouse(geo->input, CLICK_L)->press)
                 this->state.setCondition = true;
         }
         
@@ -74,12 +74,12 @@ static void DropProp_DrawEnum(GeoGrid* geo, ContextMenu* this) {
     }
 }
 
-static void DropProp_InitColor(GeoGrid* geo, ContextMenu* this) {
+static void ContextProp_Init_Draw(GeoGrid* geo, ContextMenu* this) {
     this->rect.h = this->rect.w = 256;
     this->state.blockWidthAdjustment = true;
 }
 
-static void DropProp_DrawColor(GeoGrid* geo, ContextMenu* this) {
+static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     typedef struct {
         RGBA8* c;
         s32    id;
@@ -91,7 +91,7 @@ static void DropProp_DrawColor(GeoGrid* geo, ContextMenu* this) {
     void* vg = geo->vg;
     Rect r = this->rect;
     Input* input = geo->input;
-    MouseInput* mouse = &geo->input->mouse;
+    CursorInput* cursor = &geo->input->cursor;
     
     r.x += 2;
     r.y += 2;
@@ -115,23 +115,23 @@ static void DropProp_DrawColor(GeoGrid* geo, ContextMenu* this) {
         prop->pos.y = InvF(color.l);
     } else {
         if ((
-                Rect_PointIntersect(&rectLumSat, mouse->pos.x, mouse->pos.y) &&
-                Input_GetMouse(input, MOUSE_L)->press
+                Rect_PointIntersect(&rectLumSat, cursor->pos.x, cursor->pos.y) &&
+                Input_GetMouse(input, CLICK_L)->press
             ) || ( prop->holdLumSat )) {
-            Vec2s relPos = Math_Vec2s_Sub(mouse->pos, (Vec2s) { rectLumSat.x, rectLumSat.y });
+            Vec2s relPos = Math_Vec2s_Sub(cursor->pos, (Vec2s) { rectLumSat.x, rectLumSat.y });
             
             prop->pos.x = Clamp((f32)relPos.x / rectLumSat.w, 0, 1);
             prop->pos.y = Clamp((f32)relPos.y / rectLumSat.h, 0, 1);
-            prop->holdLumSat = Input_GetMouse(input, MOUSE_L)->hold;
+            prop->holdLumSat = Input_GetMouse(input, CLICK_L)->hold;
         }
         if ((
-                Rect_PointIntersect(&rectHue, mouse->pos.x, mouse->pos.y) &&
-                Input_GetMouse(input, MOUSE_L)->press
+                Rect_PointIntersect(&rectHue, cursor->pos.x, cursor->pos.y) &&
+                Input_GetMouse(input, CLICK_L)->press
             ) || ( prop->holdHue )) {
-            Vec2s relPos = Math_Vec2s_Sub(mouse->pos, (Vec2s) { rectHue.x, rectHue.y });
+            Vec2s relPos = Math_Vec2s_Sub(cursor->pos, (Vec2s) { rectHue.x, rectHue.y });
             
             prop->hue = Clamp((f32)relPos.x / rectHue.w, 0, 1);
-            prop->holdHue = Input_GetMouse(input, MOUSE_L)->hold;
+            prop->holdHue = Input_GetMouse(input, CLICK_L)->hold;
         }
     }
     
@@ -212,8 +212,8 @@ static void DropProp_DrawColor(GeoGrid* geo, ContextMenu* this) {
 #define FUNC_DRAW 1
 
 void (*sContextMenuFuncs[][2])(GeoGrid*, ContextMenu*) = {
-    [PROP_ENUM] =  { DropProp_InitEnum,  DropProp_DrawEnum  },
-    [PROP_COLOR] = { DropProp_InitColor, DropProp_DrawColor },
+    [PROP_ENUM] =  { ContextProp_List_Init, ContextProp_List_Draw  },
+    [PROP_COLOR] = { ContextProp_Init_Draw, ContextProp_Color_Draw },
 };
 
 void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, Rect rect) {
@@ -226,11 +226,11 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, R
     this->prop = uprop;
     this->type = type;
     this->rectOrigin = rect;
-    this->pos = geo->input->mouse.pressPos;
+    this->pos = geo->input->cursor.pressPos;
     
     geo->state.noClickInput++;
     geo->state.noSplit++;
-    this->pos = geo->input->mouse.pos;
+    this->pos = geo->input->cursor.pos;
     this->state.up = -1;
     this->state.side = 1;
     this->state.init = true;
@@ -255,7 +255,7 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, R
 
 void ContextMenu_Draw(GeoGrid* geo) {
     ContextMenu* this = &geo->dropMenu;
-    MouseInput* mouse = &geo->input->mouse;
+    CursorInput* cursor = &geo->input->cursor;
     void* vg = geo->vg;
     
     if (this->prop == NULL)
@@ -282,13 +282,13 @@ void ContextMenu_Draw(GeoGrid* geo) {
         return;
     }
     
-    if (Rect_PointDistance(&this->rect, mouse->pos.x, mouse->pos.y) > 0 &&
-        Input_GetMouse(geo->input, MOUSE_ANY)->press) {
+    if (Rect_PointDistance(&this->rect, cursor->pos.x, cursor->pos.y) > 0 &&
+        Input_GetMouse(geo->input, CLICK_ANY)->press) {
         ContextMenu_Close(geo);
         return;
     }
     
-    if (this->state.setCondition || Rect_PointDistance(&this->rect, mouse->pos.x, mouse->pos.y) > 64) {
+    if (this->state.setCondition || Rect_PointDistance(&this->rect, cursor->pos.x, cursor->pos.y) > 64) {
         if (this->state.setCondition) {
             switch (this->type) {
                 case PROP_ENUM: (void)0;

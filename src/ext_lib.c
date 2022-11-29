@@ -31,7 +31,7 @@
 #define stdlog stderr
 
 f32 EPSILON = 0.0000001f;
-f32 gDeltaTime;
+f32 gDeltaTime = 1.0f;
 
 // # # # # # # # # # # # # # # # # # # # #
 // # THREAD                              #

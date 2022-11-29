@@ -4,139 +4,138 @@ void Input_Init(Input* input, AppInfo* app) {
     input->app = app;
 }
 
-void Input_Update(Input* input) {
-    MouseInput* mouse = &input->mouse;
-    ThreadLocal static u32 timer;
+void Input_Update(Input* this) {
+    CursorInput* cursor = &this->cursor;
     f64 x, y;
     
-    glfwGetCursorPos(input->app->window, &x, &y);
-    mouse->vel.x = x - mouse->pos.x;
-    mouse->vel.y = y - mouse->pos.y;
-    mouse->pos.x = x;
-    mouse->pos.y = y;
+    glfwGetCursorPos(this->app->window, &x, &y);
+    cursor->vel.x = x - cursor->pos.x;
+    cursor->vel.y = y - cursor->pos.y;
+    cursor->pos.x = x;
+    cursor->pos.y = y;
     
-    input->keyAction = false;
+    this->keyAction = false;
     for (s32 i = 0; i < KEY_MAX; i++) {
-        input->key[i].press = (input->key[i].prev == 0 && input->key[i].hold);
-        input->key[i].release = (input->key[i].prev && input->key[i].hold == 0);
-        input->key[i].prev = input->key[i].hold;
-        if (input->key[i].hold)
-            input->keyAction = true;
+        this->key[i].press = (this->key[i].prev == 0 && this->key[i].hold);
+        this->key[i].release = (this->key[i].prev && this->key[i].hold == 0);
+        this->key[i].prev = this->key[i].hold;
+        if (this->key[i].hold)
+            this->keyAction = true;
     }
     
-    for (s32 i = 0; i < 3; i++) {
-        mouse->clickArray[i].press = (mouse->clickArray[i].prev == 0 && mouse->clickArray[i].hold);
-        mouse->clickArray[i].release = (mouse->clickArray[i].prev && mouse->clickArray[i].hold == 0);
-        mouse->clickArray[i].prev = mouse->clickArray[i].hold;
+    for (s32 i = 0; i < CLICK_ANY; i++) {
+        cursor->clickList[i].press = (cursor->clickList[i].prev == 0 && cursor->clickList[i].hold);
+        cursor->clickList[i].release = (cursor->clickList[i].prev && cursor->clickList[i].hold == 0);
+        cursor->clickList[i].prev = cursor->clickList[i].hold;
     }
     
-    mouse->click.press = (
-        mouse->clickL.press ||
-        mouse->clickR.press ||
-        mouse->clickMid.press
+    for (s32 i = 0; i < CURSOR_ACTION_MAX; i++) {
+        cursor->clickList[CLICK_ANY].__action[i] = (
+            cursor->clickList[CLICK_L].__action[i] ||
+            cursor->clickList[CLICK_R].__action[i] ||
+            cursor->clickList[CLICK_M].__action[i]
+        );
+    }
+    
+    if (cursor->clickAny.press) {
+        cursor->pressPos.x = cursor->pos.x;
+        cursor->pressPos.y = cursor->pos.y;
+    }
+    
+    cursor->cursorAction = (cursor->clickAny.press || cursor->clickAny.hold || cursor->scrollY) && !this->state.block;
+    
+    for (s32 i = 0; i < CLICK_ANY; i++) {
+        InputType* click = &this->cursor.clickList[i];
+        
+        click->dual = false;
+        if (Decr(click->__timer) > 0) {
+            if (Math_Vec2s_DistXZ(cursor->pos, cursor->pressPos) > 4) {
+                click->__timer = 0;
+            } else if (click->press) {
+                click->__timer = true;
+                click->__timer = 0;
+            }
+        } else if (click->press)
+            click->__timer = 30;
+    }
+    
+    cursor->clickAny.dual = (
+        cursor->clickL.dual ||
+        cursor->clickR.dual ||
+        cursor->clickMid.dual
     );
     
-    mouse->click.hold = (
-        mouse->clickL.hold ||
-        mouse->clickR.hold ||
-        mouse->clickMid.hold
-    );
-    
-    mouse->click.release = (
-        mouse->clickL.release ||
-        mouse->clickR.release ||
-        mouse->clickMid.release
-    );
-    
-    mouse->cursorAction = (
-        mouse->click.press ||
-        mouse->click.hold ||
-        mouse->scrollY
-    );
-    
-    if (mouse->click.press) {
-        mouse->pressPos.x = mouse->pos.x;
-        mouse->pressPos.y = mouse->pos.y;
-    }
-    
-    mouse->doubleClick = false;
-    if (Decr(timer) > 0) {
-        if (Math_Vec2s_DistXZ(mouse->pos, mouse->pressPos) > 4) {
-            timer = 0;
-        } else if (mouse->clickL.press) {
-            mouse->doubleClick = true;
-            timer = 0;
-        }
-    }
-    
-    if (mouse->clickL.press) {
-        timer = 30;
-    }
-    
-    if (Input_GetKey(input, KEY_ESCAPE)->release)
-        glfwSetWindowShouldClose(input->app->window, true);
-    
-    if (mouse->click.press)
-        mouse->vel = Math_Vec2s_New(0, 0);
+    if (cursor->clickAny.press)
+        cursor->vel = Math_Vec2s_New(0, 0);
 }
 
-void Input_End(Input* input) {
-    MouseInput* mouse = &input->mouse;
+void Input_End(Input* this) {
+    CursorInput* cursor = &this->cursor;
     s32 i = 0;
     
-    mouse->scrollY = 0;
-    mouse->vel = Math_Vec2s_New(0, 0);
+    cursor->scrollY = 0;
+    cursor->vel = Math_Vec2s_New(0, 0);
     
-    while (input->buffer[i] != '\0')
-        input->buffer[i++] = '\0';
+    while (this->buffer[i] != '\0')
+        this->buffer[i++] = '\0';
 }
 
-const char* Input_GetClipboardStr(Input* input) {
-    return glfwGetClipboardString(input->app->window);
+const char* Input_GetClipboardStr(Input* this) {
+    return glfwGetClipboardString(this->app->window);
 }
 
-void Input_SetClipboardStr(Input* input, char* str) {
-    glfwSetClipboardString(input->app->window, str);
+void Input_SetClipboardStr(Input* this, char* str) {
+    glfwSetClipboardString(this->app->window, str);
 }
 
-InputType* Input_GetKey(Input* input, KeyMap key) {
+InputType* Input_GetKey(Input* this, KeyMap key) {
     static InputType zero;
     
-    if (input->state.keyBlock)
+    if (this->state.block)
         return &zero;
     
-    return &input->key[key];
+    return &this->key[key];
 }
 
-InputType* Input_GetMouse(Input* input, MouseMap type) {
-    return &input->mouse.clickArray[type];
+InputType* Input_GetMouse(Input* this, CursorClick type) {
+    static InputType zero;
+    
+    if (this->state.block)
+        return &zero;
+    
+    return &this->cursor.clickList[type];
 }
 
-s32 Input_GetShortcut(Input* input, KeyMap mod, KeyMap key) {
-    if (input->key[mod].hold && input->key[key].press)
+f32 Input_GetScroll(Input* this) {
+    if (this->state.block)
+        return 0;
+    
+    return this->cursor.scrollY;
+}
+
+s32 Input_GetShortcut(Input* this, KeyMap mod, KeyMap key) {
+    if (this->key[mod].hold && this->key[key].press)
         return 1;
     
     return 0;
 }
 
-void Input_SetMousePos(Input* input, s32 x, s32 y) {
+void Input_SetMousePos(Input* this, s32 x, s32 y) {
     if (x == MOUSE_KEEP_AXIS)
-        x = input->mouse.pos.x;
+        x = this->cursor.pos.x;
     
     if (y == MOUSE_KEEP_AXIS)
-        y = input->mouse.pos.y;
+        y = this->cursor.pos.y;
     
-    for (s32 i = 0; i < 10; i++) {
-        glfwSetCursorPos(input->app->window, x, y);
-        input->mouse.__setCounter++;
-    }
+    for (s32 i = 0; i < 10; i++)
+        glfwSetCursorPos(this->app->window, x, y);
     
-    input->mouse.pos.x = x;
-    input->mouse.pos.y = y;
+    this->cursor.pos.x = x;
+    this->cursor.pos.y = y;
 }
 
-f32 Input_GetPressPosDist(Input* input) {
-    return Math_Vec2s_DistXZ(input->mouse.pos, input->mouse.pressPos);
+f32 Input_GetPressPosDist(Input* this) {
+    return Math_Vec2s_DistXZ(this->cursor.pos, this->cursor.pressPos);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -144,53 +143,53 @@ f32 Input_GetPressPosDist(Input* input) {
 // # # # # # # # # # # # # # # # # # # # #
 
 void InputCallback_Key(GLFWwindow* window, s32 key, s32 scancode, s32 action, s32 mods) {
-    Input* input = GetAppInfo(window)->input;
+    Input* this = GetAppInfo(window)->input;
     
-    input->key[key].hold = action != 0;
+    this->key[key].hold = action != 0;
 }
 
 void InputCallback_Text(GLFWwindow* window, u32 scancode) {
-    Input* input = GetAppInfo(window)->input;
+    Input* this = GetAppInfo(window)->input;
     
     if (!(scancode & 0xFFFFFF00)) {
         if (scancode > 0x7F) {
             printf("\a");
         } else {
-            strcat(input->buffer, xFmt("%c", (char)scancode));
+            strcat(this->buffer, xFmt("%c", (char)scancode));
         }
     }
 }
 
 void InputCallback_Mouse(GLFWwindow* window, s32 button, s32 action, s32 mods) {
-    Input* input = GetAppInfo(window)->input;
-    MouseInput* mouse = &input->mouse;
+    Input* this = GetAppInfo(window)->input;
+    CursorInput* cursor = &this->cursor;
     
     switch (button) {
         case GLFW_MOUSE_BUTTON_RIGHT:
-            mouse->clickR.hold = action != 0;
+            cursor->clickR.hold = action != 0;
             break;
             
         case GLFW_MOUSE_BUTTON_LEFT:
-            mouse->clickL.hold = action != 0;
+            cursor->clickL.hold = action != 0;
             break;
         case GLFW_MOUSE_BUTTON_MIDDLE:
-            mouse->clickMid.hold = action != 0;
+            cursor->clickMid.hold = action != 0;
     }
 }
 
 void InputCallback_MousePos(GLFWwindow* window, f64 x, f64 y) {
     // Input* input = GetAppInfo(window)->input;
-    // MouseInput* mouse = &input->mouse;
+    // CursorInput* cursor = &input->cursor;
     
-    // mouse->vel.x += x - mouse->pos.x;
-    // mouse->vel.y += y - mouse->pos.y;
-    // mouse->pos.x = x;
-    // mouse->pos.y = y;
+    // cursor->vel.x += x - cursor->pos.x;
+    // cursor->vel.y += y - cursor->pos.y;
+    // cursor->pos.x = x;
+    // cursor->pos.y = y;
 }
 
 void InputCallback_Scroll(GLFWwindow* window, f64 x, f64 y) {
-    Input* input = GetAppInfo(window)->input;
-    MouseInput* mouse = &input->mouse;
+    Input* this = GetAppInfo(window)->input;
+    CursorInput* cursor = &this->cursor;
     
-    mouse->scrollY += y;
+    cursor->scrollY += y;
 }

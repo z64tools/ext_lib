@@ -133,46 +133,57 @@ typedef enum {
 } KeyMap;
 
 typedef enum {
-    MOUSE_L,
-    MOUSE_R,
-    MOUSE_M,
-    MOUSE_ANY,
-} MouseMap;
+    CLICK_L,
+    CLICK_R,
+    CLICK_M,
+    CLICK_ANY,
+    CLICK_MAX
+} CursorClick;
 
-typedef struct {
-    u8 press   : 1;
-    u8 hold    : 1;
-    u8 prev    : 1;
-    u8 release : 1;
+typedef enum {
+    CURSOR_ACTION_PRESS,
+    CURSOR_ACTION_HOLD,
+    CURSOR_ACTION_RELEASE,
+    CURSOR_ACTION_DOUBLE,
+    CURSOR_ACTION_MAX,
+} CursorAction;
+
+typedef union {
+    struct {
+        bool press;
+        bool hold;
+        bool prev;
+        bool release;
+        bool dual;
+        u8   __timer;
+    };
+    bool __action[CURSOR_ACTION_MAX];
 } InputType;
 
 typedef struct {
-    Vec2s pos;
-    Vec2s prevPos;
-    Vec2s vel;
-    f64   scrollY;
     union {
         struct {
             InputType clickL;
             InputType clickR;
             InputType clickMid;
-            InputType click;
+            InputType clickAny;
         };
-        InputType clickArray[4];
+        InputType clickList[CLICK_MAX];
     };
-    s32   doubleClick;
-    Vec2s pressPos;
     bool  cursorAction;
-    u8    __setCounter;
-} MouseInput;
+    f64   scrollY;
+    Vec2s pos;
+    Vec2s pressPos;
+    Vec2s vel;
+} CursorInput;
 
 typedef struct {
     struct AppInfo* app;
-    MouseInput      mouse;
+    CursorInput     cursor;
     InputType       key[KEY_MAX];
     bool keyAction;
     struct {
-        s32 keyBlock;
+        s32 block;
     } state;
     char buffer[512];
 } Input;
@@ -185,7 +196,8 @@ void Input_End(Input* input);
 const char* Input_GetClipboardStr(Input* input);
 void Input_SetClipboardStr(Input* input, char* str);
 InputType* Input_GetKey(Input* input, KeyMap key);
-InputType* Input_GetMouse(Input* input, MouseMap type);
+InputType* Input_GetMouse(Input* input, CursorClick type);
+f32 Input_GetScroll(Input* this);
 s32 Input_GetShortcut(Input* input, KeyMap mod, KeyMap key);
 void Input_SetMousePos(Input* input, s32 x, s32 y);
 f32 Input_GetPressPosDist(Input* input);
