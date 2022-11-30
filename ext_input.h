@@ -175,11 +175,11 @@ typedef struct {
     Vec2s pos;
     Vec2s pressPos;
     Vec2s vel;
-} CursorInput;
+} Cursor;
 
 typedef struct {
     struct AppInfo* app;
-    CursorInput     cursor;
+    Cursor     cursor;
     InputType       key[KEY_MAX];
     bool keyAction;
     struct {

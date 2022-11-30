@@ -34,10 +34,10 @@ typedef struct {
     CursorIndex  cursorNow;
     CursorIndex  cursorSet;
     CursorIndex  cursorForce;
-} Cursor;
+} CursorIcon;
 
 void Cursor_CreateCursor(CursorIndex id,  const u8* data, s32 size, s32 xcent, s32 ycent);
-void Cursor_Init(Cursor* cursor, struct AppInfo* app);
+void Cursor_Init(CursorIcon* cursor, struct AppInfo* app);
 void Cursor_Update();
 void Cursor_SetCursor(CursorIndex id);
 void Cursor_ForceCursor(CursorIndex id);

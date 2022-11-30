@@ -455,7 +455,7 @@ RayLine View_GetCursorRayLine(View3D* this) {
     
     this->usePreCalcRay = true;
     
-    return this->ray = View_GetPointRayLine(this, Math_Vec2f_New(UnfoldVec2(this->split->mousePos)));
+    return this->ray = View_GetPointRayLine(this, Math_Vec2f_New(UnfoldVec2(this->split->cursorPos)));
 }
 
 void View_MoveTo(View3D* this, Vec3f pos) {

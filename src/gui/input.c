@@ -5,7 +5,7 @@ void Input_Init(Input* input, AppInfo* app) {
 }
 
 void Input_Update(Input* this) {
-    CursorInput* cursor = &this->cursor;
+    Cursor* cursor = &this->cursor;
     f64 x, y;
     
     glfwGetCursorPos(this->app->window, &x, &y);
@@ -52,7 +52,7 @@ void Input_Update(Input* this) {
             if (Math_Vec2s_DistXZ(cursor->pos, cursor->pressPos) > 4) {
                 click->__timer = 0;
             } else if (click->press) {
-                click->__timer = true;
+                click->dual = true;
                 click->__timer = 0;
             }
         } else if (click->press)
@@ -70,7 +70,7 @@ void Input_Update(Input* this) {
 }
 
 void Input_End(Input* this) {
-    CursorInput* cursor = &this->cursor;
+    Cursor* cursor = &this->cursor;
     s32 i = 0;
     
     cursor->scrollY = 0;
@@ -143,13 +143,13 @@ f32 Input_GetPressPosDist(Input* this) {
 // # # # # # # # # # # # # # # # # # # # #
 
 void InputCallback_Key(GLFWwindow* window, s32 key, s32 scancode, s32 action, s32 mods) {
-    Input* this = GetAppInfo(window)->input;
+    Input* this = GET_APPINFO(window)->input;
     
     this->key[key].hold = action != 0;
 }
 
 void InputCallback_Text(GLFWwindow* window, u32 scancode) {
-    Input* this = GetAppInfo(window)->input;
+    Input* this = GET_APPINFO(window)->input;
     
     if (!(scancode & 0xFFFFFF00)) {
         if (scancode > 0x7F) {
@@ -161,8 +161,8 @@ void InputCallback_Text(GLFWwindow* window, u32 scancode) {
 }
 
 void InputCallback_Mouse(GLFWwindow* window, s32 button, s32 action, s32 mods) {
-    Input* this = GetAppInfo(window)->input;
-    CursorInput* cursor = &this->cursor;
+    Input* this = GET_APPINFO(window)->input;
+    Cursor* cursor = &this->cursor;
     
     switch (button) {
         case GLFW_MOUSE_BUTTON_RIGHT:
@@ -178,8 +178,8 @@ void InputCallback_Mouse(GLFWwindow* window, s32 button, s32 action, s32 mods) {
 }
 
 void InputCallback_MousePos(GLFWwindow* window, f64 x, f64 y) {
-    // Input* input = GetAppInfo(window)->input;
-    // CursorInput* cursor = &input->cursor;
+    // Input* input = GET_APPINFO(window)->input;
+    // Cursor* cursor = &input->cursor;
     
     // cursor->vel.x += x - cursor->pos.x;
     // cursor->vel.y += y - cursor->pos.y;
@@ -188,8 +188,8 @@ void InputCallback_MousePos(GLFWwindow* window, f64 x, f64 y) {
 }
 
 void InputCallback_Scroll(GLFWwindow* window, f64 x, f64 y) {
-    Input* this = GetAppInfo(window)->input;
-    CursorInput* cursor = &this->cursor;
+    Input* this = GET_APPINFO(window)->input;
+    Cursor* cursor = &this->cursor;
     
     cursor->scrollY += y;
 }

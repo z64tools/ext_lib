@@ -1,6 +1,6 @@
 #include "ext_interface.h"
 
-Cursor* gCursor;
+CursorIcon* gCursor;
 
 void Cursor_CreateCursor(CursorIndex id,  const u8* data, s32 size, s32 xcent, s32 ycent) {
     CursorBitmap* dest = &gCursor->cursor[id];
@@ -20,7 +20,7 @@ void Cursor_CreateCursor(CursorIndex id,  const u8* data, s32 size, s32 xcent, s
     Assert(dest->glfwCur != NULL);
 }
 
-void Cursor_Init(Cursor* cursor, AppInfo* app) {
+void Cursor_Init(CursorIcon* cursor, AppInfo* app) {
     gCursor = cursor;
     cursor->app = app;
     cursor->cursor[CURSOR_DEFAULT].glfwCur = glfwCreateStandardCursor(0);

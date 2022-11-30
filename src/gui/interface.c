@@ -8,13 +8,22 @@ bool gTick;
 const f64 gNativeFPS = 60;
 ThreadLocal bool gLimitFPS = true;
 ThreadLocal static bool sPrevLimitFPS;
+ThreadLocal static void* sWindow;
 
-AppInfo* GetAppInfo(void* window) {
+void* GET_LOCAL_WINDOW(void) {
+    return sWindow;
+}
+
+AppInfo* GET_APPINFO(void* window) {
     return glfwGetWindowUserPointer(window);
 }
 
-void* GetUserCtx(void* window) {
-    return GetAppInfo(window)->context;
+void* GET_CONTEXT(void* window) {
+    return GET_APPINFO(window)->context;
+}
+
+Input* GET_INPUT(void* window) {
+    return GET_APPINFO(window)->input;
 }
 
 static void Interface_Update(AppInfo* app) {
@@ -56,7 +65,7 @@ static void Interface_ManageMsgWindow(AppInfo* app) {
 }
 
 static void Interface_FramebufferCallback(GLFWwindow* window, s32 width, s32 height) {
-    AppInfo* app = GetAppInfo(window);
+    AppInfo* app = GET_APPINFO(window);
     
     glViewport(0, 0, width, height);
     
@@ -91,7 +100,7 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
         glfwWindowHint(GLFW_SAMPLES, samples);
     
     Log("Create Window");
-    app->window = glfwCreateWindow(app->wdim.x, app->wdim.y, title, NULL, NULL);
+    sWindow = app->window = glfwCreateWindow(app->wdim.x, app->wdim.y, title, NULL, NULL);
     
     if (app->window == NULL)
         printf_error("Failed to create GLFW window.");

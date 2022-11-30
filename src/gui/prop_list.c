@@ -6,7 +6,7 @@
 
 #undef PropList_InitList
 
-static char* PropList_Get(PropList* this, s32 i) {
+const char* PropList_Get(PropList* this, s32 i) {
     char** list = this->list;
     
     if (i >= this->num) {
@@ -24,62 +24,104 @@ static char* PropList_Get(PropList* this, s32 i) {
     return list[i];
 }
 
-static void PropList_Set(PropList* this, s32 i) {
+void PropList_Set(PropList* this, s32 i) {
     this->key = Clamp(i, 0, this->num - 1);
     
     if (i != this->key)
         Log("Out of range set!");
 }
 
-PropList* PropList_Init(s32 defaultVal) {
-    PropList* this = Calloc(sizeof(PropList));
+PropList PropList_Init(s32 defaultVal) {
+    PropList this = {};
     
-    this->get = PropList_Get;
-    this->set = PropList_Set;
-    this->key = defaultVal;
+    this.key = defaultVal;
     
     return this;
 }
 
-PropList* PropList_InitList(s32 def, s32 num, ...) {
-    PropList* prop = PropList_Init(def);
+PropList PropList_InitList(s32 def, s32 num, ...) {
+    PropList prop = PropList_Init(def);
     va_list va;
     
     va_start(va, num);
     
     for (s32 i = 0; i < num; i++)
-        PropList_Add(prop, va_arg(va, char*));
+        PropList_Add(&prop, va_arg(va, char*));
     
     va_end(va);
     
     return prop;
 }
 
-void PropList_Add(PropList* this, char* item) {
+void PropList_SetOnChangeCallback(PropList* this, PropOnChange onChange, void* udata1, void* udata2) {
+    this->onChange = onChange;
+    this->udata1 = udata1;
+    this->udata2 = udata2;
+}
+
+#define PROP_ONCHANGE(type, id) this->onChange && !this->onChange(this, type, id)
+
+void PropList_Add(PropList* this, const char* item) {
+    if (PROP_ONCHANGE(PROP_ADD, 0))
+        return;
+    
     this->list = Realloc(this->list, sizeof(char*) * (this->num + 1));
     this->list[this->num++] = StrDup(item);
 }
 
-void PropList_Insert(PropList* this, char* item, s32 slot) {
+void PropList_Insert(PropList* this, const char* item, s32 slot) {
+    if (PROP_ONCHANGE(PROP_INSERT, slot))
+        return;
+    
     this->list = Realloc(this->list, sizeof(char*) * (this->num + 1));
+    this->list[this->num++] = StrDup(item);
     ArrMoveR(this->list, slot, this->num - slot);
-    this->list[slot] = StrDup(item);
 }
 
-void PropList_Remove(PropList* this, s32 key) {
-    Assert(this->list);
+void PropList_Remove(PropList* this, s32 slot) {
+    if (PROP_ONCHANGE(PROP_REMOVE, slot))
+        return;
     
+    Free(this->list[slot]);
+    ArrMoveL(this->list, slot, this->num - slot);
     this->num--;
-    Free(this->list[key]);
-    for (s32 i = key; i < this->num; i++)
-        this->list[i] = this->list[i + 1];
+}
+
+void PropList_Detach(PropList* this, s32 slot) {
+    if (PROP_ONCHANGE(PROP_DETACH, slot))
+        return;
+    
+    this->detach = this->list[slot];
+    this->list[slot] = NULL;
+    ArrMoveL(this->list, slot, this->num - slot);
+    this->num--;
+}
+
+void PropList_Retach(PropList* this, s32 slot) {
+    if (!this->detach) {
+        printf_warning("Retach on PropList that is not Detached!\a");
+        return;
+    }
+    
+    if (PROP_ONCHANGE(PROP_RETACH, slot))
+        return;
+    
+    this->num++;
+    ArrMoveR(this->list, slot, this->num - slot);
+    this->list[slot] = this->detach;
+    this->detach = NULL;
+}
+
+void PropList_DestroyDetach(PropList* this) {
+    if (this->detach) {
+        PROP_ONCHANGE(PROP_DESTROY_DETACH, 0);
+        Free(this->detach);
+    }
 }
 
 void PropList_Free(PropList* this) {
-    if (!this)
-        return;
     for (s32 i = 0; i < this->num; i++)
         Free(this->list[i]);
     Free(this->list);
-    Free(this);
+    Free(this->detach);
 }

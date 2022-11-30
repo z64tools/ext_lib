@@ -2,7 +2,7 @@
 #include <ext_theme.h>
 
 // # # # # # # # # # # # # # # # # # # # #
-// # ContextMenu                            #
+// # PropList                            #
 // # # # # # # # # # # # # # # # # # # # #
 
 static void ContextProp_List_Init(GeoGrid* geo, ContextMenu* this) {
@@ -14,10 +14,10 @@ static void ContextProp_List_Init(GeoGrid* geo, ContextMenu* this) {
     
     this->rect.h = SPLIT_ELEM_X_PADDING * 2 + SPLIT_TEXT_H * prop->num;
     this->rect.w = 0;
-    prop->vkey = prop->key;
+    prop->visualKey = prop->key;
     
     for (s32 i = 0; i < prop->num; i++) {
-        this->rect.w = Max(this->rect.w, Gfx_TextWidth(geo->vg, prop->get(prop, i)));
+        this->rect.w = Max(this->rect.w, Gfx_TextWidth(geo->vg, PropList_Get(prop, i)));
         this->rect.w += SPLIT_ELEM_X_PADDING * 2;
     }
     
@@ -30,31 +30,33 @@ static void ContextProp_List_Init(GeoGrid* geo, ContextMenu* this) {
 
 static void ContextProp_List_Draw(GeoGrid* geo, ContextMenu* this) {
     PropList* prop = this->prop;
+    Input* input = geo->input;
+    Cursor* cursor = &input->cursor;
     f32 height = SPLIT_ELEM_X_PADDING;
-    CursorInput* cursor = &geo->input->cursor;
     void* vg = geo->vg;
     Rect r = this->rect;
     
     for (s32 i = 0; i < prop->num; i++) {
+        const char* item = PropList_Get(prop, i);
         r = this->rect;
         
         r.y = this->rect.y + height;
         r.h = SPLIT_TEXT_H;
         
-        if (Rect_PointIntersect(&r, cursor->pos.x, cursor->pos.y) && prop->get(prop, i)) {
-            prop->vkey = i;
+        if (Rect_PointIntersect(&r, cursor->pos.x, cursor->pos.y) && item) {
+            prop->visualKey = i;
             
-            if (Input_GetMouse(geo->input, CLICK_L)->press)
+            if (Input_GetMouse(input, CLICK_L)->release)
                 this->state.setCondition = true;
         }
         
-        if (i == prop->vkey) {
+        if (i == prop->visualKey) {
             r.x += 4;
             r.w -= 8;
             Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_PRIM, 215, 1.0f));
         }
         
-        if (prop->get(prop, i)) {
+        if (item) {
             nvgScissor(vg, UnfoldRect(r));
             nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
             nvgFontFace(vg, "default");
@@ -64,7 +66,7 @@ static void ContextProp_List_Draw(GeoGrid* geo, ContextMenu* this) {
                 vg,
                 this->rect.x + SPLIT_ELEM_X_PADDING,
                 this->rect.y + height + SPLIT_ELEM_X_PADDING * 0.5f + 1,
-                prop->get(prop, i),
+                item,
                 NULL
             );
             nvgResetScissor(vg);
@@ -73,6 +75,10 @@ static void ContextProp_List_Draw(GeoGrid* geo, ContextMenu* this) {
         height += SPLIT_TEXT_H;
     }
 }
+
+// # # # # # # # # # # # # # # # # # # # #
+// # PropColor                           #
+// # # # # # # # # # # # # # # # # # # # #
 
 static void ContextProp_Init_Draw(GeoGrid* geo, ContextMenu* this) {
     this->rect.h = this->rect.w = 256;
@@ -91,7 +97,7 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     void* vg = geo->vg;
     Rect r = this->rect;
     Input* input = geo->input;
-    CursorInput* cursor = &geo->input->cursor;
+    Cursor* cursor = &geo->input->cursor;
     
     r.x += 2;
     r.y += 2;
@@ -208,6 +214,10 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     }
 }
 
+// # # # # # # # # # # # # # # # # # # # #
+// # ContextMenu                         #
+// # # # # # # # # # # # # # # # # # # # #
+
 #define FUNC_INIT 0
 #define FUNC_DRAW 1
 
@@ -228,8 +238,8 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, R
     this->rectOrigin = rect;
     this->pos = geo->input->cursor.pressPos;
     
-    geo->state.noClickInput++;
-    geo->state.noSplit++;
+    geo->state.blockElemInput++;
+    geo->state.blockSplitting++;
     this->pos = geo->input->cursor.pos;
     this->state.up = -1;
     this->state.side = 1;
@@ -255,18 +265,12 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, R
 
 void ContextMenu_Draw(GeoGrid* geo) {
     ContextMenu* this = &geo->dropMenu;
-    CursorInput* cursor = &geo->input->cursor;
+    Cursor* cursor = &geo->input->cursor;
     void* vg = geo->vg;
     
     if (this->prop == NULL)
         return;
     
-    glViewport(
-        0,
-        0,
-        geo->wdim->x,
-        geo->wdim->y
-    );
     nvgBeginFrame(geo->vg, geo->wdim->x, geo->wdim->y, gPixelRatio); {
         Rect r = this->rect;
         Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_ELEMENT_LIGHT, 215, 1.0f));
@@ -294,7 +298,7 @@ void ContextMenu_Draw(GeoGrid* geo) {
                 case PROP_ENUM: (void)0;
                     PropList* enm = this->prop;
                     
-                    enm->set(enm, enm->vkey);
+                    PropList_Set(enm, enm->visualKey);
                     break;
                 case PROP_COLOR: (void)0;
                     break;
@@ -308,8 +312,8 @@ void ContextMenu_Draw(GeoGrid* geo) {
 void ContextMenu_Close(GeoGrid* geo) {
     ContextMenu* this = &geo->dropMenu;
     
-    geo->state.noClickInput--;
-    geo->state.noSplit--;
+    geo->state.blockElemInput--;
+    geo->state.blockSplitting--;
     
     memset(this, 0, sizeof(*this));
 }

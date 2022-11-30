@@ -52,8 +52,10 @@ typedef struct MessageWindow {
     const char* message;
 } MessageWindow;
 
-AppInfo* GetAppInfo(void* window);
-void* GetUserCtx(void* window);
+void* GET_LOCAL_WINDOW(void);
+AppInfo* GET_APPINFO(void* window);
+void* GET_CONTEXT(void* window);
+Input* GET_INPUT(void* window);
 
 void* Interface_Init(
     const char* title,

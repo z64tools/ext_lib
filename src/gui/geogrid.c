@@ -6,6 +6,7 @@ f32 gPixelRatio = 1.0f;
 static void GeoGrid_RemoveDuplicates(GeoGrid* geo);
 static void Split_UpdateRect(Split* split);
 void Element_SetContext(GeoGrid* setGeo, Split* setSplit);
+void DragItem_Draw(GeoGrid* geo);
 
 Vec2f gZeroVec2f;
 Vec2s gZeroVec2s;
@@ -34,7 +35,7 @@ static SplitDir GeoGrid_GetDir_Opposite(SplitDir dir) {
 }
 
 static SplitDir GeoGrid_GetDir_MouseToPressPos(Split* split) {
-    Vec2s pos = Math_Vec2s_Sub(split->mousePos, split->mousePressPos);
+    Vec2s pos = Math_Vec2s_Sub(split->cursorPos, split->mousePressPos);
     
     if (Abs(pos.x) > Abs(pos.y)) {
         if (pos.x < 0) {
@@ -133,14 +134,14 @@ static s32 Split_CursorDistToFlagPos(SplitState flag, Split* split) {
      * one axis that makes sense for the direction of that side.
      */
     Vec2s cursor[] = {
-        { split->mousePos.x, split->mousePos.y, }, /* SPLIT_POINT_BL */
-        { split->mousePos.x, split->mousePos.y, }, /* SPLIT_POINT_TL */
-        { split->mousePos.x, split->mousePos.y, }, /* SPLIT_POINT_TR */
-        { split->mousePos.x, split->mousePos.y, }, /* SPLIT_POINT_BR */
-        { split->mousePos.x, 0,                 }, /* SPLIT_SIDE_L   */
-        { 0,                 split->mousePos.y, }, /* SPLIT_SIDE_T   */
-        { split->mousePos.x, 0,                 }, /* SPLIT_SIDE_R   */
-        { 0,                 split->mousePos.y, }, /* SPLIT_SIDE_B   */
+        { split->cursorPos.x, split->cursorPos.y, }, /* SPLIT_POINT_BL */
+        { split->cursorPos.x, split->cursorPos.y, }, /* SPLIT_POINT_TL */
+        { split->cursorPos.x, split->cursorPos.y, }, /* SPLIT_POINT_TR */
+        { split->cursorPos.x, split->cursorPos.y, }, /* SPLIT_POINT_BR */
+        { split->cursorPos.x, 0,                  }, /* SPLIT_SIDE_L   */
+        { 0,                  split->cursorPos.y, }, /* SPLIT_SIDE_T   */
+        { split->cursorPos.x, 0,                  }, /* SPLIT_SIDE_R   */
+        { 0,                  split->cursorPos.y, }, /* SPLIT_SIDE_B   */
     };
     Vec2s pos[] = {
         { 0,                 split->dispRect.h, }, /* SPLIT_POINT_BL */
@@ -193,15 +194,16 @@ static SplitState Split_GetCursorPosState(Split* split, s32 range) {
 }
 
 static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
-    this->taskEnum = PropList_Init(this->id);
+    this->taskList = Calloc(sizeof(struct PropList));
+    *this->taskList = PropList_Init(this->id);
     this->taskCombo = Calloc(sizeof(*this->taskCombo));
     
-    Assert(this->taskEnum != NULL);
+    Assert(this->taskList != NULL);
     Assert(this->taskCombo != NULL);
     
     for (s32 i = 0; i < geo->numTaskTable; i++)
-        PropList_Add(this->taskEnum, geo->taskTable[i]->taskName);
-    Element_Combo_SetPropList(this->taskCombo, this->taskEnum);
+        PropList_Add(this->taskList, geo->taskTable[i]->taskName);
+    Element_Combo_SetPropList(this->taskCombo, this->taskList);
 }
 
 static Split* Split_Alloc(GeoGrid* geo, s32 id) {
@@ -415,7 +417,8 @@ static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
     split->edge[dir] = killSplit->edge[dir];
     geo->taskTable[killSplit->id]->destroy(geo->passArg, killSplit->instance, killSplit);
     
-    PropList_Free(killSplit->taskEnum);
+    PropList_Free(killSplit->taskList);
+    Free(killSplit->taskList);
     Free(killSplit->taskCombo);
     Node_Kill(geo->splitHead, killSplit);
     GeoGrid_RemoveDuplicates(geo);
@@ -693,7 +696,7 @@ static void Split_UpdateActionSplit(GeoGrid* geo) {
     
     if (Input_GetMouse(geo->input, CLICK_ANY)->hold) {
         if (split->state & SPLIT_POINTS) {
-            s32 dist = Math_Vec2s_DistXZ(split->mousePos, split->mousePressPos);
+            s32 dist = Math_Vec2s_DistXZ(split->cursorPos, split->mousePressPos);
             SplitDir dir = GeoGrid_GetDir_MouseToPressPos(split);
             
             if (dist > 1) {
@@ -771,7 +774,7 @@ static void Split_SwapInstance(GeoGrid* geo, Split* split) {
     geo->taskTable[split->id]->init(geo->passArg, split->instance, split);
 }
 
-static void Split_UpdateScroll(Split* split, CursorInput* cursor) {
+static void Split_UpdateScroll(Split* split, Cursor* cursor) {
     SplitScroll* scroll = &split->scroll;
     
     if (split->scroll.enabled) {
@@ -788,7 +791,7 @@ static void Split_UpdateScroll(Split* split, CursorInput* cursor) {
 
 static void Split_Update(GeoGrid* geo) {
     Split* split = geo->splitHead;
-    CursorInput* cursor = &geo->input->cursor;
+    Cursor* cursor = &geo->input->cursor;
     
     Cursor_SetCursor(CURSOR_DEFAULT);
     
@@ -800,7 +803,7 @@ static void Split_Update(GeoGrid* geo) {
         Vec2s rectPos = { split->rect.x, split->rect.y };
         SplitTask** table = geo->taskTable;
         
-        split->mousePos = Math_Vec2s_Sub(cursor->pos, rectPos);
+        split->cursorPos = Math_Vec2s_Sub(cursor->pos, rectPos);
         split->mouseInSplit = Rect_PointIntersect(&split->rect, cursor->pos.x, cursor->pos.y);
         split->mouseInDispRect = Rect_PointIntersect(&split->dispRect, cursor->pos.x, cursor->pos.y);
         split->mouseInHeader = Rect_PointIntersect(&split->headRect, cursor->pos.x, cursor->pos.y);
@@ -809,9 +812,9 @@ static void Split_Update(GeoGrid* geo) {
         Split_UpdateScroll(split, cursor);
         
         if (cursor->clickAny.press)
-            split->mousePressPos = split->mousePos;
+            split->mousePressPos = split->cursorPos;
         
-        if (!geo->state.noSplit) {
+        if (!geo->state.blockSplitting) {
             
             if (split->mouseInDispRect) {
                 SplitState splitRangeState = Split_GetCursorPosState(split, SPLIT_GRAB_DIST * 3) & SPLIT_POINTS;
@@ -841,8 +844,8 @@ static void Split_Update(GeoGrid* geo) {
         if (split->state != 0)
             split->blockMouse = true;
         
-        split->inputAccess = split->mouseInSplit && !geo->state.noClickInput && !split->blockMouse;
-        split->id = split->taskEnum->key;
+        split->inputAccess = split->mouseInSplit && !geo->state.blockElemInput && !split->blockMouse;
+        split->id = split->taskList->key;
         
         if (split->id != split->prevId)
             Split_SwapInstance(geo, split);
@@ -1121,7 +1124,7 @@ static void GeoGrid_SetBotBarHeight(GeoGrid* geo, s32 h) {
 /* ───────────────────────────────────────────────────────────────────────── */
 
 bool Split_CursorInRect(Split* split, Rect* rect) {
-    return Rect_PointIntersect(rect, split->mousePos.x, split->mousePos.y);
+    return Rect_PointIntersect(rect, split->cursorPos.x, split->cursorPos.y);
 }
 
 bool Split_CursorInSplit(Split* split) {
@@ -1129,7 +1132,7 @@ bool Split_CursorInSplit(Split* split) {
     
     r.x = r.y = 0;
     
-    return Rect_PointIntersect(&r, split->mousePos.x, split->mousePos.y);
+    return Rect_PointIntersect(&r, split->cursorPos.x, split->cursorPos.y);
 }
 
 Split* GeoGrid_AddSplit(GeoGrid* geo, Rectf32* rect, s32 id) {
@@ -1152,7 +1155,7 @@ Split* GeoGrid_AddSplit(GeoGrid* geo, Rectf32* rect, s32 id) {
 
 s32 Split_GetCursor(GeoGrid* geo, Split* split, s32 result) {
     if (
-        geo->state.noClickInput ||
+        geo->state.blockElemInput ||
         !split->mouseInSplit ||
         split->blockMouse ||
         split->elemBlockMouse
@@ -1228,5 +1231,14 @@ void GeoGrid_Draw(GeoGrid* geo) {
     Split_Draw(geo);
     if (sDebugMode)
         Split_DrawDebug(geo);
+    
+    glViewport(
+        0,
+        0,
+        geo->wdim->x,
+        geo->wdim->y
+    );
+    
     ContextMenu_Draw(geo);
+    DragItem_Draw(geo);
 }

@@ -27,6 +27,17 @@ typedef struct ElementCallInfo {
 
 /* ───────────────────────────────────────────────────────────────────────── */
 
+typedef struct {
+    const char* item;
+    f32   swing;
+    f32   alpha;
+    Vec2f pos;
+    Vec2f vel;
+    Rect  rect;
+    s32   hold;
+    void* src;
+} DragItem;
+
 ThreadLocal struct {
     ElementCallInfo* head;
     
@@ -54,6 +65,8 @@ ThreadLocal struct {
     
     bool pushToHeader : 1;
     bool forceDisable : 1;
+    
+    DragItem dragItem;
 } gElementState = {
     .posSel    = -1,
     .flickFlag = 1,
@@ -63,6 +76,32 @@ static const char* sFmt[] = {
     "%.3f",
     "%d"
 };
+
+static void DragItem_Init(GeoGrid* geo, void* src, Rect rect, const char* item) {
+    DragItem* this = &gElementState.dragItem;
+    
+    this->src = src;
+    this->item = StrDup(item);
+    this->rect = rect;
+    
+    this->rect.x = -(this->rect.w * 0.5f);
+    this->rect.y = -(this->rect.h * 0.5f);
+    
+    this->alpha = this->swing = 0;
+    this->pos = Math_Vec2f_New(UnfoldVec2(geo->input->cursor.pos));
+    this->hold = true;
+}
+
+static bool DragItem_Release(GeoGrid* geo, void* src) {
+    DragItem* this = &gElementState.dragItem;
+    
+    if (src != this->src || this->hold == false) return false;
+    
+    this->hold = false;
+    this->src = NULL;
+    
+    return true;
+}
 
 // # # # # # # # # # # # # # # # # # # # #
 // #                                     #
@@ -193,7 +232,7 @@ static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, v
 
 static s32 Element_PressCondition(GeoGrid* geo, Split* split, Element* this) {
     if (
-        !geo->state.noClickInput &
+        !geo->state.blockElemInput &
         (split->mouseInSplit || this->header) &&
         !split->blockMouse &&
         !split->elemBlockMouse
@@ -209,6 +248,8 @@ static s32 Element_PressCondition(GeoGrid* geo, Split* split, Element* this) {
     
     return false;
 }
+
+#define ELEM_PRESS_CONDITION(this) Element_PressCondition(gElementState.geo, gElementState.split, &(this)->element)
 
 static void Element_Slider_SetCursorToVal(GeoGrid* geo, Split* split, ElSlider* this) {
     f32 x = split->rect.x + this->element.rect.x + this->element.rect.w * this->value;
@@ -238,15 +279,6 @@ static void Element_Slider_SetTextbox(Split* split, ElSlider* this) {
     gElementState.posSel = strlen(this->textBox.txt);
 }
 
-static Rect Container_GetPropRect(ElContainer* container, s32 i) {
-    Rect r = container->element.rect;
-    
-    return Rect_New(
-        r.x, r.y + SPLIT_TEXT_H * i - rint(container->scroll.voffset),
-        r.w, SPLIT_TEXT_H
-    );
-}
-
 void Element_SetContext(GeoGrid* setGeo, Split* setSplit) {
     gElementState.split = setSplit;
     gElementState.geo = setGeo;
@@ -256,10 +288,10 @@ void Element_SetContext(GeoGrid* setGeo, Split* setSplit) {
 // #                                     #
 // # # # # # # # # # # # # # # # # # # # #
 
-#define ELEMENT_TRY_FORCEQUE() if (this->element.disabled || gElementState.geo->state.noClickInput) \
+#define ELEMENT_QUEUE_CHECK() if (this->element.disabled || gElementState.geo->state.blockElemInput) \
     goto queue_element;
-#define ELEMENT_QUEUE(draw)    goto queue_element; queue_element: \
-    Element_QueueElement(gElementState.geo, gElementState.split,  \
+#define ELEMENT_QUEUE(draw)   goto queue_element; queue_element: \
+    Element_QueueElement(gElementState.geo, gElementState.split, \
         draw, this, __FUNCTION__);
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -335,9 +367,9 @@ s32 Element_Button(ElButton* this) {
         this->element.rect.w = bounds[2] + SPLIT_TEXT_PADDING * 2;
     }
     
-    ELEMENT_TRY_FORCEQUE();
+    ELEMENT_QUEUE_CHECK();
     
-    if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
+    if (ELEM_PRESS_CONDITION(this)) {
         if (Input_GetMouse(gElementState.geo->input, CLICK_L)->press) {
             this->state ^= 1;
             if (this->element.toggle)
@@ -388,10 +420,10 @@ static void Element_ColorBoxDraw(ElementCallInfo* info) {
 void Element_Color(ElColor* this) {
     this->element.disabled = (this->prop.rgb8 == NULL);
     
-    ELEMENT_TRY_FORCEQUE();
+    ELEMENT_QUEUE_CHECK();
     
     if (this->prop.rgb8) {
-        if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
+        if (ELEM_PRESS_CONDITION(this)) {
             if (Input_GetMouse(gElementState.geo->input, CLICK_L)->press) {
                 Rect* rect[] = { &gElementState.split->rect, &gElementState.split->headRect };
                 
@@ -525,7 +557,7 @@ static void Element_TextboxDraw(ElementCallInfo* info) {
                     glyphPos.x = this->element.rect.x + bound.w + SPLIT_TEXT_PADDING - 1;
                     glyphPos.y = this->element.rect.y + bound.h - 1 + SPLIT_TEXT * 0.5;
                     
-                    res = Math_Vec2s_DistXZ(split->mousePos, glyphPos);
+                    res = Math_Vec2s_DistXZ(split->cursorPos, glyphPos);
                     
                     if (res < dist) {
                         dist = res;
@@ -543,7 +575,7 @@ static void Element_TextboxDraw(ElementCallInfo* info) {
                     glyphPos.x = this->element.rect.x + bound.w + SPLIT_TEXT_PADDING - 1;
                     glyphPos.y = this->element.rect.y + bound.h - 1 + SPLIT_TEXT * 0.5;
                     
-                    res = Math_Vec2s_DistXZ(split->mousePos, glyphPos);
+                    res = Math_Vec2s_DistXZ(split->cursorPos, glyphPos);
                     
                     if (res < dist) {
                         dist = res;
@@ -622,9 +654,9 @@ static void Element_TextboxDraw(ElementCallInfo* info) {
 void Element_Textbox(ElTextbox* this) {
     Assert(gElementState.geo && gElementState.split);
     
-    ELEMENT_TRY_FORCEQUE();
+    ELEMENT_QUEUE_CHECK();
     
-    if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
+    if (ELEM_PRESS_CONDITION(this)) {
         if (Input_GetMouse(gElementState.geo->input, CLICK_L)->press) {
             if (this != gElementState.curTextbox) {
                 gElementState.ctrlA = 1;
@@ -751,9 +783,9 @@ s32 Element_Checkbox(ElCheckbox* this) {
     Assert(gElementState.geo && gElementState.split);
     this->element.rect.w = this->element.rect.h;
     
-    ELEMENT_TRY_FORCEQUE();
+    ELEMENT_QUEUE_CHECK();
     
-    if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
+    if (ELEM_PRESS_CONDITION(this)) {
         if (Input_GetMouse(gElementState.geo->input, CLICK_L)->press) {
             this->element.toggle ^= 1;
         }
@@ -845,7 +877,7 @@ f32 Element_Slider(ElSlider* this) {
     if (this->min == 0.0f && this->max == 0.0f)
         this->max = 1.0f;
     
-    ELEMENT_TRY_FORCEQUE();
+    ELEMENT_QUEUE_CHECK();
     
     Block(void, SetHold, ()) {
         this->holdState = true;
@@ -858,7 +890,7 @@ f32 Element_Slider(ElSlider* this) {
         this->holdState = false;
     };
     
-    if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element) || this->holdState) {
+    if (ELEM_PRESS_CONDITION(this) || this->holdState) {
         u32 pos = false;
         
         if (this->isTextbox) {
@@ -967,7 +999,7 @@ static void Element_ComboDraw(ElementCallInfo* info) {
     
     r = this->element.rect;
     
-    if (prop && prop->get(prop, prop->key)) {
+    if (prop && prop->num) {
         nvgScissor(vg, UnfoldRect(this->element.rect));
         Gfx_SetDefaultTextParams(vg);
         nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
@@ -982,7 +1014,7 @@ static void Element_ComboDraw(ElementCallInfo* info) {
             vg,
             r.x + SPLIT_ELEM_X_PADDING,
             r.y + r.h * 0.5 + 1,
-            prop->get(prop, prop->key),
+            PropList_Get(prop, prop->key),
             NULL
         );
         nvgResetScissor(vg);
@@ -1000,11 +1032,11 @@ static void Element_ComboDraw(ElementCallInfo* info) {
 s32 Element_Combo(ElCombo* this) {
     Assert(gElementState.geo && gElementState.split);
     
-    ELEMENT_TRY_FORCEQUE();
+    ELEMENT_QUEUE_CHECK();
     
     Log("PROP %X", this->prop);
     if (this->prop && this->prop->num) {
-        if (Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
+        if (ELEM_PRESS_CONDITION(this)) {
             s32 scrollY = Clamp(Input_GetScroll(gElementState.geo->input), -1, 1);
             
             if (Input_GetMouse(gElementState.geo->input, CLICK_L)->press) {
@@ -1017,7 +1049,7 @@ s32 Element_Combo(ElCombo* this) {
             }
             
             if (scrollY)
-                this->prop->set(this->prop, this->prop->key - scrollY);
+                PropList_Get(this->prop, this->prop->key - scrollY);
         }
     }
     
@@ -1031,6 +1063,30 @@ s32 Element_Combo(ElCombo* this) {
 }
 
 // # # # # # # # # # # # # # # # # # # # #
+
+static Rect Element_Container_GetPropRect(ElContainer* this, s32 i) {
+    Rect r = this->element.rect;
+    f32 yOffset = 0;
+    
+    if (this->prop && this->prop->detach
+        && i >= this->detachID) {
+        yOffset = SPLIT_TEXT_H * this->detachMul;
+    }
+    
+    return Rect_New(
+        r.x,
+        r.y + SPLIT_TEXT_H * i - rint(this->scroll.voffset) + yOffset,
+        r.w, SPLIT_TEXT_H
+    );
+}
+
+static Rect Element_Container_GetDragRect(ElContainer* this, s32 i) {
+    Rect r = Element_Container_GetPropRect(this, i);
+    
+    r.y -= SPLIT_TEXT_H * 0.5f;
+    
+    return r;
+}
 
 static void Element_ContainerDraw(ElementCallInfo* info) {
     ElContainer* this = info->arg;
@@ -1051,6 +1107,10 @@ static void Element_ContainerDraw(ElementCallInfo* info) {
         0.25f, fabsf(scroll->offset - scroll->voffset) * 0.5f, 0.1f
     );
     
+    Math_SmoothStepToF(&this->detachMul, 0.0f,
+        0.25f,
+        0.75f, 0.01f);
+    
     if (!prop)
         return;
     
@@ -1061,7 +1121,7 @@ static void Element_ContainerDraw(ElementCallInfo* info) {
     
     nvgScissor(vg, UnfoldRect(scissor));
     for (s32 i = 0; i < prop->num; i++) {
-        Rect tr = Container_GetPropRect(this, i);
+        Rect tr = Element_Container_GetPropRect(this, i);
         
         if (prop->key == i) {
             Rect vt = tr;
@@ -1079,10 +1139,36 @@ static void Element_ContainerDraw(ElementCallInfo* info) {
         Gfx_Text(
             vg, tr, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE,
             this->element.texcol,
-            prop->get(prop, i)
+            PropList_Get(prop, i)
         );
     }
     nvgResetScissor(vg);
+    
+    DragItem* drag = &gElementState.dragItem;
+    
+    if (drag->src == this) {
+        Rect r = this->element.rect;
+        
+        r.y -= 8;
+        r.h += 16;
+        
+        if (Rect_PointIntersect(&r, UnfoldVec2(gElementState.split->cursorPos))) {
+            for (s32 i = 0;; i++) {
+                Rect r = Element_Container_GetDragRect(this, i);
+                
+                if (Rect_PointIntersect(&r, UnfoldVec2(gElementState.split->cursorPos))
+                    || prop->num == i) {
+                    r.y += r.h / 2;
+                    r.y--;
+                    r.h = 2;
+                    
+                    Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_PRIM, 255, 1.0f));
+                    break;
+                }
+            }
+        }
+    }
+    
 }
 
 s32 Element_Container(ElContainer* this) {
@@ -1090,16 +1176,36 @@ s32 Element_Container(ElContainer* this) {
     
     Assert(gElementState.geo && gElementState.split);
     
-    if (this->prop && this->prop->num) {
-        CursorInput* cursor = &gElementState.geo->input->cursor;
+    if (this->prop) {
+        PropList* prop = this->prop;
+        Input* input = gElementState.geo->input;
+        Cursor* cursor = &gElementState.geo->input->cursor;
         s32 val = Clamp(cursor->scrollY, -1, 1);
+        DragItem* drag = &gElementState.dragItem;
+        
+        if (this->text) {
+            if (&this->textBox == gElementState.curTextbox)
+                goto queue_element;
+            
+            this->text = false;
+        }
         
         scroll->max = SPLIT_TEXT_H * this->prop->num - this->element.rect.h;
         scroll->max = ClampMin(scroll->max, 0);
         
-        ELEMENT_TRY_FORCEQUE();
+        ELEMENT_QUEUE_CHECK();
         
-        if (!Element_PressCondition(gElementState.geo, gElementState.split, &this->element)) {
+        if (this->heldKey > 0 && Math_Vec2s_DistXZ(cursor->pos, cursor->pressPos) > 8) {
+            Log("Drag Item Init");
+            DragItem_Init(gElementState.geo, this, this->grabRect, PropList_Get(prop, this->heldKey - 1));
+            this->detachID = this->heldKey - 1;
+            this->detachMul = 1.0f;
+            PropList_Detach(prop, this->heldKey - 1);
+            this->heldKey = 0;
+        }
+        
+        if (!ELEM_PRESS_CONDITION(this) &&
+            drag->src != this) {
             this->pressed = false;
             
             goto queue_element;
@@ -1107,25 +1213,84 @@ s32 Element_Container(ElContainer* this) {
         
         scroll->offset += (SPLIT_TEXT_H) *-val;
         
-        if (!Input_GetMouse(gElementState.geo->input, CLICK_L)->press)
+        if (!Input_GetMouse(input, CLICK_L)->press)
             if (!this->pressed)
                 goto queue_element;
         
+        if (ELEM_PRESS_CONDITION(this)) {
+            if (Input_GetMouse(input, CLICK_L)->dual && prop->num) {
+                Log("Rename");
+                this->text = true;
+                this->textBox.size = 32;
+                strcpy(this->textBox.txt, PropList_Get(prop, prop->key));
+                prop->list[prop->key] = Realloc(prop->list[prop->key], 32);
+                
+                goto queue_element;
+            }
+            
+            if (!this->pressed) {
+                for (s32 i = 0; i < prop->num; i++) {
+                    Rect r = Element_Container_GetPropRect(this, i);
+                    
+                    if (Rect_PointIntersect(&r, UnfoldVec2(gElementState.split->cursorPos))) {
+                        this->heldKey = i + 1;
+                        this->grabRect = r;
+                    }
+                }
+            }
+        }
+        
         this->pressed = true;
-        if (!Input_GetMouse(gElementState.geo->input, CLICK_L)->release)
+        
+        if (!Input_GetMouse(input, CLICK_L)->release)
             goto queue_element;
         
         this->pressed = false;
-        for (s32 i = 0; i < this->prop->num; i++) {
-            Rect r = Container_GetPropRect(this, i);
+        this->heldKey = 0;
+        
+        if (DragItem_Release(gElementState.geo, this)) {
+            Rect r = this->element.rect;
             
-            if (Rect_PointIntersect(&r, UnfoldVec2(gElementState.split->mousePos)))
-                this->prop->set(this->prop, i);
+            r.y -= 8;
+            r.h += 16;
+            
+            if (Rect_PointIntersect(&r, UnfoldVec2(gElementState.split->cursorPos))) {
+                s32 i = 0;
+                
+                for (; i < prop->num; i++) {
+                    Rect r = Element_Container_GetDragRect(this, i);
+                    
+                    if (Rect_PointIntersect(&r, UnfoldVec2(gElementState.split->cursorPos)))
+                        break;
+                }
+                
+                PropList_Retach(prop, i);
+            }
+            
+            PropList_DestroyDetach(prop);
+        } else {
+            for (s32 i = 0; i < prop->num; i++) {
+                Rect r = Element_Container_GetPropRect(this, i);
+                
+                if (Rect_PointIntersect(&r, UnfoldVec2(gElementState.split->cursorPos)))
+                    PropList_Set(prop, i);
+            }
         }
+        
     }
     
     ELEMENT_QUEUE(Element_ContainerDraw);
     scroll->offset = Clamp(scroll->offset, 0, scroll->max);
+    
+    if (this->text) {
+        (void)0;
+        PropList* prop = this->prop;
+        this->textBox.element.rect = Element_Container_GetPropRect(this, prop->key);
+        strcpy(prop->list[prop->key], this->textBox.txt);
+        Element_Textbox(&this->textBox);
+        
+        return prop->key;
+    }
     
     if (this->prop)
         return this->prop->key;
@@ -1685,5 +1850,63 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
         }
         
         elem = next;
+    }
+}
+
+void DragItem_Draw(GeoGrid* geo) {
+    DragItem* this = &gElementState.dragItem;
+    void* vg = geo->vg;
+    Rect r = this->rect;
+    Vec2f prevPos = this->pos;
+    
+    if (!this->item) return;
+    
+    if (this->hold) {
+        Cursor* cursor = &geo->input->cursor;
+        Vec2f target = Math_Vec2f_New(UnfoldVec2(cursor->pos));
+        f32 dist = Math_Vec2f_DistXZ(this->pos, target);
+        if (dist > EPSILON) {
+            Vec2f seg = Math_Vec2f_LineSegDir(this->pos, target);
+            f32 pdist = dist;
+            
+            Math_SmoothStepToF(&dist, 0.0f, 0.25f, 80.0f, 0.1f);
+            this->vel = Math_Vec2f_MulVal(
+                seg,
+                pdist - dist
+            );
+            
+        }
+    }
+    
+    this->pos = Math_Vec2f_Add(
+        this->pos,
+        this->vel
+    );
+    
+    this->swing += (this->pos.x - prevPos.x) * 0.01f;
+    
+    this->swing = Clamp(this->swing, -1.25f, 1.25f);
+    Math_SmoothStepToF(&this->swing, 0.0f, 0.25f, 0.2f, 0.001f);
+    Math_SmoothStepToF(&this->alpha, this->hold ? 200.0f : 0.0f, 0.25f, 80.0f, 0.01f);
+    
+    nvgBeginFrame(vg, geo->wdim->x, geo->wdim->y, gPixelRatio); {
+        f32 scale = Lerp(0.5f, this->alpha / 200.0f, 1.0f - (fabsf(this->swing) / 1.85f));
+        nvgTranslate(vg,
+            this->pos.x + this->rect.w * 0.5f,
+            this->pos.y + this->rect.h * 0.5f);
+        nvgScale(vg, scale, scale);
+        nvgRotate(vg, this->swing);
+        Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_ELEMENT_LIGHT, this->alpha, 1.0f));
+        Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_ELEMENT_BASE, this->alpha, 1.0f));
+        Gfx_Text(
+            vg, r, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE,
+            Theme_GetColor(THEME_TEXT, this->alpha, 1.0f),
+            this->item
+        );
+    } nvgEndFrame(vg);
+    
+    if (this->alpha <= EPSILON && this->item) {
+        this->alpha = 0.0f;
+        Free(this->item);
     }
 }

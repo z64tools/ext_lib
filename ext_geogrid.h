@@ -136,7 +136,7 @@ typedef struct {
 
 typedef struct Split {
     struct Split*    next;
-    struct PropList* taskEnum;
+    struct PropList* taskList;
     struct ElCombo*  taskCombo;
     
     u32 id;
@@ -149,7 +149,7 @@ typedef struct Split {
     Rect  rect;                // Absolute XY, relative WH
     Rect  headRect;
     Rect  dispRect;
-    Vec2s mousePos;            // relative
+    Vec2s cursorPos;           // relative
     Vec2s mousePressPos;
     
     struct {
@@ -232,8 +232,8 @@ typedef struct GeoGrid {
     void*  passArg;
     
     struct {
-        s32  noSplit;
-        s32  noClickInput;
+        s32  blockSplitting;
+        s32  blockElemInput;
         bool cleanVtx : 1;
     } state;
     struct ContextMenu dropMenu;
@@ -243,14 +243,28 @@ typedef struct GeoGrid {
 // # Prop                                #
 // # # # # # # # # # # # # # # # # # # # #
 
+typedef enum {
+    PROP_ADD,
+    PROP_INSERT,
+    PROP_REMOVE,
+    PROP_DETACH,
+    PROP_RETACH,
+    PROP_DESTROY_DETACH,
+} PropListChange;
+
+struct PropList;
+typedef bool (*PropOnChange)(struct PropList*, PropListChange, s32);
+
 typedef struct PropList {
-    void*  argument;
-    char** list;
-    char* (*get)(struct PropList*, s32);
-    void (*set)(struct PropList*, s32);
-    s32 num;
-    s32 key;
-    s32 vkey;
+    void*        argument;
+    char**       list;
+    char*        detach;
+    s32          num;
+    s32          key;
+    s32          visualKey; // visual key
+    PropOnChange onChange;
+    void*        udata1;
+    void*        udata2;
 } PropList;
 
 typedef struct PropColor {
@@ -368,7 +382,15 @@ typedef struct {
     
     struct {
         bool pressed : 1;
+        bool text    : 1;
     };
+    
+    Rect      grabRect;
+    ElTextbox textBox;
+    
+    s32 heldKey;
+    s32 detachID;
+    f32 detachMul;
 } ElContainer;
 
 extern Vec2f gZeroVec2f;
@@ -445,11 +467,17 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header);
 #define Element_Row(split, ...)         Element_Row(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
 #define Element_Header(split, ...)      Element_Header(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
 
-PropList* PropList_Init(s32 defaultVal);
-PropList* PropList_InitList(s32 def, s32 num, ...);
-void PropList_Add(PropList* this, char* item);
-void PropList_Insert(PropList* this, char* item, s32 slot);
+const char* PropList_Get(PropList* this, s32 i);
+void PropList_Set(PropList* this, s32 i);
+PropList PropList_Init(s32 defaultVal);
+PropList PropList_InitList(s32 def, s32 num, ...);
+void PropList_SetOnChangeCallback(PropList* this, PropOnChange onChange, void* udata1, void* udata2);
+void PropList_Add(PropList* this, const char* item);
+void PropList_Insert(PropList* this, const char* item, s32 slot);
 void PropList_Remove(PropList* this, s32 key);
+void PropList_Detach(PropList* this, s32 slot);
+void PropList_Retach(PropList* this, s32 slot);
+void PropList_DestroyDetach(PropList* this);
 void PropList_Free(PropList* this);
 
 #define PropList_InitList(default, ...) PropList_InitList(default, NARGS(__VA_ARGS__), __VA_ARGS__)
