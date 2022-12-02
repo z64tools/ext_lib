@@ -294,4 +294,14 @@ typedef struct {
     const char* help;
 } Arguments;
 
+typedef struct {
+#ifdef EXT_TOML_C
+    toml_table_t* config;
+    toml_table_t* field;
+    const char*   path;
+#else
+    void* _[3];
+#endif
+} Toml;
+
 #endif

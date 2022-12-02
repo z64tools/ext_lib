@@ -170,11 +170,10 @@ typedef struct Split {
         bool inputAccess     : 1;
         bool blockMouse      : 1;
     };
+    
+    const u32 isHeader;
+    SplitFunc headerFunc;
 } Split;
-
-typedef struct {
-    Rect rect;
-} StatusBar;
 
 typedef struct {
     char*     taskName;
@@ -207,9 +206,9 @@ typedef struct ContextMenu {
 } ContextMenu;
 
 typedef struct GeoGrid {
-    StatusBar bar[2];
-    Rect      prevWorkRect;
-    Rect      workRect;
+    Split bar[2];
+    Rect  prevWorkRect;
+    Rect  workRect;
     
     struct {
         f64 clampMax;
@@ -244,6 +243,8 @@ typedef struct GeoGrid {
 // # # # # # # # # # # # # # # # # # # # #
 
 typedef enum {
+    PROP_SET,
+    PROP_GET,
     PROP_ADD,
     PROP_INSERT,
     PROP_REMOVE,
@@ -302,13 +303,14 @@ typedef struct Element {
     NVGcolor    texcol;
     u32 heightAdd;
     struct {
-        bool disabled : 1;
-        bool hover    : 1;
-        bool press    : 1;
-        bool dispText : 1;
-        bool header   : 1;
-        bool doFree   : 1;
-        u32  toggle   : 2;
+        bool disabled    : 1;
+        bool disableTemp : 1;
+        bool hover       : 1;
+        bool press       : 1;
+        bool dispText    : 1;
+        bool header      : 1;
+        bool doFree      : 1;
+        u32  toggle      : 2;
     };
     
     u32 __pad;

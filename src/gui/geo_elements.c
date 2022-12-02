@@ -187,6 +187,24 @@ void Gfx_DrawRounderRect(void* vg, Rect rect, NVGcolor color) {
     nvgFill(vg);
 }
 
+void Gfx_DrawStripes(void* vg, Rect rect) {
+    Vec2f shape[] = {
+        { 0,    0    }, { 0.6f, 1 },
+        { 0.8f, 1    }, { 0.2f, 0 },
+        { 0,    0    },
+    };
+    
+    nvgScissor(vg, UnfoldRect(rect));
+    nvgFillColor(vg, Theme_GetColor(THEME_HIGHLIGHT, 5, 1.f));
+    
+    nvgBeginPath(vg);
+    for (s32 i = -8; i < rect.w; i += 8)
+        Gfx_Shape(vg, Math_Vec2f_New(rect.x + i, rect.y), 20.0f, 0, shape, ArrayCount(shape));
+    
+    nvgFill(vg);
+    nvgResetScissor(vg);
+}
+
 void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* txt) {
     Gfx_SetDefaultTextParams(vg);
     nvgTextAlign(vg, align);
@@ -306,10 +324,9 @@ static void Element_ButtonDraw(ElementCallInfo* info) {
     Gfx_DrawRounderOutline(vg, r, this->element.light);
     Gfx_DrawRounderRect(vg, r, Theme_Mix(0.10, this->element.base, this->element.light));
     
-    r.x += SPLIT_ELEM_X_PADDING;
-    r.w -= SPLIT_ELEM_X_PADDING;
-    
     if (this->icon) {
+        r.x += SPLIT_ELEM_X_PADDING;
+        r.w -= SPLIT_ELEM_X_PADDING;
         nvgBeginPath(vg);
         nvgFillColor(vg, this->element.texcol);
         Gfx_Vector(vg, Math_Vec2f_New(r.x, r.y + 2), 1.0f, 0, this->icon);
@@ -395,23 +412,8 @@ static void Element_ColorBoxDraw(ElementCallInfo* info) {
         color = *this->prop.rgb8;
         Gfx_DrawRounderRect(vg, this->element.rect, Theme_Mix(0.10, nvgRGBA(UnfoldRGB(color), 0xFF), this->element.light));
     } else {
-        Vec2f shape[] = {
-            { 0,    0    }, { 0.6f, 1 },
-            { 0.8f, 1    }, { 0.2f, 0 },
-            { 0,    0    },
-        };
-        
         Gfx_DrawRounderRect(vg, this->element.rect, Theme_Mix(0.10, nvgRGBA(UnfoldRGB(color), 0xFF), this->element.light));
-        
-        nvgScissor(vg, UnfoldRect(this->element.rect));
-        nvgFillColor(vg, Theme_GetColor(THEME_HIGHLIGHT, 20, 1.f));
-        
-        nvgBeginPath(vg);
-        for (s32 i = -8; i < this->element.rect.w; i += 8)
-            Gfx_Shape(vg, Math_Vec2f_New(this->element.rect.x + i, this->element.rect.y), 20.0f, 0, shape, ArrayCount(shape));
-        
-        nvgFill(vg);
-        nvgResetScissor(vg);
+        Gfx_DrawStripes(vg, this->element.rect);
     }
     
     Gfx_DrawRounderOutline(vg, this->element.rect, this->element.light);
@@ -1018,7 +1020,8 @@ static void Element_ComboDraw(ElementCallInfo* info) {
             NULL
         );
         nvgResetScissor(vg);
-    }
+    } else
+        Gfx_DrawStripes(vg, this->element.rect);
     
     center.x = r.x + r.w - 5 - 5;
     center.y = r.y + r.h * 0.5f;
@@ -1035,6 +1038,7 @@ s32 Element_Combo(ElCombo* this) {
     ELEMENT_QUEUE_CHECK();
     
     Log("PROP %X", this->prop);
+    
     if (this->prop && this->prop->num) {
         if (ELEM_PRESS_CONDITION(this)) {
             s32 scrollY = Clamp(Input_GetScroll(gElementState.geo->input), -1, 1);
@@ -1046,12 +1050,11 @@ s32 Element_Combo(ElCombo* this) {
                 };
                 
                 ContextMenu_Init(gElementState.geo, this->prop, this, PROP_ENUM, Rect_AddPos(this->element.rect, *rect[this->element.header]));
-            }
-            
-            if (scrollY)
-                PropList_Get(this->prop, this->prop->key - scrollY);
+            } else if (scrollY)
+                PropList_Set(this->prop, this->prop->key - scrollY);
         }
-    }
+    } else
+        this->element.disableTemp = true;
     
     ELEMENT_QUEUE(Element_ComboDraw);
     
@@ -1750,7 +1753,9 @@ static void Element_UpdateElement(ElementCallInfo* info) {
     Split* split = info->split;
     f32 toggle = this->toggle == 3 ? 0.50f : 0.0f;
     f32 press = 1.0f;
+    bool disabled = (this->disabled || this->disableTemp);
     
+    this->disableTemp = false;
     this->hover = false;
     this->press = false;
     
@@ -1764,33 +1769,24 @@ static void Element_UpdateElement(ElementCallInfo* info) {
     if (this == (void*)gElementState.curTextbox || this == geo->dropMenu.element)
         this->hover = true;
     
-    if (this->press && this->disabled == false)
+    if (this->press && !disabled)
         press = 1.2f;
     
-    if (this->disabled) {
+    if (disabled) {
         const f32 mix = 0.5;
-        if (this->hover && !this->disabled) {
-            this->prim = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_PRIM,          255, 1.10f * press));
-            this->shadow = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.07f + toggle) * press));
-            this->light = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (1.07f + toggle) * press));
-            this->texcol = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_TEXT,          255, 1.15f * press));
-            
-            if (this->toggle < 3)
-                this->base = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.07f + toggle) * press));
-        } else {
-            this->prim = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_PRIM,          255, 1.00f * press));
-            this->shadow = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.00f + toggle) * press));
-            this->light = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (0.50f + toggle) * press));
-            this->texcol = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_TEXT,          255, 1.00f * press));
-            
-            if (this->toggle < 3)
-                this->base = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.00f + toggle) * press));
-        }
+        
+        this->prim = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_PRIM,          255, 1.00f * press));
+        this->shadow = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.00f + toggle) * press));
+        this->light = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (0.50f + toggle) * press));
+        this->texcol = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_TEXT,          255, 1.00f * press));
+        
+        if (this->toggle < 3)
+            this->base = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.00f + toggle) * press));
         
         if (this->toggle == 3)
             this->base = Theme_Mix(0.75, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_PRIM,  255, 0.95f * press));
     } else {
-        if (this->hover && !this->disabled) {
+        if (this->hover) {
             Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 1.10f * press),            0.25f, 0.35f, 0.001f);
             Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
             Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);

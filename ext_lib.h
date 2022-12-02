@@ -11,19 +11,19 @@
  */
 
 #ifdef __clang__
-    #ifdef _WIN32
-        #undef _WIN32
-    #endif
+#ifdef _WIN32
+#undef _WIN32
+#endif
 #endif
 
 #ifndef EXTLIB_PERMISSIVE
-    #ifndef EXTLIB
-        #error EXTLIB not defined
-    #else
-        #if EXTLIB > THIS_EXTLIB_VERSION
-            #error ExtLib copy is older than the project its used with
-        #endif
-    #endif
+#ifndef EXTLIB
+#error EXTLIB not defined
+#else
+#if EXTLIB > THIS_EXTLIB_VERSION
+#error ExtLib copy is older than the project its used with
+#endif
+#endif
 #endif
 
 #define _GNU_SOURCE
@@ -308,6 +308,14 @@ void Config_WriteSection(MemFile* mem, const char* variable, const char* comment
 #define QUOTES     1
 #define NO_QUOTES  0
 
+void Toml_ParseFile(Toml* this, const char* file);
+void Toml_Table(Toml* this, const char* path);
+
+s32 Toml_GetInt(Toml* this, const char* item);
+f32 Toml_GetFloat(Toml* this, const char* item);
+bool Toml_GetBool(Toml* this, const char* item);
+char* Toml_GetString(Toml* this, const char* item);
+
 char* String_Tsv(char* str, s32 rowNum, s32 lineNum);
 
 void Log_NoOutput(void);
@@ -350,10 +358,10 @@ void Sound_Xm_Stop();
 char* Regex(const char* str, const char* pattern, RegexFlag flag);
 
 #ifndef _WIN32
-    #ifndef __clang__
+#ifndef __clang__
 #define stricmp(a, b)        strcasecmp(a, b)
 #define strnicmp(a, b, size) strncasecmp(a, b, size)
-    #endif
+#endif
 #endif
 
 int stricmp(const char* a, const char* b);

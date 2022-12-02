@@ -8,6 +8,7 @@
 
 typedef enum {
     THEME_BASE,
+    THEME_SPLIT,
     THEME_SHADOW,
     THEME_HIGHLIGHT,
     

@@ -98,6 +98,12 @@ typedef struct {
     s32 y2;
 } CRect;
 
+typedef struct {
+    f32 xMin, xMax;
+    f32 zMin, zMax;
+    f32 yMin, yMax;
+} BoundBox;
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 
@@ -458,6 +464,28 @@ static inline f32 Rect_PointDistance(Rect* rect, s32 x, s32 y) {
     Vec2s r = Rect_ClosestPoint(rect, x, y);
     
     return Math_Vec2s_DistXZ(r, p);
+}
+
+static inline BoundBox BoundBox_New(Vec3f point) {
+    BoundBox this;
+    
+    this.xMax = point.x;
+    this.xMin = point.x;
+    this.yMax = point.y;
+    this.yMin = point.y;
+    this.zMax = point.z;
+    this.zMin = point.z;
+    
+    return this;
+}
+
+static inline void BoundBox_Adjust(BoundBox* this, Vec3f point) {
+    this->xMax = Max(this->xMax, point.x);
+    this->xMin = Min(this->xMin, point.x);
+    this->yMax = Max(this->yMax, point.y);
+    this->yMin = Min(this->yMin, point.y);
+    this->zMax = Max(this->zMax, point.z);
+    this->zMin = Min(this->zMin, point.z);
 }
 
 // # # # # # # # # # # # # # # # # # # # #

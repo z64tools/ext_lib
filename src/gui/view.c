@@ -34,7 +34,7 @@ static void Camera_CalculateFly(Camera* cam) {
 static void Camera_FlyMode(View3D* this, Input* inputCtx) {
     Camera* cam = this->currentCamera;
     
-    if (this->cameraControl) {
+    if (this->cameraControl && !this->interrupt) {
         f32 step = 1.0f * cam->speedMod;
         f32 min = 0.01f * cam->speedMod;
         
@@ -133,7 +133,7 @@ static void Camera_OrbitMode(View3D* this, Input* inputCtx) {
     f32 disdiff = fabsf(cam->dist - cam->targetDist);
     f32 fovDiff = fabsf(this->fovy - this->fovyTarget);
     
-    if (this->cameraControl) {
+    if (this->cameraControl && !this->interrupt) {
         if (inputCtx->key[KEY_LEFT_CONTROL].hold && inputCtx->cursor.clickMid.hold && Input_GetScroll(inputCtx) == 0)
             cam->targetDist += inputCtx->cursor.vel.y;
         
@@ -175,7 +175,7 @@ static void Camera_OrbitMode(View3D* this, Input* inputCtx) {
 }
 
 // # # # # # # # # # # # # # # # # # # # #
-// #  MoveTo                             #
+// #  XTo                                #
 // # # # # # # # # # # # # # # # # # # # #
 
 static void Camera_CalculateMove(Camera* cam, f32 x, f32 y, f32 z) {
@@ -207,7 +207,7 @@ static void Camera_CalculateMove(Camera* cam, f32 x, f32 y, f32 z) {
     Matrix_Pop();
 }
 
-static void Camera_UpdateMoveTo(View3D* this, Input* input) {
+static void Camera_Update_MoveTo(View3D* this, Input* input) {
     Camera* cam = this->currentCamera;
     
     if (this->moveToTarget) {
@@ -227,15 +227,11 @@ static void Camera_UpdateMoveTo(View3D* this, Input* input) {
         this->moveToTarget = false;
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #  SwapTo                             #
-// # # # # # # # # # # # # # # # # # # # #
-
-static void Camera_UpdateSwapTo(View3D* this, Input* input) {
+static void Camera_Update_RotTo(View3D* this, Input* input) {
     Camera* cam = this->currentCamera;
-    u8 isSwapping = this->flagSwapTo;
+    u8 isSwapping = this->rotToAngle;
     
-    if (this->cameraControl) {
+    if (this->cameraControl && !this->interrupt) {
         s32 pass = -1;
         s32 key[] = {
             KEY_KP_1,
@@ -256,10 +252,10 @@ static void Camera_UpdateSwapTo(View3D* this, Input* input) {
         }
         
         if (pass > -1) {
-            this->flagSwapTo = true;
+            this->rotToAngle = true;
             
             for (s32 i = 0; i < 3; i++)
-                this->rotSwapTo.axis[i] = DegToBin(target[pass].axis[i]);
+                this->targetRot.axis[i] = DegToBin(target[pass].axis[i]);
         } else {
             if (Input_GetKey(input, KEY_KP_9)->press) {
                 // Invert
@@ -267,9 +263,9 @@ static void Camera_UpdateSwapTo(View3D* this, Input* input) {
                 Vec3f up;
                 f32 fdot;
                 
-                this->flagSwapTo = true;
+                this->rotToAngle = true;
                 if (isSwapping)
-                    front = Math_Vec3f_New(SinS(this->rotSwapTo.y), SinS(-this->rotSwapTo.x), CosS(this->rotSwapTo.y));
+                    front = Math_Vec3f_New(SinS(this->targetRot.y), SinS(-this->targetRot.x), CosS(this->targetRot.y));
                 
                 else
                     front = Math_Vec3f_LineSegDir(cam->eye, cam->at);
@@ -278,9 +274,9 @@ static void Camera_UpdateSwapTo(View3D* this, Input* input) {
                 fdot = fabsf(Math_Vec3f_Dot(front, up));
                 
                 if (fdot < 0.9995f) {
-                    this->rotSwapTo.y += DegToBin(180);
+                    this->targetRot.y += DegToBin(180);
                 } else {
-                    this->rotSwapTo.x += DegToBin(180);
+                    this->targetRot.x += DegToBin(180);
                 }
             } else {
                 Vec3s r = Math_Vec3s_New(cam->pitch, cam->yaw, cam->roll);
@@ -290,7 +286,7 @@ static void Camera_UpdateSwapTo(View3D* this, Input* input) {
                     s32 m = Input_GetKey(input, KEY_KP_4)->press ? -1 : 1;
                     
                     // Sideways
-                    this->flagSwapTo = true;
+                    this->rotToAngle = true;
                     p.y += DegToBin(15) * m;
                 }
                 
@@ -298,14 +294,14 @@ static void Camera_UpdateSwapTo(View3D* this, Input* input) {
                     s32 m = Input_GetKey(input, KEY_KP_2)->press ? -1 : 1;
                     
                     // Sideways
-                    this->flagSwapTo = true;
+                    this->rotToAngle = true;
                     p.x += DegToBin(15) * m;
                 }
                 
                 if (isSwapping)
-                    p = Math_Vec3s_Add(p, Math_Vec3s_Sub(this->rotSwapTo, r));
+                    p = Math_Vec3s_Add(p, Math_Vec3s_Sub(this->targetRot, r));
                 
-                this->rotSwapTo = Math_Vec3s_Add(r, p);
+                this->targetRot = Math_Vec3s_Add(r, p);
             }
         }
         
@@ -313,17 +309,17 @@ static void Camera_UpdateSwapTo(View3D* this, Input* input) {
             this->ortho ^= true;
     }
     
-    if (this->flagSwapTo) {
-        s16 x = Math_SmoothStepToS(&cam->pitch, this->rotSwapTo.x, 3, DegToBin(45), 1);
-        s16 z = Math_SmoothStepToS(&cam->yaw, this->rotSwapTo.y, 3, DegToBin(45), 1);
-        s16 y = Math_SmoothStepToS(&cam->roll, this->rotSwapTo.z, 3, DegToBin(45), 1);
+    if (this->rotToAngle) {
+        s16 x = Math_SmoothStepToS(&cam->pitch, this->targetRot.x, 3, DegToBin(45), 1);
+        s16 z = Math_SmoothStepToS(&cam->yaw, this->targetRot.y, 3, DegToBin(45), 1);
+        s16 y = Math_SmoothStepToS(&cam->roll, this->targetRot.z, 3, DegToBin(45), 1);
         
         Camera_CalculateOrbit(cam);
         
         if (!x && !y && !z)
-            this->flagSwapTo = false;
+            this->rotToAngle = false;
     } else
-        this->flagSwapTo = false;
+        this->rotToAngle = false;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -349,6 +345,10 @@ void View_Init(View3D* this, Input* inputCtx) {
     this->mode = CAM_MODE_ALL;
 }
 
+void View_InterruptControl(View3D* this) {
+    this->interrupt = true;
+}
+
 void View_Update(View3D* this, Input* inputCtx, Split* split) {
     void (*camMode[])(View3D*, Input*) = {
         Camera_FlyMode,
@@ -362,38 +362,18 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
     
     if (this->ortho)
         Matrix_Ortho(
-            &this->projMtx,
-            cam->dist,
-            (f32)this->split->rect.w / (f32)this->split->rect.h,
-            this->near,
-            this->far
-        );
+            &this->projMtx, cam->dist, (f32)this->split->rect.w / (f32)this->split->rect.h, this->near, this->far);
     else
         Matrix_Projection(
-            &this->projMtx,
-            this->fovy,
-            (f32)this->split->rect.w / (f32)this->split->rect.h,
-            this->near,
-            this->far,
-            this->scale
-        );
+            &this->projMtx, this->fovy, (f32)this->split->rect.w / (f32)this->split->rect.h, this->near, this->far, this->scale);
     
     if (this->mode == CAM_MODE_ALL)
         for (s32 i = 0; i < ArrayCount(camMode); i++)
             camMode[i](this, inputCtx);
-    
     else
         camMode[this->mode](this, inputCtx);
     
-    Camera_UpdateMoveTo(this, inputCtx);
-    Camera_UpdateSwapTo(this, inputCtx);
-    
-    Matrix_LookAt(&this->viewMtx, cam->eye, cam->at, cam->up);
-    
-    Matrix_Scale(1.0, 1.0, 1.0, MTXMODE_NEW);
-    Matrix_ToMtxF(&this->modelMtx);
-    
-    if (this->cameraControl) {
+    if (this->cameraControl && !this->interrupt) {
         s32 keyList[] = {
             KEY_W, KEY_A, KEY_S, KEY_D
         };
@@ -404,7 +384,16 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
         }
     }
     
+    Camera_Update_MoveTo(this, inputCtx);
+    Camera_Update_RotTo(this, inputCtx);
+    
+    Matrix_LookAt(&this->viewMtx, cam->eye, cam->at, cam->up);
+    
+    Matrix_Scale(1.0, 1.0, 1.0, MTXMODE_NEW);
+    Matrix_ToMtxF(&this->modelMtx);
+    
     Matrix_MtxFMtxFMult(&this->projMtx, &this->viewMtx, &this->projViewMtx);
+    this->interrupt = false;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -464,11 +453,15 @@ void View_MoveTo(View3D* this, Vec3f pos) {
     this->targetStep = Math_Vec3f_DistXYZ(pos, this->currentCamera->at) * 0.25f;
 }
 
+void View_ZoomTo(View3D* this, f32 zoom) {
+    this->currentCamera->targetDist = zoom;
+}
+
 void View_RotTo(View3D* this, Vec3s rot) {
-    this->rotSwapTo.x = rot.x;
-    this->rotSwapTo.y = rot.y;
-    this->rotSwapTo.z = rot.z;
-    this->flagSwapTo = true;
+    this->targetRot.x = rot.x;
+    this->targetRot.y = rot.y;
+    this->targetRot.z = rot.z;
+    this->rotToAngle = true;
 }
 
 Vec3f View_OrientDirToView(View3D* this, Vec3f dir) {

@@ -5,9 +5,13 @@
 // # # # # # # # # # # # # # # # # # # # #
 
 #undef PropList_InitList
+#define PROP_ONCHANGE(type, id) this->onChange && !this->onChange(this, type, id)
 
 const char* PropList_Get(PropList* this, s32 i) {
     char** list = this->list;
+    
+    if (PROP_ONCHANGE(PROP_GET, i))
+        return NULL;
     
     if (i >= this->num) {
         Log("OOB Access %d / %d", i, this->num);
@@ -25,6 +29,10 @@ const char* PropList_Get(PropList* this, s32 i) {
 }
 
 void PropList_Set(PropList* this, s32 i) {
+    
+    if (PROP_ONCHANGE(PROP_SET, i))
+        return;
+    
     this->key = Clamp(i, 0, this->num - 1);
     
     if (i != this->key)
@@ -58,8 +66,6 @@ void PropList_SetOnChangeCallback(PropList* this, PropOnChange onChange, void* u
     this->udata1 = udata1;
     this->udata2 = udata2;
 }
-
-#define PROP_ONCHANGE(type, id) this->onChange && !this->onChange(this, type, id)
 
 void PropList_Add(PropList* this, const char* item) {
     if (PROP_ONCHANGE(PROP_ADD, 0))

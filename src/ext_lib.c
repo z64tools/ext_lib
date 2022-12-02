@@ -1065,7 +1065,7 @@ const char* Sys_GetEnv(SysEnv env) {
         case ENV_USER:
             return xStrDup(getenv("USER"));
         case ENV_APPDATA:
-            return NULL;
+            return xStrDup("~/.local/");
         case ENV_HOME:
             return xStrDup(getenv("HOME"));
         case ENV_TEMP:
