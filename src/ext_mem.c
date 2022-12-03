@@ -257,8 +257,8 @@ s32 MemFile_LoadFile(MemFile* mem, const char* filepath) {
         
         if (mem->param.throwError) {
             if (Sys_Stat(mem->info.name))
-                MemFile_ThrowError(mem, "Could not load file!", xFmt("Arg: [%s]", filepath));
-            MemFile_ThrowError(mem, "Can't load because file does not exist!", xFmt("Arg: [%s]", filepath));
+                MemFile_ThrowError(mem, "Could not load file!", x_fmt("Arg: [%s]", filepath));
+            MemFile_ThrowError(mem, "Can't load because file does not exist!", x_fmt("Arg: [%s]", filepath));
         }
         
         return 1;
@@ -299,8 +299,8 @@ s32 MemFile_LoadFile_String(MemFile* mem, const char* filepath) {
         
         if (mem->param.throwError) {
             if (Sys_Stat(mem->info.name))
-                MemFile_ThrowError(mem, "Could not load file!", xFmt("Arg: [%s]", filepath));
-            MemFile_ThrowError(mem, "Can't load because file does not exist!", xFmt("Arg: [%s]", filepath));
+                MemFile_ThrowError(mem, "Could not load file!", x_fmt("Arg: [%s]", filepath));
+            MemFile_ThrowError(mem, "Can't load because file does not exist!", x_fmt("Arg: [%s]", filepath));
         }
         
         return 1;
@@ -340,8 +340,8 @@ s32 MemFile_SaveFile(MemFile* mem, const char* filepath) {
         
         if (mem->param.throwError) {
             if (Sys_Stat(mem->info.name))
-                MemFile_ThrowError(mem, "Can't save over file!", xFmt("Arg: [%s]", filepath));
-            MemFile_ThrowError(mem, "Can't save file!", xFmt("Arg: [%s]", filepath));
+                MemFile_ThrowError(mem, "Can't save over file!", x_fmt("Arg: [%s]", filepath));
+            MemFile_ThrowError(mem, "Can't save file!", x_fmt("Arg: [%s]", filepath));
         }
         
         return 1;
@@ -362,8 +362,8 @@ s32 MemFile_SaveFile_String(MemFile* mem, const char* filepath) {
         
         if (mem->param.throwError) {
             if (Sys_Stat(mem->info.name))
-                MemFile_ThrowError(mem, "Can't save over file!", xFmt("Arg: [%s]", filepath));
-            MemFile_ThrowError(mem, "Can't save file!", xFmt("Arg: [%s]", filepath));
+                MemFile_ThrowError(mem, "Can't save over file!", x_fmt("Arg: [%s]", filepath));
+            MemFile_ThrowError(mem, "Can't save file!", x_fmt("Arg: [%s]", filepath));
         }
         
         return 1;

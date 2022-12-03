@@ -70,11 +70,11 @@ char* Config_GetVariable(const char* str, const char* name) {
     if (*s == '\"') {
         s++;
         if (*s == '\"')
-            return xAlloc(2);
+            return x_alloc(2);
         
-        r = xStrNDup(s, strcspn(s, "\""));
+        r = x_strndup(s, strcspn(s, "\""));
     } else {
-        r = xStrNDup(s, strcspn(s, "\n#"));
+        r = x_strndup(s, strcspn(s, "\n#"));
         
         while (StrEnd(r, " "))
             StrEnd(r, " ")[0] = '\0';
@@ -99,7 +99,7 @@ static char* Config_GetIncludeName(const char* line) {
     size = strcspn(line, ">\n\r");
     if (line[size] != '>') return NULL;
     
-    return xStrNDup(line, size);
+    return x_strndup(line, size);
 }
 
 static void Config_RecurseIncludes(MemFile* dst, const char* file, StrNode** nodeHead) {
@@ -131,7 +131,7 @@ static void Config_RecurseIncludes(MemFile* dst, const char* file, StrNode** nod
             
             Log("ConfigInclude: From [%s] open [%s]", file, include);
             
-            Config_RecurseIncludes(dst, xFmt("%s%s", Path(file), include), nodeHead);
+            Config_RecurseIncludes(dst, x_fmt("%s%s", Path(file), include), nodeHead);
         } else {
             u32 size = strcspn(line, "\n\r");
             
@@ -176,7 +176,7 @@ static inline void Config_Warning(MemFile* mem, const char* variable, const char
         "[%s]: Variable "PRNT_BLUE "\"%s\""PRNT_RSET " not found from " PRNT_BLUE "[%s]" PRNT_RSET " %s",
         function + strlen("Config_"),
         variable, mem->info.name,
-        sCfgSection ? xFmt("from section " PRNT_BLUE "%s", sCfgSection) : ""
+        sCfgSection ? x_fmt("from section " PRNT_BLUE "%s", sCfgSection) : ""
     );
 }
 
@@ -317,7 +317,7 @@ void Config_GotoSection(const char* section) {
 
 void Config_ListVariables(MemFile* mem, ItemList* list, const char* section) {
     char* line = mem->str;
-    char* wordA = xAlloc(64);
+    char* wordA = x_alloc(64);
     
     ItemList_Validate(list);
     ItemList_Alloc(list, 256, 256 * 64);
@@ -383,7 +383,7 @@ void Config_ListSections(MemFile* cfg, ItemList* list) {
         if (*p != '[') continue;
         sctCount++;
         
-        ItemList_AddItem(list, xStrNDup(p + 1, strcspn(p, "]\n")));
+        ItemList_AddItem(list, x_strndup(p + 1, strcspn(p, "]\n")));
     }
 }
 
@@ -393,7 +393,7 @@ void Config_ListSections(MemFile* cfg, ItemList* list) {
 
 static void Config_FollowUpComment(MemFile* mem, const char* comment) {
     if (comment)
-        MemFile_Printf(mem, xFmt(" # %s", comment));
+        MemFile_Printf(mem, x_fmt(" # %s", comment));
     MemFile_Printf(mem, "\n");
 }
 
@@ -424,7 +424,7 @@ s32 Config_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, 
 
 void Config_WriteComment(MemFile* mem, const char* comment) {
     if (comment)
-        MemFile_Printf(mem, xFmt("# %s", comment));
+        MemFile_Printf(mem, x_fmt("# %s", comment));
     MemFile_Printf(mem, "\n");
 }
 

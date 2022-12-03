@@ -214,7 +214,8 @@
  */
 #ifdef __clang__
 #define Block(type, name, args) \
-    type (^ name) args = ^ type args
+    type (^ name) args = NULL;  \
+    name = ^ type args
 #define BlockDecl(type, name, args) \
     type (^ name) args
 #define BlockVar(var) typeof(var) var
@@ -226,10 +227,13 @@
 #define BlockVar(var)               (void)0
 #endif
 
-#define FOPEN(file, mode) ({                                    \
-        FILE* f = fopen(file, mode);                            \
-        if (f == NULL) printf_error("fopen error: [%s]", file); \
-        f;                                                      \
+#define FOPEN(file, mode) ({                                                 \
+        FILE* f = fopen(file, mode);                                         \
+        if (f == NULL) {                                                     \
+            printf_warning("" PRNT_YELW "%s" PRNT_GRAY "();", __FUNCTION__); \
+            printf_error("fopen error: [%s]", file);                         \
+        }                                                                    \
+        f;                                                                   \
     })
 
 #endif

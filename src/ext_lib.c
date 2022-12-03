@@ -338,7 +338,7 @@ typedef struct {
     Size max;
 } BufferX;
 
-void* xAlloc(Size size) {
+void* x_alloc(Size size) {
     static BufferX this = {
         .max = MbToBin(8),
     };
@@ -368,27 +368,27 @@ void* xAlloc(Size size) {
     return memset(ret, 0, size + 1);
 }
 
-char* xStrDup(const char* str) {
-    return xMemDup(str, strlen(str) + 1);
+char* x_strdup(const char* str) {
+    return x_memdup(str, strlen(str) + 1);
 }
 
-char* xStrNDup(const char* s, Size n) {
+char* x_strndup(const char* s, Size n) {
     if (!n) return NULL;
     Size csz = strnlen(s, n);
-    char* new = xAlloc(n + 1);
+    char* new = x_alloc(n + 1);
     char* res = memcpy (new, s, csz);
     
     return res;
 }
 
-char* xMemDup(const char* data, Size size) {
+char* x_memdup(const char* data, Size size) {
     if (!data || !size)
         return NULL;
     
-    return memcpy(xAlloc(size), data, size);
+    return memcpy(x_alloc(size), data, size);
 }
 
-char* xFmt(const char* fmt, ...) {
+char* x_fmt(const char* fmt, ...) {
     char buf[4096];
     va_list va;
     
@@ -396,16 +396,42 @@ char* xFmt(const char* fmt, ...) {
     Assert(vsnprintf(buf, 4096, fmt, va) < 4096);
     va_end(va);
     
-    return xStrDup(buf);
+    return x_strdup(buf);
 }
 
-char* xRep(const char* str, const char* a, const char* b) {
-    char* r = xAlloc(strlen(str) * 4 + strlen(b) * 8);
+char* x_rep(const char* str, const char* a, const char* b) {
+    char* r = x_alloc(strlen(str) * 4 + strlen(b) * 8);
     
     strcpy(r, str);
     StrRep(r, a, b);
     
     return r;
+}
+
+void* FUN_DEPRECATED xAlloc(Size size) {
+    return x_alloc(size);
+}
+char* FUN_DEPRECATED xStrDup(const char* str) {
+    return x_strdup(str);
+}
+char* FUN_DEPRECATED xStrNDup(const char* s, size_t n) {
+    return x_strndup(s, n);
+}
+char* FUN_DEPRECATED xMemDup(const char* data, Size size) {
+    return x_memdup(data, size);
+}
+char* FUN_DEPRECATED xFmt(const char* fmt, ...) {
+    char buf[4096];
+    va_list va;
+    
+    va_start(va, fmt);
+    Assert(vsnprintf(buf, 4096, fmt, va) < 4096);
+    va_end(va);
+    
+    return x_strdup(buf);
+}
+char* FUN_DEPRECATED xRep(const char* str, const char* a, const char* b) {
+    return x_rep(str, a, b);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -499,9 +525,9 @@ char* FileSys_File(const char* str, ...) {
     Log("%s", str);
     Assert(buffer != NULL);
     if (buffer[0] != '/' && buffer[0] != '\\')
-        ret = xFmt("%s%s", __sPath, buffer);
+        ret = x_fmt("%s%s", __sPath, buffer);
     else
-        ret = xStrDup(buffer + 1);
+        ret = x_strdup(buffer + 1);
     
     return ret;
 }
@@ -524,7 +550,7 @@ char* FileSys_FindFile(const char* str) {
     }
     
     if (file) {
-        file = xStrDup(file);
+        file = x_strdup(file);
         Log("Found: %s", file);
     }
     
@@ -812,9 +838,9 @@ s32 SysExe(const char* cmd) {
 
 void SysExeD(const char* cmd) {
 #ifdef _WIN32
-    SysExe(xFmt("start %s", cmd));
+    SysExe(x_fmt("start %s", cmd));
 #else
-    SysExe(xFmt("nohup %s", cmd));
+    SysExe(x_fmt("nohup %s", cmd));
 #endif
 }
 
@@ -945,7 +971,7 @@ s32 Sys_Copy(const char* src, const char* dest) {
         ItemList_List(&list, src, -1, LIST_FILES);
         
         forlist(i, list) {
-            char* dfile = xFmt(
+            char* dfile = x_fmt(
                 "%s%s%s",
                 dest,
                 StrEnd(dest, "/") ? "" : "/",
@@ -1052,29 +1078,56 @@ Size Sys_GetFileSize(const char* file) {
 const char* Sys_GetEnv(SysEnv env) {
     switch (env) {
 #ifdef _WIN32
-        case ENV_USER:
-            return StrSlash(xStrDup(getenv("USERNAME")));
+        case ENV_USERNAME:
+            return x_strdup(getenv("USERNAME"));
         case ENV_APPDATA:
-            return StrSlash(xStrDup(getenv("APPDATA")));
+            return StrSlash(x_strdup(getenv("APPDATA")));
         case ENV_HOME:
-            return StrSlash(xStrDup(getenv("USERPROFILE")));
+            return StrSlash(x_strdup(getenv("USERPROFILE")));
         case ENV_TEMP:
-            return StrSlash(xStrDup(getenv("TMP")));
+            return StrSlash(x_strdup(getenv("TMP")));
             
 #else // UNIX
-        case ENV_USER:
-            return xStrDup(getenv("USER"));
+        case ENV_USERNAME:
+            return x_strdup(getenv("USER"));
         case ENV_APPDATA:
-            return xStrDup("~/.local/");
+            return x_strdup("~/.local");
         case ENV_HOME:
-            return xStrDup(getenv("HOME"));
+            return x_strdup(getenv("HOME"));
         case ENV_TEMP:
-            return xStrDup("/tmp");
+            return x_strdup("/tmp");
             
 #endif
     }
     
     return NULL;
+}
+
+const char* Sys_TmpFile(const char* path) {
+    u64 l;
+    
+redo:
+    l = RandF() * (f64)__UINT64_MAX__;
+    
+    Sys_MakeDir("%s/ext_lib/%s%s",
+        Sys_GetEnv(ENV_TEMP),
+        path ? path : "",
+        path ? (StrEnd(path, "/") ? "" : "/") : "");
+    
+    const char* mk = x_fmt("%s/ext_lib/%s%s%02X%02X%02X%02X-%016X.tmp",
+            Sys_GetEnv(ENV_TEMP),
+            path ? path : "",
+            StrEnd(path, "/") ? "" : "/",
+            Sys_Date(Sys_Time()).month,
+            Sys_Date(Sys_Time()).day,
+            Sys_Date(Sys_Time()).minute,
+            Sys_Date(Sys_Time()).second,
+            l);
+    
+    if (Sys_Stat(mk))
+        goto redo;
+    
+    return mk;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1163,7 +1216,7 @@ f32 RandF() {
         srand(time(NULL));
     }
     
-    for (s32 i = 0; i < 128; i++)
+    for (s32 i = 0; i < Sys_Date(Sys_Time()).second; i++)
         srand(rand());
     
     f64 r = rand() / (f32)__INT16_MAX__;
@@ -1458,7 +1511,7 @@ char* Path(const char* src) {
     if (slash == 0)
         slash = -1;
     
-    buffer = xAlloc(slash + 1 + 1);
+    buffer = x_alloc(slash + 1 + 1);
     memcpy(buffer, src, slash + 1);
     buffer[slash + 1] = '\0';
     
@@ -1494,7 +1547,7 @@ char* PathSlot(const char* src, s32 num) {
     }
     end++;
     
-    buffer = xAlloc(end - start + 1);
+    buffer = x_alloc(end - start + 1);
     
     memcpy(buffer, &src[start], end - start);
     buffer[end - start] = '\0';
@@ -1523,7 +1576,7 @@ char* Basename(const char* src) {
     if (!ls++)
         ls = (char*)src;
     
-    return xStrNDup(ls, strcspn(ls, "."));
+    return x_strndup(ls, strcspn(ls, "."));
 }
 
 char* Filename(const char* src) {
@@ -1532,7 +1585,7 @@ char* Filename(const char* src) {
     if (!ls++)
         ls = (char*)src;
     
-    return xStrDup(ls);
+    return x_strdup(ls);
 }
 
 char* LineHead(const char* str, const char* head) {
@@ -1665,13 +1718,13 @@ s32 PathNum(const char* src) {
 char* CopyLine(const char* str, s32 line) {
     if (!(str = Line(str, line))) return NULL;
     
-    return xStrNDup(str, LineLen(str));
+    return x_strndup(str, LineLen(str));
 }
 
 char* CopyWord(const char* str, s32 word) {
     if (!(str = Word(str, word))) return NULL;
     
-    return xStrNDup(str, WordLen(str));
+    return x_strndup(str, WordLen(str));
 }
 
 char* PathRel_From(const char* from, const char* item) {
@@ -1681,7 +1734,7 @@ char* PathRel_From(const char* from, const char* item) {
     s32 subCnt = 0;
     char* sub = (char*)&work[lenCom];
     char* fol = (char*)&item[lenCom];
-    char* buffer = xAlloc(strlen(work) + strlen(item));
+    char* buffer = x_alloc(strlen(work) + strlen(item));
     
     forstr(i, sub) {
         if (sub[i] == '/' || sub[i] == '\\')
@@ -1698,7 +1751,7 @@ char* PathRel_From(const char* from, const char* item) {
 
 char* PathAbs_From(const char* from, const char* item) {
     item = StrSlash(StrUnq(item));
-    char* path = StrSlash(xStrDup(from));
+    char* path = StrSlash(x_strdup(from));
     char* t = StrStr(item, "../");
     char* f = (char*)item;
     s32 subCnt = 0;
@@ -1714,7 +1767,7 @@ char* PathAbs_From(const char* from, const char* item) {
         path = Path(path);
     }
     
-    return xFmt("%s%s", path, f);
+    return x_fmt("%s%s", path, f);
 }
 
 char* PathRel(const char* item) {
@@ -1746,7 +1799,7 @@ s32 PathIsRel(const char* item) {
 }
 
 char* Enumify(const char* str) {
-    char* new = xAlloc(strlen(str) * 16);
+    char* new = x_alloc(strlen(str) * 16);
     u32 write = 0;
     u32 len = strlen(str);
     
@@ -2062,7 +2115,7 @@ const char* Music_NoteWord(s32 note) {
     
     note %= 12;
     
-    return xFmt("%s%d", sNoteName[note], (s32)floorf(octave));
+    return x_fmt("%s%d", sNoteName[note], (s32)floorf(octave));
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -2156,7 +2209,7 @@ s32 StrRepWhole(char* src, const char* word, const char* replacement) {
 
 // Unquote
 char* StrUnq(const char* str) {
-    char* new = xStrDup(str);
+    char* new = x_strdup(str);
     
     StrRep(new, "\"", "");
     StrRep(new, "'", "");
@@ -2208,10 +2261,10 @@ char* String_GetSpacedArg(const char** args, s32 cur) {
             strcat(tempBuf, args[i++]);
         }
         
-        return xStrDup(tempBuf);
+        return x_strdup(tempBuf);
     }
     
-    return xStrDup(args[cur]);
+    return x_strdup(args[cur]);
 }
 
 void String_SwapExtension(char* dest, const char* src, const char* ext) {
@@ -2464,7 +2517,7 @@ char* StrU8(char* dst, const wchar* src) {
     Size len = strwlen(src) + 1;
     
     if (!dst)
-        dst = xAlloc(len);
+        dst = x_alloc(len);
     
     for (Size indexSrc = 0; indexSrc < len; indexSrc++)
         dstIndex += EncodeU8(DecodeU16(src, len, &indexSrc), dst, dstIndex);
@@ -2477,7 +2530,7 @@ wchar* StrU16(wchar* dst, const char* src) {
     Size len = strlen(src) + 1;
     
     if (!dst)
-        dst = xAlloc(len * 3);
+        dst = x_alloc(len * 3);
     
     for (Size srcIndex = 0; srcIndex < len; srcIndex++)
         dstIndex += EncodeU16(DecodeU8(src, len, &srcIndex), dst, dstIndex);
@@ -2520,7 +2573,7 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
     if (*line == '\t') return NULL;
     while (line[size] != '\t' && line[size] != '\0' && line[size] != '\n') size++;
     
-    r = xAlloc(size + 1);
+    r = x_alloc(size + 1);
     memcpy(r, line, size);
     
     return r;
@@ -2985,7 +3038,7 @@ void printf_progressFst(const char* info, u32 a, u32 b) {
     
     printf(
         // "%-16s" PRNT_RSET "[%4d / %-4d]",
-        xFmt("\r" PRNT_BLUE ">" PRNT_GRAY ": " PRNT_RSET "%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
+        x_fmt("\r" PRNT_BLUE ">" PRNT_GRAY ": " PRNT_RSET "%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
         info,
         a,
         b
@@ -3025,7 +3078,7 @@ void printf_progress(const char* info, u32 a, u32 b) {
     __printf_call(3, stdout);
     printf(
         // "%-16s" PRNT_RSET "[%4d / %-4d]",
-        xFmt("%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
+        x_fmt("%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
         info,
         a,
         b
@@ -3081,7 +3134,7 @@ void printf_hex(const char* txt, const void* data, u32 size, u32 dispOffset) {
         if ((size + dispOffset) >> (num * 4))
             break;
     
-    digit = xFmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
+    digit = x_fmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
     
     if (txt)
         printf_info("%s", txt);
@@ -3116,7 +3169,7 @@ void printf_bit(const char* txt, const void* data, u32 size, u32 dispOffset) {
         if ((size + dispOffset) >> (num * 4))
             break;
     
-    digit = xFmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
+    digit = x_fmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
     
     if (txt)
         printf_info("%s", txt);

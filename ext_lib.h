@@ -1,7 +1,7 @@
 #ifndef EXT_LIB_H
 #define EXT_LIB_H
 
-#define THIS_EXTLIB_VERSION 212
+#define THIS_EXTLIB_VERSION 220
 
 /**
  * Do not get impression that this library is clang compatible.
@@ -9,6 +9,8 @@
  *
  * I just use clang IDE, that's all.
  */
+
+#define FUN_DEPRECATED __attribute__ ((deprecated))
 
 #ifdef __clang__
 #ifdef _WIN32
@@ -61,12 +63,19 @@ void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
 
 // Temporary variable alloc, won't last forever
-void* xAlloc(Size size);
-char* xStrDup(const char* str);
-char* xStrNDup(const char* s, size_t n);
-char* xMemDup(const char* data, Size size);
-char* xFmt(const char* fmt, ...);
-char* xRep(const char* str, const char* a, const char* b);
+void* x_alloc(Size size);
+char* x_strdup(const char* str);
+char* x_strndup(const char* s, size_t n);
+char* x_memdup(const char* data, Size size);
+char* x_fmt(const char* fmt, ...);
+char* x_rep(const char* str, const char* a, const char* b);
+
+void* FUN_DEPRECATED xAlloc(Size size);
+char* FUN_DEPRECATED xStrDup(const char* str);
+char* FUN_DEPRECATED xStrNDup(const char* s, size_t n);
+char* FUN_DEPRECATED xMemDup(const char* data, Size size);
+char* FUN_DEPRECATED xFmt(const char* fmt, ...);
+char* FUN_DEPRECATED xRep(const char* str, const char* a, const char* b);
 
 void Time_Start(u32 slot);
 f64 Time_Get(u32 slot);
@@ -78,7 +87,7 @@ void FileSys_MakePath(bool flag);
 void FileSys_Path(const char* fmt, ...);
 char* FileSys_File(const char* str, ...);
 char* FileSys_FindFile(const char* str);
-void __attribute__ ((deprecated)) FileSys_Free();
+void FUN_DEPRECATED FileSys_Free();
 
 bool Sys_IsDir(const char* path);
 void Sys_MakeDir(const char* dir, ...);
@@ -104,6 +113,7 @@ Date Sys_Date(Time time);
 s32 Sys_GetCoreCount(void);
 Size Sys_GetFileSize(const char* file);
 const char* Sys_GetEnv(SysEnv env);
+const char* Sys_TmpFile(const char* path);
 
 void SysExe_IgnoreError();
 s32 SysExe_GetError();
@@ -308,13 +318,17 @@ void Config_WriteSection(MemFile* mem, const char* variable, const char* comment
 #define QUOTES     1
 #define NO_QUOTES  0
 
-void Toml_ParseFile(Toml* this, const char* file);
-void Toml_Table(Toml* this, const char* path);
+void Toml_LoadFile(Toml* this, const char* file);
+void Toml_Free(Toml* this);
+void Toml_SaveFile(Toml* this, const char* file);
 
-s32 Toml_GetInt(Toml* this, const char* item);
-f32 Toml_GetFloat(Toml* this, const char* item);
-bool Toml_GetBool(Toml* this, const char* item);
-char* Toml_GetString(Toml* this, const char* item);
+void Toml_ModifyValue(Toml* this, const char* item, const char* fmt, ...);
+
+s32 Toml_GetInt(Toml* this, const char* item, ...);
+f32 Toml_GetFloat(Toml* this, const char* item, ...);
+bool Toml_GetBool(Toml* this, const char* item, ...);
+char* Toml_GetString(Toml* this, const char* item, ...);
+s32 Toml_ArrayCount(Toml* this, const char* arr, ...);
 
 char* String_Tsv(char* str, s32 rowNum, s32 lineNum);
 
@@ -327,7 +341,7 @@ void __Log(const char* func, u32 line, const char* txt, ...);
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_MuteOutput(FILE* output);
-void __attribute__ ((deprecated)) printf_SetPrefix(char* fmt);
+void FUN_DEPRECATED printf_SetPrefix(char* fmt);
 void printf_toolinfo(const char* toolname, const char* fmt, ...);
 void printf_warning(const char* fmt, ...);
 void printf_warning_align(const char* info, const char* fmt, ...);

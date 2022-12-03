@@ -1615,7 +1615,7 @@ void Element_Update(GeoGrid* geo) {
             if (Textbox_GetKey(geo, KEY_C)->press) {
                 s32 max = fmax(gElementState.posSel, gElementState.posText);
                 s32 min = fmin(gElementState.posSel, gElementState.posText);
-                char* copy = xAlloc(512);
+                char* copy = x_alloc(512);
                 
                 memcpy(copy, &gElementState.curTextbox->txt[min], max - min);
                 Input_SetClipboardStr(geo->input, copy);
@@ -1623,7 +1623,7 @@ void Element_Update(GeoGrid* geo) {
             if (Textbox_GetKey(geo, KEY_X)->press) {
                 s32 max = fmax(gElementState.posSel, gElementState.posText);
                 s32 min = fmin(gElementState.posSel, gElementState.posText);
-                char* copy = xAlloc(512);
+                char* copy = x_alloc(512);
                 
                 memcpy(copy, &gElementState.curTextbox->txt[min], max - min);
                 Input_SetClipboardStr(geo->input, copy);

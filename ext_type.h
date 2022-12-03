@@ -283,7 +283,7 @@ typedef enum RegexFlag {
 } RegexFlag;
 
 typedef enum {
-    ENV_USER,
+    ENV_USERNAME,
     ENV_APPDATA,
     ENV_HOME,
     ENV_TEMP,
@@ -297,11 +297,14 @@ typedef struct {
 typedef struct {
 #ifdef EXT_TOML_C
     toml_table_t* config;
-    toml_table_t* field;
-    const char*   path;
 #else
-    void* _[3];
+    void* _[1];
 #endif
+    struct {
+        bool silence : 1;
+        bool success : 1;
+        bool write   : 1;
+    };
 } Toml;
 
 #endif
