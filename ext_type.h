@@ -295,15 +295,18 @@ typedef struct {
 } Arguments;
 
 typedef struct {
+    union {
 #ifdef EXT_TOML_C
-    toml_table_t* config;
-#else
-    void* _[1];
+        struct {
+            toml_table_t* root;
+            struct {
+                bool silence : 1;
+                bool success : 1;
+                bool write   : 1;
+            };
+        };
 #endif
-    struct {
-        bool silence : 1;
-        bool success : 1;
-        bool write   : 1;
+        u32 _[4];
     };
 } Toml;
 

@@ -322,7 +322,7 @@ void Toml_LoadFile(Toml* this, const char* file);
 void Toml_Free(Toml* this);
 void Toml_SaveFile(Toml* this, const char* file);
 
-void Toml_ModifyValue(Toml* this, const char* item, const char* fmt, ...);
+void Toml_SetValue(Toml* this, const char* item, const char* fmt, ...);
 
 s32 Toml_GetInt(Toml* this, const char* item, ...);
 f32 Toml_GetFloat(Toml* this, const char* item, ...);

@@ -269,7 +269,7 @@ int toml_ucs_to_utf8(int64_t code, char buf[6]) {
 }
 
 /*
- *	TOML has 3 data structures: value, array, table.
+ *	Toml has 3 data structures: value, array, table.
  *	Each of them can have identification key.
  */
 typedef struct toml_keyval_t toml_keyval_t;

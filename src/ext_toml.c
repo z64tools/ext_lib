@@ -45,7 +45,17 @@ static Travel Toml_Travel(Toml* this, const char* field, toml_table_t* tbl, char
     
     if (!next || *next == '\0') {
         if (StrEnd(elem, "]")) {
-            s32 idx = Value_Int(StrStr(elem, "[") + 1);
+            const char* arv = StrStr(elem, "[") + 1;
+            s32 idx = Value_Int(arv);
+            s32 sidx = -1;
+            
+            if ((arv = StrStr(arv, "["))) {
+                arv++;
+                sidx = Value_Int(arv);
+                
+                Swap(idx, sidx);
+            }
+            
             StrStr(elem, "[")[0] = '\0';
             
             t = (Travel) { .arr = toml_array_in(tbl, elem), .idx = idx };
@@ -65,6 +75,37 @@ static Travel Toml_Travel(Toml* this, const char* field, toml_table_t* tbl, char
                 
                 if (!t.arr)
                     return Error("Variable Array");
+            }
+            
+            if (sidx >= 0) {
+                toml_array_t* arr = toml_array_at(t.arr, sidx);
+                
+                Log("%d", arr ? arr->nitem : -1);
+                if (!arr) {
+                    if (this->write) {
+                        toml_array_t* varr = t.arr;
+                        u32 num = varr->nitem;
+                        
+                        varr->item = Realloc(varr->item, sizeof(toml_arritem_t) * (sidx + 1));
+                        for (var n = num; n < sidx + 1; n++) {
+                            varr->item[n] = (toml_arritem_t) { 0 };
+                            varr->item[n].arr = New(toml_array_t);
+                            varr->item[n].arr->key = strdup(elem);
+                            varr->item[n].arr->type = 'm';
+                            varr->item[n].arr->kind = 'v';
+                        }
+                        varr->nitem = sidx + 1;
+                        
+                        arr = toml_array_at(t.arr, sidx);
+                    }
+                    
+                    if (!arr)
+                        return Error("Sub Array");
+                }
+                
+                t.arr = arr;
+                
+                return t;
             }
             
             return t;
@@ -160,7 +201,7 @@ static toml_datum_t Toml_GetValue(Toml* this, const char* item, Type type) {
     };
     
     char path[256] = {};
-    Travel t = Toml_Travel(this, item, this->config, path);
+    Travel t = Toml_Travel(this, item, this->root, path);
     
     if (t.tbl)
         return getVar[type](t.tbl, t.item);
@@ -170,7 +211,7 @@ static toml_datum_t Toml_GetValue(Toml* this, const char* item, Type type) {
     return (toml_datum_t) {};
 }
 
-void Toml_ModifyValue(Toml* this, const char* item, const char* fmt, ...) {
+void Toml_SetValue(Toml* this, const char* item, const char* fmt, ...) {
     char path[256] = {};
     char value[256];
     va_list va;
@@ -180,10 +221,11 @@ void Toml_ModifyValue(Toml* this, const char* item, const char* fmt, ...) {
     va_end(va);
     
     this->write = true;
-    Travel t = Toml_Travel(this, item, this->config, path);
+    Travel t = Toml_Travel(this, item, this->root, path);
     this->write = false;
     
     if (t.tbl) {
+        Log("TBL");
         toml_table_t* tbl = t.tbl;
         
         if (!toml_key_exists(t.tbl, t.item)) {
@@ -202,13 +244,18 @@ void Toml_ModifyValue(Toml* this, const char* item, const char* fmt, ...) {
     }
     
     if (t.arr) {
+        Log("ARR");
         toml_array_t* arr = t.arr;
         
-        if (arr->nitem <= t.idx)
+        while (arr->nitem <= t.idx) {
             arr->item = Realloc(arr->item, sizeof(toml_arritem_t) * ++arr->nitem);
+            arr->item[arr->nitem - 1] = (toml_arritem_t) {};
+            arr->item[arr->nitem - 1].val = strdup("0");
+            arr->item[arr->nitem - 1].valtype = valtype("0");
+        }
         
         arr->item[t.idx].val = strdup(value);
-        arr->item[t.idx].valtype = 'i';
+        arr->item[t.idx].valtype = valtype(value);
         arr->item[t.idx].tab = 0;
         arr->item[t.idx].arr = 0;
     }
@@ -224,8 +271,8 @@ void Toml_LoadFile(Toml* this, const char* file) {
     
     Log("Parse File: [%s]", file);
     MemFile_LoadFile_String(&mem, file);
-    this->config = toml_parse(mem.str, errbuf, 200);
-    if (!this->config) {
+    this->root = toml_parse(mem.str, errbuf, 200);
+    if (!this->root) {
         printf_warning("[Toml Praser Error!]");
         printf_warning("File: %s", file);
         printf_error("%s", errbuf);
@@ -234,7 +281,7 @@ void Toml_LoadFile(Toml* this, const char* file) {
 }
 
 void Toml_Free(Toml* this) {
-    toml_free(this->config);
+    toml_free(this->root);
 }
 
 void Toml_SaveFile(Toml* this, const char* file) {
@@ -293,7 +340,7 @@ void Toml_SaveFile(Toml* this, const char* file) {
                         fprintf(f, " ]");
                         ar = toml_array_at(arr, k++);
                         if (ar)
-                            fprintf(f, ", ");
+                            fprintf(f, ",");
                         fprintf(f, "\n");
                     }
                     fprintf(f, "%s]\n", nd);
@@ -334,7 +381,7 @@ void Toml_SaveFile(Toml* this, const char* file) {
         }
     };
     
-    Parse(this->config, "", 0);
+    Parse(this->root, "", 0);
     
     fclose(f);
 }
@@ -405,7 +452,7 @@ s32 Toml_ArrayCount(Toml* this, const char* arr, ...) {
     
     va_start(va, arr);
     vsnprintf(buf, 256, arr, va);
-    Travel t = Toml_Travel(this, buf, this->config, path);
+    Travel t = Toml_Travel(this, buf, this->root, path);
     va_end(va);
     
     if (!StrEnd(buf, "]"))

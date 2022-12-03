@@ -388,7 +388,7 @@ void Config_ListSections(MemFile* cfg, ItemList* list) {
 }
 
 // # # # # # # # # # # # # # # # # # # # #
-// # TOML                                #
+// # .                                   #
 // # # # # # # # # # # # # # # # # # # # #
 
 static void Config_FollowUpComment(MemFile* mem, const char* comment) {
