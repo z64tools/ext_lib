@@ -1,4 +1,4 @@
-#include <ext_geogrid.h>
+#include <ext_interface.h>
 
 // # # # # # # # # # # # # # # # # # # # #
 // # PropList                            #
@@ -29,11 +29,14 @@ const char* PropList_Get(PropList* this, s32 i) {
 }
 
 void PropList_Set(PropList* this, s32 i) {
+    i = Clamp(i, 0, this->num - 1);
+    
+    printf_info("Set: %d", i);
     
     if (PROP_ONCHANGE(PROP_SET, i))
         return;
     
-    this->key = Clamp(i, 0, this->num - 1);
+    this->key = i;
     
     if (i != this->key)
         Log("Out of range set!");
@@ -68,14 +71,17 @@ void PropList_SetOnChangeCallback(PropList* this, PropOnChange onChange, void* u
 }
 
 void PropList_Add(PropList* this, const char* item) {
+    if (this->max && this->num >= this->max) return;
     if (PROP_ONCHANGE(PROP_ADD, 0))
         return;
     
-    this->list = Realloc(this->list, sizeof(char*) * (this->num + 1));
+    this->list = Realloc(this->list, sizeof(char*) * (this->num + 2));
     this->list[this->num++] = StrDup(item);
+    this->list[this->num] = NULL;
 }
 
 void PropList_Insert(PropList* this, const char* item, s32 slot) {
+    if (this->max && this->num >= this->max) return;
     if (PROP_ONCHANGE(PROP_INSERT, slot))
         return;
     
@@ -93,14 +99,18 @@ void PropList_Remove(PropList* this, s32 slot) {
     this->num--;
 }
 
-void PropList_Detach(PropList* this, s32 slot) {
+void PropList_Detach(PropList* this, s32 slot, bool copy) {
     if (PROP_ONCHANGE(PROP_DETACH, slot))
         return;
     
+    this->detachKey = slot;
     this->detach = this->list[slot];
-    this->list[slot] = NULL;
-    ArrMoveL(this->list, slot, this->num - slot);
-    this->num--;
+    
+    if (copy) {
+        this->copy = true;
+        this->detachKey = this->num;
+        this->copyKey = slot;
+    }
 }
 
 void PropList_Retach(PropList* this, s32 slot) {
@@ -109,19 +119,64 @@ void PropList_Retach(PropList* this, s32 slot) {
         return;
     }
     
+    if (this->copy) {
+        u32 in = 0;
+        const char* name;
+        
+        while (true) {
+            var found = false;
+            name = x_fmt("%s.%03d", this->detach, in++);
+            
+            for (var i = 0; i < this->num; i++) {
+                if (!strcmp(this->list[i], name))
+                    found = true;
+            }
+            
+            if (!found)
+                break;
+        }
+        
+        PropList_Insert(this, name, slot);
+        this->detach = NULL;
+        this->copy = false;
+        return;
+    }
+    
     if (PROP_ONCHANGE(PROP_RETACH, slot))
         return;
     
-    this->num++;
+    ArrMoveL(this->list, this->detachKey, this->num - this->detachKey);
     ArrMoveR(this->list, slot, this->num - slot);
-    this->list[slot] = this->detach;
     this->detach = NULL;
+    
+    if (this->detachKey == this->key) {
+        PropList_Set(this, slot);
+        return;
+    }
+    
+    if (this->key > this->detachKey)
+        PropList_Set(this, this->key - 1);
+    else
+        PropList_Set(this, this->key + 1);
 }
 
 void PropList_DestroyDetach(PropList* this) {
     if (this->detach) {
-        PROP_ONCHANGE(PROP_DESTROY_DETACH, 0);
+        if (this->copy) {
+            this->detach = NULL;
+            this->copy = false;
+            return;
+        }
+        
+        PROP_ONCHANGE(PROP_DESTROY_DETACH, this->detachKey);
+        
+        this->list[this->detachKey] = NULL;
+        ArrMoveL(this->list, this->detachKey, this->num - this->detachKey);
+        this->num--;
         Free(this->detach);
+        
+        if (this->key >= this->detachKey)
+            PropList_Set(this, this->key - 1);
     }
 }
 

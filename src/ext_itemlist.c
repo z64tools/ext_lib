@@ -91,7 +91,7 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
             if (!strcmp(".", entry->d_name) || !strcmp("..", entry->d_name))
                 continue;
             
-            fornode(FilterNode, filterNode, list->filterNode) {
+            fornode(filterNode, list->filterNode) {
                 switch (filterNode->type) {
                     case FILTER_SEARCH:
                         if (StrStr(entry->d_name, filterNode->txt))

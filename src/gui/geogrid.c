@@ -774,12 +774,12 @@ static void Split_SwapInstance(GeoGrid* geo, Split* split) {
     geo->taskTable[split->id]->init(geo->passArg, split->instance, split);
 }
 
-static void Split_UpdateScroll(Split* split, Cursor* cursor) {
+static void Split_UpdateScroll(Split* split, Input* input) {
     SplitScroll* scroll = &split->scroll;
     
     if (split->scroll.enabled) {
-        if (split->mouseInSplit) {
-            s32 val = Clamp(cursor->scrollY, -1, 1);
+        if (split->mouseInSplit && !split->splitBlockScroll) {
+            s32 val = Input_GetScroll(input);
             
             scroll->offset = scroll->offset + SPLIT_ELEM_Y_PADDING * -val;
         }
@@ -787,6 +787,7 @@ static void Split_UpdateScroll(Split* split, Cursor* cursor) {
         scroll->offset = Clamp(scroll->offset, 0, scroll->max);
     } else
         split->scroll.offset = 0;
+    split->splitBlockScroll = 0;
 }
 
 static inline void Split_UpdateSplit(GeoGrid* geo, Split* split) {
@@ -803,7 +804,7 @@ static inline void Split_UpdateSplit(GeoGrid* geo, Split* split) {
     split->mouseInDispRect = Rect_PointIntersect(&split->dispRect, cursor->pos.x, cursor->pos.y);
     split->mouseInHeader = Rect_PointIntersect(&split->headRect, cursor->pos.x, cursor->pos.y);
     split->blockMouse = false;
-    Split_UpdateScroll(split, cursor);
+    Split_UpdateScroll(split, geo->input);
     
     if (Input_GetMouse(geo->input, CLICK_ANY)->press)
         split->mousePressPos = split->cursorPos;
@@ -1256,8 +1257,8 @@ void GeoGrid_Update(GeoGrid* geo) {
 void GeoGrid_Draw(GeoGrid* geo) {
     Vec2s* wdim = geo->wdim;
     
+    Element_UpdateTextbox(geo);
     Split_Update(geo);
-    Element_Update(geo);
     
     // Draw Bars
     for (s32 i = 0; i < 2; i++) {

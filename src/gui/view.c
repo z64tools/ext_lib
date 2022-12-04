@@ -31,10 +31,10 @@ static void Camera_CalculateFly(Camera* cam) {
     Matrix_Pop();
 }
 
-static void Camera_FlyMode(View3D* this, Input* inputCtx) {
+static void Camera_FlyMode(View3D* this, Input* inputCtx, bool update) {
     Camera* cam = this->currentCamera;
     
-    if (this->cameraControl && !this->interrupt) {
+    if (this->cameraControl && update) {
         f32 step = 1.0f * cam->speedMod;
         f32 min = 0.01f * cam->speedMod;
         
@@ -82,8 +82,8 @@ static void Camera_FlyMode(View3D* this, Input* inputCtx) {
             
             dot = powf(fabsf(dot), 0.5f) * s;
             
-            cam->pitch = (s32)(cam->pitch + inputCtx->cursor.vel.y * 55.5f);
-            cam->yaw = (s32)(cam->yaw - inputCtx->cursor.vel.x * 55.5f * dot);
+            cam->pitch = (s32)(cam->pitch + inputCtx->cursor.vel.y * 50.5f);
+            cam->yaw = (s32)(cam->yaw - inputCtx->cursor.vel.x * 50.5f * dot);
         }
     } else {
         Math_DelSmoothStepToF(&cam->speed, 0.5f, 0.5f, 1.00f, 0.1f);
@@ -127,20 +127,20 @@ static void Camera_CalculateOrbit(Camera* cam) {
     Matrix_Pop();
 }
 
-static void Camera_OrbitMode(View3D* this, Input* inputCtx) {
+static void Camera_OrbitMode(View3D* this, Input* inputCtx, bool update) {
     Camera* cam = this->currentCamera;
     f32 distMult = (cam->dist * 0.2);
     f32 disdiff = fabsf(cam->dist - cam->targetDist);
     f32 fovDiff = fabsf(this->fovy - this->fovyTarget);
     
-    if (this->cameraControl && !this->interrupt) {
+    if (this->cameraControl && update) {
         if (inputCtx->key[KEY_LEFT_CONTROL].hold && inputCtx->cursor.clickMid.hold && Input_GetScroll(inputCtx) == 0)
             cam->targetDist += inputCtx->cursor.vel.y;
         
         if (inputCtx->cursor.clickMid.hold || Input_GetScroll(inputCtx) || disdiff || fovDiff) {
             if (inputCtx->key[KEY_LEFT_CONTROL].hold && Input_GetScroll(inputCtx)) {
                 cam->targetDist = cam->dist;
-                this->fovyTarget = Clamp(this->fovyTarget * (1.0 + (Input_GetScroll(inputCtx) / 20)), 30, 120);
+                this->fovyTarget = Clamp(this->fovyTarget * (1.0 + (Input_GetScroll(inputCtx) / 20)), 10, 130);
                 fovDiff = -this->fovy;
             } else {
                 if (Input_GetScroll(inputCtx)) {
@@ -350,7 +350,7 @@ void View_InterruptControl(View3D* this) {
 }
 
 void View_Update(View3D* this, Input* inputCtx, Split* split) {
-    void (*camMode[])(View3D*, Input*) = {
+    void (*camMode[])(View3D*, Input*, bool) = {
         Camera_FlyMode,
         Camera_OrbitMode,
     };
@@ -367,11 +367,8 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
         Matrix_Projection(
             &this->projMtx, this->fovy, (f32)this->split->rect.w / (f32)this->split->rect.h, this->near, this->far, this->scale);
     
-    if (this->mode == CAM_MODE_ALL)
-        for (s32 i = 0; i < ArrayCount(camMode); i++)
-            camMode[i](this, inputCtx);
-    else
-        camMode[this->mode](this, inputCtx);
+    for (s32 i = 0; i < ArrayCount(camMode); i++)
+        camMode[i](this, inputCtx, (this->mode & (1 << i) && !this->interrupt));
     
     if (this->cameraControl && !this->interrupt) {
         s32 keyList[] = {

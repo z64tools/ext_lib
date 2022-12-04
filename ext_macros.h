@@ -188,24 +188,24 @@
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>]: " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
 
-#define foreach(val, arr)        for (int val = 0; val < ArrayCount(arr); val++)
-#define forlist(val, list)       for (int val = 0; val < (list).num; val++)
-#define fornode(type, val, head) for (type* val = head; val != NULL; val = val->next)
-#define forstr(val, str)         for (int val = 0; val < strlen(str); val++)
-#define forline(val, str)        for (const char* val = str; val; val = Line(val, 1))
+#define foreach(val, arr)  for (int val = 0; val < ArrayCount(arr); val++)
+#define forlist(val, list) for (int val = 0; val < (list).num; val++)
+#define fornode(val, head) for (typeof(head) val = head; val != NULL; val = val->next)
+#define forstr(val, str)   for (int val = 0; val < strlen(str); val++)
+#define forline(val, str)  for (const char* val = str; val; val = Line(val, 1))
 
-#define ArrMoveR(arr, start, count) do {                      \
-        var v = (arr)[(start) + (count) - 1];                 \
-        for (int i = (count) + (start) - 1; i > (start); i--) \
-        (arr)[i] = (arr)[i - 1];                              \
-        (arr)[(start)] = v;                                   \
+#define ArrMoveR(arr, start, count) do {                                        \
+        var v = (arr)[(start) + (count) - 1];                                   \
+        for (int ___i___ = (count) + (start) - 1; ___i___ > (start); ___i___--) \
+        (arr)[___i___] = (arr)[___i___ - 1];                                    \
+        (arr)[(start)] = v;                                                     \
 } while (0)
 
-#define ArrMoveL(arr, start, count) do {                  \
-        var v = (arr)[(start)];                           \
-        for (int i = (start); i < (count) + (start); i++) \
-        (arr)[i] = (arr)[i + 1];                          \
-        (arr)[(count) + (start) - 1] = v;                 \
+#define ArrMoveL(arr, start, count) do {                                    \
+        var v = (arr)[(start)];                                             \
+        for (int ___i___ = (start); ___i___ < (count) + (start); ___i___++) \
+        (arr)[___i___] = (arr)[___i___ + 1];                                \
+        (arr)[(count) + (start) - 1] = v;                                   \
 } while (0)
 
 /**

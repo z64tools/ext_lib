@@ -31,9 +31,10 @@ typedef struct {
 } CamSettings;
 
 typedef enum {
-    CAM_MODE_FLY,
-    CAM_MODE_ORBIT,
-    CAM_MODE_ALL
+    CAM_MODE_FLY   = (1 << 0),
+    CAM_MODE_ORBIT = (1 << 1),
+    
+    CAM_MODE_ALL   = (CAM_MODE_FLY | CAM_MODE_ORBIT),
 } CamMode;
 
 typedef struct View3D {

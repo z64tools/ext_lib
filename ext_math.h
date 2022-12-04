@@ -65,6 +65,10 @@ static inline f32 AccuracyF(f32 v, f32 mod) {
     return rint(rint(v * mod) / mod);
 }
 
+static inline f32 RoundStepF(f32 v, f32 step) {
+    return rintf(v * (1.0f / step)) * step;
+}
+
 static inline f32 InvF(f32 v) {
     return Remap(v, 0.0f, 1.0f, 1.0f, 0.0f);
 }

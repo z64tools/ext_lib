@@ -163,6 +163,7 @@ typedef struct Split {
     
     // Incrementable blocker
     s32 elemBlockMouse;
+    s32 splitBlockScroll;
     struct {
         bool mouseInSplit    : 1;
         bool mouseInHeader   : 1;
@@ -257,15 +258,20 @@ struct PropList;
 typedef bool (*PropOnChange)(struct PropList*, PropListChange, s32);
 
 typedef struct PropList {
-    void*        argument;
-    char**       list;
-    char*        detach;
-    s32          num;
-    s32          key;
-    s32          visualKey; // visual key
+    void*  argument;
+    char** list;
+    char*  detach;
+    s32    max;
+    s32    num;
+    s32    key;
+    s32    visualKey;
+    s32    detachKey;
+    s32    copyKey;
+    bool   copy;
+    
     PropOnChange onChange;
-    void*        udata1;
-    void*        udata2;
+    void* udata1;
+    void* udata2;
 } PropList;
 
 typedef struct PropColor {
@@ -393,6 +399,7 @@ typedef struct {
     s32 heldKey;
     s32 detachID;
     f32 detachMul;
+    f32 copyLerp;
 } ElContainer;
 
 extern Vec2f gZeroVec2f;
@@ -458,7 +465,7 @@ void Element_RowY(f32 y);
 void Element_Row(Split* split, s32 rectNum, ...);
 void Element_Header(Split* split, s32 num, ...);
 
-void Element_Update(GeoGrid* geo);
+void Element_UpdateTextbox(GeoGrid* geo);
 void Element_Draw(GeoGrid* geo, Split* split, bool header);
 
 #define Element_Name(this, name)        Element_Name(&(this)->element, name)
@@ -477,7 +484,7 @@ void PropList_SetOnChangeCallback(PropList* this, PropOnChange onChange, void* u
 void PropList_Add(PropList* this, const char* item);
 void PropList_Insert(PropList* this, const char* item, s32 slot);
 void PropList_Remove(PropList* this, s32 key);
-void PropList_Detach(PropList* this, s32 slot);
+void PropList_Detach(PropList* this, s32 slot, bool copy);
 void PropList_Retach(PropList* this, s32 slot);
 void PropList_DestroyDetach(PropList* this);
 void PropList_Free(PropList* this);

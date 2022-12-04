@@ -29,13 +29,15 @@ typedef struct ElementCallInfo {
 
 typedef struct {
     const char* item;
-    f32   swing;
-    f32   alpha;
-    Vec2f pos;
-    Vec2f vel;
-    Rect  rect;
-    s32   hold;
-    void* src;
+    f32       swing;
+    f32       alpha;
+    f32       colorLerp;
+    Vec2f     pos;
+    Vec2f     vel;
+    Rect      rect;
+    s32       hold;
+    void*     src;
+    PropList* prop;
 } DragItem;
 
 ThreadLocal struct {
@@ -77,7 +79,7 @@ static const char* sFmt[] = {
     "%d"
 };
 
-static void DragItem_Init(GeoGrid* geo, void* src, Rect rect, const char* item) {
+static void DragItem_Init(GeoGrid* geo, void* src, Rect rect, const char* item, PropList* prop) {
     DragItem* this = &gElementState.dragItem;
     
     this->src = src;
@@ -90,6 +92,8 @@ static void DragItem_Init(GeoGrid* geo, void* src, Rect rect, const char* item) 
     this->alpha = this->swing = 0;
     this->pos = Math_Vec2f_New(UnfoldVec2(geo->input->cursor.pos));
     this->hold = true;
+    this->colorLerp = 0.0f;
+    this->prop = prop;
 }
 
 static bool DragItem_Release(GeoGrid* geo, void* src) {
@@ -312,6 +316,9 @@ void Element_SetContext(GeoGrid* setGeo, Split* setSplit) {
     Element_QueueElement(gElementState.geo, gElementState.split, \
         draw, this, __FUNCTION__);
 
+#define SPLIT gElementState.split
+#define GEO   gElementState.geo
+
 // # # # # # # # # # # # # # # # # # # # #
 // #                                     #
 // # # # # # # # # # # # # # # # # # # # #
@@ -368,7 +375,7 @@ static void Element_ButtonDraw(ElementCallInfo* info) {
 s32 Element_Button(ElButton* this) {
     void* vg = gElementState.geo->vg;
     
-    Assert(gElementState.geo && gElementState.split);
+    Assert(GEO && SPLIT);
     
     if (!this->element.toggle)
         this->state = 0;
@@ -654,7 +661,7 @@ static void Element_TextboxDraw(ElementCallInfo* info) {
 }
 
 void Element_Textbox(ElTextbox* this) {
-    Assert(gElementState.geo && gElementState.split);
+    Assert(GEO && SPLIT);
     
     ELEMENT_QUEUE_CHECK();
     
@@ -709,7 +716,7 @@ static void Element_TextDraw(ElementCallInfo* info) {
 ElText* Element_Text(const char* txt) {
     ElText* this = Calloc(sizeof(ElText));
     
-    Assert(gElementState.geo && gElementState.split);
+    Assert(GEO && SPLIT);
     this->element.name = txt;
     this->element.doFree = true;
     
@@ -735,24 +742,30 @@ static void Element_CheckboxDraw(ElementCallInfo* info) {
         { .x = -10, .y = -10 }, { .x = -10, .y =  -7 },
         { .x =  -3, .y =   0 }, { .x = -10, .y =   7 },
     };
+    Rect r = this->element.rect;
+    
+    r.w = r.h;
     
     if (this->element.toggle)
         Math_DelSmoothStepToF(&this->lerp, 0.8f - gElementState.breath * 0.08, 0.178f, 0.1f, 0.0f);
     else
         Math_DelSmoothStepToF(&this->lerp, 0.0f, 0.268f, 0.1f, 0.0f);
     
-    Gfx_DrawRounderOutline(vg, this->element.rect, this->element.light);
-    Gfx_DrawRounderRect(vg, this->element.rect, this->element.base);
+    Gfx_DrawRounderOutline(vg, r, this->element.light);
+    Gfx_DrawRounderRect(vg, r, this->element.base);
     
-    NVGcolor col = this->element.base;
+    NVGcolor col = this->element.prim;
     f32 flipLerp = 1.0f - this->lerp;
     
     flipLerp = (1.0f - powf(flipLerp, 1.6));
-    center.x = this->element.rect.x + this->element.rect.w * 0.5;
-    center.y = this->element.rect.y + this->element.rect.h * 0.5;
+    center.x = r.x + r.w * 0.5;
+    center.y = r.y + r.h * 0.5;
     
     col.a = flipLerp * 1.67;
     col.a = ClampMin(col.a, 0.80);
+    
+    if (this->element.disabled)
+        col = this->element.light;
     
     nvgBeginPath(vg);
     nvgFillColor(vg, col);
@@ -782,8 +795,7 @@ static void Element_CheckboxDraw(ElementCallInfo* info) {
 }
 
 s32 Element_Checkbox(ElCheckbox* this) {
-    Assert(gElementState.geo && gElementState.split);
-    this->element.rect.w = this->element.rect.h;
+    Assert(GEO && SPLIT);
     
     ELEMENT_QUEUE_CHECK();
     
@@ -874,7 +886,7 @@ static void Element_SliderDraw(ElementCallInfo* info) {
 }
 
 f32 Element_Slider(ElSlider* this) {
-    Assert(gElementState.geo && gElementState.split);
+    Assert(GEO && SPLIT);
     
     if (this->min == 0.0f && this->max == 0.0f)
         this->max = 1.0f;
@@ -895,8 +907,11 @@ f32 Element_Slider(ElSlider* this) {
     if (ELEM_PRESS_CONDITION(this) || this->holdState) {
         u32 pos = false;
         
+        SPLIT->splitBlockScroll++;
+        
         if (this->isTextbox) {
             this->isTextbox = false;
+            
             if (gElementState.curTextbox == &this->textBox) {
                 this->isTextbox = true;
                 this->holdState = true;
@@ -1033,7 +1048,7 @@ static void Element_ComboDraw(ElementCallInfo* info) {
 }
 
 s32 Element_Combo(ElCombo* this) {
-    Assert(gElementState.geo && gElementState.split);
+    Assert(GEO && SPLIT);
     
     ELEMENT_QUEUE_CHECK();
     
@@ -1041,6 +1056,7 @@ s32 Element_Combo(ElCombo* this) {
     
     if (this->prop && this->prop->num) {
         if (ELEM_PRESS_CONDITION(this)) {
+            SPLIT->splitBlockScroll++;
             s32 scrollY = Clamp(Input_GetScroll(gElementState.geo->input), -1, 1);
             
             if (Input_GetMouse(gElementState.geo->input, CLICK_L)->press) {
@@ -1070,10 +1086,11 @@ s32 Element_Combo(ElCombo* this) {
 static Rect Element_Container_GetPropRect(ElContainer* this, s32 i) {
     Rect r = this->element.rect;
     f32 yOffset = 0;
+    PropList* prop = this->prop;
     
-    if (this->prop && this->prop->detach
-        && i >= this->detachID) {
+    if (prop && prop->detach && i >= prop->detachKey) {
         yOffset = SPLIT_TEXT_H * this->detachMul;
+        yOffset -= SPLIT_TEXT_H;
     }
     
     return Rect_New(
@@ -1123,8 +1140,17 @@ static void Element_ContainerDraw(ElementCallInfo* info) {
     scissor.h -= 2;
     
     nvgScissor(vg, UnfoldRect(scissor));
+    
+    if (Input_GetKey(gElementState.geo->input, KEY_LEFT_SHIFT)->hold)
+        Math_SmoothStepToF(&this->copyLerp, 1.0f, 0.25f, 0.25f, 0.01f);
+    else
+        Math_SmoothStepToF(&this->copyLerp, 0.0f, 0.25f, 0.25f, 0.01f);
+    
     for (s32 i = 0; i < prop->num; i++) {
         Rect tr = Element_Container_GetPropRect(this, i);
+        
+        if (prop->detach && prop->detachKey == i)
+            continue;
         
         if (prop->key == i) {
             Rect vt = tr;
@@ -1137,6 +1163,16 @@ static void Element_ContainerDraw(ElementCallInfo* info) {
             Gfx_DrawRounderRect(
                 vg, vt, col
             );
+        }
+        
+        if (!prop->detach) {
+            if (Split_CursorInRect(gElementState.split, &tr) && this->copyLerp > EPSILON) {
+                Rect vt = tr;
+                vt.x += 1; vt.w -= 2;
+                vt.y += 1; vt.h -= 2;
+                
+                Gfx_DrawRounderRect(vg, vt, nvgHSLA(0.33f, 1.0f, 0.5f, 125 * this->copyLerp));
+            }
         }
         
         Gfx_Text(
@@ -1156,8 +1192,13 @@ static void Element_ContainerDraw(ElementCallInfo* info) {
         r.h += 16;
         
         if (Rect_PointIntersect(&r, UnfoldVec2(gElementState.split->cursorPos))) {
-            for (s32 i = 0;; i++) {
+            Math_SmoothStepToF(&drag->colorLerp, 0.0f, 0.25f, 0.25f, 0.001f);
+            
+            for (s32 i = 0; i < prop->num + 1; i++) {
                 Rect r = Element_Container_GetDragRect(this, i);
+                
+                if (i == this->prop->detachKey)
+                    continue;
                 
                 if (Rect_PointIntersect(&r, UnfoldVec2(gElementState.split->cursorPos))
                     || prop->num == i) {
@@ -1169,7 +1210,8 @@ static void Element_ContainerDraw(ElementCallInfo* info) {
                     break;
                 }
             }
-        }
+        } else
+            Math_SmoothStepToF(&drag->colorLerp, 0.5f, 0.25f, 0.25f, 0.001f);
     }
     
 }
@@ -1177,7 +1219,7 @@ static void Element_ContainerDraw(ElementCallInfo* info) {
 s32 Element_Container(ElContainer* this) {
     SplitScroll* scroll = &this->scroll;
     
-    Assert(gElementState.geo && gElementState.split);
+    Assert(GEO && SPLIT);
     
     if (this->prop) {
         PropList* prop = this->prop;
@@ -1200,10 +1242,10 @@ s32 Element_Container(ElContainer* this) {
         
         if (this->heldKey > 0 && Math_Vec2s_DistXZ(cursor->pos, cursor->pressPos) > 8) {
             Log("Drag Item Init");
-            DragItem_Init(gElementState.geo, this, this->grabRect, PropList_Get(prop, this->heldKey - 1));
+            DragItem_Init(gElementState.geo, this, this->grabRect, PropList_Get(prop, this->heldKey - 1), this->prop);
             this->detachID = this->heldKey - 1;
             this->detachMul = 1.0f;
-            PropList_Detach(prop, this->heldKey - 1);
+            PropList_Detach(prop, this->heldKey - 1, Input_GetKey(input, KEY_LEFT_SHIFT)->hold);
             this->heldKey = 0;
         }
         
@@ -1214,6 +1256,7 @@ s32 Element_Container(ElContainer* this) {
             goto queue_element;
         }
         
+        SPLIT->splitBlockScroll++;
         scroll->offset += (SPLIT_TEXT_H) *-val;
         
         if (!Input_GetMouse(input, CLICK_L)->press)
@@ -1259,15 +1302,20 @@ s32 Element_Container(ElContainer* this) {
             
             if (Rect_PointIntersect(&r, UnfoldVec2(gElementState.split->cursorPos))) {
                 s32 i = 0;
+                s32 id = 0;
                 
                 for (; i < prop->num; i++) {
                     Rect r = Element_Container_GetDragRect(this, i);
                     
+                    if (i == prop->detachKey)
+                        continue;
+                    
                     if (Rect_PointIntersect(&r, UnfoldVec2(gElementState.split->cursorPos)))
                         break;
+                    id++;
                 }
                 
-                PropList_Retach(prop, i);
+                PropList_Retach(prop, id);
             }
             
             PropList_DestroyDetach(prop);
@@ -1316,7 +1364,7 @@ static void Element_SeparatorDraw(ElementCallInfo* info) {
 void Element_Separator(bool drawLine) {
     Element* this;
     
-    Assert(gElementState.geo && gElementState.split);
+    Assert(GEO && SPLIT);
     
     if (drawLine) {
         this = Calloc(sizeof(*this));
@@ -1360,7 +1408,7 @@ s32 Element_Box(BoxInit io) {
     #define THIS  boxElemList[r]
     #define ROW_Y boxRowY[r]
     
-    Assert(gElementState.geo && gElementState.split);
+    Assert(GEO && SPLIT);
     Assert(r < ArrayCount(boxElemList));
     
     if (io == BOX_START) {
@@ -1403,7 +1451,7 @@ void Element_DisplayName(Element* this, f32 lerp) {
     ElementCallInfo* node;
     s32 w = this->rect.w * lerp;
     
-    Assert(gElementState.geo && gElementState.split);
+    Assert(GEO && SPLIT);
     
     this->posTxt.x = this->rect.x;
     this->posTxt.y = this->rect.y + SPLIT_TEXT_PADDING - 1;
@@ -1456,7 +1504,7 @@ void Element_Color_SetColor(ElColor* this, void* color) {
 
 void Element_Container_SetPropList(ElContainer* this, PropList* prop, u32 num) {
     this->prop = prop;
-    this->element.heightAdd = SPLIT_TEXT_H * ClampMin(num - 3, 0);
+    this->element.heightAdd = SPLIT_TEXT_H * ClampMin(num - 1, 0);
 }
 
 void Element_Name(Element* this, const char* name) {
@@ -1573,7 +1621,7 @@ static InputType* Textbox_GetMouse(GeoGrid* geo, CursorClick key) {
     return &geo->input->cursor.clickList[key];
 }
 
-void Element_Update(GeoGrid* geo) {
+void Element_UpdateTextbox(GeoGrid* geo) {
     gElementState.breathYaw += DegToBin(3);
     gElementState.breath = (SinS(gElementState.breathYaw) + 1.0f) * 0.5;
     
@@ -1591,9 +1639,7 @@ void Element_Update(GeoGrid* geo) {
             gElementState.posSel = -1;
             gElementState.ctrlA = 0;
             
-            Assert(gElementState.curSplitTextbox != NULL);
             if (!Split_CursorInRect(gElementState.curSplitTextbox, &gElementState.curTextbox->element.rect) || Textbox_GetKey(geo, KEY_ENTER)->press) {
-                gElementState.curTextbox = NULL;
                 gElementState.curTextbox = NULL;
                 gElementState.storeA = NULL;
                 gElementState.flickFlag = 1;
@@ -1833,14 +1879,17 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
         this = elem->arg;
         
         if (this->header == header && elem->split == split) {
-            Log("[%d][Split ID %d] ElemFunc: " PRNT_PRPL "%s", header, split->id, elem->elemFunc);
+            Log("[%d][Split ID %d] ElemFunc: " PRNT_PRPL "%sDraw", header, split->id, elem->elemFunc);
             
             if (elem->update)
                 Element_UpdateElement(elem);
+            
             if (header || !Element_DisableDraw(elem->arg, elem->split))
                 elem->func(elem);
+            
             if (this->doFree)
                 Free(this);
+            
             Node_Remove(gElementState.head, elem);
             Free(elem);
         }
@@ -1886,14 +1935,22 @@ void DragItem_Draw(GeoGrid* geo) {
     Math_SmoothStepToF(&this->alpha, this->hold ? 200.0f : 0.0f, 0.25f, 80.0f, 0.01f);
     
     nvgBeginFrame(vg, geo->wdim->x, geo->wdim->y, gPixelRatio); {
+        NVGcolor outc = Theme_Mix(this->colorLerp, Theme_GetColor(THEME_ELEMENT_LIGHT, this->alpha, 1.0f), nvgHSLA(0, 1.0f, 0.5f, this->alpha));
+        NVGcolor inc = Theme_Mix(this->colorLerp, Theme_GetColor(THEME_ELEMENT_BASE, this->alpha, 1.0f), nvgHSLA(0, 1.0f, 0.5f, this->alpha));
+        
+        if (this->prop->copy) {
+            outc = Theme_Mix(this->colorLerp + 0.5f, nvgHSLA(0.33f, 1.0f, 0.5f, this->alpha), outc);
+            inc = Theme_Mix(this->colorLerp + 0.5f, nvgHSLA(0.33f, 1.0f, 0.5f, this->alpha), inc);
+        }
+        
         f32 scale = Lerp(0.5f, this->alpha / 200.0f, 1.0f - (fabsf(this->swing) / 1.85f));
         nvgTranslate(vg,
             this->pos.x + this->rect.w * 0.5f,
             this->pos.y + this->rect.h * 0.5f);
         nvgScale(vg, scale, scale);
         nvgRotate(vg, this->swing);
-        Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_ELEMENT_LIGHT, this->alpha, 1.0f));
-        Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_ELEMENT_BASE, this->alpha, 1.0f));
+        Gfx_DrawRounderOutline(vg, r, outc);
+        Gfx_DrawRounderRect(vg, r, inc);
         Gfx_Text(
             vg, r, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE,
             Theme_GetColor(THEME_TEXT, this->alpha, 1.0f),

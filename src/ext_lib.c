@@ -2649,13 +2649,6 @@ static void Log_Printinf(s32 arg, FILE* file) {
 static void Log_Signal(s32 arg) {
     static volatile bool ran = 0;
     
-    if (arg == 2) { /* INTERRUPT */
-        Terminal_ClearLines(1);
-        fprintf(stdlog, "\r");
-        printf_warning("Closed!");
-        exit(1);
-    }
-    
     if (!sLogInit)
         return;
     if (ran) return;
