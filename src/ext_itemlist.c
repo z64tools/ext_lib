@@ -567,3 +567,41 @@ void ItemList_Tokenize(ItemList* this, const char* s, char r) {
             *end = '\0';
     }
 }
+
+int Comparison(const void* void_a, const void* void_b) {
+    const char* a = *((char**)void_a);
+    const char* b = *((char**)void_b);
+    
+    if (!a || !b)
+        return a ? 1 : b ? -1 : 0;
+    
+    if (isdigit(*a) && isdigit(*b)) {
+        char* remainderA;
+        char* remainderB;
+        long valA = strtol(a, &remainderA, 10);
+        long valB = strtol(b, &remainderB, 10);
+        if (valA != valB)
+            return valA - valB;
+        
+        else if (remainderB - b != remainderA - a)
+            return (remainderB - b) - (remainderA - a);
+        else
+            return Comparison(&remainderA, &remainderB);
+    }
+    if (isdigit(*a) || isdigit(*b)) {
+        return isdigit(*a) ? -1 : 1;
+    }
+    while (*a && *b) {
+        if (isdigit(*a) || isdigit(*b))
+            return Comparison(&a, &b);
+        if (tolower(*a) != tolower(*b))
+            return tolower(*a) - tolower(*b);
+        a++;
+        b++;
+    }
+    return *a ? 1 : *b ? -1 : 0;
+}
+
+void ItemList_SortNatural(ItemList* this) {
+    qsort(this->item, this->num, sizeof(char*), Comparison);
+}

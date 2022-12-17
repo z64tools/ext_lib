@@ -56,7 +56,7 @@ PropList PropList_InitList(s32 def, s32 num, ...) {
     
     va_start(va, num);
     
-    for (s32 i = 0; i < num; i++)
+    for (var i = 0; i < num; i++)
         PropList_Add(&prop, va_arg(va, char*));
     
     va_end(va);
@@ -120,7 +120,7 @@ void PropList_Retach(PropList* this, s32 slot) {
     }
     
     if (this->copy) {
-        u32 in = 0;
+        var in = 0;
         const char* name;
         
         while (true) {
@@ -145,19 +145,24 @@ void PropList_Retach(PropList* this, s32 slot) {
     if (PROP_ONCHANGE(PROP_RETACH, slot))
         return;
     
+    u8* f = Stalloc(u8[this->num]);
+    f[this->key] = true;
+    
+    printf_hex("Pre", f, sizeof(u8[this->num]), 0);
+    ArrMoveL(f, this->detachKey, this->num - this->detachKey);
+    ArrMoveR(f, slot, this->num - slot);
+    printf_hex("Post", f, sizeof(u8[this->num]), 0);
+    
     ArrMoveL(this->list, this->detachKey, this->num - this->detachKey);
     ArrMoveR(this->list, slot, this->num - slot);
     this->detach = NULL;
     
-    if (this->detachKey == this->key) {
-        PropList_Set(this, slot);
-        return;
+    for (var i = 0; i < this->num; i++) {
+        if (f[i] == true) {
+            PropList_Set(this, i);
+            break;
+        }
     }
-    
-    if (this->key > this->detachKey)
-        PropList_Set(this, this->key - 1);
-    else
-        PropList_Set(this, this->key + 1);
 }
 
 void PropList_DestroyDetach(PropList* this) {
@@ -168,7 +173,8 @@ void PropList_DestroyDetach(PropList* this) {
             return;
         }
         
-        PROP_ONCHANGE(PROP_DESTROY_DETACH, this->detachKey);
+        if (PROP_ONCHANGE(PROP_DESTROY_DETACH, this->detachKey))
+            return;
         
         this->list[this->detachKey] = NULL;
         ArrMoveL(this->list, this->detachKey, this->num - this->detachKey);
@@ -181,7 +187,7 @@ void PropList_DestroyDetach(PropList* this) {
 }
 
 void PropList_Free(PropList* this) {
-    for (s32 i = 0; i < this->num; i++)
+    for (var i = 0; i < this->num; i++)
         Free(this->list[i]);
     Free(this->list);
     Free(this->detach);

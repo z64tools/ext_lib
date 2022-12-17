@@ -466,7 +466,7 @@ static inline f32 Rect_PointDistance(Rect* rect, s32 x, s32 y) {
     return Math_Vec2s_DistXZ(r, p);
 }
 
-static inline BoundBox BoundBox_New(Vec3f point) {
+static inline BoundBox BoundBox_New3F(Vec3f point) {
     BoundBox this;
     
     this.xMax = point.x;
@@ -479,13 +479,44 @@ static inline BoundBox BoundBox_New(Vec3f point) {
     return this;
 }
 
-static inline void BoundBox_Adjust(BoundBox* this, Vec3f point) {
+static inline BoundBox BoundBox_New2F(Vec2f point) {
+    BoundBox this = {};
+    
+    this.xMax = point.x;
+    this.xMin = point.x;
+    this.yMax = point.y;
+    this.yMin = point.y;
+    
+    return this;
+}
+
+static inline void BoundBox_Adjust3F(BoundBox* this, Vec3f point) {
     this->xMax = Max(this->xMax, point.x);
     this->xMin = Min(this->xMin, point.x);
     this->yMax = Max(this->yMax, point.y);
     this->yMin = Min(this->yMin, point.y);
     this->zMax = Max(this->zMax, point.z);
     this->zMin = Min(this->zMin, point.z);
+}
+
+static inline void BoundBox_Adjust2F(BoundBox* this, Vec2f point) {
+    this->xMax = Max(this->xMax, point.x);
+    this->xMin = Min(this->xMin, point.x);
+    this->yMax = Max(this->yMax, point.y);
+    this->yMin = Min(this->yMin, point.y);
+}
+
+static inline bool Math_Vec2f_PointInShape(Vec2f p, Vec2f* poly, u32 numPoly) {
+    bool in = false;
+    
+    for (u32 i = 0, j = numPoly - 1; i < numPoly; j = i++) {
+        if ((poly[i].y > p.y) != (poly[j].y > p.y)
+            && p.x < (poly[j].x - poly[i].x) * (p.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x ) {
+            in = !in;
+        }
+    }
+    
+    return in;
 }
 
 // # # # # # # # # # # # # # # # # # # # #

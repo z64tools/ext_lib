@@ -152,6 +152,7 @@ void ItemList_Alloc(ItemList* list, u32 num, Size size);
 void ItemList_AddItem(ItemList* list, const char* item);
 void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b);
 void ItemList_Tokenize(ItemList* this, const char* s, char r);
+void ItemList_SortNatural(ItemList* this);
 
 #define ItemList_GetWildItem(list, ...) ItemList_GetWildItem(list, __VA_ARGS__, NULL)
 #define ItemList_SetFilter(list, ...)   ItemList_SetFilter(list, NARGS(__VA_ARGS__), __VA_ARGS__)

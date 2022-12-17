@@ -882,6 +882,56 @@ void Matrix_MultVec4f_Ext(Vec4f* src, Vec4f* dest, MtxF* mtx) {
     dest->w = mtx->wx * src->x + mtx->wy * src->y + mtx->wz * src->z + mtx->ww * src->w;
 }
 
+void Matrix_MtxFToYXZRotS(Vec3s* rotDest, s32 flag) {
+    f32 temp;
+    f32 temp2;
+    f32 temp3;
+    MtxF* mf = gCurrentMatrix;
+    
+    temp = mf->xz;
+    temp *= temp;
+    temp += SQ(mf->zz);
+    
+    rotDest->x = RadToBin(atan2f(-mf->yz, sqrtf(temp)));
+    
+    if ((rotDest->x == 0x4000) || (rotDest->x == -0x4000)) {
+        rotDest->z = 0;
+        
+        rotDest->y = RadToBin(atan2f(-mf->zx, mf->xx));
+    } else {
+        rotDest->y = RadToBin(atan2f(mf->xz, mf->zz));
+        
+        if (!flag) {
+            rotDest->z = RadToBin(atan2f(mf->yx, mf->yy));
+        } else {
+            temp = mf->xx;
+            temp2 = mf->zx;
+            temp3 = mf->zy;
+            
+            temp *= temp;
+            temp += SQ(temp2);
+            temp2 = mf->yx;
+            temp += SQ(temp2);
+            /* temp = xx^2+zx^2+yx^2 == 1 for a rotation matrix */
+            temp = sqrtf(temp);
+            temp = temp2 / temp;
+            
+            temp2 = mf->xy;
+            temp2 *= temp2;
+            temp2 += SQ(temp3);
+            temp3 = mf->yy;
+            temp2 += SQ(temp3);
+            /* temp2 = xy^2+zy^2+yy^2 == 1 for a rotation matrix */
+            temp2 = sqrtf(temp2);
+            temp2 = temp3 / temp2;
+            
+            /* for a rotation matrix, temp == yx and temp2 == yy
+             * which is the same as in the !flag branch */
+            rotDest->z = RadToBin(atan2f(temp, temp2));
+        }
+    }
+}
+
 static int glhProjectf(float objx, float objy, float objz, float* modelview, float* projection, int* viewport, float* windowCoordinate) {
     // Transformation vectors
     float fTempo[8];

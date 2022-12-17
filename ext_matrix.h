@@ -65,6 +65,7 @@ void Matrix_LookAt(MtxF* mf, Vec3f eye, Vec3f at, Vec3f up);
 void Matrix_TranslateRotateZYX(Vec3f* translation, Vec3s* rotation);
 void Matrix_RotateAToB(Vec3f* a, Vec3f* b, u8 mode);
 void Matrix_MultVec4f_Ext(Vec4f* src, Vec4f* dest, MtxF* mtx);
+void Matrix_MtxFToYXZRotS(Vec3s* rotDest, s32 flag);
 s32 Matrix_Invert(MtxF* src, MtxF* dest);
 void Matrix_Unproject(MtxF* modelViewMtx, MtxF* projMtx, Vec3f* src, Vec3f* dest, f32 w, f32 h);
 void Matrix_Project(MtxF* modelViewMtx, MtxF* projMtx, Vec3f* src, Vec3f* dest, f32 w, f32 h);

@@ -182,6 +182,7 @@
 #define UnfoldRGBA(color) (color).r, (color).g, (color).b, (color).a
 #define UnfoldHSL(color)  (color).h, (color).s, (color).l
 
+#define Stalloc(type)          ({ void* data = alloca(sizeof(type)); memset(data, 0, sizeof(type)); data; })
 #define New(type)              Calloc(sizeof(type))
 #define SleepF(sec)            usleep((u32)((f32)(sec) * 1000 * 1000))
 #define SleepS(sec)            sleep(sec)
