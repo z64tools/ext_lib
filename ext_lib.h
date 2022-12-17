@@ -313,6 +313,7 @@ void Config_WriteSection(MemFile* mem, const char* variable, const char* comment
 #define QUOTES     1
 #define NO_QUOTES  0
 
+Toml Toml_New();
 void Toml_LoadFile(Toml* this, const char* file);
 void Toml_Free(Toml* this);
 void Toml_SaveFile(Toml* this, const char* file);
