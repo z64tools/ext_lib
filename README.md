@@ -1,1 +1,1 @@
-# ExtLib
+# extended library
