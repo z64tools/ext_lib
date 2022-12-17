@@ -131,7 +131,7 @@ static void Config_RecurseIncludes(MemFile* dst, const char* file, StrNode** nod
             
             Log("ConfigInclude: From [%s] open [%s]", file, include);
             
-            Config_RecurseIncludes(dst, x_fmt("%s%s", Path(file), include), nodeHead);
+            Config_RecurseIncludes(dst, x_fmt("%s%s", x_path(file), include), nodeHead);
         } else {
             u32 size = strcspn(line, "\n\r");
             

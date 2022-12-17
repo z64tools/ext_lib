@@ -69,13 +69,12 @@ char* x_strndup(const char* s, size_t n);
 char* x_memdup(const char* data, Size size);
 char* x_fmt(const char* fmt, ...);
 char* x_rep(const char* str, const char* a, const char* b);
-
-void* FUN_DEPRECATED xAlloc(Size size);
-char* FUN_DEPRECATED xStrDup(const char* str);
-char* FUN_DEPRECATED xStrNDup(const char* s, size_t n);
-char* FUN_DEPRECATED xMemDup(const char* data, Size size);
-char* FUN_DEPRECATED xFmt(const char* fmt, ...);
-char* FUN_DEPRECATED xRep(const char* str, const char* a, const char* b);
+char* x_line(const char* str, s32 line);
+char* x_word(const char* str, s32 word);
+char* x_path(const char* src);
+char* x_pathslot(const char* src, s32 num);
+char* x_basename(const char* src);
+char* x_filename(const char* src);
 
 void Time_Start(u32 slot);
 f64 Time_Get(u32 slot);
@@ -87,7 +86,6 @@ void FileSys_MakePath(bool flag);
 void FileSys_Path(const char* fmt, ...);
 char* FileSys_File(const char* str, ...);
 char* FileSys_FindFile(const char* str);
-void FUN_DEPRECATED FileSys_Free();
 
 bool Sys_IsDir(const char* path);
 void Sys_MakeDir(const char* dir, ...);
@@ -106,14 +104,15 @@ void Sys_TerminalSize(s32* r);
 void Sys_TerminalCursorPos(s32* r);
 s32 Sys_Touch(const char* file);
 s32 Sys_Copy(const char* src, const char* dest);
-u8* Sys_Sha256(u8* data, u64 size);
-void Sys_Sha256Cpy(u8 dest[32], u8* data, u64 size);
 void Sys_Sleep(f64 sec);
 Date Sys_Date(Time time);
 s32 Sys_GetCoreCount(void);
 Size Sys_GetFileSize(const char* file);
 const char* Sys_GetEnv(SysEnv env);
 const char* Sys_TmpFile(const char* path);
+
+Checksum Checksum_Get(u8* data, u64 size);
+bool Checksum_IsMatch(Checksum* a, Checksum* b);
 
 void SysExe_IgnoreError();
 s32 SysExe_GetError();
@@ -193,12 +192,7 @@ char* StrDupX(const char* src, Size size);
 char* StrDupClp(const char* str, u32 max);
 char* Fmt(const char* fmt, ...);
 s32 ArgStr(const char* argv[], const char* arg);
-void SlashAndPoint(const char* src, s32* slash, s32* point);
-char* Path(const char* src);
-char* PathSlot(const char* src, s32 num);
 char* StrChrAcpt(const char* str, char* c);
-char* Basename(const char* src);
-char* Filename(const char* src);
 char* LineHead(const char* str, const char* head);
 char* Line(const char* str, s32 line);
 char* Word(const char* str, s32 word);
@@ -395,6 +389,7 @@ static char* __ext_strndup(const char* s, size_t n) {
     Size csz = strnlen(s, n);
     char* new = (char*) malloc (n + 1);
     Assert(new != NULL);
+    csz = ClampMax(csz, n);
     new[csz] = '\0';
     
     return (char*) memcpy (new, s, csz);

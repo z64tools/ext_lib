@@ -408,30 +408,108 @@ char* x_rep(const char* str, const char* a, const char* b) {
     return r;
 }
 
-void* FUN_DEPRECATED xAlloc(Size size) {
-    return x_alloc(size);
-}
-char* FUN_DEPRECATED xStrDup(const char* str) {
-    return x_strdup(str);
-}
-char* FUN_DEPRECATED xStrNDup(const char* s, size_t n) {
-    return x_strndup(s, n);
-}
-char* FUN_DEPRECATED xMemDup(const char* data, Size size) {
-    return x_memdup(data, size);
-}
-char* FUN_DEPRECATED xFmt(const char* fmt, ...) {
-    char buf[4096];
-    va_list va;
+char* x_line(const char* str, s32 line) {
+    if (!(str = Line(str, line))) return NULL;
     
-    va_start(va, fmt);
-    Assert(vsnprintf(buf, 4096, fmt, va) < 4096);
-    va_end(va);
-    
-    return x_strdup(buf);
+    return x_strndup(str, LineLen(str));
 }
-char* FUN_DEPRECATED xRep(const char* str, const char* a, const char* b) {
-    return x_rep(str, a, b);
+
+char* x_word(const char* str, s32 word) {
+    if (!(str = Word(str, word))) return NULL;
+    
+    return x_strndup(str, WordLen(str));
+}
+
+static void SlashAndPoint(const char* src, s32* slash, s32* point) {
+    s32 strSize = strlen(src);
+    
+    *slash = 0;
+    *point = 0;
+    
+    for (s32 i = strSize; i > 0; i--) {
+        if (*point == 0 && src[i] == '.') {
+            *point = i;
+        }
+        if (src[i] == '/' || src[i] == '\\') {
+            *slash = i;
+            break;
+        }
+    }
+}
+
+char* x_path(const char* src) {
+    char* buffer;
+    s32 point;
+    s32 slash;
+    
+    if (src == NULL)
+        return NULL;
+    
+    SlashAndPoint(src, &slash, &point);
+    
+    if (slash == 0)
+        slash = -1;
+    
+    buffer = x_alloc(slash + 1 + 1);
+    memcpy(buffer, src, slash + 1);
+    buffer[slash + 1] = '\0';
+    
+    return buffer;
+}
+
+char* x_pathslot(const char* src, s32 num) {
+    char* buffer;
+    s32 start = -1;
+    s32 end;
+    
+    if (src == NULL)
+        return NULL;
+    
+    if (num < 0) {
+        num = PathNum(src) - 1;
+    }
+    
+    for (s32 temp = 0;;) {
+        if (temp >= num)
+            break;
+        if (src[start + 1] == '/')
+            temp++;
+        start++;
+    }
+    start++;
+    end = start + 1;
+    
+    while (src[end] != '/') {
+        if (src[end] == '\0')
+            printf_error("Could not solve folder for [%s]", src);
+        end++;
+    }
+    end++;
+    
+    buffer = x_alloc(end - start + 1);
+    
+    memcpy(buffer, &src[start], end - start);
+    buffer[end - start] = '\0';
+    
+    return buffer;
+}
+
+char* x_basename(const char* src) {
+    char* ls = StrChrAcpt(src, "\\/");
+    
+    if (!ls++)
+        ls = (char*)src;
+    
+    return x_strndup(ls, strcspn(ls, "."));
+}
+
+char* x_filename(const char* src) {
+    char* ls = StrChrAcpt(src, "\\/");
+    
+    if (!ls++)
+        ls = (char*)src;
+    
+    return x_strdup(ls);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -557,9 +635,6 @@ char* FileSys_FindFile(const char* str) {
     ItemList_Free(&list);
     
     return file;
-}
-
-void FileSys_Free() {
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -714,12 +789,14 @@ void Sys_MakeDir(const char* dir, ...) {
     vsnprintf(buffer, 261, dir, args);
     va_end(args);
     
+    const s32 m = strlen(buffer);
+    
 #ifdef _WIN32
     s32 i = 0;
     if (PathIsAbs(buffer))
         i = 3;
     
-    for (; i < strlen(buffer); i++) {
+    for (; i < m; i++) {
         switch (buffer[i]) {
             case ':':
             case '*':
@@ -737,7 +814,7 @@ void Sys_MakeDir(const char* dir, ...) {
 #endif
     
     if (!Sys_IsDir(dir)) {
-        for (s32 i = strlen(buffer) - 1; i >= 0; i--) {
+        for (s32 i = m - 1; i >= 0; i--) {
             if (buffer[i] == '/' || buffer[i] == '\\')
                 break;
             buffer[i] = '\0';
@@ -750,11 +827,11 @@ void Sys_MakeDir(const char* dir, ...) {
 const char* Sys_WorkDir(void) {
     static char buf[512];
     
-    if (getcwd(buf, sizeof(buf)) == NULL) {
+    if (getcwd(buf, sizeof(buf)) == NULL)
         printf_error("Could not get Sys_WorkDir");
-    }
     
-    for (s32 i = 0; i < strlen(buf); i++) {
+    const u32 m = strlen(buf);
+    for (s32 i = 0; i < m; i++) {
         if (buf[i] == '\\')
             buf[i] = '/';
     }
@@ -768,7 +845,7 @@ char* sAppDir;
 
 const char* Sys_AppDir(void) {
     if (!sAppDir) {
-        sAppDir = qFree(strndup(Path(Sys_ThisApp()), 512));
+        sAppDir = qFree(strndup(x_path(Sys_ThisApp()), 512));
         StrRep(sAppDir, "\\", "/");
         
         if (!StrEnd(sAppDir, "/"))
@@ -980,7 +1057,7 @@ s32 Sys_Copy(const char* src, const char* dest) {
             
             Log("Copy: %s -> %s", list.item[i], dfile);
             
-            Sys_MakeDir(Path(dfile));
+            Sys_MakeDir(x_path(dfile));
             if (Sys_Copy(list.item[i], dfile))
                 return 1;
         }
@@ -1481,80 +1558,6 @@ s32 ArgStr(const char* args[], const char* arg) {
     return 0;
 }
 
-void SlashAndPoint(const char* src, s32* slash, s32* point) {
-    s32 strSize = strlen(src);
-    
-    *slash = 0;
-    *point = 0;
-    
-    for (s32 i = strSize; i > 0; i--) {
-        if (*point == 0 && src[i] == '.') {
-            *point = i;
-        }
-        if (src[i] == '/' || src[i] == '\\') {
-            *slash = i;
-            break;
-        }
-    }
-}
-
-char* Path(const char* src) {
-    char* buffer;
-    s32 point;
-    s32 slash;
-    
-    if (src == NULL)
-        return NULL;
-    
-    SlashAndPoint(src, &slash, &point);
-    
-    if (slash == 0)
-        slash = -1;
-    
-    buffer = x_alloc(slash + 1 + 1);
-    memcpy(buffer, src, slash + 1);
-    buffer[slash + 1] = '\0';
-    
-    return buffer;
-}
-
-char* PathSlot(const char* src, s32 num) {
-    char* buffer;
-    s32 start = -1;
-    s32 end;
-    
-    if (src == NULL)
-        return NULL;
-    
-    if (num < 0) {
-        num = PathNum(src) - 1;
-    }
-    
-    for (s32 temp = 0;;) {
-        if (temp >= num)
-            break;
-        if (src[start + 1] == '/')
-            temp++;
-        start++;
-    }
-    start++;
-    end = start + 1;
-    
-    while (src[end] != '/') {
-        if (src[end] == '\0')
-            printf_error("Could not solve folder for [%s]", src);
-        end++;
-    }
-    end++;
-    
-    buffer = x_alloc(end - start + 1);
-    
-    memcpy(buffer, &src[start], end - start);
-    buffer[end - start] = '\0';
-    
-    return buffer;
-}
-
 char* StrChrAcpt(const char* str, char* c) {
     char* v = (char*)str;
     u32 an = strlen(c);
@@ -1568,24 +1571,6 @@ char* StrChrAcpt(const char* str, char* c) {
                 return v;
     
     return NULL;
-}
-
-char* Basename(const char* src) {
-    char* ls = StrChrAcpt(src, "\\/");
-    
-    if (!ls++)
-        ls = (char*)src;
-    
-    return x_strndup(ls, strcspn(ls, "."));
-}
-
-char* Filename(const char* src) {
-    char* ls = StrChrAcpt(src, "\\/");
-    
-    if (!ls++)
-        ls = (char*)src;
-    
-    return x_strdup(ls);
 }
 
 char* LineHead(const char* str, const char* head) {
@@ -1706,8 +1691,9 @@ s32 LineNum(const char* str) {
 
 s32 PathNum(const char* src) {
     s32 dir = -1;
+    const u32 m = strlen(src);
     
-    for (s32 i = 0; i < strlen(src); i++) {
+    for (s32 i = 0; i < m; i++) {
         if (src[i] == '/')
             dir++;
     }
@@ -1764,7 +1750,7 @@ char* PathAbs_From(const char* from, const char* item) {
     
     for (s32 i = 0; i < subCnt; i++) {
         path[strlen(path) - 1] = '\0';
-        path = Path(path);
+        path = x_path(path);
     }
     
     return x_fmt("%s%s", path, f);
@@ -1946,8 +1932,8 @@ s32 Value_Bool(const char* string) {
 s32 Value_ValidateHex(const char* str) {
     s32 isOk = false;
     
-    for (s32 i = 0; i < strlen(str); i++) {
-        if (ispunct(str[i]))
+    for (s32 i = 0;; i++) {
+        if (ispunct(str[i]) || str[i] == '\0')
             break;
         if (
             (str[i] >= 'A' && str[i] <= 'F') ||
@@ -1969,8 +1955,8 @@ s32 Value_ValidateHex(const char* str) {
 s32 Value_ValidateInt(const char* str) {
     s32 isOk = false;
     
-    for (s32 i = 0; i < strlen(str); i++) {
-        if (ispunct(str[i]))
+    for (s32 i = 0;; i++) {
+        if (ispunct(str[i]) || str[i] == '\0')
             break;
         if (
             (str[i] >= '0' && str[i] <= '9')
@@ -1988,8 +1974,8 @@ s32 Value_ValidateInt(const char* str) {
 s32 Value_ValidateFloat(const char* str) {
     s32 isOk = false;
     
-    for (s32 i = 0; i < strlen(str); i++) {
-        if (ispunct(str[i]) && str[i] != '.')
+    for (s32 i = 0;; i++) {
+        if (ispunct(str[i]) || str[i] == '\0')
             break;
         if (
             (str[i] >= '0' && str[i] <= '9') || str[i] == '.'
@@ -2142,10 +2128,7 @@ void StrIns2(char* origin, const char* insert, s32 pos, s32 size) {
     
     if (size - pos - inslen > 0)
         memmove(&origin[pos + inslen], &origin[pos], size - pos - inslen);
-    
-    for (s32 j = 0; j < inslen; pos++, j++) {
-        origin[pos] = insert[j];
-    }
+    memcpy(&origin[pos], insert, inslen);
 }
 
 // Remove
@@ -2240,8 +2223,9 @@ char* StrStripIllegalChar(char* t) {
 // Common length
 s32 StrComLen(const char* a, const char* b) {
     s32 s = 0;
+    const u32 m = strlen(b);
     
-    for (; s < strlen(b); s++) {
+    for (; s < m; s++) {
         if (b[s] != a[s])
             return s;
     }
@@ -2268,8 +2252,8 @@ char* String_GetSpacedArg(const char** args, s32 cur) {
 }
 
 void String_SwapExtension(char* dest, const char* src, const char* ext) {
-    strcpy(dest, Path(src));
-    strcat(dest, Basename(src));
+    strcpy(dest, x_path(src));
+    strcat(dest, x_basename(src));
     strcat(dest, ext);
 }
 
@@ -3463,27 +3447,27 @@ static void Sha_Compression(u32* Hash, u32* W) {
     Hash[7] += TmpHash[h];
 }
 
-static u8* Sha_ExtractDigest(u32* Hash) {
-    u8* Digest = (u8*)malloc(32 * sizeof(u8));
+static Checksum Sha_ExtractDigest(u32* Hash) {
+    Checksum Digest;
     
     for (u32 i = 0; i < 32; i += 4) {
-        Digest[i] = (u8)((Hash[i / 4] >> 24) & 0x000000FF);
-        Digest[i + 1] = (u8)((Hash[i / 4] >> 16) & 0x000000FF);
-        Digest[i + 2] = (u8)((Hash[i / 4] >> 8) & 0x000000FF);
-        Digest[i + 3] = (u8)(Hash[i / 4] & 0x000000FF);
+        Digest.hash[i] = (u8)((Hash[i / 4] >> 24) & 0x000000FF);
+        Digest.hash[i + 1] = (u8)((Hash[i / 4] >> 16) & 0x000000FF);
+        Digest.hash[i + 2] = (u8)((Hash[i / 4] >> 8) & 0x000000FF);
+        Digest.hash[i + 3] = (u8)(Hash[i / 4] & 0x000000FF);
     }
     
     return Digest;
 }
 
-u8* Sys_Sha256(u8* data, u64 size) {
+Checksum Checksum_Get(u8* data, u64 size) {
     u32 W[64];
     u32 Hash[8] = {
         0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
         0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
     };
-    u8* Digest;
     u64 RemainingDataSizeByte = size;
+    Checksum dst;
     
     while (Sha_CreateCompleteScheduleArray(data, size, &RemainingDataSizeByte, W) == 1) {
         Sha_CompleteScheduleArray(W);
@@ -3492,36 +3476,15 @@ u8* Sys_Sha256(u8* data, u64 size) {
     Sha_CompleteScheduleArray(W);
     Sha_Compression(Hash, W);
     
-    Digest = Sha_ExtractDigest(Hash);
+    dst = Sha_ExtractDigest(Hash);
+    dst.data = data;
+    dst.size = size;
     
-    return Digest;
+    return dst;
 }
 
-static void Sha_ExtractDigestCpy(u8 Digest[32], u32* Hash) {
-    for (u32 i = 0; i < 32; i += 4) {
-        Digest[i] = (u8)((Hash[i / 4] >> 24) & 0x000000FF);
-        Digest[i + 1] = (u8)((Hash[i / 4] >> 16) & 0x000000FF);
-        Digest[i + 2] = (u8)((Hash[i / 4] >> 8) & 0x000000FF);
-        Digest[i + 3] = (u8)(Hash[i / 4] & 0x000000FF);
-    }
-}
-
-void Sys_Sha256Cpy(u8 dest[32], u8* data, u64 size) {
-    u32 W[64];
-    u32 Hash[8] = {
-        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-        0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
-    };
-    u64 RemainingDataSizeByte = size;
-    
-    while (Sha_CreateCompleteScheduleArray(data, size, &RemainingDataSizeByte, W) == 1) {
-        Sha_CompleteScheduleArray(W);
-        Sha_Compression(Hash, W);
-    }
-    Sha_CompleteScheduleArray(W);
-    Sha_Compression(Hash, W);
-    
-    Sha_ExtractDigestCpy(dest, Hash);
+bool Checksum_IsMatch(Checksum* a, Checksum* b) {
+    return !memcmp(a->hash, b->hash, sizeof(a->hash));
 }
 
 #undef Free

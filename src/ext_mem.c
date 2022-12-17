@@ -53,8 +53,8 @@ MemFile MemFile_Initialize() {
 
 void MemFile_Params(MemFile* mem, ...) {
     va_list args;
-    u32 cmd;
-    u32 arg;
+    u32 cmd = 0;
+    u32 arg = 0;
     
     if (mem->param.initKey != 0xD0E0A0D0B0E0E0F0)
         *mem = MemFile_Initialize();

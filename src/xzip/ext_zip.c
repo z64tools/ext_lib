@@ -18,10 +18,10 @@ void* ZipFile_Load(ZipFile* zip, const char* file, ZipParam mode) {
             
         case ZIP_APPEND:
             return zip->pkg = zip_open(file, 0, mode);
-        
-        default:
-            printf_error("Unknown ZipFile Load Mode: [%c] [%s]", mode, file);
     }
+    
+    printf_error("Unknown ZipFile Load Mode: [%c] [%s]", mode, file);
+    return NULL;
 }
 
 u32 ZipFile_GetEntriesNum(ZipFile* zip) {

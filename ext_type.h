@@ -46,7 +46,11 @@ typedef volatile signed long long int   vs64;
 typedef volatile unsigned long long int vu64;
 typedef volatile bool                   vbool;
 
-typedef u8 Hash256[32];
+typedef struct {
+    u8    hash[32];
+    void* data;
+    u32   size;
+} Checksum;
 
 typedef struct {
     f32 h;
