@@ -312,10 +312,8 @@ void Toml_Free(Toml* this) {
     toml_free(this->root);
 }
 
-void Toml_SaveFile(Toml* this, const char* file) {
-    MemFile mem = MemFile_Initialize();
-    
-    Log("Save Toml: [%s]", file);
+void Toml_ToMem(Toml* this, MemFile* mem) {
+    MemFile_Free(mem);
     
     Block(void, Parse, (toml_table_t * tbl, char* path, u32 indent)) {
         BlockVar(mem);
@@ -334,8 +332,8 @@ void Toml_SaveFile(Toml* this, const char* file) {
         for (var i = 0; i < nkval; i++) {
             Log("Value: %s", toml_key_in(tbl, i));
             
-            MemFile_Printf(&mem, "%s%s = ", nd, toml_key_in(tbl, i));
-            MemFile_Printf(&mem, "%s\n", toml_raw_in(tbl, toml_key_in(tbl, i)));
+            MemFile_Printf(mem, "%s%s = ", nd, toml_key_in(tbl, i));
+            MemFile_Printf(mem, "%s\n", toml_raw_in(tbl, toml_key_in(tbl, i)));
         }
         
         for (var i = nkval; i < narr + nkval; i++) {
@@ -352,65 +350,71 @@ void Toml_SaveFile(Toml* this, const char* file) {
                 case 't':
                 
                     while ((tb = toml_table_at(arr, k++))) {
-                        MemFile_Printf(&mem, "%s[[%s%s]]\n", nd, path, toml_key_in(tbl, i));
+                        MemFile_Printf(mem, "%s[[%s%s]]\n", nd, path, toml_key_in(tbl, i));
                         Parse(tb, x_fmt("%s%s.", path, toml_key_in(tbl, i)), indent + 1);
                     }
                     
                     break;
                     
                 case 'a':
-                    MemFile_Printf(&mem, "%s%s = [\n", nd, toml_key_in(tbl, i));
+                    MemFile_Printf(mem, "%s%s = [\n", nd, toml_key_in(tbl, i));
                     
                     ar = toml_array_at(arr, k++);
                     while (ar) {
                         j = 0;
-                        MemFile_Printf(&mem, "    %s[ ", nd);
+                        MemFile_Printf(mem, "    %s[ ", nd);
                         
                         val = toml_raw_at(ar, j++);
                         while (val) {
-                            MemFile_Printf(&mem, "%s", val);
+                            MemFile_Printf(mem, "%s", val);
                             
                             val = toml_raw_at(ar, j++);
                             if (val)
-                                MemFile_Printf(&mem, ", ");
+                                MemFile_Printf(mem, ", ");
                         }
-                        MemFile_Printf(&mem, " ]");
+                        MemFile_Printf(mem, " ]");
                         ar = toml_array_at(arr, k++);
                         if (ar)
-                            MemFile_Printf(&mem, ",");
-                        MemFile_Printf(&mem, "\n");
+                            MemFile_Printf(mem, ",");
+                        MemFile_Printf(mem, "\n");
                     }
-                    MemFile_Printf(&mem, "%s]\n", nd);
+                    MemFile_Printf(mem, "%s]\n", nd);
                     
                     break;
                 case 'v':
-                    MemFile_Printf(&mem, "%s%s = [ ", nd, toml_key_in(tbl, i));
+                    MemFile_Printf(mem, "%s%s = [ ", nd, toml_key_in(tbl, i));
                     
                     j = k = 0;
                     
                     val = toml_raw_at(arr, j++);
                     while (val) {
-                        MemFile_Printf(&mem, "%s", val);
+                        MemFile_Printf(mem, "%s", val);
                         val = toml_raw_at(arr, j++);
                         if (val)
-                            MemFile_Printf(&mem, ", ");
+                            MemFile_Printf(mem, ", ");
                     }
-                    MemFile_Printf(&mem, " ]\n");
+                    MemFile_Printf(mem, " ]\n");
                     break;
             }
         }
         
         for (var i = nkval + narr; i < nkval + narr + ntab; i++) {
             Log("Table: %s", toml_key_in(tbl, i));
-            MemFile_Printf(&mem, "%s[%s%s]\n", nd, path, toml_key_in(tbl, i));
+            MemFile_Printf(mem, "%s[%s%s]\n", nd, path, toml_key_in(tbl, i));
             
             Parse(toml_table_in(tbl, toml_key_in(tbl, i)), x_fmt("%s%s.", path, toml_key_in(tbl, i)), indent + 1);
         }
     };
     
     Parse(this->root, "", 0);
+}
+
+void Toml_SaveFile(Toml* this, const char* file) {
+    MemFile mem = MemFile_Initialize();
     
+    Toml_ToMem(this, &mem);
     MemFile_SaveFile_String(&mem, file);
+    MemFile_Free(&mem);
 }
 
 // # # # # # # # # # # # # # # # # # # # #

@@ -219,7 +219,8 @@
     name = ^ type args
 #define BlockDecl(type, name, args) \
     type (^ name) args
-#define BlockVar(var) typeof(var) var
+#define BlockVar(var)    typeof(var) var = (typeof(var)) 0;
+#define BlockVarArr(var) typeof(var) var = {}
 
 #else
 #define Block(type, name, args) \
