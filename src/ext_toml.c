@@ -463,9 +463,31 @@ char* Toml_GetString(Toml* this, const char* item, ...) {
     va_end(va);
     char* r = x_strdup(t.u.s);
     
-    Free(r);
+    Free(t.u.s);
     
     return r;
+}
+
+char* Toml_GetVar(Toml* this, const char* item, ...) {
+    char buffer[256];
+    va_list va;
+    
+    va_start(va, item);
+    vsnprintf(buffer, 256, item, va);
+    va_end(va);
+    
+    this->silence = true;
+    char path[256] = {};
+    Travel t = Toml_Travel(this, buffer, this->root, path);
+    this->silence = false;
+    
+    if (t.arr && t.arr->nitem > t.idx)
+        return x_strdup(t.arr->item[t.idx].val);
+    if (t.tbl && toml_key_exists(t.tbl, t.item))
+        for (var i = 0; i < t.tbl->nkval; i++)
+            if (!strcmp(t.tbl->kval[i]->key, t.item))
+                return x_strdup(t.tbl->kval[i]->val);
+    return NULL;
 }
 
 // # # # # # # # # # # # # # # # # # # # #

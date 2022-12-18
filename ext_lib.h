@@ -324,6 +324,7 @@ s32 Toml_GetInt(Toml* this, const char* item, ...);
 f32 Toml_GetFloat(Toml* this, const char* item, ...);
 bool Toml_GetBool(Toml* this, const char* item, ...);
 char* Toml_GetString(Toml* this, const char* item, ...);
+char* Toml_GetVar(Toml* this, const char* item, ...);
 s32 Toml_ArrayCount(Toml* this, const char* arr, ...);
 
 char* String_Tsv(char* str, s32 rowNum, s32 lineNum);
