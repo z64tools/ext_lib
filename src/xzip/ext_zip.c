@@ -129,7 +129,7 @@ s32 ZipFile_ReadEntries_Path(ZipFile* zip, const char* path, s32 (*callback)(con
     return 0;
 }
 
-s32 ZipFile_WriteEntry(ZipFile* zip, MemFile* mem, char* entry) {
+s32 ZipFile_WriteEntry(ZipFile* zip, MemFile* mem, const char* entry) {
     if (zip_entry_open(zip->pkg, entry))
         return ZIP_ERROR_OPEN_ENTRY;
     if (zip_entry_write(zip->pkg, mem->data, mem->size))

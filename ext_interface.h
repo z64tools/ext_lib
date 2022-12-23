@@ -10,68 +10,115 @@
 #include "ext_geogrid.h"
 #include "ext_collision.h"
 
-extern bool gTick;
-extern const f64 gNativeFPS;
-extern ThreadLocal bool gLimitFPS;
+typedef enum {
+    WIN_MAXIMIZE,
+    WIN_MINIMIZE,
+} WinParam;
 
-struct MessageWindow;
-
-typedef void (*CallbackFunc)(void*);
+typedef void (*WindowFunction)(void*);
 typedef void (*DropCallback)(GLFWwindow*, s32, char* item[]);
 
 typedef enum {
     APP_RESIZE_CALLBACK = 1 << 0,
-    APP_MAIN            = 1 << 1,
-    APP_MSG_WIN         = 1 << 2,
     APP_CLOSED          = 1 << 3,
 } AppState;
 
 typedef struct AppInfo {
-    GLFWwindow*  window;
-    CallbackFunc updateCall;
-    CallbackFunc drawCall;
-    Input*       input;
+    char title[64];
+    GLFWwindow*    window;
+    WindowFunction updateCall;
+    WindowFunction drawCall;
+    Input*   input;
     void*    context;
+    void*    vg;
     Vec2s    wdim;
     Vec2s    bufDim;
     Vec2s    prevWinDim;
     AppState state;
     struct SubWindow* subWinHead;
+    bool tick;
+    struct {
+        f32 tickMod;
+    } private;
 } AppInfo;
 
 typedef struct SubWindow {
-    AppInfo app;
-    Input   input;
-    void*   vg;
+    AppInfo        app;
+    AppInfo*       parent;
+    Input          input;
+    WindowFunction destroyCall;
+    struct {
+        bool noDestroy;
+    } settings;
     struct SubWindow* next;
 } SubWindow;
-
-typedef struct MessageWindow {
-    SubWindow   window;
-    s32         value;
-    const char* message;
-} MessageWindow;
 
 void* GET_LOCAL_WINDOW(void);
 AppInfo* GET_APPINFO(void* window);
 void* GET_CONTEXT(void* window);
 Input* GET_INPUT(void* window);
 
+void glViewportRect(s32 x, s32 y, s32 w, s32 h);
 void* Interface_Init(
     const char* title,
     AppInfo* app,
     Input* input,
     void* context,
-    CallbackFunc
+    WindowFunction
     updateCall,
-    CallbackFunc drawCall,
+    WindowFunction drawCall,
     DropCallback dropCallback,
     u32 x, u32 y,
     u32 samples
 );
 void Interface_Main(AppInfo* app);
-void Interface_Destroy(AppInfo* app);
-SubWindow* Interface_MessageWindow(AppInfo* parentApp, const char* title, const char* message);
+void Interface_SetParam(AppInfo* app, u32 num, ...);
+
+void Interface_CreateSubWindow(SubWindow* window, AppInfo* app, s32 x, s32 y, const char* title);
+
+#define FILE_DIALOG_BUF 256
+
+typedef struct {
+    SubWindow window;
+    GeoGrid   geo;
+    
+    char     path[FILE_DIALOG_BUF];
+    ItemList files;
+    ItemList folders;
+    
+    s32 split;
+    s32 selected;
+    
+    f32 scroll;
+    f32 vscroll;
+    f32 scrollMax;
+    s32 sliderHoldOffset;
+    
+    s32 slot;
+    
+    NVGcolor sliderColor;
+    
+    struct {
+        bool holdSlider : 1;
+    };
+    
+    struct {
+        bool multiSelect : 1;
+        bool dispSplit   : 1;
+    } settings;
+    
+    struct {
+        const char key[64];
+    } private;
+    
+    ElTextbox travel;
+    ElTextbox search;
+    ElButton  backButton;
+} FileDialog;
+
+void FileDialog_New(FileDialog* this, AppInfo* app, const char* title);
+s32 FileDialog_Closed(FileDialog* this);
+void FileDialog_Free(FileDialog* this);
 
 #define GUI_INITIALIZE(                             \
         mainContext, title,                         \
@@ -85,5 +132,9 @@ SubWindow* Interface_MessageWindow(AppInfo* parentApp, const char* title, const 
         (void*)Draw, DropCallback,                  \
         width, height, antialias                    \
         );
+#define Interface_SetParam(app, ...) do {                         \
+        PPASSERT((NARGS(__VA_ARGS__) % 2) == 0);                  \
+        Interface_SetParam(app, NARGS(__VA_ARGS__), __VA_ARGS__); \
+} while (0)
 
 #endif

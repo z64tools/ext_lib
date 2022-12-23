@@ -20,7 +20,9 @@ Audio_C          = $(shell cd $(PATH_EXTLIB) && find src/xaudio/* -type f -name 
 Zip_C            = $(shell cd $(PATH_EXTLIB) && find src/xzip/* -type f -name '*.c')
 Mp3_C            = $(shell cd $(PATH_EXTLIB) && find src/xmp3/* -type f -name '*.c')
 Proc_C           = $(shell cd $(PATH_EXTLIB) && find src/proc/* -type f -name '*.c')
+Texel_C          = $(shell cd $(PATH_EXTLIB) && find src/xtexel/* -type f -name '*.c')
 Fonts            = $(shell cd $(PATH_EXTLIB) && find src/fonts/* -type f -name '*.ttf')
+Fonts           += $(shell cd $(PATH_EXTLIB) && find src/fonts/* -type f -name '*.otf')
 
 ExtLib_Linux_O   = $(foreach f,$(ExtLib_C:.c=.o), bin/linux/$f)
 ExtGui_Linux_O   = $(foreach f,$(ExtGui_C:.c=.o), bin/linux/$f)
@@ -28,8 +30,9 @@ Zip_Linux_O      = $(foreach f,$(Zip_C:.c=.o), bin/linux/$f)
 Audio_Linux_O    = $(foreach f,$(Audio_C:.c=.o), bin/linux/$f)
 Mp3_Linux_O      = $(foreach f,$(Mp3_C:.c=.o), bin/linux/$f)
 Xm_Linux_O       = $(foreach f,$(Xm_C:.c=.o), bin/linux/$f)
-Proc_Linux_O     = $(foreach f,$(Proc_C:.c=.o), bin/linux/$f) bin/linux/libreproc.a
-All_Linux_O      = $(ExtLib_Win32_O) $(ExtGui_Linux_O) $(Zip_Linux_O) $(Audio_Linux_O) $(Mp3_Linux_O) $(Xm_Linux_O)
+Proc_Linux_O     = $(foreach f,$(Proc_C:.c=.o), bin/linux/$f)
+Texel_Linux_O    = $(foreach f,$(Texel_C:.c=.o), bin/linux/$f)
+All_Linux_O      = $(ExtLib_Linux_O) $(ExtGui_Linux_O) $(Zip_Linux_O) $(Audio_Linux_O) $(Mp3_Linux_O) $(Xm_Linux_O) $(Proc_Linux_O) $(Texel_Linux_O)
 
 ExtLib_Win32_O   = $(foreach f,$(ExtLib_C:.c=.o), bin/win32/$f) $(foreach f,$(Regex_C:.c=.o), bin/win32/$f)
 ExtGui_Win32_O   = $(foreach f,$(ExtGui_C:.c=.o), bin/win32/$f)
@@ -37,11 +40,12 @@ Zip_Win32_O      = $(foreach f,$(Zip_C:.c=.o), bin/win32/$f)
 Audio_Win32_O    = $(foreach f,$(Audio_C:.c=.o), bin/win32/$f)
 Mp3_Win32_O      = $(foreach f,$(Mp3_C:.c=.o), bin/win32/$f)
 Xm_Win32_O       = $(foreach f,$(Xm_C:.c=.o), bin/win32/$f)
-Proc_Win32_O     = $(foreach f,$(Proc_C:.c=.o), bin/win32/$f) bin/win32/libreproc.a
-All_Win32_O      = $(ExtLib_Win32_O) $(ExtGui_Win32_O) $(Zip_Win32_O) $(Audio_Win32_O) $(Mp3_Win32_O) $(Xm_Win32_O)
+Proc_Win32_O     = $(foreach f,$(Proc_C:.c=.o), bin/win32/$f)
+Texel_Win32_O    = $(foreach f,$(Texel_C:.c=.o), bin/win32/$f)
+All_Win32_O      = $(ExtLib_Win32_O) $(ExtGui_Win32_O) $(Zip_Win32_O) $(Audio_Win32_O) $(Mp3_Win32_O) $(Xm_Win32_O) $(Proc_Win32_O) $(Texel_Win32_O)
 
-ExtGui_Linux_O  += $(foreach f,$(Fonts:.ttf=.o), bin/linux/$f)
-ExtGui_Win32_O  += $(foreach f,$(Fonts:.ttf=.o), bin/win32/$f)
+ExtGui_Linux_O  += $(foreach f,$(Fonts:%=%.o), bin/linux/$f)
+ExtGui_Win32_O  += $(foreach f,$(Fonts:%=%.o), bin/win32/$f)
 
 ReProc_Linux_C   = $(shell cd $(PATH_EXTLIB) && find reproc/reproc/src/* -type f -name '*.c' -not -name '*.windows.c')
 ReProc_Win32_C   = $(shell cd $(PATH_EXTLIB) && find reproc/reproc/src/* -type f -name '*.c' -not -name '*.posix.c')
@@ -54,25 +58,14 @@ XFLAGS            = $(shell $(ExtPkg) $^)
 
 # Make build directories
 $(shell mkdir -p bin/ $(foreach dir, \
-	$(dir $(ExtLib_Linux_O)) \
-	$(dir $(ExtGui_Linux_O)) \
 	$(dir $(ReProc_Linux_O)) \
 	$(dir $(ReProc_Win32_O)) \
-	$(dir $(Proc_Linux_O)) \
-	$(dir $(Proc_Win32_O)) \
-	$(dir $(Zip_Linux_O)) \
-	$(dir $(Audio_Linux_O)) \
-	$(dir $(Mp3_Linux_O)) \
-	$(dir $(Xm_Linux_O)) \
-	\
+	$(dir $(All_Linux_O)) \
 	$(dir $(All_Win32_O)) \
 	\
 	, $(dir)))
 
-print:
-	@echo $(ExtGui_H)
-
-CFLAGS += -Wno-missing-braces
+CFLAGS += -Wno-missing-braces -Wno-unused-local-typedefs
 
 bin/win32/src/gui/%.o: CFLAGS += -Wno-misleading-indentation
 bin/win32/src/xzip/%.o: CFLAGS += -Wno-stringop-truncation
@@ -97,6 +90,9 @@ ASSET_FILENAME = $(notdir $(basename $<))
 -include $(All_Linux_O:.o=.d)
 -include $(All_Win32_O:.o=.d)
 
+Proc_Linux_O    += bin/linux/libreproc.a
+Proc_Win32_O    += bin/win32/libreproc.a
+
 define GD_WIN32
 	@echo -n $(dir $@) > $(@:.o=.d)
 	@i686-w64-mingw32.static-gcc -MM $(CFLAGS) -D_WIN32 $< >> $(@:.o=.d)
@@ -107,11 +103,11 @@ define GD_LINUX
 	@gcc -MM $(CFLAGS) $< >> $(@:.o=.d)
 endef
 
-bin/win32/%.o: $(PATH_EXTLIB)/%.ttf
+bin/win32/src/fonts/%.o: $(PATH_EXTLIB)/src/fonts/%
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
 	@$(DataFileCompiler) --cc i686-w64-mingw32.static-gcc --i $< --o $@
 	
-bin/linux/%.o: $(PATH_EXTLIB)/%.ttf
+bin/linux/src/fonts/%.o: $(PATH_EXTLIB)/src/fonts/%
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
 	@$(DataFileCompiler) --cc gcc --i $< --o $@
 
@@ -126,4 +122,7 @@ bin/linux/%.o: $(PATH_EXTLIB)/%.c
 	$(GD_LINUX)
 
 bin/win32/icon.o: src/icon.rc src/icon.ico
+	@i686-w64-mingw32.static-windres -o $@ $<
+
+bin/win32/info.o: src/info.rc
 	@i686-w64-mingw32.static-windres -o $@ $<

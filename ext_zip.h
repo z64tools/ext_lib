@@ -25,7 +25,7 @@ u32 ZipFile_GetEntriesNum(ZipFile* zip);
 s32 ZipFile_ReadEntry_Name(ZipFile* zip, const char* entry, MemFile* mem);
 s32 ZipFile_ReadEntry_Index(ZipFile* zip, Size index, MemFile* mem);
 s32 ZipFile_ReadEntries_Path(ZipFile* zip, const char* path, s32 (*callback)(const char* name, MemFile* mem));
-s32 ZipFile_WriteEntry(ZipFile* zip, MemFile* mem, char* entry);
+s32 ZipFile_WriteEntry(ZipFile* zip, MemFile* mem, const char* entry);
 s32 ZipFile_Extract(ZipFile* zip, const char* path, s32 (*callback)(const char* name, f32 prcnt));
 void ZipFile_Free(ZipFile* zip);
 

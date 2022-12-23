@@ -17,6 +17,7 @@ typedef enum {
     THEME_ELEMENT_DARK,
     
     THEME_PRIM,
+    THEME_DELETE,
     THEME_TEXT,
     
     THEME_MAX,

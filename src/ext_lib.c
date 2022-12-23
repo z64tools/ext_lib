@@ -708,7 +708,7 @@ Time Sys_StatF(const char* item, StatFlag flag) {
     return t;
 }
 
-char* Sys_ThisApp(void) {
+const char* Sys_ThisApp(void) {
     static char buf[512];
     
 #ifdef _WIN32
@@ -716,6 +716,16 @@ char* Sys_ThisApp(void) {
 #else
     (void)readlink("/proc/self/exe", buf, 512);
 #endif
+    
+    return buf;
+}
+
+const char* Sys_ThisAppData(void) {
+    const char* app = x_basename(Sys_ThisApp());
+    static char buf[512];
+    
+    snprintf(buf, 512, "%s/%s/", Sys_GetEnv(ENV_APPDATA), app);
+    Sys_MakeDir("%s", buf);
     
     return buf;
 }
@@ -1281,6 +1291,23 @@ char Terminal_GetChar() {
     return 0;
 }
 
+void Terminal_Hide(void) {
+#ifdef _WIN32
+    HWND window = GetConsoleWindow();
+    ShowWindow(window, SW_HIDE);
+    
+#else
+#endif
+}
+
+void Terminal_Show(void) {
+#ifdef _WIN32
+    HWND window = GetConsoleWindow();
+    ShowWindow(window, SW_SHOW);
+#else
+#endif
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # VARIOUS                             #
 // # # # # # # # # # # # # # # # # # # # #
@@ -1784,22 +1811,37 @@ s32 PathIsRel(const char* item) {
     return !PathIsAbs(item);
 }
 
-char* Enumify(const char* str) {
-    char* new = x_alloc(strlen(str) * 16);
+static char* StrConvert(const char* str, int (*tocase)(int)) {
+    char* new = x_alloc(strlen(str) * 8);
     u32 write = 0;
     u32 len = strlen(str);
+    u32 prev = 0;
     
     for (s32 i = 0; i < len; i++) {
-        if (i != 0) {
-            if (isalpha(str[i]) && isalpha(str[i - 1]))
-                if (isupper(str[i]) && !isupper(str[i - 1]))
-                    new[write++] = '_';
-        }
         
-        new[write++] = toupper(str[i]);
+        if (isalnum(str[i])) {
+            prev = write;
+            
+            if (i != 0) {
+                if (isalpha(str[i]) && isalpha(str[prev]))
+                    if (isupper(str[i]) && !isupper(str[prev]))
+                        new[write++] = '_';
+            }
+            
+            new[write++] = tocase(str[i]);
+        } else if (str[i] == ' ')
+            new[write++] = '_';
     }
     
     return new;
+}
+
+char* Enumify(const char* str) {
+    return StrConvert(str, toupper);
+}
+
+char* Canitize(const char* str) {
+    return StrConvert(str, tolower);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -2121,14 +2163,13 @@ void StrIns(char* point, const char* insert) {
 
 // Insert
 void StrIns2(char* origin, const char* insert, s32 pos, s32 size) {
-    s32 inslen = strlen(insert);
+    char* new = x_alloc(strlen(origin) + strlen(insert) + 2);
     
-    if (pos >= size)
-        return;
+    strncpy(new, origin, pos);
+    strcat(new, insert);
+    strcat(new, &origin[pos]);
     
-    if (size - pos - inslen > 0)
-        memmove(&origin[pos + inslen], &origin[pos], size - pos - inslen);
-    memcpy(&origin[pos], insert, inslen);
+    strncpy(origin, new, size);
 }
 
 // Remove
@@ -2525,7 +2566,7 @@ wchar* StrU16(wchar* dst, const char* src) {
 Size strwlen(const wchar* s) {
     Size len = 0;
     
-    while (s[len] != L'\0')
+    while (s[len] != 0)
         len++;
     
     return len;
@@ -2644,11 +2685,9 @@ static void Log_Signal(s32 arg) {
     Log_Printinf(arg, stdlog);
     
 #ifdef _WIN32
-    if (arg != 16) {
-        printf_getchar("Press enter to exit");
-        exit(1);
-    }
+    printf_getchar("Press enter to exit");
 #endif
+    exit(arg);
 }
 
 void Log_Init() {
@@ -3460,7 +3499,7 @@ static Checksum Sha_ExtractDigest(u32* Hash) {
     return Digest;
 }
 
-Checksum Checksum_Get(u8* data, u64 size) {
+Checksum Checksum_Get(const void* data, u64 size) {
     u32 W[64];
     u32 Hash[8] = {
         0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
@@ -3468,8 +3507,9 @@ Checksum Checksum_Get(u8* data, u64 size) {
     };
     u64 RemainingDataSizeByte = size;
     Checksum dst;
+    u8* d = (u8*)data;
     
-    while (Sha_CreateCompleteScheduleArray(data, size, &RemainingDataSizeByte, W) == 1) {
+    while (Sha_CreateCompleteScheduleArray(d, size, &RemainingDataSizeByte, W) == 1) {
         Sha_CompleteScheduleArray(W);
         Sha_Compression(Hash, W);
     }
@@ -3477,7 +3517,7 @@ Checksum Checksum_Get(u8* data, u64 size) {
     Sha_Compression(Hash, W);
     
     dst = Sha_ExtractDigest(Hash);
-    dst.data = data;
+    dst.data = d;
     dst.size = size;
     
     return dst;
@@ -3493,4 +3533,58 @@ void* Free(const void* data) {
         free((void*)data);
     
     return NULL;
+}
+
+// # # # # # # # # # # # # # # # # # # # #
+// # QSort                               #
+// # # # # # # # # # # # # # # # # # # # #
+
+int QSortCallback_Str_NumHex(const void* ptrA, const void* ptrB) {
+    const char* a = *((char**)ptrA);
+    const char* b = *((char**)ptrB);
+    
+    if (!a || !b)
+        return a ? 1 : b ? -1 : 0;
+    
+    if (!memcmp(a, "0x", 2) && !memcmp(b, "0x", 2)) {
+        char* remainderA;
+        char* remainderB;
+        long valA = strtoul(a, &remainderA, 16);
+        long valB = strtoul(b, &remainderB, 16);
+        if (valA != valB)
+            return valA - valB;
+        
+        else if (remainderB - b != remainderA - a)
+            return (remainderB - b) - (remainderA - a);
+        else
+            return QSortCallback_Str_NumHex(&remainderA, &remainderB);
+    }
+    if (!memcmp(a, "0x", 2) || !memcmp(b, "0x", 2)) {
+        return *a - *b;
+    }
+    if (isdigit(*a) && isdigit(*b)) {
+        char* remainderA;
+        char* remainderB;
+        long valA = strtol(a, &remainderA, 10);
+        long valB = strtol(b, &remainderB, 10);
+        if (valA != valB)
+            return valA - valB;
+        
+        else if (remainderB - b != remainderA - a)
+            return (remainderB - b) - (remainderA - a);
+        else
+            return QSortCallback_Str_NumHex(&remainderA, &remainderB);
+    }
+    if (isdigit(*a) || isdigit(*b)) {
+        return *a - *b;
+    }
+    while (*a && *b) {
+        if (isdigit(*a) || isdigit(*b))
+            return QSortCallback_Str_NumHex(&a, &b);
+        if (tolower(*a) != tolower(*b))
+            return tolower(*a) - tolower(*b);
+        a++;
+        b++;
+    }
+    return *a ? 1 : *b ? -1 : 0;
 }

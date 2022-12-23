@@ -194,7 +194,7 @@ void Input_Init(Input* input, struct AppInfo* app);
 void Input_Update(Input* input);
 void Input_End(Input* input);
 const char* Input_GetClipboardStr(Input* input);
-void Input_SetClipboardStr(Input* input, char* str);
+void Input_SetClipboardStr(Input* input, const char* str);
 InputType* Input_GetKey(Input* input, KeyMap key);
 InputType* Input_GetMouse(Input* input, CursorClick type);
 f32 Input_GetScroll(Input* this);

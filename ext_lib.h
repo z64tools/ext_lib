@@ -91,7 +91,8 @@ bool Sys_IsDir(const char* path);
 void Sys_MakeDir(const char* dir, ...);
 Time Sys_Stat(const char* item);
 Time Sys_StatF(const char* item, StatFlag flag);
-char* Sys_ThisApp(void);
+const char* Sys_ThisApp(void);
+const char* Sys_ThisAppData(void);
 Time Sys_Time(void);
 s32 Sys_Rename(const char* input, const char* output);
 s32 Sys_Delete(const char* item);
@@ -111,7 +112,7 @@ Size Sys_GetFileSize(const char* file);
 const char* Sys_GetEnv(SysEnv env);
 const char* Sys_TmpFile(const char* path);
 
-Checksum Checksum_Get(u8* data, u64 size);
+Checksum Checksum_Get(const void* data, u64 size);
 bool Checksum_IsMatch(Checksum* a, Checksum* b);
 
 void SysExe_IgnoreError();
@@ -130,6 +131,8 @@ void Terminal_ClearLines(u32 i);
 void Terminal_Move_PrevLine(void);
 const char* Terminal_GetStr(void);
 char Terminal_GetChar();
+void Terminal_Hide(void);
+void Terminal_Show(void);
 
 extern ItemList gList_SortError;
 
@@ -146,6 +149,7 @@ Time ItemList_StatMin(ItemList* list);
 s32 ItemList_SaveList(ItemList* target, const char* output);
 void ItemList_NumericalSort(ItemList* list);
 s32 ItemList_NumericalSlotSort(ItemList* list, bool checkOverlaps);
+void ItemList_FreeItems(ItemList* this);
 void ItemList_Free(ItemList* itemList);
 void ItemList_Alloc(ItemList* list, u32 num, Size size);
 void ItemList_AddItem(ItemList* list, const char* item);
@@ -212,6 +216,7 @@ char* PathAbs(const char* item);
 s32 PathIsAbs(const char* item);
 s32 PathIsRel(const char* item);
 char* Enumify(const char* str);
+char* Canitize(const char* str);
 
 HSL8 Color_GetHSL(f32 r, f32 g, f32 b);
 RGBA8 Color_GetRGBA8(f32 h, f32 s, f32 l);
@@ -368,6 +373,8 @@ void Sound_Xm_Play(const void* data, u32 size);
 void Sound_Xm_Stop();
 
 char* Regex(const char* str, const char* pattern, RegexFlag flag);
+
+int QSortCallback_Str_NumHex(const void* ptrA, const void* ptrB);
 
 #ifndef _WIN32
 #ifndef __clang__

@@ -955,7 +955,7 @@ static int glhProjectf(float objx, float objy, float objz, float* modelview, flo
     fTempo[4] *= fTempo[7];
     fTempo[5] *= fTempo[7];
     fTempo[6] *= fTempo[7];
-    // Window coordinates
+    // window coordinates
     // Map x, y to range 0-1
     windowCoordinate[0] = (fTempo[4] * 0.5 + 0.5) * viewport[2] + viewport[0];
     windowCoordinate[1] = (fTempo[5] * 0.5 + 0.5) * viewport[3] + viewport[1];

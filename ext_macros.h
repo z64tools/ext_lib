@@ -159,20 +159,20 @@
 #define SEG_FAULT ((u32*)0)[0] = 0
 
 #if defined(_WIN32) && defined(UNICODE)
-#define UnicodeMain(count, args)                     \
-    __x_main(int count, char** args);                \
-    int wmain(int count, wchar * *args) {            \
-        char** nargv = Alloc(sizeof(char*) * count); \
-        for (s32 i = 0; i < count; i++) {            \
-            nargv[i] = Calloc(strwlen(args[i]));     \
-            StrU8(nargv[i], args[i]);                \
-        }                                            \
-        Log("run " PRNT_YELW "main");                \
-        return __x_main(count, nargv);               \
-    }                                                \
-    int __x_main(int count, char** args)
+#define UnicodeMain(count, args)                                   \
+    __x_main(int count, const char** args);                        \
+    int wmain(int count, const wchar * *args) {                    \
+        char** nargv = qFree(Calloc(sizeof(char*) * (count + 1))); \
+        for (s32 i = 0; i < count; i++) {                          \
+            nargv[i] = qFree(Calloc(strwlen(args[i])));            \
+            StrU8(nargv[i], args[i]);                              \
+        }                                                          \
+        Log("run " PRNT_YELW "main");                              \
+        return __x_main(count, (void*)nargv);                      \
+    }                                                              \
+    int __x_main(int count, const char** args)
 #else
-#define UnicodeMain(count, args) main(int count, char** args)
+#define UnicodeMain(count, args) main(int count, const char** args)
 #endif
 
 #define TIME_I() Time_Start(45)
@@ -195,19 +195,22 @@
 #define forstr(val, str)   for (int val = 0; val < strlen(str); val++)
 #define forline(val, str)  for (const char* val = str; val; val = Line(val, 1))
 
-#define ArrMoveR(arr, start, count) do {                                        \
-        var v = (arr)[(start) + (count) - 1];                                   \
-        for (int ___i___ = (count) + (start) - 1; ___i___ > (start); ___i___--) \
-        (arr)[___i___] = (arr)[___i___ - 1];                                    \
-        (arr)[(start)] = v;                                                     \
+#define ArrMoveR(arr, start, count) do {                      \
+        var v = (arr)[(start) + (count) - 1];                 \
+        for (int I = (count) + (start) - 1; I > (start); I--) \
+        (arr)[I] = (arr)[I - 1];                              \
+        (arr)[(start)] = v;                                   \
 } while (0)
 
-#define ArrMoveL(arr, start, count) do {                                    \
-        var v = (arr)[(start)];                                             \
-        for (int ___i___ = (start); ___i___ < (count) + (start); ___i___++) \
-        (arr)[___i___] = (arr)[___i___ + 1];                                \
-        (arr)[(count) + (start) - 1] = v;                                   \
+#define ArrMoveL(arr, start, count) do {                      \
+        var v = (arr)[(start)];                               \
+        for (int I = (start); I < (count) + (start) - 1; I++) \
+        (arr)[I] = (arr)[I + 1];                              \
+        (arr)[(count) + (start) - 1] = v;                     \
 } while (0)
+
+#define ArrZero(arr) memset(arr, 0, sizeof(arr))
+#define PtrZero(ptr) memset(ptr, 0, sizeof(*ptr));
 
 /**
  * These are only to satisfy clang IDE. These won't work
@@ -237,5 +240,10 @@
         }                                                                    \
         f;                                                                   \
     })
+
+#define PPASSERT(predicate) _impl_CASSERT_LINE(predicate, __LINE__)
+#define _impl_PASTE(a, b)   a ## b
+#define _impl_CASSERT_LINE(predicate, line) \
+    typedef char (_impl_PASTE (PPASSERT_, line))[2 * !!(predicate) - 1]
 
 #endif

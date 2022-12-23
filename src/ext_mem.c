@@ -10,8 +10,11 @@ static void MemFile_ThrowError(MemFile* this, const char* msg, const char* info)
     printf_warning_align("" PRNT_REDD "Work Directory" PRNT_RSET ":", PRNT_YELW "%s", Sys_WorkDir());
     printf_warning_align("" PRNT_REDD "File" PRNT_RSET ":", PRNT_YELW "%s", this->info.name);
     printf_warning_align("" PRNT_REDD "Error" PRNT_RSET ":", "%s", msg);
-    if (info)
+    if (info) {
         printf_warning_align("" PRNT_REDD "Info" PRNT_RSET ":", "%s", info);
+        printf_warning_align("" PRNT_REDD "Size" PRNT_RSET ":", "%f kB", KbToBin(this->size));
+        printf_warning_align("" PRNT_REDD "MemSize" PRNT_RSET ":", "%f kB", KbToBin(this->memSize));
+    }
     printf_error("Stopping Process");
 }
 

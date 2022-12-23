@@ -59,12 +59,15 @@ void ItemList_SetFilter(ItemList* list, u32 filterNum, ...) {
     va_end(va);
 }
 
-void ItemList_FreeFilters(ItemList* list) {
-    while (list->filterNode) {
-        Free(list->filterNode->txt);
-        
-        Node_Kill(list->filterNode, list->filterNode);
-    }
+void ItemList_FreeFilters(ItemList* this) {
+    if (this->initKey == 0xDEFABEBACECAFAFF) {
+        while (this->filterNode) {
+            Free(this->filterNode->txt);
+            
+            Node_Kill(this->filterNode, this->filterNode);
+        }
+    } else
+        *this = ItemList_Initialize();
 }
 
 static void ItemList_Walk(ItemList* list, const char* base, const char* parent, s32 level, s32 max, WalkInfo* info) {
@@ -181,8 +184,16 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags
     
     ItemList_Validate(target);
     
-    if (strlen(path) > 0 && !Sys_Stat(path))
-        printf_error("Can't walk path that does not exist! [%s]", path);
+    if (strlen(path) > 0 && !Sys_Stat(path)) {
+#ifdef _WIN32
+        if (!StrEnd(path, ":/"))
+#else
+        if (strcmp(path, "/"))
+#endif
+        {
+            printf_error("Can't walk path that does not exist! [%s]", path);
+        }
+    }
     
     info.flags = flags;
     
@@ -482,16 +493,23 @@ s32 ItemList_NumericalSlotSort(ItemList* list, bool checkOverlaps) {
     return error;
 }
 
-void ItemList_Free(ItemList* itemList) {
-    Assert(itemList != NULL);
+void ItemList_FreeItems(ItemList* this) {
+    if (this->initKey == 0xDEFABEBACECAFAFF) {
+        Free(this->buffer);
+        Free(this->item);
+        this->num = 0;
+        this->writePoint = 0;
+    } else
+        *this = ItemList_Initialize();
+}
+
+void ItemList_Free(ItemList* this) {
+    Assert(this != NULL);
     
-    if (itemList->initKey == 0xDEFABEBACECAFAFF) {
-        Free(itemList->buffer);
-        Free(itemList->item);
-        ItemList_FreeFilters(itemList);
-    }
+    ItemList_FreeItems(this);
+    ItemList_FreeFilters(this);
     
-    *itemList = ItemList_Initialize();
+    *this = ItemList_Initialize();
 }
 
 void ItemList_Alloc(ItemList* list, u32 num, Size size) {
@@ -568,40 +586,6 @@ void ItemList_Tokenize(ItemList* this, const char* s, char r) {
     }
 }
 
-int Comparison(const void* void_a, const void* void_b) {
-    const char* a = *((char**)void_a);
-    const char* b = *((char**)void_b);
-    
-    if (!a || !b)
-        return a ? 1 : b ? -1 : 0;
-    
-    if (isdigit(*a) && isdigit(*b)) {
-        char* remainderA;
-        char* remainderB;
-        long valA = strtol(a, &remainderA, 10);
-        long valB = strtol(b, &remainderB, 10);
-        if (valA != valB)
-            return valA - valB;
-        
-        else if (remainderB - b != remainderA - a)
-            return (remainderB - b) - (remainderA - a);
-        else
-            return Comparison(&remainderA, &remainderB);
-    }
-    if (isdigit(*a) || isdigit(*b)) {
-        return isdigit(*a) ? -1 : 1;
-    }
-    while (*a && *b) {
-        if (isdigit(*a) || isdigit(*b))
-            return Comparison(&a, &b);
-        if (tolower(*a) != tolower(*b))
-            return tolower(*a) - tolower(*b);
-        a++;
-        b++;
-    }
-    return *a ? 1 : *b ? -1 : 0;
-}
-
 void ItemList_SortNatural(ItemList* this) {
-    qsort(this->item, this->num, sizeof(char*), Comparison);
+    qsort(this->item, this->num, sizeof(char*), QSortCallback_Str_NumHex);
 }

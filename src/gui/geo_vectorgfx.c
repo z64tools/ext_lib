@@ -1,6 +1,9 @@
+#define GEO_VECTORGFX_C
 #include <ext_geogrid.h>
 #define NANOSVG_IMPLEMENTATION
 #include "nanosvg.h"
+
+ElemAssets gAssets;
 
 static float distPtSeg(float x, float y, float px, float py, float qx, float qy) {
     float pqx, pqy, dx, dy, d, t;
@@ -18,6 +21,53 @@ static float distPtSeg(float x, float y, float px, float py, float qx, float qy)
     dy = py + t * pqy - y;
     return dx * dx + dy * dy;
 };
+
+void VectorGfx_InitCommon() {
+    if (gAssets.__initialized__)
+        return;
+    gAssets.__initialized__ = true;
+    
+    const Vec2f folder[] = {
+        { 1.00,    1.50    },  { 6.00,  1.50   },
+        { 6.00,    3.50    },  { 15.00, 3.50   },
+        { 15.00,   5.50    },  { 1.00,  5.50   },
+        { FLT_MAX, FLT_MAX },
+        { 1.00,    6.50    },  { 15.00, 6.50   },
+        { 15.00,   14.50   },  { 1.00,  14.50  },
+    };
+    const Vec2f cross[] = {
+        { 4,  4   }, { 5,  4   },
+        { 8,  7   }, { 11, 4   },
+        { 12, 4   }, { 12, 5   },
+        { 9,  8   }, { 12, 11  },
+        { 12, 12  }, { 11, 12  },
+        { 8,  9   }, { 5,  12  },
+        { 4,  12  }, { 4,  11  },
+        { 7,  8   }, { 4,  5   },
+    };
+    const Vec2f arrowParent[] = {
+        { 1 + 6,  1   }, { 1 + 7,  1   },
+        { 1 + 11, 5   }, { 1 + 11, 6   },
+        { 1 + 10, 6   }, { 1 + 7,  3   },
+        { 1 + 7,  13  }, { 1 + 8,  14  },
+        { 1 + 14, 14  }, { 1 + 14, 15  },
+        { 1 + 8,  15  }, { 1 + 6,  13  },
+        { 1 + 6,  3   }, { 1 + 3,  6   },
+        { 1 + 2,  6   }, { 1 + 2,  5   },
+    };
+    
+    gAssets.folder = New(VectorGfx);
+    gAssets.folder->num = ArrayCount(folder);
+    gAssets.folder->pos = qFree(MemDup(folder, sizeof(folder)));
+    
+    gAssets.cross = New(VectorGfx);
+    gAssets.cross->num = ArrayCount(cross);
+    gAssets.cross->pos = qFree(MemDup(cross, sizeof(cross)));
+    
+    gAssets.arrowParent = New(VectorGfx);
+    gAssets.arrowParent->num = ArrayCount(arrowParent);
+    gAssets.arrowParent->pos = qFree(MemDup(arrowParent, sizeof(arrowParent)));
+}
 
 VectorGfx VectorGfx_New(VectorGfx* this, const void* data, f32 fidelity) {
     char* new = strdup(data);

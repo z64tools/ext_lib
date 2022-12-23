@@ -2,6 +2,7 @@
 
 void Input_Init(Input* input, AppInfo* app) {
     input->app = app;
+    app->input = input;
 }
 
 void Input_Update(Input* this) {
@@ -16,11 +17,26 @@ void Input_Update(Input* this) {
     
     this->keyAction = false;
     for (s32 i = 0; i < KEY_MAX; i++) {
+        this->key[i].dual = false;
         this->key[i].press = (this->key[i].prev == 0 && this->key[i].hold);
         this->key[i].release = (this->key[i].prev && this->key[i].hold == 0);
         this->key[i].prev = this->key[i].hold;
-        if (this->key[i].hold)
+        
+        if (this->key[i].hold) {
             this->keyAction = true;
+            
+            if (this->key[i].__timer) {
+                this->key[i].__timer -= this->app->tick;
+                
+                if (!this->key[i].__timer) {
+                    this->key[i].dual = true;
+                    this->key[i].__timer = 4;
+                }
+            }
+            
+            if (this->key[i].press)
+                this->key[i].__timer = 30;
+        }
     }
     
     for (s32 i = 0; i < CLICK_ANY; i++) {
@@ -84,7 +100,7 @@ const char* Input_GetClipboardStr(Input* this) {
     return glfwGetClipboardString(this->app->window);
 }
 
-void Input_SetClipboardStr(Input* this, char* str) {
+void Input_SetClipboardStr(Input* this, const char* str) {
     glfwSetClipboardString(this->app->window, str);
 }
 

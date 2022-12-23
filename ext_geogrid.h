@@ -230,6 +230,7 @@ typedef struct GeoGrid {
     Vec2s* wdim;
     void*  vg;
     void*  passArg;
+    void*  elemState;
     
     struct {
         s32  blockSplitting;
@@ -237,6 +238,10 @@ typedef struct GeoGrid {
         bool cleanVtx : 1;
     } state;
     struct ContextMenu dropMenu;
+    
+    struct {
+        Split dummySplit;
+    } private;
 } GeoGrid;
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -298,6 +303,17 @@ typedef struct {
     u32    num;
 } VectorGfx;
 
+typedef struct {
+    bool       __initialized__;
+    VectorGfx* folder;
+    VectorGfx* cross;
+    VectorGfx* arrowParent;
+} ElemAssets;
+
+#ifndef GEO_VECTORGFX_C
+extern const ElemAssets gAssets;
+#endif
+
 typedef struct Element {
     Rect        rect;
     Vec2f       posTxt;
@@ -335,20 +351,43 @@ typedef struct {
     PropColor prop;
 } ElColor;
 
+typedef enum {
+    TEXTBOX_STR,
+    TEXTBOX_INT,
+    TEXTBOX_HEX,
+    TEXTBOX_F32,
+} TextboxType;
+
 typedef struct {
-    Element   element;
-    char      txt[128];
-    s32       size;
-    u8        isNumBox   : 1;
-    u8        isHintText : 2;
-    TextAlign align;
+    Element     element;
+    char        txt[256];
+    s32         size;
+    TextboxType type;
+    TextAlign   align;
+    
     struct {
-        u8  isInt : 1;
-        u8  updt  : 1;
+        u8  update;
         f32 value;
         f32 min;
         f32 max;
-    } nbx;
+    } val;
+    
+    Split* split;
+    
+    struct {
+        bool doBlock   : 1;
+        bool isClicked : 1;
+        bool ret       : 1;
+        bool modified  : 1;
+        bool clearIcon : 1;
+    };
+    s32  selA;
+    s32  selB;
+    s32  selPivot;
+    s32  selPos;
+    s32  runVal;
+    Rect clearRect;
+    Rect boxRect;
 } ElTextbox;
 
 typedef struct {
@@ -424,9 +463,13 @@ s32 Split_GetCursor(GeoGrid* geo, Split* split, s32 result);
 
 void GeoGrid_Debug(bool b);
 void GeoGrid_TaskTable(GeoGrid* geo, SplitTask** taskTable, u32 num);
-void GeoGrid_Init(GeoGrid* geo, Vec2s* wdim, Input* input, void* vg);
+void GeoGrid_Init(GeoGrid* this, struct AppInfo* app, void* passArg);
+void GeoGrid_Destroy(GeoGrid* this);
 void GeoGrid_Update(GeoGrid* geo);
 void GeoGrid_Draw(GeoGrid* geo);
+
+void GeoGrid_Splitless_Start(GeoGrid* geo, Rect r);
+void GeoGrid_Splitless_End(GeoGrid* geo);
 
 void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, Rect rect);
 void ContextMenu_Draw(GeoGrid* geo);
@@ -434,7 +477,7 @@ void ContextMenu_Close(GeoGrid* geo);
 
 s32 Element_Button(ElButton* this);
 void Element_Color(ElColor* this);
-void Element_Textbox(ElTextbox* this);
+bool Element_Textbox(ElTextbox* this);
 ElText* Element_Text(const char* txt);
 s32 Element_Checkbox(ElCheckbox* this);
 f32 Element_Slider(ElSlider* this);
@@ -462,8 +505,8 @@ Element* Element_Disable(Element* element);
 Element* Element_Enable(Element* element);
 Element* Element_Condition(Element* element, s32 condition);
 void Element_RowY(f32 y);
-void Element_Row(Split* split, s32 rectNum, ...);
-void Element_Header(Split* split, s32 num, ...);
+void Element_Row(s32 rectNum, ...);
+void Element_Header(s32 num, ...);
 
 void Element_UpdateTextbox(GeoGrid* geo);
 void Element_Draw(GeoGrid* geo, Split* split, bool header);
@@ -473,8 +516,8 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header);
 #define Element_Enable(this)            Element_Enable(&(this)->element)
 #define Element_Condition(this, cond)   Element_Condition(&(this)->element, cond)
 #define Element_DisplayName(this, lerp) Element_DisplayName(&(this)->element, lerp)
-#define Element_Row(split, ...)         Element_Row(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
-#define Element_Header(split, ...)      Element_Header(split, NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
+#define Element_Row(...)                Element_Row(NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
+#define Element_Header(...)             Element_Header(NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
 
 const char* PropList_Get(PropList* this, s32 i);
 void PropList_Set(PropList* this, s32 i);

@@ -1008,19 +1008,12 @@ static void Split_Draw_KillArrow(Split* this, void* vg) {
 }
 
 static inline void Split_DrawSplit(GeoGrid* geo, Split* split) {
-    Vec2s* wdim = geo->wdim;
-    
     Element_SetContext(geo, split);
     
     if (!split->isHeader) {
         Split_UpdateRect(split);
         
-        glViewport(
-            split->dispRect.x,
-            wdim->y - split->dispRect.y - split->dispRect.h,
-            split->dispRect.w,
-            split->dispRect.h
-        );
+        glViewportRect(UnfoldRect(split->dispRect));
         nvgBeginFrame(geo->vg, split->dispRect.w, split->dispRect.h, gPixelRatio); {
             void* vg = geo->vg;
             Rect r = split->dispRect;
@@ -1102,12 +1095,7 @@ static inline void Split_DrawSplit(GeoGrid* geo, Split* split) {
         } nvgEndFrame(geo->vg);
     }
     
-    glViewport(
-        split->headRect.x,
-        wdim->y - split->headRect.y - split->headRect.h,
-        split->headRect.w,
-        split->headRect.h
-    );
+    glViewportRect(UnfoldRect(split->headRect));
     nvgBeginFrame(geo->vg, split->headRect.w, split->headRect.h, gPixelRatio); {
         Element_Draw(geo, split, true);
     } nvgEndFrame(geo->vg);
@@ -1224,25 +1212,56 @@ void GeoGrid_TaskTable(GeoGrid* geo, SplitTask** taskTable, u32 num) {
     geo->numTaskTable = num;
 }
 
-void GeoGrid_Init(GeoGrid* this, Vec2s* wdim, Input* inputCtx, void* vg) {
-    extern DataFile gVera;
+extern void* ElementState_New(void);
+extern void ElementState_SetElemState(void* elemState);
+
+void GeoGrid_Init(GeoGrid* this, struct AppInfo* app, void* passArg) {
+    void VectorGfx_InitCommon();
     u8* write;
     
+    this->vg = app->vg;
+    this->passArg = passArg;
+    
+    Log("Prepare Headers");
     for (var i = 0; i < 2; i++)
         write = (u8*)&this->bar[i],
         write[offsetof(Split, isHeader)] = true;
     
-    this->wdim = wdim;
-    this->input = inputCtx;
-    this->vg = vg;
+    Log("Assign Info");
+    this->wdim = &app->wdim;
+    this->input = app->input;
+    this->vg = app->vg;
+    
+    Log("Allocate ElemState");
+    this->elemState = ElementState_New();
     
     GeoGrid_SetTopBarHeight(this, SPLIT_BAR_HEIGHT);
     GeoGrid_SetBotBarHeight(this, SPLIT_BAR_HEIGHT);
-    
-    nvgCreateFontMem(vg, "default", gVera.data, gVera.size, 0);
-    nvgCreateFontMem(vg, "default-bold", gVera.data, gVera.size, 0);
+    VectorGfx_InitCommon();
     
     this->prevWorkRect = this->workRect;
+}
+
+void GeoGrid_Destroy(GeoGrid* this) {
+    
+    Log("Destroy Splits");
+    while (this->splitHead) {
+        Log("Split [%d]", this->splitHead->id);
+        this->taskTable[this->splitHead->id]->destroy(this->passArg, this->splitHead->instance, this->splitHead);
+        Free(this->splitHead->instance);
+        Node_Kill(this->splitHead, this->splitHead);
+    }
+    
+    Log("Free Vtx");
+    while (this->vtxHead)
+        Node_Kill(this->vtxHead, this->vtxHead);
+    
+    Log("Free Edge");
+    while (this->edgeHead)
+        Node_Kill(this->edgeHead, this->edgeHead);
+    
+    Log("Free ElemState");
+    Free(this->elemState);
 }
 
 void GeoGrid_Update(GeoGrid* geo) {
@@ -1255,19 +1274,13 @@ void GeoGrid_Update(GeoGrid* geo) {
 }
 
 void GeoGrid_Draw(GeoGrid* geo) {
-    Vec2s* wdim = geo->wdim;
-    
+    ElementState_SetElemState(geo->elemState);
     Element_UpdateTextbox(geo);
     Split_Update(geo);
     
     // Draw Bars
     for (s32 i = 0; i < 2; i++) {
-        glViewport(
-            geo->bar[i].rect.x,
-            wdim->y - geo->bar[i].rect.y - geo->bar[i].rect.h,
-            geo->bar[i].rect.w,
-            geo->bar[i].rect.h
-        );
+        glViewportRect(UnfoldRect(geo->bar[i].rect));
         nvgBeginFrame(geo->vg, geo->bar[i].rect.w, geo->bar[i].rect.h, gPixelRatio); {
             Rect r = geo->bar[i].rect;
             
@@ -1288,13 +1301,24 @@ void GeoGrid_Draw(GeoGrid* geo) {
     if (sDebugMode)
         Split_DrawDebug(geo);
     
-    glViewport(
-        0,
-        0,
-        geo->wdim->x,
-        geo->wdim->y
-    );
+    glViewport(0, 0, geo->wdim->x, geo->wdim->y);
     
     ContextMenu_Draw(geo);
     DragItem_Draw(geo);
+}
+
+void GeoGrid_Splitless_Start(GeoGrid* geo, Rect r) {
+    geo->private.dummySplit.dispRect = r;
+    geo->private.dummySplit.rect = r;
+    geo->private.dummySplit.mouseInSplit = true;
+    geo->private.dummySplit.cursorPos = geo->input->cursor.pos;
+    geo->private.dummySplit.mousePressPos = geo->input->cursor.pressPos;
+    
+    ElementState_SetElemState(geo->elemState);
+    Element_SetContext(geo, &geo->private.dummySplit);
+}
+
+void GeoGrid_Splitless_End(GeoGrid* geo) {
+    Element_UpdateTextbox(geo);
+    Element_Draw(geo, &geo->private.dummySplit, false);
 }
