@@ -5,9 +5,12 @@ import sys
 pkg_info = {
 	"linux/src/gui/geogrid.o": "-lGL -lglfw",
 	"win32/src/gui/geogrid.o": "-lglfw3 -lopengl32 -lgdi32",
+	
 	"win32/libreproc.a":       "-lws2_32",
+	
 	"src/ext_lib.o":           "-lm -pthread",
-	"linux/src/ext_lib.o":     "-ldl",
+	"linux/src/ext_lib.o":     "-ldl -DEXT_LIB_SYS_AUDIO",
+	"win32/src/ext_lib.o":     "-lwinmm -DEXT_LIB_SYS_AUDIO",
 }
 
 for a in sys.argv:

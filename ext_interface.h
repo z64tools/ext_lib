@@ -100,6 +100,7 @@ typedef struct {
     
     struct {
         bool holdSlider : 1;
+        bool doRename   : 1;
     };
     
     struct {
@@ -114,6 +115,7 @@ typedef struct {
     ElTextbox travel;
     ElTextbox search;
     ElButton  backButton;
+    ElTextbox rename;
 } FileDialog;
 
 void FileDialog_New(FileDialog* this, AppInfo* app, const char* title);

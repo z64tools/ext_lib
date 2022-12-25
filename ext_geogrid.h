@@ -377,10 +377,10 @@ typedef struct {
     struct {
         bool doBlock   : 1;
         bool isClicked : 1;
-        bool ret       : 1;
         bool modified  : 1;
         bool clearIcon : 1;
     };
+    s32  ret;
     s32  selA;
     s32  selB;
     s32  selPivot;
@@ -475,9 +475,11 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, R
 void ContextMenu_Draw(GeoGrid* geo);
 void ContextMenu_Close(GeoGrid* geo);
 
+void Element_SetActiveTextbox(GeoGrid* geo, Split* split, ElTextbox* this);
+
 s32 Element_Button(ElButton* this);
 void Element_Color(ElColor* this);
-bool Element_Textbox(ElTextbox* this);
+s32 Element_Textbox(ElTextbox* this);
 ElText* Element_Text(const char* txt);
 s32 Element_Checkbox(ElCheckbox* this);
 f32 Element_Slider(ElSlider* this);

@@ -9,8 +9,6 @@ import argparse
 from pathlib import Path
 from subprocess import Popen, PIPE
 
-CORRECT_INDENTATION = True
-
 
 def main() -> None:
     args = _parse_args()
@@ -23,7 +21,7 @@ def compile(executable: str, input: io.TextIOWrapper, output: str) -> None:
     with compiler.stdin as stdin:
         buffer = []
         def writeline(line: str, indent=0) -> None:
-            indent *= "    " if CORRECT_INDENTATION else "\t"
+            indent *= "\t"
             buffer.append(f"{indent}{line}\n".encode("utf-8"))
 
         writeline("struct {")

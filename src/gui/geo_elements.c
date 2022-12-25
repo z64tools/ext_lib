@@ -510,6 +510,9 @@ static void Textbox_SetValue(ElTextbox* this) {
 static void Textbox_Clear(GeoGrid* geo) {
     ElTextbox* this = gElemState->textbox;
     
+    if (!this)
+        return;
+    
     Textbox_SetValue(this);
     gElemState->textbox = NULL;
     
@@ -544,6 +547,11 @@ static InputType* Textbox_GetMouse(GeoGrid* geo, CursorClick key) {
     return &geo->input->cursor.clickList[key];
 }
 
+void Element_SetActiveTextbox(GeoGrid* geo, Split* split, ElTextbox* this) {
+    Textbox_Clear(geo);
+    Textbox_Set(this, split ? split : &geo->private.dummySplit);
+}
+
 void Element_UpdateTextbox(GeoGrid* geo) {
     ElTextbox* this = gElemState->textbox;
     bool cPress = Textbox_GetMouse(geo, CLICK_L)->press;
@@ -572,6 +580,8 @@ void Element_UpdateTextbox(GeoGrid* geo) {
             ArrZero(this->txt);
             this->modified = true;
             Textbox_Clear(geo);
+            this->ret = -1;
+            
             return;
         }
         
@@ -810,7 +820,7 @@ static void Element_TextboxDraw(ElementCallInfo* info) {
     }
 }
 
-bool Element_Textbox(ElTextbox* this) {
+s32 Element_Textbox(ElTextbox* this) {
     Assert(GEO && SPLIT);
     
     ELEMENT_QUEUE_CHECK();
@@ -849,11 +859,9 @@ bool Element_Textbox(ElTextbox* this) {
     
     ELEMENT_QUEUE(Element_TextboxDraw);
     
-    if (this->ret) {
-        this->ret = false;
-        return true;
-    }
-    return false;
+    s32 ret = this->ret;
+    
+    return (this->ret = 0, ret);
 }
 
 // # # # # # # # # # # # # # # # # # # # #

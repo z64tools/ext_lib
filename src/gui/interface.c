@@ -294,33 +294,26 @@ static void FileDialog_SaveConfig(FileDialog* this) {
     Toml_Free(&toml);
 }
 
-static void FileDialog_Travel(FileDialog* this, const char* dst) {
-    if (dst) {
-        char path[sizeof(this->path)];
-        strcpy(path, this->path);
-        
-        if (!strcmp(dst, "..")) {
-            var slash = 0;
-            
-            for (var c = strnlen(path, FILE_DIALOG_BUF); c >= strlen("X:"); c--) {
-                if (path[c] == '/') {
-                    slash++;
-                }
-                
-                if (slash == 2) {
-                    path[c + 1] = '\0';
-                    break;
-                }
-            }
-            
-        } else
-            strncat(path, dst, FILE_DIALOG_BUF);
-        
-        // TODO: error checking
-        strcpy(this->path, path);
-    }
+static s32 FileDialog_PathRead(FileDialog* this, const char* travel) {
+    char buf[sizeof(this->path)];
+    s32 ret = 1;
     
-    printf_warning("Listing [%s]", this->path);
+    printf_warning("Travel [%s]", travel);
+    
+    if (travel) {
+        strcpy(buf, travel);
+        StrRep(buf, "\\", "/");
+        
+        if (!Sys_IsDir(travel)) {
+            ret = 0;
+            goto exit;
+        }
+        
+        strcpy(this->path, buf);
+        
+        if (!StrEnd(this->path, "/"))
+            strcat(this->path, "/");
+    }
     
     ItemList_FreeItems(&this->files);
     ItemList_FreeItems(&this->folders);
@@ -333,32 +326,48 @@ static void FileDialog_Travel(FileDialog* this, const char* dst) {
     ItemList_SortNatural(&this->folders);
     ItemList_SortNatural(&this->files);
     
-    forlist(i, this->files) {
-        StrRep(this->files.item[i], "\\", "/");
-    }
     forlist(i, this->folders) {
-        StrRep(this->folders.item[i], "\\", "/");
+        StrRep(this->folders.item[i], "\\", "");
+        StrRep(this->folders.item[i], "/", "");
     }
     
-    this->slot = 1 + this->files.num + this->folders.num;
+    this->slot = this->files.num + this->folders.num;
     
     Log("Ok");
     
     strncpy(this->travel.txt, this->path, sizeof(this->travel.txt));
     ArrZero(this->search.txt);
     glfwSetWindowTitle(this->window.app.window, x_fmt("%s ─ %s", this->window.app.title, this->path));
+    
+exit:
+    strcpy(this->travel.txt, this->path);
+    return ret;
 }
 
-void FileDialog_Init(FileDialog* this) {
-    this->selected = -1;
-    this->files = ItemList_Initialize();
-    this->folders = ItemList_Initialize();
-    
-    GeoGrid_Init(&this->geo, &this->window.app, NULL);
-    FileDialog_Travel(this, NULL);
-    
-    this->search.clearIcon = true;
-    this->backButton.icon = gAssets.arrowParent;
+static void FileDialog_PathAppend(FileDialog* this, const char* dst) {
+    if (dst) {
+        char path[sizeof(this->path)];
+        strcpy(path, this->path);
+        
+        if (!strcmp(dst, "..")) {
+            var slash = 0;
+            
+            for (var c = strnlen(path, FILE_DIALOG_BUF); c >= strlen("X:"); c--) {
+                if (path[c] == '/') {
+                    slash++;
+                    
+                    if (slash == 2) {
+                        path[c + 1] = '\0';
+                        break;
+                    }
+                }
+            }
+            
+        } else
+            snprintf(path, FILE_DIALOG_BUF, "%s%s/", this->path, dst);
+        
+        FileDialog_PathRead(this, path);
+    }
 }
 
 static void FileDialog_FilePanel_ScrollUpdate(FileDialog* this, Rect r) {
@@ -430,6 +439,28 @@ static s32 FileDialog_FilePanel_ScrollDraw(FileDialog* this, Rect r) {
     return !this->holdSlider;
 }
 
+static const char* FileDialog_GetSelectedItem(FileDialog* this) {
+    const ItemList* list[] = {
+        &this->folders,
+        &this->files
+    };
+    bool isFolder = false;
+    s32 id = this->selected;
+    
+    if (id < 0) return NULL;
+    
+    if (id < this->folders.num)
+        isFolder = true;
+    else
+        id -= this->folders.num;
+    
+    return list[!isFolder]->item[id];
+};
+
+// # # # # # # # # # # # # # # # # # # # #
+// #                                     #
+// # # # # # # # # # # # # # # # # # # # #
+
 static void FileDialog_FilePanel(FileDialog* this, Rect r) {
     void* vg = this->window.app.vg;
     Input* input = &this->window.input;
@@ -441,6 +472,7 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
     s32 pressSlot = 0;
     InputType* click = Input_GetMouse(input, CLICK_L);
     bool cursorInPanel = Rect_PointIntersect(&mainr, UnfoldVec2(input->cursor.pos));
+    Rect selectedRect;
     
     Gfx_DrawRounderRect(vg, mainr, Theme_GetColor(THEME_SPLIT, 255, 1.0f));
     
@@ -451,6 +483,7 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
     this->slot = 0;
     r.h = SPLIT_ELEM_Y_PADDING;
     r.y -= this->vscroll * SPLIT_ELEM_Y_PADDING;
+    
     foreach(i, list) {
         forlist(j, *list[i]) {
             if (IsBetween(r.y, mainr.y - r.h, mainr.y + mainr.h)) {
@@ -495,8 +528,43 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
                 Gfx_Text(vg, txr, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE, Theme_GetColor(THEME_TEXT, 255, 1.0f), item);
             }
             
+            if (this->slot == this->selected)
+                selectedRect = r;
+            
             this->slot++;
             r.y += SPLIT_ELEM_Y_PADDING;
+        }
+    }
+    
+    if (this->doRename) {
+        s32 ret;
+        
+        if ((ret = Element_Textbox(&this->rename))) {
+            this->doRename = false;
+            
+            if (ret > 0) {
+                const char* item = FileDialog_GetSelectedItem(this);
+                const char* input = x_fmt("%s%s", this->path, item);
+                const char* output = x_fmt("%s%s", this->path, this->rename.txt);
+                
+                if (strcspn(this->rename.txt, "\\/:*?\"<>|") == strlen(this->rename.txt)) {
+                    Sys_Rename(input, output);
+                    FileDialog_PathRead(this, NULL);
+                } else
+                    Sys_Sound("error");
+            }
+            
+            printf_info("%d", ret);
+        }
+    } else {
+        if (this->selected >= 0) {
+            if (Input_GetKey(input, KEY_F2)->press) {
+                strcpy(this->rename.txt, FileDialog_GetSelectedItem(this));
+                this->doRename = true;
+                this->rename.element.rect = selectedRect;
+                
+                Element_SetActiveTextbox(&this->geo, NULL, &this->rename);
+            }
         }
     }
     
@@ -505,7 +573,7 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
             u32 slot = Abs(pressSlot) - 1;
             
             if (pressSlot < 0 && click->dual) {
-                FileDialog_Travel(this, this->folders.item[slot]);
+                FileDialog_PathAppend(this, this->folders.item[slot]);
                 
                 printf_info("Path: [%s]", this->path);
             } else if (click->press) {
@@ -537,23 +605,32 @@ static void FileDialog_HeaderPanel(FileDialog* this, Rect r) {
     this->backButton.element.rect.w = r.h - SPLIT_ELEM_X_PADDING * 2;
     
     if (Element_Button(&this->backButton))
-        FileDialog_Travel(this, "..");
+        FileDialog_PathAppend(this, "..");
     
     if (Element_Textbox(&this->travel)) {
         if (!Sys_IsDir(this->travel.txt))
             strcpy(this->travel.txt, this->path);
         
         else {
-            StrRep(this->travel.txt, "\\", "/");
-            if (!StrEnd(this->travel.txt, "/")) strcat(this->travel.txt, "/");
-            ArrZero(this->path);
-            FileDialog_Travel(this, this->travel.txt);
+            FileDialog_PathRead(this, this->travel.txt);
         }
     }
     
     Element_Textbox(&this->search);
     if (this->search.modified)
         this->vscroll = this->scroll = 0;
+}
+
+void FileDialog_Init(FileDialog* this) {
+    this->selected = -1;
+    this->files = ItemList_Initialize();
+    this->folders = ItemList_Initialize();
+    
+    GeoGrid_Init(&this->geo, &this->window.app, NULL);
+    FileDialog_PathRead(this, NULL);
+    
+    this->search.clearIcon = true;
+    this->backButton.icon = gAssets.arrowParent;
 }
 
 void FileDialog_Update(void* arg) {

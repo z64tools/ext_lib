@@ -230,6 +230,7 @@
     type name args
 #define BlockDecl(type, name, args) (void)0
 #define BlockVar(var)               (void)0
+#define BlockVarArr(var)            (void)0
 #endif
 
 #define FOPEN(file, mode) ({                                                 \

@@ -99,7 +99,10 @@ void PostFree_Free(void) {
     }
 }
 
+static struct timeval sProfiTime;
+
 __attribute__ ((constructor)) void ExtLib_Init(void) {
+    gettimeofday(&sProfiTime, NULL);
     Log_Init();
     
 #ifdef _WIN32
@@ -126,6 +129,29 @@ __attribute__ ((destructor)) void ExtLib_Destroy(void) {
         sDestructor(sDestructorArg);
     
     Log_Free();
+}
+
+void profilog(const char* msg) {
+    struct timeval next;
+    f32 time;
+    
+    gettimeofday(&next, NULL);
+    time = (next.tv_sec - sProfiTime.tv_sec) + (next.tv_usec - sProfiTime.tv_usec) / 1000000.0;
+    sProfiTime = next;
+    
+    printf("" PRNT_YELW ">" PRNT_GRAY ": " PRNT_RSET "%-16s " PRNT_YELW "%.2f " PRNT_RSET "ms\n", msg,  time * 1000.0f);
+}
+
+void profilogdiv(const char* msg, f32 div) {
+    struct timeval next;
+    f32 time;
+    
+    gettimeofday(&next, NULL);
+    time = (next.tv_sec - sProfiTime.tv_sec) + (next.tv_usec - sProfiTime.tv_usec) / 1000000.0;
+    time /= div;
+    sProfiTime = next;
+    
+    printf("" PRNT_YELW ">" PRNT_GRAY ": " PRNT_RSET "%-16s " PRNT_YELW "%.2f " PRNT_RSET "ms\n", msg,  time * 1000.0f);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -522,7 +548,7 @@ void Time_Start(u32 slot) {
     gettimeofday(&sTimeStart[slot], NULL);
 }
 
-f64 Time_Get(u32 slot) {
+f32 Time_Get(u32 slot) {
     struct timeval sTimeStop;
     
     gettimeofday(&sTimeStop, NULL);
@@ -645,12 +671,19 @@ static s32 sSysIgnore;
 static s32 sSysReturn;
 
 bool Sys_IsDir(const char* path) {
+    char* tmp = x_strdup(path);
     struct stat st = { 0 };
     
-    stat(path, &st);
-    
-    if (S_ISDIR(st.st_mode)) {
+    stat(tmp, &st);
+    if (S_ISDIR(st.st_mode))
         return true;
+    if (StrEnd(tmp, "/")) {
+        StrEnd(tmp, "/")[0] = '\0';
+        
+        stat(tmp, &st);
+        
+        if (S_ISDIR(st.st_mode))
+            return true;
     }
     
     return false;
@@ -1216,6 +1249,71 @@ redo:
     
     return mk;
 }
+
+#ifdef EXT_LIB_SYS_AUDIO
+
+void Sys_Beep(s32 freq, s32 time) {
+    Beep(freq, time);
+}
+
+void Sys_Sound(const char* type) {
+#ifdef _WIN32
+    if (!stricmp(type, "error"))
+        PlaySound("SystemHand", NULL, SND_ASYNC);
+    if (!stricmp(type, "warning"))
+        PlaySound("SystemExclamation", NULL, SND_ASYNC);
+#endif
+}
+
+static volatile bool sKill;
+static volatile bool sRunning;
+
+static s32 FatalJingle(void* this) {
+    struct {
+        s32 freq;
+        s32 time;
+    } jingle[] = {
+        { 349, 125 }, { 392, 125 }, { 466, 125 }, { 392, 125  },
+        { 587, 375 }, { 587, 375 }, { 523, 750 }, { 349, 125  },
+        { 392, 125 }, { 466, 125 }, { 392, 125 }, { 523, 375  },
+        { 523, 375 }, { 466, 500 }, { 440, 125 }, { 392, 250  },
+        { 349, 125 }, { 392, 125 }, { 466, 125 }, { 392, 125  },
+        { 466, 500 }, { 523, 250 }, { 440, 375 }, { 392, 125  },
+        { 349, 500 }, { 349, 250 }, { 523, 500 }, { 466, 1000 },
+        { 349, 125 }, { 392, 125 }, { 466, 125 }, { 392, 125  },
+        { 587, 375 }, { 587, 375 }, { 523, 750 }, { 349, 125  },
+        { 392, 125 }, { 466, 125 }, { 392, 125 }, { 698, 500  },
+        { 440, 250 }, { 466, 500 }, { 440, 125 }, { 392, 250  },
+        { 349, 125 }, { 392, 125 }, { 466, 125 }, { 392, 125  },
+        { 466, 500 }, { 523, 250 }, { 440, 375 }, { 392, 125  },
+        { 349, 500 }, { 349, 250 }, { 523, 500 }, { 466, 1000 }
+    };
+    
+    foreach(i, jingle) {
+        Sys_Beep(jingle[i].freq, jingle[i].time);
+        if (sKill) {
+            sRunning = false;
+            return 0;
+        }
+    }
+    
+    sRunning = false;
+    return 0;
+}
+
+void Sys_FatalJingle(void) {
+    static Thread t;
+    
+    while (sRunning) {
+        sKill = true;
+    }
+    sKill = false;
+    
+    sRunning = true;
+    Thread_Create(&t, FatalJingle, NULL);
+}
+
+#endif
 
 // # # # # # # # # # # # # # # # # # # # #
 // # TERMINAL                            #

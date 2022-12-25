@@ -181,24 +181,20 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
 
 void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags) {
     WalkInfo info = { 0 };
+    char* buf;
     
     ItemList_Validate(target);
     
-    if (strlen(path) > 0 && !Sys_Stat(path)) {
-#ifdef _WIN32
-        if (!StrEnd(path, ":/"))
-#else
-        if (strcmp(path, "/"))
-#endif
-        {
-            printf_error("Can't walk path that does not exist! [%s]", path);
-        }
-    }
+    Assert(path != NULL);
+    if (strlen(path) > 0 && !Sys_IsDir(path))
+        printf_error("Can't walk path that does not exist! [%s]", path);
+    buf = strndup(path, strlen(path) + 2);
+    if (!StrEnd(buf, "/")) strcat(buf, "/");
     
     info.flags = flags;
     
-    Log("Walk: %s", path);
-    ItemList_Walk(target, path, path, 0, depth, &info);
+    Log("Walk: %s", buf);
+    ItemList_Walk(target, buf, buf, 0, depth, &info);
     
     if (info.num) {
         target->buffer = Alloc(info.len);
@@ -216,6 +212,8 @@ void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags
         }
         Log("OK: %d", target->num);
     }
+    
+    Free(buf);
 }
 
 char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, ...) {

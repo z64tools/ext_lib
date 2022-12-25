@@ -46,6 +46,9 @@
 extern PrintfSuppressLevel gPrintfSuppress;
 extern u8 gPrintfProgressing;
 
+void profilog(const char* msg);
+void profilogdiv(const char* msg, f32 div);
+
 void* qFree(const void* ptr);
 void* PostFree_Queue(void* ptr);
 void* PostFree_QueueCallback(void* callback, void* ptr);
@@ -77,7 +80,7 @@ char* x_basename(const char* src);
 char* x_filename(const char* src);
 
 void Time_Start(u32 slot);
-f64 Time_Get(u32 slot);
+f32 Time_Get(u32 slot);
 void Profiler_I(u8 s);
 void Profiler_O(u8 s);
 f32 Profiler_Time(u8 s);
@@ -111,6 +114,12 @@ s32 Sys_GetCoreCount(void);
 Size Sys_GetFileSize(const char* file);
 const char* Sys_GetEnv(SysEnv env);
 const char* Sys_TmpFile(const char* path);
+
+#ifdef EXT_LIB_SYS_AUDIO
+void Sys_Beep(s32 freq, s32 time);
+void Sys_Sound(const char* type);
+void Sys_FatalJingle(void);
+#endif
 
 Checksum Checksum_Get(const void* data, u64 size);
 bool Checksum_IsMatch(Checksum* a, Checksum* b);
