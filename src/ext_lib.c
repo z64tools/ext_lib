@@ -2821,6 +2821,19 @@ void Log_Print() {
 }
 
 void __Log(const char* func, u32 line, const char* txt, ...) {
+    
+#if 0
+    va_list va;
+    char buf[512];
+    
+    va_start(va, txt);
+    vsnprintf(buf, 512, txt, va);
+    printf_info("" PRNT_GRAY "[%s::%d]" PRNT_RSET " %s", func, line, buf);
+    va_end(va);
+    
+    return;
+#endif
+    
     if (!sLogInit)
         return;
     

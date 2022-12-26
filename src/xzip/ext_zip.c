@@ -57,7 +57,6 @@ s32 ZipFile_ReadEntry_Index(ZipFile* zip, Size index, MemFile* mem) {
     
     if (zip_entry_openbyindex(zip->pkg, index))
         return ZIP_ERROR_OPEN_ENTRY;
-    mem->info.name = strdup(zip_entry_name(zip->pkg));
     Log("Reading Entry \"%s\"", mem->info.name);
     
     if (zip_entry_isdir(zip->pkg)) {
@@ -75,6 +74,7 @@ s32 ZipFile_ReadEntry_Index(ZipFile* zip, Size index, MemFile* mem) {
     }
     
     MemFile_LoadMem(mem, data, sz);
+    mem->info.name = strdup(zip_entry_name(zip->pkg));
     
     if (zip_entry_close(zip->pkg))
         return ZIP_ERROR_CLOSE;
@@ -180,7 +180,6 @@ static s32 ZipFile_Extract_Callback(ZipFile* zip, MemFile* mem, u32 i, f32 prcnt
         }
         
         Free(name);
-        
         return ZipFile_Extract_NoCallback(zip, mem, i);
     }
     

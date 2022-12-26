@@ -150,17 +150,17 @@ ItemList ItemList_Initialize(void);
 void ItemList_SetFilter(ItemList* list, u32 filterNum, ...);
 void ItemList_FreeFilters(ItemList* list);
 void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags);
+char* ItemList_Concat(ItemList* this, const char* separator);
 char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, ...);
 void ItemList_Separated(ItemList* list, const char* str, const char separator);
 void ItemList_Print(ItemList* target);
 Time ItemList_StatMax(ItemList* list);
 Time ItemList_StatMin(ItemList* list);
 s32 ItemList_SaveList(ItemList* target, const char* output);
-void ItemList_NumericalSort(ItemList* list);
 s32 ItemList_NumericalSlotSort(ItemList* list, bool checkOverlaps);
 void ItemList_FreeItems(ItemList* this);
 void ItemList_Free(ItemList* itemList);
-void ItemList_Alloc(ItemList* list, u32 num, Size size);
+void ItemList_Alloc(ItemList* list, u32 num);
 void ItemList_AddItem(ItemList* list, const char* item);
 void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b);
 void ItemList_Tokenize(ItemList* this, const char* s, char r);
@@ -334,6 +334,7 @@ void Toml_ToMem(Toml* this, MemFile* mem);
 void Toml_SaveFile(Toml* this, const char* file);
 
 void Toml_SetValue(Toml* this, const char* item, const char* fmt, ...);
+void Toml_AddTable(Toml* this, const char* item, ...);
 
 s32 Toml_GetInt(Toml* this, const char* item, ...);
 f32 Toml_GetFloat(Toml* this, const char* item, ...);

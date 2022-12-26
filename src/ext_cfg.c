@@ -200,7 +200,7 @@ void Config_GetArray(MemFile* mem, const char* variable, ItemList* list) {
     if ((array[0] != '[' && array[0] != '{')) {
         char* str = Config_GetVariable(mem->str, variable);
         
-        ItemList_Alloc(list, 1, strlen(str) + 2);
+        ItemList_Alloc(list, 1);
         ItemList_AddItem(list, str);
         
         return;
@@ -320,7 +320,7 @@ void Config_ListVariables(MemFile* mem, ItemList* list, const char* section) {
     char* wordA = x_alloc(64);
     
     ItemList_Validate(list);
-    ItemList_Alloc(list, 256, 256 * 64);
+    ItemList_Alloc(list, 256);
     
     if (section)
         line = (void*)__Config_GotoSection(line);
@@ -352,7 +352,6 @@ void Config_ListVariables(MemFile* mem, ItemList* list, const char* section) {
 
 void Config_ListSections(MemFile* cfg, ItemList* list) {
     s32 sctCount = 0;
-    s32 sctSize = 0;
     s32 line = -1;
     
     forline(p, cfg->str) {
@@ -367,8 +366,6 @@ void Config_ListSections(MemFile* cfg, ItemList* list) {
         
         if (p[sz] == '\n' || p[sz] == '\0')
             printf_error("Missing ']' from section name at line %d for [%s]", line, cfg->info.name);
-        
-        sctSize += sz + 1;
     }
     
     if (sctCount == 0) {
@@ -376,7 +373,7 @@ void Config_ListSections(MemFile* cfg, ItemList* list) {
         return;
     }
     
-    ItemList_Alloc(list, sctCount, sctSize + sctCount);
+    ItemList_Alloc(list, sctCount);
     
     forline(p, cfg->str) {
         p += strspn(p, " \t");

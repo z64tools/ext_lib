@@ -103,6 +103,16 @@ define GD_LINUX
 	@gcc -MM $(CFLAGS) $< >> $(@:.o=.d)
 endef
 
+define GD++_WIN32
+	@echo -n $(dir $@) > $(@:.o=.d)
+	@i686-w64-mingw32.static-g++ -MM $(CFLAGS) -D_WIN32 $< >> $(@:.o=.d)
+endef
+
+define GD++_LINUX
+	@echo -n $(dir $@) > $(@:.o=.d)
+	@g++ -MM $(CFLAGS) $< >> $(@:.o=.d)
+endef
+
 bin/win32/src/fonts/%.o: $(PATH_EXTLIB)/src/fonts/%
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
 	@$(DataFileCompiler) --cc i686-w64-mingw32.static-gcc --i $< --o $@

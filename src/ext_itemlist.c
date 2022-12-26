@@ -31,7 +31,7 @@ void ItemList_Validate(ItemList* itemList) {
 }
 
 ItemList ItemList_Initialize(void) {
-    return (ItemList) { .initKey = 0xDEFABEBACECAFAFF };
+    return (ItemList) { .initKey = 0xDEFABEBACECAFAFF, .p.alnum = 0 };
 }
 
 void ItemList_SetFilter(ItemList* list, u32 filterNum, ...) {
@@ -179,41 +179,62 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
         printf_error("Could not open dir [%s]", dir);
 }
 
-void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags) {
+void ItemList_List(ItemList* this, const char* path, s32 depth, ListFlag flags) {
     WalkInfo info = { 0 };
-    char* buf;
+    char buf[261] = "";
     
-    ItemList_Validate(target);
+    ItemList_Validate(this);
     
     Assert(path != NULL);
-    if (strlen(path) > 0 && !Sys_IsDir(path))
-        printf_error("Can't walk path that does not exist! [%s]", path);
-    buf = strndup(path, strlen(path) + 2);
-    if (!StrEnd(buf, "/")) strcat(buf, "/");
+    if (strlen(path) > 0 ) {
+        
+        if (!Sys_IsDir(path))
+            printf_error("Can't walk path that does not exist! [%s]", path);
+        
+        strcpy(buf, path);
+        if (!StrEnd(buf, "/")) strcat(buf, "/");
+    }
     
     info.flags = flags;
     
     Log("Walk: %s", buf);
-    ItemList_Walk(target, buf, buf, 0, depth, &info);
+    ItemList_Walk(this, buf, buf, 0, depth, &info);
     
     if (info.num) {
-        target->buffer = Alloc(info.len);
-        target->item = Alloc(sizeof(char*) * info.num);
-        target->num = info.num;
+        this->num = info.num;
+        this->item = New(char*[info.num]);
         
-        for (s32 i = 0; i < info.num; i++) {
-            StrNode* node = info.node;
-            target->item[i] = &target->buffer[target->writePoint];
-            strcpy(target->item[i], node->txt);
-            target->writePoint += strlen(target->item[i]) + 1;
-            
-            Free(node->txt);
+        for (var i = 0; i < info.num; i++) {
+            this->item[i] = info.node->txt;
             Node_Kill(info.node, info.node);
         }
-        Log("OK: %d", target->num);
+    }
+}
+
+char* ItemList_Concat(ItemList* this, const char* separator) {
+    u32 len = 0;
+    u32 seplen = separator ? strlen(separator) : 0;
+    
+    for (var i = 0; i < this->num; i++) {
+        if (!this->item[i]) continue;
+        len += strlen(this->item[i]) + seplen;
     }
     
-    Free(buf);
+    if (!len) return NULL;
+    
+    char* r = New(char[len + 1]);
+    
+    for (var i = 0; i < this->num; i++) {
+        if (!this->item[i]) continue;
+        
+        strcat(r, this->item[i]);
+        if (seplen) strcat(r, separator);
+    }
+    
+    if (separator)
+        StrEnd(r, separator)[0] = '\0';
+    
+    return r;
 }
 
 char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, ...) {
@@ -240,7 +261,7 @@ void ItemList_Separated(ItemList* list, const char* str, const char separator) {
     s32 b = 0;
     StrNode* nodeHead = NULL;
     
-    ItemList_Validate(list);
+    ItemList_Free(list);
     
     while (str[a] == ' ' || str[a] == '\t' || str[a] == '\n' || str[a] == '\r') a++;
     
@@ -294,7 +315,6 @@ void ItemList_Separated(ItemList* list, const char* str, const char separator) {
         
 write:
         list->num++;
-        list->writePoint += strlen(node->txt) + 1;
         
         a = b;
         
@@ -303,17 +323,10 @@ write:
             break;
     }
     
-    list->buffer = Calloc(list->writePoint);
-    list->item = Calloc(sizeof(char*) * list->num);
-    list->writePoint = 0;
+    list->item = New(char*[list->num]);
     
     for (s32 i = 0; i < list->num; i++) {
-        list->item[i] = &list->buffer[list->writePoint];
-        strcpy(list->item[i], nodeHead->txt);
-        
-        list->writePoint += strlen(list->item[i]) + 1;
-        
-        Free(nodeHead->txt);
+        list->item[i] = nodeHead->txt;
         Node_Kill(nodeHead, nodeHead);
     }
 }
@@ -356,147 +369,83 @@ s32 ItemList_SaveList(ItemList* target, const char* output) {
     return 0;
 }
 
-void ItemList_NumericalSort(ItemList* list) {
-    ItemList sorted = ItemList_Initialize();
-    u32 highestNum = 0;
-    
-    if (list->num < 2) {
-        
-        return;
-    }
-    
-    for (s32 i = 0; i < list->num; i++)
-        highestNum = Max(highestNum, Value_Int(list->item[i]));
-    
-    if (highestNum == 0)
-        return;
-    
-    sorted.buffer = Calloc(list->writePoint * 4);
-    sorted.item = Calloc(sizeof(char*) * (highestNum + 1));
-    
-    for (s32 i = 0; i <= highestNum; i++) {
-        u32 null = true;
-        
-        for (s32 j = 0; j < list->num; j++) {
-            if (isdigit(list->item[j][0]) && Value_Int(list->item[j]) == i) {
-                sorted.item[sorted.num] = &sorted.buffer[sorted.writePoint];
-                strcpy(sorted.item[sorted.num], list->item[j]);
-                sorted.writePoint += strlen(sorted.item[sorted.num]) + 1;
-                sorted.num++;
-                null = false;
-                break;
-            }
-        }
-        
-        if (null == true) {
-            sorted.item[sorted.num++] = NULL;
-        }
-    }
-    
-    sorted.filterNode = list->filterNode;
-    list->filterNode = NULL;
-    ItemList_Free(list);
-    
-    *list = sorted;
-}
-
-static s32 SlotSort_GetNum(char* item, u32* ret) {
-    u32 nonNum = false;
-    char* num = item;
-    
-    while (!isdigit(*num)) {
-        num++;
-        if (*num == '\0') {
-            nonNum = true;
-            break;
-        }
-    }
-    
-    if (!nonNum) {
-        *ret = Value_Int(num);
-        
-        return 0;
-    }
-    
-    return 1;
-}
-
-s32 ItemList_NumericalSlotSort(ItemList* list, bool checkOverlaps) {
-    s32 error = false;
+s32 ItemList_NumericalSlotSort(ItemList* this, bool checkOverlaps) {
+    bool error = false;
+    s32 max = -1;
     ItemList new = ItemList_Initialize();
-    u32 max = 0;
     
-    forlist(i, *list) {
-        u32 num;
+    if (this->num == 0)
+        return 0;
+    
+    ItemList_SortNatural(this);
+    
+    for (s32 i = this->num - 1; i >= 0; i--) {
+        if (!this->item[i]) continue;
+        if (!isdigit(this->item[i][0])) continue;
         
-        if (!SlotSort_GetNum(list->item[i], &num))
-            max = Max(num + 1, max);
+        max = Value_Int(this->item[i]) + 1;
+        break;
     }
-    
-    if (max == 0)
-        return error;
-    
-    ItemList_Alloc(&new, max, list->writePoint);
-    
-    for (s32 i = 0; i < max; i++) {
-        u32 write = false;
-        u32 num;
-        forlist(j, *list) {
-            if (list->item[j] && !SlotSort_GetNum(list->item[j], &num) && i == num) {
-                ItemList_AddItem(&new, list->item[j]);
-                list->item[j] = NULL;
-                write = true;
-                
-                break;
-            }
-        }
-        
-        if (!write)
-            ItemList_AddItem(&new, NULL);
+    if (max <= 0) {
+        printf_error("List with [%s] item didn't contain max!", this->item[0]);
     }
+    Log("Max Num: %d", max);
+    
+    new.item = New(char*[max]);
+    new.num = max;
+    
+    u32 j = 0;
+    
+    for (; j < this->num; j++) {
+        if (!this->item[j]) continue;
+        if (isdigit(this->item[j][0]))
+            break;
+    }
+    Log("J: %d / %d", j, this->num - 1);
     
     if (checkOverlaps) {
-        forlist(i, new) {
-            u32 newNum = 0;
-            u32 listNum = 0;
-            
-            if (new.item[i] == NULL)
-                continue;
-            
-            SlotSort_GetNum(new.item[i], &newNum);
-            
-            forlist(j, *list) {
-                if (list->item[j] == NULL)
-                    continue;
-                
-                SlotSort_GetNum(list->item[j], &listNum);
-                
-                if (newNum != listNum)
-                    continue;
-                
-                if (!strcmp(list->item[j], new.item[i]))
-                    continue;
-                
-                if (error == 0)
-                    ItemList_Alloc(&gList_SortError, new.num, list->writePoint);
-                ItemList_AddItem(&gList_SortError, list->item[j]);
-                error = true;
+        Log("Check Overlap");
+        for (var i = 0; i < this->num - 1; i++) {
+            if (isdigit(this->item[i][0]) && isdigit(this->item[i + 1][0])) {
+                if (Value_Int(this->item[i]) == Value_Int(this->item[i + 1])) {
+                    Log("" PRNT_REDD "![%s]!", this->item[i]);
+                    ItemList_AddItem(&gList_SortError, this->item[i]);
+                    ItemList_AddItem(&gList_SortError, this->item[i + 1]);
+                    error = true;
+                }
             }
         }
     }
     
-    ItemList_Free(list);
-    *list = new;
+    for (var i = 0; i < max; i++) {
+        while (j < this->num && (!this->item[j] || !isdigit(this->item[j][0])))
+            j++;
+        
+        if (j < this->num && i == Value_Int(this->item[j])) {
+            Log("Insert Entry: [%s]", this->item[j]);
+            new.item[i] = this->item[j];
+            this->item[j++] = NULL;
+        } else
+            new.item[i] = NULL;
+    }
+    
+    Log("Swap Tables");
+    ItemList_Free(this);
+    *this = new;
+    
+    Log("OK");
     
     return error;
 }
 
 void ItemList_FreeItems(ItemList* this) {
     if (this->initKey == 0xDEFABEBACECAFAFF) {
-        Free(this->buffer);
-        Free(this->item);
-        this->num = 0;
-        this->writePoint = 0;
+        if (this->item) {
+            for (; this->num > 0; this->num--)
+                Free(this->item[this->num - 1]);
+            Free(this->item);
+        }
+        this->p.alnum = 0;
     } else
         *this = ItemList_Initialize();
 }
@@ -510,78 +459,73 @@ void ItemList_Free(ItemList* this) {
     *this = ItemList_Initialize();
 }
 
-void ItemList_Alloc(ItemList* list, u32 num, Size size) {
-    ItemList_Validate(list);
-    ItemList_Free(list);
-    list->num = 0;
-    list->writePoint = 0;
+void ItemList_Alloc(ItemList* this, u32 num) {
+    ItemList_Free(this);
     
-    if (num == 0 || size == 0)
-        return;
-    
-    list->item = Calloc(sizeof(char*) * num);
-    list->buffer = Calloc(size);
-    list->alnum = num;
+    this->p.alnum = num;
+    this->item = New(char*[num]);
 }
 
-void ItemList_AddItem(ItemList* list, const char* item) {
-    if (item == NULL) {
-        list->item[list->num++] = NULL;
-        
-        return;
-    }
-    
-    u32 len = strlen(item);
-    
-    list->item[list->num] = &list->buffer[list->writePoint];
-    strcpy(list->item[list->num], item);
-    list->writePoint += len + 1;
-    list->num++;
+static void ItemList_Realloc(ItemList* this, u32 num) {
+    this->p.alnum = num;
+    this->item = Realloc(this->item, sizeof(char*[num]));
+}
+
+void ItemList_AddItem(ItemList* this, const char* item) {
+    if (this->p.alnum && this->p.alnum < this->num + 1)
+        ItemList_Realloc(this, this->p.alnum * 2 + 10);
+    else
+        this->item = Realloc(this->item, sizeof(char*[this->num + 1]));
+    this->item[this->num++] = item ? strdup(item) : NULL;
 }
 
 void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b) {
-    ItemList_Alloc(out, a->num + b->num, a->writePoint + b->writePoint);
+    ItemList_Free(out);
     
-    forlist(i, *a) {
+    ItemList_Alloc(out, a->num + b->num);
+    
+    for (var i = 0; i < a->num; i++)
         ItemList_AddItem(out, a->item[i]);
-    }
     
-    forlist(i, *b) {
+    for (var i = 0; i < b->num; i++)
         ItemList_AddItem(out, b->item[i]);
-    }
 }
 
 void ItemList_Tokenize(ItemList* this, const char* s, char r) {
     char* token;
     char sep[2] = { r };
+    char* buf = strdup(s);
     
     ItemList_Free(this);
     
     Log("Tokenize: [%s]", s);
     Log("Separator: [%c]", r);
     
-    Assert(( this->buffer = StrDup(s) ) != NULL);
-    this->writePoint = strlen(this->buffer) + 1;
-    
-    token = strtok(this->buffer, sep);
+    token = strtok(buf, sep);
     while (token) {
         this->num++;
         Log("%d: %s", this->num - 1, token);
         token = strtok(NULL, sep);
     }
     
-    if (!this->num) return;
+    if (!this->num) {
+        Free(buf);
+        return;
+    }
+    
     this->item = Calloc(sizeof(char*) * this->num);
     
-    token = this->buffer;
+    token = buf;
     for (s32 i = 0; i < this->num; i++) {
         char* end;
         
-        this->item[i] = token + strspn(token, " ");
+        this->item[i] = strdup(token + strspn(token, " "));
         token += strlen(token) + 1;
         while (( end = StrEnd(this->item[i], " ") ))
             *end = '\0';
     }
+    
+    Free(buf);
 }
 
 void ItemList_SortNatural(ItemList* this) {
