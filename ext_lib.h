@@ -202,7 +202,13 @@ void* Calloc(s32 size);
 __attribute__ ((warn_unused_result))
 void* Realloc(const void* data, s32 size);
 void* Free(const void* data);
-#define Free(addr) ({ addr = Free(addr); })
+
+#define __EXT_FREE_METHOD(a) a = Free(a);
+#define Free(...)            ({                      \
+        VA_ARG_MANIP(__EXT_FREE_METHOD, __VA_ARGS__) \
+        NULL;                                        \
+    })
+
 void* MemDup(const void* src, Size size);
 char* StrDup(const char* src);
 char* StrDupX(const char* src, Size size);
