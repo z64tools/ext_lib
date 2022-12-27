@@ -53,14 +53,17 @@ typedef struct PostFreeNode {
 
 static PostFreeNode* sPostFreeHead;
 static PostFreeNode* sPostFreeHead2;
+static Mutex sQMutex;
 
 void* qFree(const void* ptr) {
-    PostFreeNode* node;
-    
-    node = Calloc(sizeof(struct PostFreeNode));
-    node->ptr = (void*)ptr;
-    
-    Node_Add(sPostFreeHead, node);
+    pthread_mutex_lock(&sQMutex); {
+        PostFreeNode* node;
+        
+        node = Calloc(sizeof(struct PostFreeNode));
+        node->ptr = (void*)ptr;
+        
+        Node_Add(sPostFreeHead, node);
+    } pthread_mutex_unlock(&sQMutex);
     
     return (void*)ptr;
 }
@@ -105,6 +108,8 @@ __attribute__ ((constructor)) void ExtLib_Init(void) {
     gettimeofday(&sProfiTime, NULL);
     Log_Init();
     
+    srand((u32)(clock() + time(0)));
+    
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
     printf_WinFix();
@@ -136,10 +141,11 @@ void profilog(const char* msg) {
     f32 time;
     
     gettimeofday(&next, NULL);
+    
     time = (next.tv_sec - sProfiTime.tv_sec) + (next.tv_usec - sProfiTime.tv_usec) / 1000000.0;
     sProfiTime = next;
     
-    printf("" PRNT_YELW ">" PRNT_GRAY ": " PRNT_RSET "%-16s " PRNT_YELW "%.2f " PRNT_RSET "ms\n", msg,  time * 1000.0f);
+    printf("" PRNT_PRPL "-" PRNT_GRAY ": " PRNT_RSET "%-16s " PRNT_YELW "%.2f " PRNT_RSET "ms\n", msg,  time * 1000.0f);
 }
 
 void profilogdiv(const char* msg, f32 div) {
@@ -151,7 +157,7 @@ void profilogdiv(const char* msg, f32 div) {
     time /= div;
     sProfiTime = next;
     
-    printf("" PRNT_YELW ">" PRNT_GRAY ": " PRNT_RSET "%-16s " PRNT_YELW "%.2f " PRNT_RSET "ms\n", msg,  time * 1000.0f);
+    printf("" PRNT_PRPL "~" PRNT_GRAY ": " PRNT_RSET "%-16s " PRNT_YELW "%.2f " PRNT_RSET "ms\n", msg,  time * 1000.0f);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -362,21 +368,24 @@ typedef struct {
     u8*  head;
     Size offset;
     Size max;
+    Size f;
 } BufferX;
 
 void* x_alloc(Size size) {
+    static Mutex xmutex;
     static BufferX this = {
         .max = MbToBin(8),
+        .f   = MbToBin(2),
     };
     u8* ret;
     
     if (size <= 0)
         return NULL;
     
-    if (size >= this.max / 4)
-        printf_error("");
+    if (size >= this.f)
+        printf_error("Biggest Failure");
     
-    Mutex_Lock();
+    pthread_mutex_lock(&xmutex);
     if (this.head == NULL) {
         this.head = qFree(Alloc(this.max));
         Assert(this.head != NULL);
@@ -389,7 +398,7 @@ void* x_alloc(Size size) {
     
     ret = &this.head[this.offset];
     this.offset += size + 1;
-    Mutex_Unlock();
+    pthread_mutex_unlock(&xmutex);
     
     return memset(ret, 0, size + 1);
 }
@@ -399,7 +408,7 @@ char* x_strdup(const char* str) {
 }
 
 char* x_strndup(const char* s, Size n) {
-    if (!n) return NULL;
+    if (!n || !s) return NULL;
     Size csz = strnlen(s, n);
     char* new = x_alloc(n + 1);
     char* res = memcpy (new, s, csz);
@@ -484,40 +493,24 @@ char* x_path(const char* src) {
 }
 
 char* x_pathslot(const char* src, s32 num) {
-    char* buffer;
-    s32 start = -1;
-    s32 end;
+    const char* slot = src;
     
     if (src == NULL)
         return NULL;
     
-    if (num < 0) {
+    if (num < 0)
         num = PathNum(src) - 1;
+    
+    for (; num; num--) {
+        slot = strchr(slot, '/');
+        if (slot) slot++;
     }
+    if (!slot) return NULL;
     
-    for (s32 temp = 0;;) {
-        if (temp >= num)
-            break;
-        if (src[start + 1] == '/')
-            temp++;
-        start++;
-    }
-    start++;
-    end = start + 1;
-    
-    while (src[end] != '/') {
-        if (src[end] == '\0')
-            printf_error("Could not solve folder for [%s]", src);
-        end++;
-    }
-    end++;
-    
-    buffer = x_alloc(end - start + 1);
-    
-    memcpy(buffer, &src[start], end - start);
-    buffer[end - start] = '\0';
-    
-    return buffer;
+    const s32 s = strcspn(slot, "/");
+    char* r = x_strndup(slot, s ? s + 1 : 0);
+    Log("[%s]", r);
+    return r;
 }
 
 char* x_basename(const char* src) {
@@ -536,6 +529,42 @@ char* x_filename(const char* src) {
         ls = (char*)src;
     
     return x_strdup(ls);
+}
+
+const char sDefCharSet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+char* x_randstr(Size size, const char* charset) {
+    const char* set = charset ? charset : sDefCharSet;
+    const s32 setz = (charset ? strlen(charset) : sizeof(sDefCharSet)) - 1;
+    char* str = x_alloc(size);
+    
+    if (size) {
+        --size;
+        for (size_t n = 0; n < size; n++) {
+            int key = rand() % setz;
+            str[n] = set[key];
+        }
+        str[size] = '\0';
+    }
+    return str;
+}
+
+char* basename(const char* src) {
+    char* ls = StrChrAcpt(src, "\\/");
+    
+    if (!ls++)
+        ls = (char*)src;
+    
+    return strndup(ls, strcspn(ls, "."));
+}
+
+char* filename(const char* src) {
+    char* ls = StrChrAcpt(src, "\\/");
+    
+    if (!ls++)
+        ls = (char*)src;
+    
+    return strdup(ls);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1410,17 +1439,7 @@ void Terminal_Show(void) {
 // # VARIOUS                             #
 // # # # # # # # # # # # # # # # # # # # #
 
-static s32 sRandInit;
-
 f32 RandF() {
-    if (sRandInit == 0) {
-        sRandInit++;
-        srand(time(NULL));
-    }
-    
-    for (s32 i = 0; i < Sys_Date(Sys_Time()).second; i++)
-        srand(rand());
-    
     f64 r = rand() / (f32)__INT16_MAX__;
     
     return fmod(r, 1.0f);
@@ -1548,28 +1567,24 @@ void* MemMemAlign(u32 val, const void* haystack, Size haystacklen, const void* n
 
 char* StrEnd(const char* src, const char* ext) {
     char* fP;
+    const s32 xlen = strlen(ext);
+    const s32 slen = strlen(src);
     
-    if (strlen(src) < strlen(ext))
-        return NULL;
-    
-    fP = (char*)(src + strlen(src) - strlen(ext));
-    
-    if (!strcmp(fP, ext))
-        return fP;
+    if (slen < xlen) return NULL;
+    fP = (char*)(src + slen - xlen);
+    if (!strcmp(fP, ext)) return fP;
     
     return NULL;
 }
 
 char* StrEndCase(const char* src, const char* ext) {
     char* fP;
+    const s32 xlen = strlen(ext);
+    const s32 slen = strlen(src);
     
-    if (strlen(src) < strlen(ext))
-        return NULL;
-    
-    fP = (char*)(src + strlen(src) - strlen(ext));
-    
-    if (!stricmp(fP, ext))
-        return fP;
+    if (slen < xlen) return NULL;
+    fP = (char*)(src + slen - xlen);
+    if (!stricmp(fP, ext)) return fP;
     
     return NULL;
 }

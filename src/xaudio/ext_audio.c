@@ -4,9 +4,8 @@
 typedef struct {
     SoundCallback    callback;
     ma_device_config deviceConfig;
-    ma_device    device;
-    volatile u32 isPlaying;
-    void* uctx;
+    ma_device device;
+    void*     uctx;
 } SoundCtx;
 
 static void __Sound_Callback(ma_device* dev, void* output, const void* input, ma_uint32 frameCount) {
@@ -27,7 +26,7 @@ void* Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback 
     soundCtx->deviceConfig.sampleRate = sampleRate;
     soundCtx->deviceConfig.dataCallback = __Sound_Callback;
     soundCtx->deviceConfig.pUserData = soundCtx;
-    soundCtx->deviceConfig.periodSizeInFrames = 128;
+    soundCtx->deviceConfig.periodSizeInFrames = 512;
     soundCtx->callback = callback;
     
     ma_device_init(NULL, &soundCtx->deviceConfig, &soundCtx->device);

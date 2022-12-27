@@ -78,6 +78,10 @@ char* x_path(const char* src);
 char* x_pathslot(const char* src, s32 num);
 char* x_basename(const char* src);
 char* x_filename(const char* src);
+char* x_randstr(Size size, const char* charset);
+
+char* basename(const char* src);
+char* filename(const char* src);
 
 void Time_Start(u32 slot);
 f32 Time_Get(u32 slot);
@@ -198,7 +202,7 @@ void* Calloc(s32 size);
 __attribute__ ((warn_unused_result))
 void* Realloc(const void* data, s32 size);
 void* Free(const void* data);
-#define Free(data) ({ data = Free(data); })
+#define Free(addr) ({ addr = Free(addr); })
 void* MemDup(const void* src, Size size);
 char* StrDup(const char* src);
 char* StrDupX(const char* src, Size size);
@@ -341,7 +345,8 @@ f32 Toml_GetFloat(Toml* this, const char* item, ...);
 bool Toml_GetBool(Toml* this, const char* item, ...);
 char* Toml_GetString(Toml* this, const char* item, ...);
 char* Toml_GetVar(Toml* this, const char* item, ...);
-s32 Toml_ArrayCount(Toml* this, const char* arr, ...);
+s32 Toml_ArrItemNum(Toml* this, const char* arr, ...);
+s32 Toml_TblItemNum(Toml* this, const char* item, ...);
 
 char* String_Tsv(char* str, s32 rowNum, s32 lineNum);
 
@@ -399,21 +404,24 @@ int strnicmp(const char* a, const char* b, Size size);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 
-#ifdef _WIN32
-static char* strndup(const char* s, size_t n) {
+#ifdef __clang__
+
+char* strndup(const char*, size_t);
+
 #else
+
 #define strndup(s, n) __ext_strndup(s, n)
 static char* __ext_strndup(const char* s, size_t n) {
-#endif
-    if (!s) return NULL;
+    if (!s || !n) return NULL;
     Size csz = strnlen(s, n);
-    char* new = (char*) malloc (n + 1);
+    char* new = malloc(n + 1);
     Assert(new != NULL);
-    csz = ClampMax(csz, n);
     new[csz] = '\0';
     
-    return (char*) memcpy (new, s, csz);
+    return memcpy (new, s, csz);
 }
+
+#endif
 
 extern vbool gThreadMode;
 extern Mutex gThreadMutex;
