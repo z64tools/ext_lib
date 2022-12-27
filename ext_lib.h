@@ -209,10 +209,7 @@ void* Free(const void* data);
         NULL;                                        \
     })
 
-void* MemDup(const void* src, Size size);
-char* StrDup(const char* src);
-char* StrDupX(const char* src, Size size);
-char* StrDupClp(const char* str, u32 max);
+void* memdup(const void* src, Size size);
 char* Fmt(const char* fmt, ...);
 s32 ArgStr(const char* argv[], const char* arg);
 char* StrChrAcpt(const char* str, char* c);
@@ -480,5 +477,10 @@ static inline s32 Thread_Detach(Thread* thread) {
 }
 
 #pragma GCC diagnostic pop
+
+#ifndef __clang__
+#define strncat(str, cat, size) strncat(str, cat, (size) - 1)
+#define strncpy(str, cpy, size) strncpy(str, cpy, (size) - 1)
+#endif
 
 #endif /* EXT_LIB_H */

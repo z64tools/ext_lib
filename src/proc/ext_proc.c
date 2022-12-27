@@ -130,7 +130,7 @@ void Proc_SetEnv(Proc* this, const char* env) {
         if (this->env[i] != NULL)
             continue;
         
-        this->env[i] = StrDup(env);
+        this->env[i] = strdup(env);
         break;
     }
 }

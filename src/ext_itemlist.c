@@ -16,13 +16,6 @@
 
 ItemList gList_SortError;
 
-typedef struct {
-    StrNode* node;
-    u32      len;
-    u32      num;
-    ListFlag flags;
-} WalkInfo;
-
 void ItemList_Validate(ItemList* itemList) {
     if (itemList->initKey == 0xDEFABEBACECAFAFF)
         return;
@@ -50,7 +43,7 @@ void ItemList_SetFilter(ItemList* list, u32 filterNum, ...) {
         
         node = Calloc(sizeof(FilterNode));
         node->type = va_arg(va, ListFilter);
-        node->txt = StrDup(va_arg(va, char*));
+        node->txt = strdup(va_arg(va, char*));
         Assert(node->txt != NULL);
         
         Node_Add(list->filterNode, node);
@@ -70,105 +63,108 @@ void ItemList_FreeFilters(ItemList* this) {
         *this = ItemList_Initialize();
 }
 
-static void ItemList_Walk(ItemList* list, const char* base, const char* parent, s32 level, s32 max, WalkInfo* info) {
-    DIR* dir;
+typedef struct {
+    StrNode*       node;
+    u32            num;
+    const ListFlag flags;
+} WalkInfo;
+
+static void ItemList_Walk(const ItemList* list, const char* base, const char* parent, const s32 level, const s32 max, WalkInfo* info) {
     const char* entryPath = parent;
-    struct dirent* entry;
     
     if (info->flags & LIST_RELATIVE)
         entryPath = parent + strlen(base);
     
-    if (strlen(parent) == 0)
-        dir = opendir("./");
-    else
-        dir = opendir(parent);
+    DIR* dir;
+    if (strlen(parent) == 0) dir = opendir("./");
+    else dir = opendir(parent);
     
     if (dir) {
+        const struct dirent* entry;
+        
         while ((entry = readdir(dir))) {
             StrNode* node;
             char path[261];
-            u32 cont = 0;
-            u32 containFlag = false;
-            u32 contains = false;
+            bool skip = 0;
+            bool filterContainUse = false;
+            bool filterContainMatch = false;
             
-            if (!strcmp(".", entry->d_name) || !strcmp("..", entry->d_name))
+            if (!memcmp(".\0", entry->d_name, 2) || !memcmp("..\0", entry->d_name, 3))
                 continue;
             
-            fornode(filterNode, list->filterNode) {
+            for (const FilterNode* filterNode = list->filterNode; filterNode != NULL; filterNode = filterNode->next) {
                 switch (filterNode->type) {
                     case FILTER_SEARCH:
                         if (StrStr(entry->d_name, filterNode->txt))
-                            cont = true;
+                            skip = true;
                         break;
                     case FILTER_START:
-                        if (!memcmp(entry->d_name, filterNode->txt, strlen(filterNode->txt)))
-                            cont = true;
+                        if (!memcmp(entry->d_name, filterNode->txt,
+                            strlen(filterNode->txt)))
+                            skip = true;
                         break;
                     case FILTER_END:
                         if (StrEnd(entry->d_name, filterNode->txt))
-                            cont = true;
+                            skip = true;
                         break;
                     case FILTER_WORD:
                         if (!strcmp(entry->d_name, filterNode->txt))
-                            cont = true;
+                            skip = true;
                         break;
                         
                     case CONTAIN_SEARCH:
-                        containFlag = true;
+                        filterContainUse = true;
                         if (StrStr(entry->d_name, filterNode->txt))
-                            contains = true;
+                            filterContainMatch = true;
                         break;
                     case CONTAIN_START:
-                        containFlag = true;
-                        if (!memcmp(entry->d_name, filterNode->txt, strlen(filterNode->txt)))
-                            contains = true;
+                        filterContainUse = true;
+                        if (!memcmp(entry->d_name, filterNode->txt,
+                            strlen(filterNode->txt)))
+                            filterContainMatch = true;
                         break;
                     case CONTAIN_END:
-                        containFlag = true;
+                        filterContainUse = true;
                         if (StrEnd(entry->d_name, filterNode->txt))
-                            contains = true;
+                            filterContainMatch = true;
                         break;
                     case CONTAIN_WORD:
-                        containFlag = true;
+                        filterContainUse = true;
                         if (!strcmp(entry->d_name, filterNode->txt))
-                            contains = true;
+                            filterContainMatch = true;
                         break;
                 }
                 
-                if (cont)
+                if (skip)
                     break;
             }
             
-            if (((info->flags & LIST_NO_DOT) && entry->d_name[0] == '.') || cont)
-                continue;
+            if (skip) continue;
+            if (((info->flags & LIST_NO_DOT) && entry->d_name[0] == '.')) continue;
             
-            snprintf(path, 261, "%s%s/", parent, entry->d_name);
+            snprintf(path, 261, "%s%s", parent, entry->d_name);
             
             if (Sys_IsDir(path)) {
+                strncat(path, "/", 261);
+                
                 if (max == -1 || level < max)
                     ItemList_Walk(list, base, path, level + 1, max, info);
                 
                 if ((info->flags & 0xF) == LIST_FOLDERS) {
-                    node = Calloc(sizeof(StrNode));
-                    node->txt = Alloc(261);
-                    snprintf(node->txt, 261, "%s%s/", entryPath, entry->d_name);
-                    info->len += strlen(node->txt) + 1;
+                    node = New(StrNode);
+                    node->txt = Fmt("%s%s/", entryPath, entry->d_name);
                     info->num++;
                     
                     Node_Add(info->node, node);
                 }
             } else {
-                if (!containFlag || (containFlag && contains)) {
+                if (!filterContainUse || (filterContainUse && filterContainMatch)) {
                     if ((info->flags & 0xF) == LIST_FILES) {
-                        StrNode* node2;
-                        
-                        node2 = Calloc(sizeof(StrNode));
-                        node2->txt = Alloc(261);
-                        snprintf(node2->txt, 261, "%s%s", entryPath, entry->d_name);
-                        info->len += strlen(node2->txt) + 1;
+                        node = New(StrNode);
+                        node->txt = Fmt("%s%s", entryPath, entry->d_name);
                         info->num++;
                         
-                        Node_Add(info->node, node2);
+                        Node_Add(info->node, node);
                     }
                 }
             }
@@ -180,7 +176,6 @@ static void ItemList_Walk(ItemList* list, const char* base, const char* parent, 
 }
 
 void ItemList_List(ItemList* this, const char* path, s32 depth, ListFlag flags) {
-    WalkInfo info = { 0 };
     char buf[261] = "";
     
     ItemList_Validate(this);
@@ -195,7 +190,7 @@ void ItemList_List(ItemList* this, const char* path, s32 depth, ListFlag flags) 
         if (!StrEnd(buf, "/")) strcat(buf, "/");
     }
     
-    info.flags = flags;
+    WalkInfo info = { .flags = flags };
     
     Log("Walk: %s", buf);
     ItemList_Walk(this, buf, buf, 0, depth, &info);

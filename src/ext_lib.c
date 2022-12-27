@@ -425,13 +425,14 @@ char* x_memdup(const char* data, Size size) {
 
 char* x_fmt(const char* fmt, ...) {
     char buf[4096];
+    s32 len;
     va_list va;
     
     va_start(va, fmt);
-    Assert(vsnprintf(buf, 4096, fmt, va) < 4096);
+    Assert((len = vsnprintf(buf, 4096, fmt, va)) < 4096);
     va_end(va);
     
-    return x_strdup(buf);
+    return x_memdup(buf, len + 1);
 }
 
 char* x_rep(const char* str, const char* a, const char* b) {
@@ -700,13 +701,14 @@ static s32 sSysIgnore;
 static s32 sSysReturn;
 
 bool Sys_IsDir(const char* path) {
-    char* tmp = x_strdup(path);
     struct stat st = { 0 };
     
-    stat(tmp, &st);
+    stat(path, &st);
     if (S_ISDIR(st.st_mode))
         return true;
-    if (StrEnd(tmp, "/")) {
+    
+    if (StrEnd(path, "/")) {
+        char* tmp = x_strdup(path);
         StrEnd(tmp, "/")[0] = '\0';
         
         stat(tmp, &st);
@@ -728,7 +730,7 @@ Time Sys_Stat(const char* item) {
     
     if (StrEnd(item, "/") || StrEnd(item, "\\")) {
         free = 1;
-        item = StrDup(item);
+        item = strdup(item);
         ((char*)item)[strlen(item) - 1] = 0;
     }
     
@@ -1634,50 +1636,23 @@ void* Realloc(const void* data, s32 size) {
     return realloc((void*)data, size);
 }
 
-void* MemDup(const void* src, Size size) {
+void* memdup(const void* src, Size size) {
     if (src == NULL)
         return NULL;
     
     return memcpy(Alloc(size), src, size);
 }
 
-char* StrDup(const char* src) {
-    if (src == NULL)
-        return NULL;
-    
-    return MemDup(src, strlen(src) + 1);
-}
-
-char* StrDupX(const char* src, Size size) {
-    char* r;
-    
-    if (src == NULL)
-        return NULL;
-    
-    r = Alloc(Max(size, strlen(src) + 1));
-    if (r)
-        strcpy(r, src);
-    
-    return r;
-}
-
-char* StrDupClp(const char* str, u32 max) {
-    char* r = MemDup(str, max + 1);
-    
-    r[max] = '\0';
-    
-    return r;
-}
-
 char* Fmt(const char* fmt, ...) {
     char s[4096];
+    s32 len;
     va_list va;
     
     va_start(va, fmt);
-    Assert(vsnprintf(s, 4096, fmt, va) < 4096);
+    Assert((len = vsnprintf(s, 4096, fmt, va)) < 4096);
     va_end(va);
     
-    char* r = StrDup(s);
+    char* r = memdup(s, len + 1);
     Assert(r != NULL);
     
     return r;
@@ -1855,7 +1830,7 @@ char* CopyWord(const char* str, s32 word) {
 
 char* PathRel_From(const char* from, const char* item) {
     item = StrSlash(StrUnq(item));
-    char* work = StrSlash(StrDup(from));
+    char* work = StrSlash(strdup(from));
     s32 lenCom = StrComLen(work, item);
     s32 subCnt = 0;
     char* sub = (char*)&work[lenCom];

@@ -89,7 +89,7 @@ static void DragItem_Init(GeoGrid* geo, void* src, Rect rect, const char* item, 
     DragItem* this = &gElemState->dragItem;
     
     this->src = src;
-    this->item = StrDup(item);
+    this->item = strdup(item);
     this->rect = rect;
     
     this->rect.x = -(this->rect.w * 0.5f);

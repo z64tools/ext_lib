@@ -308,7 +308,7 @@ void Config_GotoSection(const char* section) {
     Free(sCfgSection);
     if (section) {
         if (section[0] == '[')
-            sCfgSection = StrDup(section);
+            sCfgSection = strdup(section);
         
         else
             asprintf(&sCfgSection, "[%s]", section);

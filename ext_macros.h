@@ -184,6 +184,7 @@
 
 #define Stalloc(type)          ({ void* data = alloca(sizeof(type)); memset(data, 0, sizeof(type)); data; })
 #define New(type)              Calloc(sizeof(type))
+#define x_new(type)            x_alloc(sizeof(type))
 #define SleepF(sec)            usleep((u32)((f32)(sec) * 1000 * 1000))
 #define SleepS(sec)            sleep(sec)
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL

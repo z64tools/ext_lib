@@ -7,7 +7,7 @@
 #include <zip/src/zip.h>
 
 void* ZipFile_Load(ZipFile* zip, const char* file, ZipParam mode) {
-    zip->filename = StrDup(file);
+    zip->filename = strdup(file);
     
     switch (mode) {
         case ZIP_READ:
@@ -99,7 +99,7 @@ s32 ZipFile_ReadEntries_Path(ZipFile* zip, const char* path, s32 (*callback)(con
             zip_entry_close(zip->pkg);
             continue;
         }
-        name = StrDup(zip_entry_name(zip->pkg));
+        name = strdup(zip_entry_name(zip->pkg));
         
         if (name == NULL)
             return -6;
@@ -166,7 +166,7 @@ static s32 ZipFile_Extract_Callback(ZipFile* zip, MemFile* mem, u32 i, f32 prcnt
     Log("Get Name");
     if (zip_entry_openbyindex(zip->pkg, i))
         return ZIP_ERROR_OPEN_ENTRY;
-    name = StrDup(zip_entry_name(zip->pkg));
+    name = strdup(zip_entry_name(zip->pkg));
     isDir = zip_entry_isdir(zip->pkg);
     if (zip_entry_close(zip->pkg))
         return ZIP_ERROR_CLOSE;

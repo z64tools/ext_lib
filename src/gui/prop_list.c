@@ -76,7 +76,7 @@ void PropList_Add(PropList* this, const char* item) {
         return;
     
     this->list = Realloc(this->list, sizeof(char*) * (this->num + 2));
-    this->list[this->num++] = StrDup(item);
+    this->list[this->num++] = strdup(item);
     this->list[this->num] = NULL;
 }
 
@@ -86,7 +86,7 @@ void PropList_Insert(PropList* this, const char* item, s32 slot) {
         return;
     
     this->list = Realloc(this->list, sizeof(char*) * (this->num + 1));
-    this->list[this->num++] = StrDup(item);
+    this->list[this->num++] = strdup(item);
     ArrMoveR(this->list, slot, this->num - slot);
 }
 
