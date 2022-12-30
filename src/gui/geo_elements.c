@@ -66,7 +66,7 @@ typedef struct {
     DragItem dragItem;
 } ElementState;
 
-ThreadLocal ElementState* gElemState = NULL;
+thread_local ElementState* gElemState = NULL;
 
 void* ElementState_New(void) {
     ElementState* elemState;
@@ -1592,9 +1592,9 @@ static void Element_BoxDraw(ElementCallInfo* info) {
 }
 
 s32 Element_Box(BoxInit io) {
-    ThreadLocal static Element* boxElemList[42];
-    ThreadLocal static f32 boxRowY[42];
-    ThreadLocal static s32 r;
+    thread_local static Element* boxElemList[42];
+    thread_local static f32 boxRowY[42];
+    thread_local static s32 r;
     
     if (io == BOX_GET_NUM)
         return r;

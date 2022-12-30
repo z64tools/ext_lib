@@ -91,8 +91,8 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
         s32    id;
     } ImgMap;
     
-    ThreadLocal static ImgMap imgLumSat;
-    ThreadLocal static ImgMap imgHue;
+    thread_local static ImgMap imgLumSat;
+    thread_local static ImgMap imgHue;
     PropColor* prop = this->prop;
     void* vg = geo->vg;
     Rect r = this->rect;

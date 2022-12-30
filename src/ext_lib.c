@@ -42,7 +42,7 @@ Mutex gThreadMutex;
 static vbool gKillFlag;
 
 // # # # # # # # # # # # # # # # # # # # #
-// # ext_lib Construct Destruct           #
+// # ext_lib Construct Destruct          #
 // # # # # # # # # # # # # # # # # # # # #
 
 typedef struct PostFreeNode {
@@ -260,8 +260,7 @@ void ThdPool_Exec(u32 max, bool mutex) {
     ThdItem* t;
     bool msg = gThdPool_ProgressMessage != NULL;
     
-    if (max == 0)
-        max = 1;
+    max = ClampMin(max, 1);
     
     if (mutex)
         Mutex_Enable();
@@ -270,10 +269,11 @@ void ThdPool_Exec(u32 max, bool mutex) {
     
     Log("Num: %d", gTPool->num);
     Log("Max: %d", max);
+    
     while (gTPool->num) {
         
         if (msg && prev != prog)
-            printf_progressFst(gThdPool_ProgressMessage, prog + 1, amount);
+            printf_progress(gThdPool_ProgressMessage, prog + 1, amount);
         
         max = Min(max, gTPool->num);
         
@@ -292,9 +292,12 @@ void ThdPool_Exec(u32 max, bool mutex) {
                 while (t->state != T_RUN)
                     t->state = T_RUN;
                 
-                Log("Create Thread");
-                if (Thread_Create(&t->thd, ThdPool_RunThd, t))
-                    printf_error("ThdPool: Could not create thread");
+                if (max > 1) {
+                    Log("Create Thread");
+                    if (Thread_Create(&t->thd, ThdPool_RunThd, t))
+                        printf_error("ThdPool: Could not create thread");
+                } else
+                    ThdPool_RunThd(t);
                 
                 cur++;
             }
@@ -306,7 +309,8 @@ void ThdPool_Exec(u32 max, bool mutex) {
             t = gTPool->head;
             while (t) {
                 if (t->state == T_DONE) {
-                    Thread_Join(&t->thd);
+                    if (max > 1)
+                        Thread_Join(&t->thd);
                     break;
                 }
                 
@@ -572,7 +576,7 @@ char* filename(const char* src) {
 // # TIME                                #
 // # # # # # # # # # # # # # # # # # # # #
 
-ThreadLocal static struct timeval sTimeStart[255];
+thread_local static struct timeval sTimeStart[255];
 
 void Time_Start(u32 slot) {
     gettimeofday(&sTimeStart[slot], NULL);
@@ -629,22 +633,26 @@ f32 Profiler_Time(u8 s) {
 // # SYS                                 #
 // # # # # # # # # # # # # # # # # # # # #
 
-ThreadLocal static char __sPath[261];
-ThreadLocal static bool __sMakeDir;
+thread_local struct {
+    bool makeDir;
+    char path[261];
+} sFileSys;
 
 void FileSys_MakePath(bool flag) {
-    __sMakeDir = flag;
+    sFileSys.makeDir = flag;
 }
 
 void FileSys_Path(const char* fmt, ...) {
     va_list va;
     
     va_start(va, fmt);
-    vsnprintf(__sPath, 261, fmt, va);
+    vsnprintf(sFileSys.path, 261, fmt, va);
     va_end(va);
     
-    if (__sMakeDir)
-        Sys_MakeDir(__sPath);
+    Log("Path [%s]", sFileSys.path);
+    
+    if (sFileSys.makeDir)
+        Sys_MakeDir(sFileSys.path);
 }
 
 char* FileSys_File(const char* str, ...) {
@@ -657,9 +665,9 @@ char* FileSys_File(const char* str, ...) {
     va_end(va);
     
     Log("%s", str);
-    Assert(buffer != NULL);
+    
     if (buffer[0] != '/' && buffer[0] != '\\')
-        ret = x_fmt("%s%s", __sPath, buffer);
+        ret = x_fmt("%s%s", sFileSys.path, buffer);
     else
         ret = x_strdup(buffer + 1);
     
@@ -667,19 +675,24 @@ char* FileSys_File(const char* str, ...) {
 }
 
 char* FileSys_FindFile(const char* str) {
-    ItemList list = ItemList_Initialize();
     char* file = NULL;
     Time stat = 0;
+    ItemList list = ItemList_Initialize();
     
     if (*str == '*') str++;
     
-    Log("Find: [%s] in [%s]", str, __sPath);
+    Log("Find: [%s] in [%s]", str, sFileSys.path);
     
-    ItemList_List(&list, __sPath, 0, LIST_FILES | LIST_NO_DOT);
+    ItemList_List(&list, sFileSys.path, 0, LIST_FILES | LIST_NO_DOT);
+    
     for (s32 i = 0; i < list.num; i++) {
-        if (StrEndCase(list.item[i], str) && Sys_Stat(list.item[i]) > stat) {
-            file = list.item[i];
-            stat = Sys_Stat(file);
+        if (StrEndCase(list.item[i], str)) {
+            Time s = Sys_Stat(list.item[i]);
+            
+            if (s > stat) {
+                file = list.item[i];
+                stat = s;
+            }
         }
     }
     
@@ -692,6 +705,8 @@ char* FileSys_FindFile(const char* str) {
     
     return file;
 }
+
+#undef BUF_SIZE
 
 // # # # # # # # # # # # # # # # # # # # #
 // # SYS                                 #
@@ -1901,24 +1916,36 @@ s32 PathIsRel(const char* item) {
 
 static char* StrConvert(const char* str, int (*tocase)(int)) {
     char* new = x_alloc(strlen(str) * 8);
-    u32 write = 0;
-    u32 len = strlen(str);
-    u32 prev = 0;
+    u32 w = 0;
+    const u32 len = strlen(str);
+    
+    enum {
+        NONE = 0,
+        IS_LOWER,
+        IS_UPPER,
+        NONALNUM,
+    } prev = NONE, this = NONE;
     
     for (s32 i = 0; i < len; i++) {
+        const char chr = str[i];
         
-        if (isalnum(str[i])) {
-            prev = write;
+        if (isalnum(chr)) {
             
-            if (i != 0) {
-                if (isalpha(str[i]) && isalpha(str[prev]))
-                    if (isupper(str[i]) && !isupper(str[prev]))
-                        new[write++] = '_';
-            }
+            if (isupper(chr))
+                this = IS_UPPER;
+            else
+                this = IS_LOWER;
             
-            new[write++] = tocase(str[i]);
-        } else if (str[i] == ' ')
-            new[write++] = '_';
+            if (this == IS_UPPER && prev == IS_LOWER)
+                new[w++] = '_';
+            else if (prev == NONALNUM)
+                new[w++] = '_';
+            new[w++] = tocase(chr);
+            
+        } else
+            this = NONALNUM;
+        
+        prev = this;
     }
     
     return new;
@@ -2173,19 +2200,19 @@ ValueType Value_Type(const char* variable) {
 s32 Digits_Int(s32 i) {
     s32 d = 0;
     
-    for (; i != 0; d++)
-        i *= 0.1;
+    for (; i; d++)
+        i *= 0.1f;
     
     return ClampMin(d, 1);
 }
 
 s32 Digits_Hex(s32 i) {
-    s32 d = 0;
+    u32 d = 0;
     
-    for (; i != 0 && d != 0; d++)
-        i = (i >> 4);
+    for (d = 7; d > 0 && !(i & (0xF << (d * 4)));)
+        d--;
     
-    return ClampMin(d, 1);
+    return ClampMin(d + 1, 1);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -2699,7 +2726,7 @@ char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
 #include <signal.h>
 
 #define FAULT_BUFFER_SIZE (1024)
-#define FAULT_LOG_NUM     14
+#define FAULT_LOG_NUM     28
 
 static char* sLogMsg[FAULT_LOG_NUM];
 static char* sLogFunc[FAULT_LOG_NUM];
@@ -3155,7 +3182,7 @@ void printf_progressFst(const char* info, u32 a, u32 b) {
     
     printf(
         // "%-16s" PRNT_RSET "[%4d / %-4d]",
-        x_fmt("\r" PRNT_BLUE ">" PRNT_GRAY ": " PRNT_RSET "%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
+        x_fmt("\r" PRNT_BLUE ">" PRNT_GRAY ": " PRNT_RSET "%c-16s" PRNT_RSET " [ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
         info,
         a,
         b
@@ -3166,28 +3193,30 @@ void printf_progressFst(const char* info, u32 a, u32 b) {
         gPrintfProgressing = false;
         printf("\n");
     }
-    fflush(stdout);
 }
 
 void printf_progress(const char* info, u32 a, u32 b) {
-    if (gPrintfSuppress >= PSL_NO_INFO) {
+    if (gPrintfSuppress >= PSL_NO_INFO)
         return;
-    }
     
     if (gKillFlag)
         return;
     
-    static f32 lstPrcnt;
-    f32 prcnt = (f32)a / (f32)b;
-    
-    if (lstPrcnt > prcnt)
-        lstPrcnt = 0;
-    
-    if (prcnt - lstPrcnt > 0.125) {
-        lstPrcnt = prcnt;
-    } else {
-        if (a != b && a > 1) {
-            return;
+    if (a != b) {
+        static struct timeval p;
+        
+        if (a <= 1)
+            gettimeofday(&p, 0);
+        else {
+            struct timeval t;
+            
+            gettimeofday(&t, 0);
+            f32 sec = t.tv_sec - p.tv_sec + (f32)(t.tv_usec - p.tv_usec) * 0.000001f;
+            
+            if (sec >= 0.2f) {
+                p = t;
+            } else
+                return;
         }
     }
     
@@ -3195,7 +3224,7 @@ void printf_progress(const char* info, u32 a, u32 b) {
     __printf_call(3, stdout);
     printf(
         // "%-16s" PRNT_RSET "[%4d / %-4d]",
-        x_fmt("%c-16s" PRNT_RSET "[ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
+        x_fmt("%c-16s" PRNT_RSET " [ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
         info,
         a,
         b
@@ -3206,7 +3235,6 @@ void printf_progress(const char* info, u32 a, u32 b) {
         gPrintfProgressing = false;
         printf("\n");
     }
-    fflush(stdout);
 }
 
 void printf_getchar(const char* txt) {
@@ -3456,7 +3484,7 @@ static u32 Sha_Major(u32 x, u32 y, u32 z) {
 static u8 Sha_CreateCompleteScheduleArray(u8* Data, u64 DataSizeByte, u64* RemainingDataSizeByte, u32* W) {
     u8 TmpBlock[64];
     u8 IsFinishedFlag = 0;
-    ThreadLocal static u8 SetEndOnNextBlockFlag = 0;
+    thread_local static u8 SetEndOnNextBlockFlag = 0;
     
     for (u8 i = 0; i < 64; i++) {
         W[i] = 0x0;

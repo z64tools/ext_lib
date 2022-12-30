@@ -4,7 +4,7 @@
 // # CONFIG                              #
 // # # # # # # # # # # # # # # # # # # # #
 
-static ThreadLocal char* sCfgSection;
+static thread_local char* sCfgSection;
 
 static const char* __Config_GotoSection(const char* str) {
     if (sCfgSection == NULL)
@@ -88,7 +88,7 @@ char* Config_GetVariable(const char* str, const char* name) {
     return r;
 }
 
-static ThreadLocal bool sCfgError;
+static thread_local bool sCfgError;
 
 static char* Config_GetIncludeName(const char* line) {
     u32 size;

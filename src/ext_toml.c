@@ -17,6 +17,8 @@ typedef struct {
     s32 idx;
 } Travel;
 
+#define BUFFER_SIZE 1024
+
 static const char* Toml_GetPathStr(const char* path, const char* elem, const char* next) {
     return x_fmt("" PRNT_GRAY "[ %s"PRNT_YELW "%s"PRNT_GRAY "%s]",
                path ? path : "", elem ? elem : "", next ? next : "");
@@ -215,7 +217,7 @@ static toml_datum_t Toml_GetValue(Toml* this, const char* item, Type type) {
         toml_string_at,
     };
     
-    char path[256] = {};
+    char path[BUFFER_SIZE] = {};
     Travel t = Toml_Travel(this, item, this->root, path);
     
     if (t.tbl)
@@ -227,12 +229,12 @@ static toml_datum_t Toml_GetValue(Toml* this, const char* item, Type type) {
 }
 
 void Toml_SetValue(Toml* this, const char* item, const char* fmt, ...) {
-    char path[256] = {};
-    char value[256];
+    char path[BUFFER_SIZE] = {};
+    char value[BUFFER_SIZE];
     va_list va;
     
     va_start(va, fmt);
-    vsnprintf(value, 256, fmt, va);
+    vsnprintf(value, BUFFER_SIZE, fmt, va);
     va_end(va);
     
     this->write = true;
@@ -249,12 +251,16 @@ void Toml_SetValue(Toml* this, const char* item, const char* fmt, ...) {
             tbl->kval[tbl->nkval - 1] = Calloc(sizeof(toml_keyval_t));
             
             tbl->kval[tbl->nkval - 1]->key = strdup(t.item);
+            this->changed = true;
         }
         
         for (var i = 0; i < tbl->nkval; i++) {
             if (!strcmp(tbl->kval[i]->key, t.item)) {
-                Free(tbl->kval[i]->val);
-                tbl->kval[i]->val = strdup(value);
+                if (!tbl->kval[i]->val || strcmp(tbl->kval[i]->val, value)) {
+                    Free(tbl->kval[i]->val);
+                    tbl->kval[i]->val = strdup(value);
+                    this->changed = true;
+                }
             }
         }
     }
@@ -271,29 +277,34 @@ void Toml_SetValue(Toml* this, const char* item, const char* fmt, ...) {
             arr->item[arr->nitem - 1].valtype = valtype("0");
             arr->item[arr->nitem - 1].tab = 0;
             arr->item[arr->nitem - 1].arr = 0;
+            this->changed = true;
         }
         
-        Free(arr->item[t.idx].val);
-        arr->item[t.idx].val = strdup(value);
-        arr->item[t.idx].valtype = valtype(value);
-        arr->item[t.idx].tab = 0;
-        arr->item[t.idx].arr = 0;
+        if (!arr->item[t.idx].val || strcmp(arr->item[t.idx].val, value)) {
+            Free(arr->item[t.idx].val);
+            arr->item[t.idx].val = strdup(value);
+            arr->item[t.idx].valtype = valtype(value);
+            arr->item[t.idx].tab = 0;
+            arr->item[t.idx].arr = 0;
+            this->changed = true;
+        }
     }
 }
 
 void Toml_AddTable(Toml* this, const char* item, ...) {
-    char path[256] = {};
-    char table[256];
+    char path[BUFFER_SIZE] = {};
+    char table[BUFFER_SIZE];
     va_list va;
     
     va_start(va, item);
-    vsnprintf(table, 256, item, va);
-    strncat(table, ".temp", 256);
+    vsnprintf(table, BUFFER_SIZE, item, va);
+    strncat(table, ".temp", BUFFER_SIZE);
     va_end(va);
     
     this->write = true;
     Toml_Travel(this, table, this->root, path);
     this->write = false;
+    this->changed = true;
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -324,6 +335,7 @@ void Toml_LoadFile(Toml* this, const char* file) {
 
 void Toml_Free(Toml* this) {
     toml_free(this->root);
+    memset(this, 0, sizeof(*this));
 }
 
 void Toml_ToMem(Toml* this, MemFile* mem) {
@@ -445,11 +457,11 @@ void Toml_SaveFile(Toml* this, const char* file) {
 // # # # # # # # # # # # # # # # # # # # #
 
 s32 Toml_GetInt(Toml* this, const char* item, ...) {
-    char buffer[256];
+    char buffer[BUFFER_SIZE];
     va_list va;
     
     va_start(va, item);
-    vsnprintf(buffer, 256, item, va);
+    vsnprintf(buffer, BUFFER_SIZE, item, va);
     toml_datum_t t = Toml_GetValue(this, buffer, TYPE_INT);
     va_end(va);
     
@@ -457,11 +469,11 @@ s32 Toml_GetInt(Toml* this, const char* item, ...) {
 }
 
 f32 Toml_GetFloat(Toml* this, const char* item, ...) {
-    char buffer[256];
+    char buffer[BUFFER_SIZE];
     va_list va;
     
     va_start(va, item);
-    vsnprintf(buffer, 256, item, va);
+    vsnprintf(buffer, BUFFER_SIZE, item, va);
     toml_datum_t t = Toml_GetValue(this, buffer, TYPE_FLOAT);
     va_end(va);
     
@@ -469,11 +481,11 @@ f32 Toml_GetFloat(Toml* this, const char* item, ...) {
 }
 
 bool Toml_GetBool(Toml* this, const char* item, ...) {
-    char buffer[256];
+    char buffer[BUFFER_SIZE];
     va_list va;
     
     va_start(va, item);
-    vsnprintf(buffer, 256, item, va);
+    vsnprintf(buffer, BUFFER_SIZE, item, va);
     toml_datum_t t = Toml_GetValue(this, buffer, TYPE_BOOL);
     va_end(va);
     
@@ -481,11 +493,11 @@ bool Toml_GetBool(Toml* this, const char* item, ...) {
 }
 
 char* Toml_GetString(Toml* this, const char* item, ...) {
-    char buffer[256];
+    char buffer[BUFFER_SIZE];
     va_list va;
     
     va_start(va, item);
-    vsnprintf(buffer, 256, item, va);
+    vsnprintf(buffer, BUFFER_SIZE, item, va);
     toml_datum_t t = Toml_GetValue(this, buffer, TYPE_STRING);
     va_end(va);
     
@@ -495,15 +507,15 @@ char* Toml_GetString(Toml* this, const char* item, ...) {
 }
 
 char* Toml_GetVar(Toml* this, const char* item, ...) {
-    char buffer[256];
+    char buffer[BUFFER_SIZE];
     va_list va;
     
     va_start(va, item);
-    vsnprintf(buffer, 256, item, va);
+    vsnprintf(buffer, BUFFER_SIZE, item, va);
     va_end(va);
     
     this->silence = true;
-    char path[256] = {};
+    char path[BUFFER_SIZE] = {};
     Travel t = Toml_Travel(this, buffer, this->root, path);
     this->silence = false;
     
@@ -521,12 +533,12 @@ char* Toml_GetVar(Toml* this, const char* item, ...) {
 // # # # # # # # # # # # # # # # # # # # #
 
 s32 Toml_ArrItemNum(Toml* this, const char* arr, ...) {
-    char buf[256];
-    char path[256] = {};
+    char buf[BUFFER_SIZE];
+    char path[BUFFER_SIZE] = {};
     va_list va;
     
     va_start(va, arr);
-    vsnprintf(buf, 256, arr, va);
+    vsnprintf(buf, BUFFER_SIZE, arr, va);
     va_end(va);
     
     if (!StrEnd(buf, "]")) strcat(buf, "[]");
@@ -541,12 +553,12 @@ s32 Toml_ArrItemNum(Toml* this, const char* arr, ...) {
 }
 
 s32 Toml_TblItemNum(Toml* this, const char* item, ...) {
-    char buf[256];
-    char path[256] = {};
+    char buf[BUFFER_SIZE];
+    char path[BUFFER_SIZE] = {};
     va_list va;
     
     va_start(va, item);
-    vsnprintf(buf, 256, item, va);
+    vsnprintf(buf, BUFFER_SIZE, item, va);
     strcat(buf, ".temp");
     va_end(va);
     
