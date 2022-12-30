@@ -79,6 +79,7 @@ char* x_pathslot(const char* src, s32 num);
 char* x_basename(const char* src);
 char* x_filename(const char* src);
 char* x_randstr(Size size, const char* charset);
+char* x_strunq(const char* str);
 
 char* basename(const char* src);
 char* filename(const char* src);
@@ -201,13 +202,17 @@ __attribute__ ((warn_unused_result))
 void* Calloc(s32 size);
 __attribute__ ((warn_unused_result))
 void* Realloc(const void* data, s32 size);
-void* Free(const void* data);
 
+#ifndef __clang__
+void* Free(const void* data);
 #define __EXT_FREE_METHOD(a) a = Free(a);
 #define Free(...)            ({                      \
         VA_ARG_MANIP(__EXT_FREE_METHOD, __VA_ARGS__) \
         NULL;                                        \
     })
+#else
+void* Free(const void*, ...);
+#endif
 
 void* memdup(const void* src, Size size);
 char* Fmt(const char* fmt, ...);
@@ -289,7 +294,6 @@ void StrIns2(char* origin, const char* insert, s32 pos, s32 size);
 void StrRem(char* point, s32 amount);
 s32 StrRep(char* src, const char* word, const char* replacement);
 s32 StrRepWhole(char* src, const char* word, const char* replacement);
-char* StrUnq(const char* str);
 s32 StrComLen(const char* a, const char* b);
 char* StrSlash(char* str);
 char* StrStripIllegalChar(char* str);
@@ -337,11 +341,16 @@ void Config_WriteSection(MemFile* mem, const char* variable, const char* comment
 Toml Toml_New();
 void Toml_Free(Toml* this);
 void Toml_LoadFile(Toml* this, const char* file);
+void Toml_Print(Toml* this, void* d, void (*print)(void*, const char*, ...));
 void Toml_ToMem(Toml* this, MemFile* mem);
 void Toml_SaveFile(Toml* this, const char* file);
 
 void Toml_SetValue(Toml* this, const char* item, const char* fmt, ...);
 void Toml_AddTable(Toml* this, const char* item, ...);
+
+bool Toml_RemVar(Toml* this, const char* fmt, ...);
+bool Toml_RemArr(Toml* this, const char* fmt, ...);
+bool Toml_RemTbl(Toml* this, const char* fmt, ...);
 
 s32 Toml_GetInt(Toml* this, const char* item, ...);
 f32 Toml_GetFloat(Toml* this, const char* item, ...);

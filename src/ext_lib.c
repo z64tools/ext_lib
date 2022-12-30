@@ -554,6 +554,15 @@ char* x_randstr(Size size, const char* charset) {
     return str;
 }
 
+char* x_strunq(const char* str) {
+    char* new = x_strdup(str);
+    
+    StrRep(new, "\"", "");
+    StrRep(new, "'", "");
+    
+    return new;
+}
+
 char* basename(const char* src) {
     char* ls = StrChrAcpt(src, "\\/");
     
@@ -991,10 +1000,24 @@ s32 SysExe_GetError() {
     return sSysReturn;
 }
 
+static const char* SysExe_ExecString(const char* str) {
+#ifdef _WIN32
+    char* n = x_strdup(str);
+    char* e = StrStr(n, ".exe");
+    
+    Assert(e != NULL);
+    for (; (uptr)e >= (uptr)n; e--)
+        if (*e == '/') *e = '\\';
+    
+    return n;
+#endif
+    return str;
+}
+
 s32 SysExe(const char* cmd) {
     s32 ret;
     
-    ret = system(cmd);
+    ret = system(SysExe_ExecString(cmd));
     
     if (ret != 0)
         Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExe(" PRNT_REDD "%s" PRNT_GRAY ");", ret, cmd);
@@ -1004,7 +1027,7 @@ s32 SysExe(const char* cmd) {
 
 void SysExeD(const char* cmd) {
 #ifdef _WIN32
-    SysExe(x_fmt("start %s", cmd));
+    SysExe(x_fmt("start %s", SysExe_ExecString(cmd)));
 #else
     SysExe(x_fmt("nohup %s", cmd));
 #endif
@@ -1016,7 +1039,7 @@ char* SysExeO(const char* cmd) {
     FILE* file = NULL;
     u32 size = 0;
     
-    if ((file = popen(cmd, "r")) == NULL) {
+    if ((file = popen(SysExe_ExecString(cmd), "r")) == NULL) {
         Log(PRNT_REDD "SysExeO(%s);", cmd);
         Log("popen failed!");
         
@@ -1037,7 +1060,7 @@ char* SysExeO(const char* cmd) {
         if (sSysIgnore == 0) {
             printf("%s\n", sExeBuffer);
             Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExeO(" PRNT_REDD "%s" PRNT_GRAY ");", sSysReturn, cmd);
-            printf_error("SysExeO");
+            printf_error("SysExeO [%s]", SysExe_ExecString(cmd));
         }
     }
     
@@ -1048,7 +1071,7 @@ s32 SysExeC(const char* cmd, s32 (*callback)(void*, const char*), void* arg) {
     char* s;
     FILE* file;
     
-    if ((file = popen(cmd, "r")) == NULL) {
+    if ((file = popen(SysExe_ExecString(cmd), "r")) == NULL) {
         Log(PRNT_REDD "SysExeO(%s);", cmd);
         Log("popen failed!");
         
@@ -1659,12 +1682,12 @@ void* memdup(const void* src, Size size) {
 }
 
 char* Fmt(const char* fmt, ...) {
-    char s[4096];
+    char s[8192];
     s32 len;
     va_list va;
     
     va_start(va, fmt);
-    Assert((len = vsnprintf(s, 4096, fmt, va)) < 4096);
+    Assert((len = vsprintf(s, fmt, va)) < 8192);
     va_end(va);
     
     char* r = memdup(s, len + 1);
@@ -1844,8 +1867,11 @@ char* CopyWord(const char* str, s32 word) {
 }
 
 char* PathRel_From(const char* from, const char* item) {
-    item = StrSlash(StrUnq(item));
-    char* work = StrSlash(strdup(from));
+    if (from[0] != item[0])
+        return StrSlash(x_strdup(item));
+    
+    item = StrSlash(x_strunq(item));
+    char* work = StrSlash(x_strdup(from));
     s32 lenCom = StrComLen(work, item);
     s32 subCnt = 0;
     char* sub = (char*)&work[lenCom];
@@ -1866,7 +1892,7 @@ char* PathRel_From(const char* from, const char* item) {
 }
 
 char* PathAbs_From(const char* from, const char* item) {
-    item = StrSlash(StrUnq(item));
+    item = StrSlash(x_strunq(item));
     char* path = StrSlash(x_strdup(from));
     char* t = StrStr(item, "../");
     char* f = (char*)item;
@@ -2051,7 +2077,7 @@ u32 Value_Hex(const char* string) {
 }
 
 s32 Value_Int(const char* string) {
-    if (!memcmp(string, "0x", 2)) {
+    if (strnlen(string, 3) >= 2 && !memcmp(string, "0x", 2)) {
         return strtoul(string, NULL, 16);
     } else {
         return strtol(string, NULL, 10);
@@ -2344,16 +2370,6 @@ s32 StrRepWhole(char* src, const char* word, const char* replacement) {
     }
     
     return diff;
-}
-
-// Unquote
-char* StrUnq(const char* str) {
-    char* new = x_strdup(str);
-    
-    StrRep(new, "\"", "");
-    StrRep(new, "'", "");
-    
-    return new;
 }
 
 char* StrSlash(char* t) {
@@ -2798,6 +2814,14 @@ static void Log_Signal(s32 arg) {
     
     Log_Signal_PrintTitle(arg, stdlog);
     Log_Printinf(arg, stdlog);
+    
+    if (arg == 0xDEADBEEF) {
+        ran = false;
+        sLogInit = true;
+        gKillFlag = false;
+        
+        return;
+    }
     
 #ifdef _WIN32
     printf_getchar("Press enter to exit");

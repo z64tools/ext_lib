@@ -430,6 +430,16 @@ s32 ItemList_NumericalSlotSort(ItemList* this, bool checkOverlaps) {
     
     Log("OK");
     
+    if (checkOverlaps && gList_SortError.num) {
+        printf_warning("Index overlap");
+        for (var i = 0; i < gList_SortError.num; i += 2)
+            printf_warning("[" PRNT_YELW "%s" PRNT_RSET "] vs "
+                "[" PRNT_YELW "%s" PRNT_RSET "]",
+                gList_SortError.item[i], gList_SortError.item[i + 1]);
+        
+        ItemList_Free(&gList_SortError);
+    }
+    
     return error;
 }
 

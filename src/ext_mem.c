@@ -7,6 +7,8 @@
 // # # # # # # # # # # # # # # # # # # # #
 
 static void MemFile_ThrowError(MemFile* this, const char* msg, const char* info) {
+    Log_Print();
+    
     printf_warning_align("" PRNT_REDD "Work Directory" PRNT_RSET ":", PRNT_YELW "%s", Sys_WorkDir());
     printf_warning_align("" PRNT_REDD "File" PRNT_RSET ":", PRNT_YELW "%s", this->info.name);
     printf_warning_align("" PRNT_REDD "Error" PRNT_RSET ":", "%s", msg);
@@ -127,7 +129,10 @@ void MemFile_Rewind(MemFile* mem) {
 }
 
 s32 MemFile_Write(MemFile* dest, const void* src, u32 size) {
-    u32 osize = size;
+    const u32 osize = size;
+    
+    if (!dest->memSize)
+        MemFile_Alloc(dest, size * 4);
     
     if (src == NULL) {
         Log("Trying to write 0 size");
@@ -138,7 +143,7 @@ s32 MemFile_Write(MemFile* dest, const void* src, u32 size) {
     size = ClampMax(size, ClampMin(dest->memSize - dest->seekPoint, 0));
     
     if (size != osize) {
-        MemFile_Realloc(dest, dest->memSize * 2 + osize * 2);
+        MemFile_Realloc(dest, dest->seekPoint + (dest->memSize * 2) + (osize * 2));
         size = osize;
     }
     
@@ -179,7 +184,7 @@ s32 MemFile_Insert(MemFile* mem, const void* src, u32 size) {
     u32 remasize = mem->size - mem->seekPoint;
     
     if (mem->size + size + 1 >= mem->memSize)
-        MemFile_Realloc(mem, mem->memSize * 2 + size * 2);
+        MemFile_Realloc(mem, mem->memSize * 2 + size * 2 + mem->seekPoint);
     
     memmove(&mem->cast.u8[mem->seekPoint + size], &mem->cast.u8[mem->seekPoint], remasize + 1);
     memcpy(&mem->cast.u8[mem->seekPoint], src, size);
@@ -204,9 +209,10 @@ void MemFile_Align(MemFile* src, u32 align) {
 s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
     char buffer[8192];
     va_list args;
+    Size size;
     
     va_start(args, fmt);
-    vsnprintf(
+    size = vsnprintf(
         buffer,
         8192,
         fmt,
@@ -214,7 +220,12 @@ s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
     );
     va_end(args);
     
-    return MemFile_Write(dest, buffer, strlen(buffer));
+    size = MemFile_Write(dest, buffer, size + 1);
+    dest->seekPoint--;
+    dest->size--;
+    dest->cast.u8[dest->seekPoint] = '\0';
+    
+    return size;
 }
 
 s32 MemFile_Read(MemFile* src, void* dest, Size size) {
@@ -380,10 +391,8 @@ s32 MemFile_SaveFile_String(MemFile* mem, const char* filepath) {
 }
 
 void MemFile_Free(MemFile* mem) {
-    if (mem->param.initKey == 0xD0E0A0D0B0E0E0F0) {
-        Free(mem->data);
-        Free(mem->info.name);
-    }
+    if (mem->param.initKey == 0xD0E0A0D0B0E0E0F0)
+        Free(mem->data, mem->info.name);
     
     *mem = MemFile_Initialize();
 }

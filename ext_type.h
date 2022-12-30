@@ -13,7 +13,7 @@
 #pragma GCC diagnostic ignored "-Wscalar-storage-order"
 #define StructBE     __attribute__((scalar_storage_order("big-endian")))
 #define StructPacked __attribute__ ((packed))
-#define thread_local  _Thread_local
+#define thread_local _Thread_local
 #define StructAligned(x) __attribute__((aligned(x)))
 
 typedef signed char            s8;
@@ -308,7 +308,10 @@ typedef struct {
             };
         };
 #endif
-        u32 _[4];
+        struct {
+            void* data;
+            u32   _[4];
+        };
     };
 } Toml;
 
