@@ -80,6 +80,8 @@ char* x_basename(const char* src);
 char* x_filename(const char* src);
 char* x_randstr(Size size, const char* charset);
 char* x_strunq(const char* str);
+char* x_enumify(const char* str);
+char* x_canitize(const char* str);
 
 char* basename(const char* src);
 char* filename(const char* src);
@@ -236,8 +238,6 @@ char* PathRel(const char* item);
 char* PathAbs(const char* item);
 s32 PathIsAbs(const char* item);
 s32 PathIsRel(const char* item);
-char* Enumify(const char* str);
-char* Canitize(const char* str);
 
 HSL8 Color_GetHSL(f32 r, f32 g, f32 b);
 RGBA8 Color_GetRGBA8(f32 h, f32 s, f32 l);

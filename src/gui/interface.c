@@ -258,11 +258,11 @@ static FileDialogConfig FileDialog_LoadConfig(const char* title) {
         config.scale.y = Toml_GetInt(&toml, "scale[1]");
         config.split = Toml_GetInt(&toml, "split");
         
-        if (Toml_GetVar(&toml, "%s.disp_split", Canitize(title)))
-            config.disp_split = Toml_GetBool(&toml, "%s.disp_split", Canitize(title));
+        if (Toml_GetVar(&toml, "%s.disp_split", x_canitize(title)))
+            config.disp_split = Toml_GetBool(&toml, "%s.disp_split", x_canitize(title));
         
-        if (Toml_GetVar(&toml, "%s.path", Canitize(title)))
-            strncpy(config.path, Toml_GetString(&toml, "%s.path", Canitize(title)), FILE_DIALOG_BUF);
+        if (Toml_GetVar(&toml, "%s.path", x_canitize(title)))
+            strncpy(config.path, Toml_GetString(&toml, "%s.path", x_canitize(title)), FILE_DIALOG_BUF);
         
         Toml_Free(&toml);
     } else {
@@ -287,8 +287,8 @@ static void FileDialog_SaveConfig(FileDialog* this) {
     Toml_SetValue(&toml, "scale[0]", "%d", this->window.app.wdim.x);
     Toml_SetValue(&toml, "scale[1]", "%d", this->window.app.wdim.y);
     Toml_SetValue(&toml, "split", "%d", this->split);
-    Toml_SetValue(&toml, x_fmt("%s.disp_split", Canitize(this->window.app.title)), "%s", this->settings.dispSplit ? "true" : "false");
-    Toml_SetValue(&toml, x_fmt("%s.path", Canitize(this->window.app.title)), "\"%s\"", this->path);
+    Toml_SetValue(&toml, x_fmt("%s.disp_split", x_canitize(this->window.app.title)), "%s", this->settings.dispSplit ? "true" : "false");
+    Toml_SetValue(&toml, x_fmt("%s.path", x_canitize(this->window.app.title)), "\"%s\"", this->path);
     
     Toml_SaveFile(&toml, FileSys_File("file_dialog.toml"));
     Toml_Free(&toml);

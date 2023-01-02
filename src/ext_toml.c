@@ -434,6 +434,7 @@ void Toml_LoadFile(Toml* this, const char* file) {
 }
 
 void Toml_Free(Toml* this) {
+    if (!this) return;
     toml_free(this->root);
     memset(this, 0, sizeof(*this));
 }

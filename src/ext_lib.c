@@ -581,6 +581,51 @@ char* filename(const char* src) {
     return strdup(ls);
 }
 
+static char* x_ifyize(const char* str, int (*tocase)(int)) {
+    char* new = x_alloc(strlen(str) * 8);
+    u32 w = 0;
+    const u32 len = strlen(str);
+    
+    enum {
+        NONE = 0,
+        IS_LOWER,
+        IS_UPPER,
+        NONALNUM,
+    } prev = NONE, this = NONE;
+    
+    for (s32 i = 0; i < len; i++) {
+        const char chr = str[i];
+        
+        if (isalnum(chr)) {
+            
+            if (isupper(chr))
+                this = IS_UPPER;
+            else
+                this = IS_LOWER;
+            
+            if (this == IS_UPPER && prev == IS_LOWER)
+                new[w++] = '_';
+            else if (prev == NONALNUM)
+                new[w++] = '_';
+            new[w++] = tocase(chr);
+            
+        } else
+            this = NONALNUM;
+        
+        prev = this;
+    }
+    
+    return new;
+}
+
+char* x_enumify(const char* str) {
+    return x_ifyize(str, toupper);
+}
+
+char* x_canitize(const char* str) {
+    return x_ifyize(str, tolower);
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # TIME                                #
 // # # # # # # # # # # # # # # # # # # # #
@@ -1938,51 +1983,6 @@ s32 PathIsAbs(const char* item) {
 
 s32 PathIsRel(const char* item) {
     return !PathIsAbs(item);
-}
-
-static char* StrConvert(const char* str, int (*tocase)(int)) {
-    char* new = x_alloc(strlen(str) * 8);
-    u32 w = 0;
-    const u32 len = strlen(str);
-    
-    enum {
-        NONE = 0,
-        IS_LOWER,
-        IS_UPPER,
-        NONALNUM,
-    } prev = NONE, this = NONE;
-    
-    for (s32 i = 0; i < len; i++) {
-        const char chr = str[i];
-        
-        if (isalnum(chr)) {
-            
-            if (isupper(chr))
-                this = IS_UPPER;
-            else
-                this = IS_LOWER;
-            
-            if (this == IS_UPPER && prev == IS_LOWER)
-                new[w++] = '_';
-            else if (prev == NONALNUM)
-                new[w++] = '_';
-            new[w++] = tocase(chr);
-            
-        } else
-            this = NONALNUM;
-        
-        prev = this;
-    }
-    
-    return new;
-}
-
-char* Enumify(const char* str) {
-    return StrConvert(str, toupper);
-}
-
-char* Canitize(const char* str) {
-    return StrConvert(str, tolower);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
