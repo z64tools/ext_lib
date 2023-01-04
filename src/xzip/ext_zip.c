@@ -6,7 +6,7 @@
 #include "ext_zip.h"
 #include <zip/src/zip.h>
 
-void* ZipFile_Load(ZipFile* zip, const char* file, ZipParam mode) {
+void* zip_load(zip_file_t* zip, const char* file, zip_param_t mode) {
     zip->filename = strdup(file);
     
     switch (mode) {
@@ -20,23 +20,23 @@ void* ZipFile_Load(ZipFile* zip, const char* file, ZipParam mode) {
             return zip->pkg = zip_open(file, 0, mode);
     }
     
-    printf_error("Unknown ZipFile Load Mode: [%c] [%s]", mode, file);
+    print_error("Unknown zip_file_t Load Mode: [%c] [%s]", mode, file);
     return NULL;
 }
 
-u32 ZipFile_GetEntriesNum(ZipFile* zip) {
+int zip_get_num_entries(zip_file_t* zip) {
     return zip_entries_total(zip->pkg);
 }
 
-s32 ZipFile_ReadEntry_Name(ZipFile* zip, const char* entry, MemFile* mem) {
+int zip_read_name(zip_file_t* zip, const char* entry, memfile_t* mem) {
     void* data = NULL;
-    Size sz;
+    size_t sz;
     
     if (zip_entry_open(zip->pkg, entry))
         return ZIP_ERROR_OPEN_ENTRY;
     if (zip_entry_read(zip->pkg, &data, &sz) < 0) {
         if (zip_entry_close(zip->pkg))
-            printf_error("Fatal Error: Entry Read & Entry Close failed for ZipFile \"%s\"", zip->filename);
+            print_error("Fatal Error: Entry Read & Entry Close failed for zip_file_t \"%s\"", zip->filename);
         
         return ZIP_ERROR_RW_ENTRY;
     }
@@ -46,18 +46,18 @@ s32 ZipFile_ReadEntry_Name(ZipFile* zip, const char* entry, MemFile* mem) {
     if (zip_entry_close(zip->pkg))
         return ZIP_ERROR_CLOSE;
     
-    MemFile_LoadMem(mem, data, sz);
+    memfile_load_mem(mem, data, sz);
     
     return 0;
 }
 
-s32 ZipFile_ReadEntry_Index(ZipFile* zip, Size index, MemFile* mem) {
+int zip_read_index(zip_file_t* zip, size_t index, memfile_t* mem) {
     void* data = NULL;
-    Size sz;
+    size_t sz;
     
     if (zip_entry_openbyindex(zip->pkg, index))
         return ZIP_ERROR_OPEN_ENTRY;
-    Log("Reading Entry \"%s\"", mem->info.name);
+    _log("Reading Entry \"%s\"", mem->info.name);
     
     if (zip_entry_isdir(zip->pkg)) {
         if (zip_entry_close(zip->pkg))
@@ -68,12 +68,12 @@ s32 ZipFile_ReadEntry_Index(ZipFile* zip, Size index, MemFile* mem) {
     
     if (zip_entry_read(zip->pkg, &data, &sz) < 0) {
         if (zip_entry_close(zip->pkg))
-            printf_error("Fatal Error: Entry Read & Entry Close failed for ZipFile \"%s\"", zip->filename);
+            print_error("Fatal Error: Entry Read & Entry Close failed for zip_file_t \"%s\"", zip->filename);
         
         return ZIP_ERROR_RW_ENTRY;
     }
     
-    MemFile_LoadMem(mem, data, sz);
+    memfile_load_mem(mem, data, sz);
     mem->info.name = strdup(zip_entry_name(zip->pkg));
     
     if (zip_entry_close(zip->pkg))
@@ -82,16 +82,16 @@ s32 ZipFile_ReadEntry_Index(ZipFile* zip, Size index, MemFile* mem) {
     return 0;
 }
 
-s32 ZipFile_ReadEntries_Path(ZipFile* zip, const char* path, s32 (*callback)(const char* name, MemFile* mem)) {
+int zip_read_path(zip_file_t* zip, const char* path, int (*callback)(const char* name, memfile_t* mem)) {
     u32 ent = zip_entries_total(zip->pkg);
     
     if (callback == NULL)
-        printf_error("[ZipFile_ReadEntries_Path]: Please provide a callback function!");
+        print_error("[zip_read_path]: Please provide a callback function!");
     
     for (u32 i = 0; i < ent; i++) {
         const char* name;
-        s32 ret;
-        s32 brk = 0;
+        int ret;
+        int brk = 0;
         
         if (zip_entry_openbyindex(zip->pkg, i))
             return ZIP_ERROR_OPEN_ENTRY;
@@ -106,21 +106,21 @@ s32 ZipFile_ReadEntries_Path(ZipFile* zip, const char* path, s32 (*callback)(con
         
         if (memcmp(path, name, strlen(path))) {
             zip_entry_close(zip->pkg);
-            Free(name);
+            free(name);
             continue;
         }
         zip_entry_close(zip->pkg);
         
-        MemFile mem = MemFile_Initialize();
+        memfile_t mem = memfile_new();
         
-        if ((ret = ZipFile_ReadEntry_Index(zip, i, &mem)))
+        if ((ret = zip_read_index(zip, i, &mem)))
             return ret;
         
         if (callback(name, &mem))
             brk = true;
         
-        MemFile_Free(&mem);
-        Free(name);
+        memfile_free(&mem);
+        free(name);
         
         if (brk)
             break;
@@ -129,7 +129,7 @@ s32 ZipFile_ReadEntries_Path(ZipFile* zip, const char* path, s32 (*callback)(con
     return 0;
 }
 
-s32 ZipFile_WriteEntry(ZipFile* zip, MemFile* mem, const char* entry) {
+int zip_write(zip_file_t* zip, memfile_t* mem, const char* entry) {
     if (zip_entry_open(zip->pkg, entry))
         return ZIP_ERROR_OPEN_ENTRY;
     if (zip_entry_write(zip->pkg, mem->data, mem->size))
@@ -140,30 +140,30 @@ s32 ZipFile_WriteEntry(ZipFile* zip, MemFile* mem, const char* entry) {
     return 0;
 }
 
-static s32 ZipFile_Extract_NoCallback(ZipFile* zip, MemFile* mem, u32 i) {
-    s32 ret;
+static int zip_dump_nocall(zip_file_t* zip, memfile_t* mem, u32 i) {
+    int ret;
     
-    Log("ReadEntryIndex");
-    if ((ret = ZipFile_ReadEntry_Index(zip, i, mem)))
+    _log("ReadEntryIndex");
+    if ((ret = zip_read_index(zip, i, mem)))
         return ret;
     
-    Log("SaveFile \"%s\"", FileSys_File(mem->info.name));
-    if (MemFile_SaveFile(mem, FileSys_File(mem->info.name)))
+    _log("SaveFile \"%s\"", fs_item(mem->info.name));
+    if (memfile_save_bin(mem, fs_item(mem->info.name)))
         return ZIP_ERROR_RW_ENTRY;
     
-    MemFile_Free(mem);
+    memfile_free(mem);
     
     return 0;
 }
 
-static s32 ZipFile_Extract_Callback(ZipFile* zip, MemFile* mem, u32 i, f32 prcnt, s32 (*callback)(const char* name, f32 prcnt)) {
+static int zip_dump_call(zip_file_t* zip, memfile_t* mem, u32 i, f32 prcnt, int (*callback)(const char* name, f32 prcnt)) {
     char* name;
-    s32 isDir;
+    int isDir;
     
     if (!callback)
-        return ZipFile_Extract_NoCallback(zip, mem, i);
+        return zip_dump_nocall(zip, mem, i);
     
-    Log("Get Name");
+    _log("Get Name");
     if (zip_entry_openbyindex(zip->pkg, i))
         return ZIP_ERROR_OPEN_ENTRY;
     name = strdup(zip_entry_name(zip->pkg));
@@ -173,38 +173,37 @@ static s32 ZipFile_Extract_Callback(ZipFile* zip, MemFile* mem, u32 i, f32 prcnt
     
     if (!callback(name, prcnt)) {
         if (isDir) {
-            Sys_MakeDir(FileSys_File(name));
-            Free(name);
+            sys_mkdir(fs_item(name));
+            free(name);
             
             return 0;
         }
         
-        Free(name);
-        return ZipFile_Extract_NoCallback(zip, mem, i);
+        free(name);
+        return zip_dump_nocall(zip, mem, i);
     }
     
-    Free(name);
+    free(name);
     
     return 0;
 }
 
-s32 ZipFile_Extract(ZipFile* zip, const char* path, s32 (*callback)(const char* name, f32 prcnt)) {
-    MemFile mem = MemFile_Initialize();
+int zip_dump(zip_file_t* zip, const char* path, int (*callback)(const char* name, f32 prcnt)) {
+    memfile_t mem = memfile_new();
     u32 ent = zip_entries_total(zip->pkg);
-    s32 ret;
+    int ret;
     
-    FileSys_Path(path);
-    
-    Log("Entries: %d", ent);
+    _log("Entries: %d", ent);
     for (u32 i = 0; i < ent; i++) {
-        if ((ret = ZipFile_Extract_Callback(zip, &mem, i, ((f32)(i + 1) / ent) * 100.0f, callback)))
+        fs_set(path);
+        if ((ret = zip_dump_call(zip, &mem, i, ((f32)(i + 1) / ent) * 100.0f, callback)))
             return ret;
     }
     
     return 0;
 }
 
-void ZipFile_Free(ZipFile* zip) {
-    Free(zip->filename);
+void zip_free(zip_file_t* zip) {
+    free(zip->filename);
     zip_close(zip->pkg);
 }

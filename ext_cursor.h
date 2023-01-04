@@ -5,7 +5,7 @@
 #include <nanovg/src/nanovg.h>
 
 typedef struct {
-    RGBA8*    bitmap;
+    rgba8_t*    bitmap;
     GLFWimage img;
     void*     glfwCur;
 } CursorBitmap;

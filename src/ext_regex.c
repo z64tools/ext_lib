@@ -6,7 +6,7 @@
     #include <regex.h>
 #endif
 
-char* Regex(const char* str, const char* pattern, RegexFlag flag) {
+char* regex(const char* str, const char* pattern, regx_flag_t flag) {
     regex_t reg;
     regmatch_t* match;
     u32 matchNum = 0;
@@ -18,8 +18,8 @@ char* Regex(const char* str, const char* pattern, RegexFlag flag) {
     match = malloc(sizeof(regmatch_t) * (matchNum + 1));
     
     if (regcomp(&reg, pattern, REG_EXTENDED)) {
-        printf_warning("regex: compilation error");
-        printf_warning("pattern: \"%s\"", pattern);
+        print_warn("regex: compilation error");
+        print_warn("pattern: \"%s\"", pattern);
         goto done;
     }
     

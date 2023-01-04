@@ -26,15 +26,18 @@ typedef signed long long int   s64;
 typedef unsigned long long int u64;
 typedef float                  f32;
 typedef double                 f64;
-typedef uintptr_t              uptr;
-typedef intptr_t               sptr;
+typedef uintptr_t              uaddr_t;
+typedef intptr_t               addr_t;
 typedef u32                    void32;
-typedef time_t                 Time;
-typedef pthread_t              Thread;
-typedef pthread_mutex_t        Mutex;
-typedef size_t                 Size;
+typedef time_t                 time_t;
+typedef pthread_t              thread_t;
+typedef pthread_mutex_t        mutex_t;
+typedef size_t                 size_t;
 typedef wchar_t                wchar;
-#define var __auto_type
+#define var_t __auto_type
+
+#define const_func __attribute__ ((constructor, used)) void
+#define dest_func  __attribute__ ((destructor, used)) void
 
 typedef volatile signed char            vs8;
 typedef volatile unsigned char          vu8;
@@ -50,13 +53,13 @@ typedef struct {
     u8 hash[32];
     const void* data;
     u32 size;
-} Checksum;
+} hash_t;
 
 typedef struct {
     f32 h;
     f32 s;
     f32 l;
-} HSL8;
+} hsl_t;
 
 typedef struct {
     f32 h;
@@ -77,7 +80,7 @@ typedef struct {
         };
         u8 c[3];
     };
-} RGB8;
+} rgb8_t;
 
 typedef struct {
     union {
@@ -89,7 +92,7 @@ typedef struct {
         };
         u8 c[4];
     };
-} RGBA8;
+} rgba8_t;
 
 typedef struct {
     f32 r;
@@ -149,7 +152,7 @@ typedef enum {
     MEM_END         = 1 << 31,
 } MemInit;
 
-typedef struct MemFile {
+typedef struct memfile_t {
     union {
         void*       data;
         PointerCast cast;
@@ -159,9 +162,9 @@ typedef struct MemFile {
     u32 size;
     u32 seekPoint;
     struct {
-        Time  age;
-        char* name;
-        u32   crc32;
+        time_t age;
+        char*  name;
+        u32    crc32;
     } info;
     struct {
         u32  align;
@@ -170,7 +173,7 @@ typedef struct MemFile {
         bool throwError : 1;
         u64  initKey;
     } param;
-} MemFile;
+} memfile_t;
 
 typedef enum {
     LIST_FILES    = 0x0,
@@ -201,7 +204,7 @@ typedef struct FilterNode {
     char*      txt;
 } FilterNode;
 
-typedef struct ItemList {
+typedef struct list_t {
     char**      item;
     u32         num;
     FilterNode* filterNode;
@@ -209,7 +212,7 @@ typedef struct ItemList {
     struct {
         s32 alnum;
     } p;
-} ItemList;
+} list_t;
 
 typedef struct {
     u32 size;
@@ -223,57 +226,37 @@ typedef struct {
     s32 hour;
     s32 minute;
     s32 second;
-} Date;
+} date_t;
 
-typedef struct {
-    u32 isFloat : 1;
-    u32 isHex   : 1;
-    u32 isDec   : 1;
-    u32 isBool  : 1;
-} ValueType;
-
-typedef enum {
-    DIR__MAKE_ON_ENTER = (1) << 0,
-} DirParam;
-
-typedef void (*SoundCallback)(void*, void*, u32);
+typedef void (*sound_callback_t)(void*, void*, u32);
 
 typedef enum {
     SOUND_S16 = 2,
     SOUND_S24,
     SOUND_S32,
     SOUND_F32,
-} SoundFormat;
+} sound_fmt_t;
 
-typedef enum {
+enum {
     SORT_NO        = 0,
     SORT_NUMERICAL = 1,
     IS_FILE        = 0,
     IS_DIR         = 1,
-} DirEnum;
+    RELATIVE       = 0,
+    ABSOLUTE       = 1
+};
 
-typedef enum {
-    RELATIVE = 0,
-    ABSOLUTE = 1
-} RelAbs;
-
-typedef enum {
-    STAT_ACCS = (1) << 0,
-    STAT_MODF = (1) << 1,
-    STAT_CREA = (1) << 2,
-} StatFlag;
-
-typedef struct StrNode {
-    struct StrNode* next;
+typedef struct str_node_t {
+    struct str_node_t* next;
     char* txt;
-} StrNode;
+} str_node_t;
 
-typedef struct PtrNode {
-    struct PtrNode* next;
+typedef struct ptr_node_t {
+    struct ptr_node_t* next;
     void* ptr;
-} PtrNode;
+} ptr_node_t;
 
-typedef enum RegexFlag {
+typedef enum regx_flag_t {
     REGFLAG_START     = 1 << 24,
     REGFLAG_END       = 1 << 25,
     REGFLAG_COPY      = 1 << 26,
@@ -281,19 +264,14 @@ typedef enum RegexFlag {
     
     REGFLAG_FLAGMASK  = 0xFF000000,
     REGFLAG_NUMMASK   = 0x00FFFFFF,
-} RegexFlag;
+} regx_flag_t;
 
 typedef enum {
     ENV_USERNAME,
     ENV_APPDATA,
     ENV_HOME,
     ENV_TEMP,
-} SysEnv;
-
-typedef struct {
-    const char* arg;
-    const char* help;
-} Arguments;
+} env_index_t;
 
 typedef struct {
     bool changed;
@@ -313,6 +291,6 @@ typedef struct {
             u32   _[4];
         };
     };
-} Toml;
+} toml_t;
 
 #endif

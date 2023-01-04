@@ -1,38 +1,38 @@
 #include <ext_lib.h>
 
-#undef MemFile_Alloc
+#undef memfile_alloc
 
 // # # # # # # # # # # # # # # # # # # # #
 // # MEMFILE                             #
 // # # # # # # # # # # # # # # # # # # # #
 
-static void MemFile_ThrowError(MemFile* this, const char* msg, const char* info) {
+static void memfile_throw_error(memfile_t* this, const char* msg, const char* info) {
     Log_Print();
     
-    printf_warning_align("" PRNT_REDD "Work Directory" PRNT_RSET ":", PRNT_YELW "%s", Sys_WorkDir());
-    printf_warning_align("" PRNT_REDD "File" PRNT_RSET ":", PRNT_YELW "%s", this->info.name);
-    printf_warning_align("" PRNT_REDD "Error" PRNT_RSET ":", "%s", msg);
+    print_warn_align("" PRNT_REDD "Work Directory" PRNT_RSET ":", PRNT_YELW "%s", sys_workdir());
+    print_warn_align("" PRNT_REDD "File" PRNT_RSET ":", PRNT_YELW "%s", this->info.name);
+    print_warn_align("" PRNT_REDD "Error" PRNT_RSET ":", "%s", msg);
     if (info) {
-        printf_warning_align("" PRNT_REDD "Info" PRNT_RSET ":", "%s", info);
-        printf_warning_align("" PRNT_REDD "Size" PRNT_RSET ":", "%f kB", KbToBin(this->size));
-        printf_warning_align("" PRNT_REDD "MemSize" PRNT_RSET ":", "%f kB", KbToBin(this->memSize));
+        print_warn_align("" PRNT_REDD "Info" PRNT_RSET ":", "%s", info);
+        print_warn_align("" PRNT_REDD "size_t" PRNT_RSET ":", "%f kB", kb_to_bin(this->size));
+        print_warn_align("" PRNT_REDD "MemSize" PRNT_RSET ":", "%f kB", kb_to_bin(this->memSize));
     }
-    printf_error("Stopping Process");
+    print_error("Stopping Process");
 }
 
-static FILE* MemFOpen(const char* name, const char* mode) {
+static FILE* memfile_fopen(const char* name, const char* mode) {
     FILE* file;
     
 #if _WIN32
-    wchar* name16 = Calloc(strlen(name) * 4);
-    wchar* mode16 = Calloc(strlen(mode) * 4);
-    StrU16(name16, name);
-    StrU16(mode16, mode);
+    wchar* name16 = calloc(strlen(name) * 4);
+    wchar* mode16 = calloc(strlen(mode) * 4);
+    strto16(name16, name);
+    strto16(mode16, mode);
     
     file = _wfopen(name16, mode16);
     
-    Free(name16);
-    Free(mode16);
+    free(name16);
+    free(mode16);
 #else
     file = fopen(name, mode);
 #endif
@@ -40,33 +40,33 @@ static FILE* MemFOpen(const char* name, const char* mode) {
     return file;
 }
 
-void MemFile_Validate(MemFile* mem) {
-    if (mem->param.initKey == 0xD0E0A0D0B0E0E0F0) {
+static void memfile_validate(memfile_t* this) {
+    if (this->param.initKey == 0xD0E0A0D0B0E0E0F0) {
         
         return;
     }
     
-    *mem = MemFile_Initialize();
+    *this = memfile_new();
 }
 
-MemFile MemFile_Initialize() {
-    return (MemFile) {
+memfile_t memfile_new() {
+    return (memfile_t) {
                .param.initKey = 0xD0E0A0D0B0E0E0F0,
                .param.throwError = true,
     };
 }
 
-void MemFile_Params(MemFile* mem, ...) {
+void memfile_set(memfile_t* this, ...) {
     va_list args;
-    u32 cmd = 0;
-    u32 arg = 0;
+    size_t cmd = 0;
+    size_t arg = 0;
     
-    if (mem->param.initKey != 0xD0E0A0D0B0E0E0F0)
-        *mem = MemFile_Initialize();
+    if (this->param.initKey != 0xD0E0A0D0B0E0E0F0)
+        *this = memfile_new();
     
-    va_start(args, mem);
+    va_start(args, this);
     for (;;) {
-        cmd = va_arg(args, uptr);
+        cmd = va_arg(args, uaddr_t);
         
         if (cmd == MEM_END)
             break;
@@ -75,7 +75,7 @@ void MemFile_Params(MemFile* mem, ...) {
             case MEM_ALIGN:
             case MEM_CRC32:
             case MEM_REALLOC:
-                arg = va_arg(args, uptr);
+                arg = va_arg(args, uaddr_t);
                 break;
         }
         
@@ -86,89 +86,88 @@ void MemFile_Params(MemFile* mem, ...) {
         
         switch (cmd) {
             case MEM_THROW_ERROR:
-                mem->param.throwError = true;
+                this->param.throwError = true;
             case MEM_ALIGN:
-                mem->param.align = arg;
+                this->param.align = arg;
                 break;
             case MEM_CRC32:
-                Log("MemFile_Params: deprecated feature [MEM_CRC32], [%s]", mem->info.name);
+                _log("memfile_set: deprecated feature [MEM_CRC32], [%s]", this->info.name);
                 break;
             case MEM_REALLOC:
-                Log("MemFile_Params: deprecated feature [MEM_REALLOC], [%s]", mem->info.name);
+                _log("memfile_set: deprecated feature [MEM_REALLOC], [%s]", this->info.name);
                 break;
         }
     }
     va_end(args);
 }
 
-void MemFile_Alloc(MemFile* mem, u32 size) {
-    
-    if (mem->param.initKey != 0xD0E0A0D0B0E0E0F0) {
-        *mem = MemFile_Initialize();
-    } else if (mem->data) {
-        Log("MemFile_Alloc: Mallocing already allocated MemFile [%s], freeing and reallocating!", mem->info.name);
-        MemFile_Free(mem);
+void memfile_alloc(memfile_t* this, size_t size) {
+    if (this->param.initKey != 0xD0E0A0D0B0E0E0F0) {
+        *this = memfile_new();
+    } else if (this->data) {
+        _log("memfile_alloc: Mallocing already allocated memfile_t [%s], freeing and reallocating!", this->info.name);
+        memfile_free(this);
     }
     
-    Assert ((mem->data = Calloc(size)) != NULL);
-    mem->memSize = size;
+    Assert ((this->data = calloc(size)) != NULL);
+    this->memSize = size;
 }
 
-void MemFile_Realloc(MemFile* mem, u32 size) {
-    if (mem->param.initKey != 0xD0E0A0D0B0E0E0F0)
-        *mem = MemFile_Initialize();
-    if (mem->memSize > size)
+void memfile_realloc(memfile_t* this, size_t size) {
+    if (this->param.initKey != 0xD0E0A0D0B0E0E0F0)
+        *this = memfile_new();
+    if (this->memSize > size)
         return;
     
-    Assert((mem->data = Realloc(mem->data, size)) != NULL);
-    mem->memSize = size;
+    Assert((this->data = realloc(this->data, size)) != NULL);
+    this->memSize = size;
 }
 
-void MemFile_Rewind(MemFile* mem) {
-    mem->seekPoint = 0;
+void memfile_rewind(memfile_t* this) {
+    this->seekPoint = 0;
 }
 
-s32 MemFile_Write(MemFile* dest, const void* src, u32 size) {
-    const u32 osize = size;
+int memfile_write(memfile_t* this, const void* src, size_t size) {
+    const size_t osize = size;
     
-    if (!dest->memSize)
-        MemFile_Alloc(dest, size * 4);
+    if (!this->memSize)
+        memfile_alloc(this, size * 4);
     
     if (src == NULL) {
-        Log("Trying to write 0 size");
+        _log("Trying to write 0 size");
         
         return 0;
     }
     
-    size = ClampMax(size, ClampMin(dest->memSize - dest->seekPoint, 0));
+    size = clamp_max(size, clamp_min(this->memSize - this->seekPoint, 0));
     
     if (size != osize) {
-        MemFile_Realloc(dest, dest->seekPoint + (dest->memSize * 2) + (osize * 2));
+        memfile_realloc(this, this->seekPoint + (this->memSize * 2) + (osize * 2));
         size = osize;
     }
     
-    memcpy(&dest->cast.u8[dest->seekPoint], src, size);
-    dest->seekPoint += size;
-    dest->size = Max(dest->size, dest->seekPoint);
+    memcpy(&this->cast.u8[this->seekPoint], src, size);
+    this->seekPoint += size;
+    this->size = Max(this->size, this->seekPoint);
     
-    if (dest->param.align)
-        MemFile_Align(dest, dest->param.align);
+    if (this->param.align)
+        memfile_align(this, this->param.align);
     
     return size;
 }
 
-s32 MemFile_WriteFile(MemFile* this, const char* source) {
+int memfile_append_file(memfile_t* this, const char* source) {
     FILE* f;
-    u8 buffer[256];
-    u32 size;
-    u32 amount = 0;
+    char buffer[256];
+    size_t size;
+    size_t amount = 0;
     
     if (!(f = fopen(source, "rb")))
         return false;
     
     while ((size = fread(buffer, 1, sizeof(buffer), f))) {
-        if (MemFile_Write(this, buffer, size) != size)
-            printf_error("MemFile: Could not successfully write from fread [%s]", source);
+        if (memfile_write(this, buffer, size) != size)
+            print_error("memfile_t: Could not successfully write from fread [%s]", source);
         amount += size;
     }
     
@@ -177,39 +176,36 @@ s32 MemFile_WriteFile(MemFile* this, const char* source) {
     return amount;
 }
 
-/*
- * If pos is 0 or bigger: override seekPoint
- */
-s32 MemFile_Insert(MemFile* mem, const void* src, u32 size) {
-    u32 remasize = mem->size - mem->seekPoint;
+int memfile_insert(memfile_t* this, const void* src, size_t size) {
+    size_t remasize = this->size - this->seekPoint;
     
-    if (mem->size + size + 1 >= mem->memSize)
-        MemFile_Realloc(mem, mem->memSize * 2 + size * 2 + mem->seekPoint);
+    if (this->size + size + 1 >= this->memSize)
+        memfile_realloc(this, this->memSize * 2 + size * 2 + this->seekPoint);
     
-    memmove(&mem->cast.u8[mem->seekPoint + size], &mem->cast.u8[mem->seekPoint], remasize + 1);
-    memcpy(&mem->cast.u8[mem->seekPoint], src, size);
-    mem->size += size;
+    memmove(&this->cast.u8[this->seekPoint + size], &this->cast.u8[this->seekPoint], remasize + 1);
+    memcpy(&this->cast.u8[this->seekPoint], src, size);
+    this->size += size;
     
     return 0;
 }
 
-s32 MemFile_Append(MemFile* dest, MemFile* src) {
-    return MemFile_Write(dest, src->data, src->size);
+int memfile_append(memfile_t* this, memfile_t* src) {
+    return memfile_write(this, src->data, src->size);
 }
 
-void MemFile_Align(MemFile* src, u32 align) {
-    if ((src->seekPoint % align) != 0) {
+void memfile_align(memfile_t* this, size_t align) {
+    if ((this->seekPoint % align) != 0) {
         const u64 wow[32] = {};
-        u32 size = align - (src->seekPoint % align);
+        size_t size = align - (this->seekPoint % align);
         
-        MemFile_Write(src, wow, size);
+        memfile_write(this, wow, size);
     }
 }
 
-s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
+int memfile_fmt(memfile_t* this, const char* fmt, ...) {
     char buffer[8192];
     va_list args;
-    Size size;
+    size_t size;
     
     va_start(args, fmt);
     size = vsnprintf(
@@ -220,59 +216,59 @@ s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
     );
     va_end(args);
     
-    size = MemFile_Write(dest, buffer, size + 1);
-    dest->seekPoint--;
-    dest->size--;
-    dest->cast.u8[dest->seekPoint] = '\0';
+    size = memfile_write(this, buffer, size + 1);
+    this->seekPoint--;
+    this->size--;
+    this->cast.u8[this->seekPoint] = '\0';
     
     return size;
 }
 
-s32 MemFile_Read(MemFile* src, void* dest, Size size) {
-    Size nsize = ClampMax(size, ClampMin(src->size - src->seekPoint, 0));
+int memfile_read(memfile_t* this, void* dest, size_t size) {
+    size_t nsize = clamp_max(size, clamp_min(this->size - this->seekPoint, 0));
     
     if (nsize != size)
-        Log("%d == src->seekPoint = %d / %d", nsize, src->seekPoint, src->seekPoint);
+        _log("%d == src->seekPoint = %d / %d", nsize, this->seekPoint, this->seekPoint);
     
     if (nsize < 1)
         return 0;
     
-    memcpy(dest, &src->cast.u8[src->seekPoint], nsize);
-    src->seekPoint += nsize;
+    memcpy(dest, &this->cast.u8[this->seekPoint], nsize);
+    this->seekPoint += nsize;
     
     return nsize;
 }
 
-void* MemFile_Seek(MemFile* src, u32 seek) {
+void* memfile_seek(memfile_t* this, size_t seek) {
     if (seek == MEMFILE_SEEK_END)
-        seek = src->size;
+        seek = this->size;
     
-    if (seek > src->size)
+    if (seek > this->size)
         return NULL;
     
-    src->seekPoint = seek;
+    this->seekPoint = seek;
     
-    return (void*)&src->cast.u8[seek];
+    return (void*)&this->cast.u8[seek];
 }
 
-void MemFile_LoadMem(MemFile* mem, void* data, Size size) {
-    MemFile_Validate(mem);
-    MemFile_Reset(mem);
-    mem->size = mem->memSize = size;
-    mem->data = data;
+void memfile_load_mem(memfile_t* this, void* data, size_t size) {
+    memfile_validate(this);
+    memfile_null(this);
+    this->size = this->memSize = size;
+    this->data = data;
 }
 
-s32 MemFile_LoadFile(MemFile* mem, const char* filepath) {
-    FILE* file = MemFOpen(filepath, "rb");
-    u32 tempSize;
+int memfile_load_bin(memfile_t* this, const char* filepath) {
+    FILE* file = memfile_fopen(filepath, "rb");
+    size_t tempSize;
     
     if (file == NULL) {
-        Log("Could not fopen file [%s]", filepath);
+        _log("Could not fopen file [%s]", filepath);
         
-        if (mem->param.throwError) {
-            if (Sys_Stat(mem->info.name))
-                MemFile_ThrowError(mem, "Could not load file!", x_fmt("Arg: [%s]", filepath));
-            MemFile_ThrowError(mem, "Can't load because file does not exist!", x_fmt("Arg: [%s]", filepath));
+        if (this->param.throwError) {
+            if (sys_stat(this->info.name))
+                memfile_throw_error(this, "Could not load file!", x_fmt("Arg: [%s]", filepath));
+            memfile_throw_error(this, "Can't load because file does not exist!", x_fmt("Arg: [%s]", filepath));
         }
         
         return 1;
@@ -281,40 +277,40 @@ s32 MemFile_LoadFile(MemFile* mem, const char* filepath) {
     fseek(file, 0, SEEK_END);
     tempSize = ftell(file);
     
-    MemFile_Validate(mem);
-    MemFile_Reset(mem);
+    memfile_validate(this);
+    memfile_null(this);
     
-    if (mem->data == NULL)
-        MemFile_Alloc(mem, tempSize + 0x10);
+    if (this->data == NULL)
+        memfile_alloc(this, tempSize + 0x10);
     
-    else if (mem->memSize < tempSize)
-        MemFile_Realloc(mem, tempSize * 2);
+    else if (this->memSize < tempSize)
+        memfile_realloc(this, tempSize * 2);
     
-    mem->size = tempSize;
+    this->size = tempSize;
     
     rewind(file);
-    if (fread(mem->data, 1, mem->size, file)) {
+    if (fread(this->data, 1, this->size, file)) {
     }
     fclose(file);
     
-    mem->info.age = Sys_Stat(filepath);
-    Free(mem->info.name);
-    mem->info.name = strdup(filepath);
+    this->info.age = sys_stat(filepath);
+    free(this->info.name);
+    this->info.name = strdup(filepath);
     
     return 0;
 }
 
-s32 MemFile_LoadFile_String(MemFile* mem, const char* filepath) {
-    FILE* file = MemFOpen(filepath, "r");
-    u32 tempSize;
+int memfile_load_str(memfile_t* this, const char* filepath) {
+    FILE* file = memfile_fopen(filepath, "r");
+    size_t tempSize;
     
     if (file == NULL) {
-        Log("Could not fopen file [%s]", filepath);
+        _log("Could not fopen file [%s]", filepath);
         
-        if (mem->param.throwError) {
-            if (Sys_Stat(mem->info.name))
-                MemFile_ThrowError(mem, "Could not load file!", x_fmt("Arg: [%s]", filepath));
-            MemFile_ThrowError(mem, "Can't load because file does not exist!", x_fmt("Arg: [%s]", filepath));
+        if (this->param.throwError) {
+            if (sys_stat(this->info.name))
+                memfile_throw_error(this, "Could not load file!", x_fmt("Arg: [%s]", filepath));
+            memfile_throw_error(this, "Can't load because file does not exist!", x_fmt("Arg: [%s]", filepath));
         }
         
         return 1;
@@ -323,88 +319,88 @@ s32 MemFile_LoadFile_String(MemFile* mem, const char* filepath) {
     fseek(file, 0, SEEK_END);
     tempSize = ftell(file);
     
-    MemFile_Validate(mem);
-    MemFile_Reset(mem);
+    memfile_validate(this);
+    memfile_null(this);
     
-    if (mem->data == NULL)
-        MemFile_Alloc(mem, tempSize + 0x10);
+    if (this->data == NULL)
+        memfile_alloc(this, tempSize + 0x10);
     
-    else if (mem->memSize < tempSize)
-        MemFile_Realloc(mem, tempSize * 2);
+    else if (this->memSize < tempSize)
+        memfile_realloc(this, tempSize * 2);
     
-    mem->size = tempSize;
+    this->size = tempSize;
     
     rewind(file);
-    mem->size = fread(mem->data, 1, mem->size, file);
+    this->size = fread(this->data, 1, this->size, file);
     fclose(file);
-    mem->cast.u8[mem->size] = '\0';
+    this->cast.u8[this->size] = '\0';
     
-    mem->info.age = Sys_Stat(filepath);
-    Free(mem->info.name);
-    mem->info.name = strdup(filepath);
+    this->info.age = sys_stat(filepath);
+    free(this->info.name);
+    this->info.name = strdup(filepath);
     
     return 0;
 }
 
-s32 MemFile_SaveFile(MemFile* mem, const char* filepath) {
-    FILE* file = MemFOpen(filepath, "wb");
+int memfile_save_bin(memfile_t* this, const char* filepath) {
+    FILE* file = memfile_fopen(filepath, "wb");
     
     if (file == NULL) {
-        Log("Could not fopen file [%s]", filepath);
+        _log("Could not fopen file [%s]", filepath);
         
-        if (mem->param.throwError) {
-            if (Sys_Stat(mem->info.name))
-                MemFile_ThrowError(mem, "Can't save over file!", x_fmt("Arg: [%s]", filepath));
-            MemFile_ThrowError(mem, "Can't save file!", x_fmt("Arg: [%s]", filepath));
+        if (this->param.throwError) {
+            if (sys_stat(this->info.name))
+                memfile_throw_error(this, "Can't save over file!", x_fmt("Arg: [%s]", filepath));
+            memfile_throw_error(this, "Can't save file!", x_fmt("Arg: [%s]", filepath));
         }
         
         return 1;
     }
     
-    if (mem->size)
-        fwrite(mem->data, sizeof(char), mem->size, file);
+    if (this->size)
+        fwrite(this->data, sizeof(char), this->size, file);
     fclose(file);
     
     return 0;
 }
 
-s32 MemFile_SaveFile_String(MemFile* mem, const char* filepath) {
-    FILE* file = MemFOpen(filepath, "w");
+int memfile_save_str(memfile_t* this, const char* filepath) {
+    FILE* file = memfile_fopen(filepath, "w");
     
     if (file == NULL) {
-        Log("Could not fopen file [%s]", filepath);
+        _log("Could not fopen file [%s]", filepath);
         
-        if (mem->param.throwError) {
-            if (Sys_Stat(mem->info.name))
-                MemFile_ThrowError(mem, "Can't save over file!", x_fmt("Arg: [%s]", filepath));
-            MemFile_ThrowError(mem, "Can't save file!", x_fmt("Arg: [%s]", filepath));
+        if (this->param.throwError) {
+            if (sys_stat(this->info.name))
+                memfile_throw_error(this, "Can't save over file!", x_fmt("Arg: [%s]", filepath));
+            memfile_throw_error(this, "Can't save file!", x_fmt("Arg: [%s]", filepath));
         }
         
         return 1;
     }
     
-    if (mem->size)
-        fwrite(mem->data, sizeof(char), mem->size, file);
+    if (this->size)
+        fwrite(this->data, sizeof(char), this->size, file);
     fclose(file);
     
     return 0;
 }
 
-void MemFile_Free(MemFile* mem) {
-    if (mem->param.initKey == 0xD0E0A0D0B0E0E0F0)
-        Free(mem->data, mem->info.name);
+void memfile_free(memfile_t* this) {
+    if (this->param.initKey == 0xD0E0A0D0B0E0E0F0)
+        free(this->data, this->info.name);
     
-    *mem = MemFile_Initialize();
+    *this = memfile_new();
 }
 
-void MemFile_Reset(MemFile* mem) {
-    mem->size = 0;
-    mem->seekPoint = 0;
-    if (mem->data)
-        mem->str[0] = '\0';
+void memfile_null(memfile_t* this) {
+    this->size = 0;
+    this->seekPoint = 0;
+    if (this->data)
+        this->str[0] = '\0';
 }
 
-void MemFile_Clear(MemFile* mem) {
-    memset(mem->data, 0, mem->memSize);
-    MemFile_Reset(mem);
+void memfile_clear(memfile_t* this) {
+    memset(this->data, 0, this->memSize);
+    memfile_null(this);
 }

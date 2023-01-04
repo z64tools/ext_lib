@@ -2,29 +2,29 @@
 #include <miniaudio/miniaudio.h>
 
 typedef struct {
-    SoundCallback    callback;
+    sound_callback_t    callback;
     ma_device_config deviceConfig;
     ma_device device;
     void*     uctx;
 } SoundCtx;
 
-static void __Sound_Callback(ma_device* dev, void* output, const void* input, ma_uint32 frameCount) {
+static void __audiodev_callback(ma_device* dev, void* output, const void* input, ma_uint32 frameCount) {
     SoundCtx* sndCtx = dev->pUserData;
     
     sndCtx->callback(sndCtx->uctx, output, frameCount);
 }
 
-void* Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx) {
+void* audiodev_init(sound_fmt_t fmt, u32 sampleRate, u32 channelNum, sound_callback_t callback, void* uCtx) {
     SoundCtx* soundCtx;
     
-    soundCtx = Calloc(sizeof(SoundCtx));
+    soundCtx = calloc(sizeof(SoundCtx));
     soundCtx->uctx = uCtx;
     
     soundCtx->deviceConfig = ma_device_config_init(ma_device_type_playback);
     soundCtx->deviceConfig.playback.format = (ma_format)fmt;
     soundCtx->deviceConfig.playback.channels = channelNum;
     soundCtx->deviceConfig.sampleRate = sampleRate;
-    soundCtx->deviceConfig.dataCallback = __Sound_Callback;
+    soundCtx->deviceConfig.dataCallback = __audiodev_callback;
     soundCtx->deviceConfig.pUserData = soundCtx;
     soundCtx->deviceConfig.periodSizeInFrames = 512;
     soundCtx->callback = callback;
@@ -35,7 +35,7 @@ void* Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback 
     return soundCtx;
 }
 
-void Sound_Free(void* sound) {
+void audiodev_free(void* sound) {
     SoundCtx* soundCtx = sound;
     
     if (sound) {

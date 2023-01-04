@@ -15,7 +15,7 @@ const MtxF gMtxFClear = {
 void Matrix_Init() {
     if (gCurrentMatrix)
         return;
-    gCurrentMatrix = Calloc(20 * sizeof(MtxF));
+    gCurrentMatrix = calloc(20 * sizeof(MtxF));
     gMatrixStack = gCurrentMatrix;
 }
 

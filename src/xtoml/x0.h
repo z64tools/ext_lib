@@ -55,11 +55,11 @@ TOML_EXTERN toml_table_t* toml_parse_file(FILE* fp, char* errbuf, int errbufsz);
 TOML_EXTERN toml_table_t* toml_parse(char* conf, /* NUL terminated, please. */
     char* errbuf, int errbufsz);
 
-/* Free the table returned by toml_parse() or toml_parse_file(). Once
+/* free the table returned by toml_parse() or toml_parse_file(). Once
  * this function is called, any handles accessed through this tab
  * directly or indirectly are no longer valid.
  */
-TOML_EXTERN void toml_free(toml_table_t* tab);
+TOML_EXTERN void __toml_free(toml_table_t* tab);
 
 /* Timestamp types. The year, month, day, hour, minute, second, z
  * fields may be NULL if they are not relevant. e.g. In a DATE

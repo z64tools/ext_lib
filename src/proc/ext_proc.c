@@ -9,8 +9,8 @@ enum ProcState {
     PROC_FREE,
 };
 
-static Size ArgToken_Size(const char* s) {
-    Size sz = 0;
+static size_t argtok_size(const char* s) {
+    size_t sz = 0;
     bool string = *s == '"';
     
     if (string) {
@@ -37,8 +37,8 @@ isString:
     }
 }
 
-static char* ArgToken_Next(const char* s) {
-    s += ArgToken_Size(s);
+static char* argtok_next(const char* s) {
+    s += argtok_size(s);
     if (*s == '\0') return NULL;
     s += strspn(s, " \t");
     if (*s == '&') return NULL;
@@ -46,17 +46,17 @@ static char* ArgToken_Next(const char* s) {
     return (char*)s;
 }
 
-static char* ArgToken_Copy(const char* s) {
-    Size sz = ArgToken_Size(s);
+static char* argtok_cpy(const char* s) {
+    size_t sz = argtok_size(s);
     
     if (!sz) return NULL;
     
     return strndup(s, sz);
 }
 
-Proc* Proc_New(char* fmt, ...) {
+proc_t* proc_new(char* fmt, ...) {
     char buffer[8192];
-    Proc* this = New(Proc);
+    proc_t* this = new(proc_t);
     char* tok;
     char* args[512];
     va_list va;
@@ -74,11 +74,11 @@ Proc* Proc_New(char* fmt, ...) {
     this->localStatus = PROC_NEW;
     
     while (tok) {
-        args[this->numArg++] = ArgToken_Copy(tok);
-        tok = ArgToken_Next(tok);
+        args[this->numArg++] = argtok_cpy(tok);
+        tok = argtok_next(tok);
     }
     
-    this->arg = Calloc(sizeof(char*) * (this->numArg + 1));
+    this->arg = calloc(sizeof(char*) * (this->numArg + 1));
     
     for (s32 i = 0; i < this->numArg; i++)
         this->arg[i] = args[i];
@@ -86,7 +86,7 @@ Proc* Proc_New(char* fmt, ...) {
     return this;
 }
 
-void Proc_AddArg(Proc* this, char* fmt, ...) {
+void proc_add_arg(proc_t* this, char* fmt, ...) {
     char buffer[8192];
     char* tok;
     char* args[512] = {};
@@ -100,11 +100,11 @@ void Proc_AddArg(Proc* this, char* fmt, ...) {
     tok = buffer;
     
     while (tok) {
-        args[numArg++] = ArgToken_Copy(tok);
-        tok = ArgToken_Next(tok);
+        args[numArg++] = argtok_cpy(tok);
+        tok = argtok_next(tok);
     }
     
-    this->arg = Realloc(this->arg, sizeof(char*) * (this->numArg + numArg + 1));
+    this->arg = realloc(this->arg, sizeof(char*) * (this->numArg + numArg + 1));
     
     for (s32 i = 0; i <= numArg; i++)
         this->arg[this->numArg + i] = args[i];
@@ -112,19 +112,19 @@ void Proc_AddArg(Proc* this, char* fmt, ...) {
     this->numArg += numArg;
 }
 
-void Proc_SetState(Proc* this, StateProc state) {
+void proc_set_state(proc_t* this, proc_state_t state) {
     this->state |= state;
 }
 
-int Proc_SetPath(Proc* this, const char* path) {
-    if (Sys_IsDir(path))
+int proc_set_path(proc_t* this, const char* path) {
+    if (sys_isdir(path))
         return (this->path = strdup(path)) ? 0 : 1;
     
     return 1;
 }
 
-void Proc_SetEnv(Proc* this, const char* env) {
-    if (!this->env) this->env = Calloc(sizeof(char*) * 32);
+void proc_set_env(proc_t* this, const char* env) {
+    if (!this->env) this->env = calloc(sizeof(char*) * 32);
     
     for (s32 i = 0; i < 32; i++) {
         if (this->env[i] != NULL)
@@ -135,24 +135,24 @@ void Proc_SetEnv(Proc* this, const char* env) {
     }
 }
 
-static s32 Proc_SystemThread(Proc* this) {
-    char* args = StrCatArg(this->arg, ' ');
+static s32 proc_sys_thread(proc_t* this) {
+    char* args = strarrcat(this->arg, " ");
     s32 sys = system(args);
     
-    Free(args);
+    free(args);
     
     return sys;
 }
 
-static void Proc_Error(Proc* this) {
+static void proc_err(proc_t* this) {
     char* msg = "Unknown";
     
-    Log("ProcError");
+    _log("ProcError");
     
     Mutex_Enable();
     Mutex_Lock();
     
-    Sys_Sleep(0.5);
+    sys_sleep(0.5);
     
     switch (this->localStatus) {
         case PROC_NEW:
@@ -168,43 +168,43 @@ static void Proc_Error(Proc* this) {
             msg = "Join";
             break;
         case PROC_FREE:
-            msg = "Free";
+            msg = "free";
             break;
     }
     
-    printf_warning("Proc Error: %s", msg);
+    print_warn("proc_t Error: %s", msg);
     
     for (s32 i = 0; i < this->numArg; i++)
         fprintf(stderr, "" PRNT_GRAY "%-6d" PRNT_RSET "%s\n", i, this->arg[i]);
     
     if (this->env) {
-        printf_warning("Proc Env:");
+        print_warn("proc_t Env:");
         for (s32 i = 0; this->env[i] != NULL; i++)
             fprintf(stderr, "" PRNT_GRAY "%-6d" PRNT_RSET "%s\n", i, this->env[i]);
     }
     
-    printf_warning("Proc Path:\n      %s", this->path ? this->path : Sys_WorkDir());
+    print_warn("proc_t Path:\n      %s", this->path ? this->path : sys_workdir());
     
-    #define fprintf_proc_enum(enum) fprintf(stderr, "" PRNT_GRAY "%-20s" PRNT_RSET "%s\n", #enum, this->state & enum ? "" PRNT_BLUE "true" : "" PRNT_REDD "false");
-    printf_warning("Proc State:");
-    fprintf_proc_enum(PROC_MUTE_STDOUT);
-    fprintf_proc_enum(PROC_MUTE_STDERR);
-    fprintf_proc_enum(PROC_MUTE_STDIN);
-    fprintf_proc_enum(PROC_WRITE_STDIN);
-    fprintf_proc_enum(PROC_THROW_ERROR);
-    fprintf_proc_enum(PROC_SYSTEM_EXE);
+    #define fprint_proc_enum(enum) fprintf(stderr, "" PRNT_GRAY "%-20s" PRNT_RSET "%s\n", #enum, this->state & enum ? "" PRNT_BLUE "true" : "" PRNT_REDD "false");
+    print_warn("proc_t State:");
+    fprint_proc_enum(PROC_MUTE_STDOUT);
+    fprint_proc_enum(PROC_MUTE_STDERR);
+    fprint_proc_enum(PROC_MUTE_STDIN);
+    fprint_proc_enum(PROC_WRITE_STDIN);
+    fprint_proc_enum(PROC_THROW_ERROR);
+    fprint_proc_enum(PROC_SYSTEM_EXE);
     
-    printf_warning("Proc Signal: %d\n\n", this->signal);
+    print_warn("proc_t Signal: %d\n\n", this->signal);
     if (this->msg)
-        printf_error("%s", this->msg);
+        print_error("%s", this->msg);
     
     else
-        printf_error("Closing!");
+        print_error("Closing!");
     
     Mutex_Unlock();
 }
 
-int Proc_Exec(Proc* this) {
+int proc_exec(proc_t* this) {
     bool exec;
     reproc_options opt = {
         .redirect.out.type = this->state & PROC_MUTE_STDOUT ? REPROC_REDIRECT_PIPE : REPROC_REDIRECT_PARENT,
@@ -218,7 +218,7 @@ int Proc_Exec(Proc* this) {
     this->localStatus = PROC_EXEC;
     
     if (this->state & PROC_SYSTEM_EXE) {
-        Thread_Create(&this->thd, Proc_SystemThread, this);
+        Thread_Create(&this->thd, proc_sys_thread, this);
         
         return 0;
     }
@@ -226,13 +226,13 @@ int Proc_Exec(Proc* this) {
     exec = reproc_start(this->proc, this->arg, opt) < 0;
     
     if (exec && this->state & PROC_THROW_ERROR)
-        Proc_Error(this);
+        proc_err(this);
     
     return exec;
 }
 
-char* Proc_Read(Proc* this, ProcReadTarget target) {
-    MemFile mem = MemFile_Initialize();
+char* proc_read(proc_t* this, proc_read_target_t target) {
+    memfile_t mem = memfile_new();
     REPROC_STREAM s = -1;
     
     if (target == READ_STDOUT && this->state & PROC_MUTE_STDOUT)
@@ -240,8 +240,8 @@ char* Proc_Read(Proc* this, ProcReadTarget target) {
     else if (target == READ_STDERR && this->state & PROC_MUTE_STDERR)
         s = REPROC_STREAM_ERR;
     else if (this->state & PROC_THROW_ERROR) {
-        printf_warning("Could not read [%s] because it hasn't been muted!", target == READ_STDOUT ? "stdout" : "stderr");
-        Proc_Error(this);
+        print_warn("Could not read [%s] because it hasn't been muted!", target == READ_STDOUT ? "stdout" : "stderr");
+        proc_err(this);
     } else
         return NULL;
     
@@ -254,11 +254,11 @@ char* Proc_Read(Proc* this, ProcReadTarget target) {
         if (readSize == 0)
             continue;
         if (mem.data == NULL)
-            MemFile_Alloc(&mem, 4096);
+            memfile_alloc(&mem, 4096);
         
-        if (!MemFile_Write(&mem, buffer, readSize)) {
-            printf_warning("Failed to write buffer!");
-            Proc_Error(this);
+        if (!memfile_write(&mem, buffer, readSize)) {
+            print_warn("Failed to write buffer!");
+            proc_err(this);
         }
         
         mem.cast.u8[mem.seekPoint] = '\0';
@@ -269,7 +269,7 @@ char* Proc_Read(Proc* this, ProcReadTarget target) {
     return mem.data;
 }
 
-static int Proc_Free(Proc* this) {
+static int proc_free(proc_t* this) {
     int signal = 0;
     
     if (this->state & PROC_SYSTEM_EXE)
@@ -281,55 +281,55 @@ static int Proc_Free(Proc* this) {
     }
     
     if (signal && this->state & PROC_THROW_ERROR)
-        Proc_Error(this);
+        proc_err(this);
     
     this->localStatus = PROC_FREE;
-    Log("Free");
+    _log("free");
     
     if (this->env) {
         for (s32 i = 0; i < 32; i++)
-            Free(this->env[i]);
+            free(this->env[i]);
         
-        Free(this->env);
+        free(this->env);
     }
     
     for (s32 i = 0; i < this->numArg; i++)
-        Free(this->arg[i]);
+        free(this->arg[i]);
     
-    Free(this->path);
-    Free(this->arg);
-    Free(this);
+    free(this->path);
+    free(this->arg);
+    free(this);
     
     return signal;
 }
 
-int Proc_Kill(Proc* this) {
+int proc_kill(proc_t* this) {
     this->localStatus = PROC_KILL;
     
     if (this->state & PROC_SYSTEM_EXE) {
         this->signal = 1;
         
         if (!pthread_kill(this->thd, 1))
-            return Proc_Free(this);
+            return proc_free(this);
         
         return 1;
     }
     reproc_terminate(this->proc);
     reproc_kill(this->proc);
     
-    return Proc_Free(this);
+    return proc_free(this);
     
 }
 
-int Proc_Join(Proc* this) {
+int proc_join(proc_t* this) {
     if (!this) return 0;
     this->localStatus = PROC_JOIN;
     
     if (this->state & PROC_SYSTEM_EXE) {
         pthread_join(this->thd, (void*)&this->signal);
         
-        return Proc_Free(this);
+        return proc_free(this);
     }
     
-    return Proc_Free(this);
+    return proc_free(this);
 }

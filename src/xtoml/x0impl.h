@@ -269,7 +269,7 @@ int toml_ucs_to_utf8(int64_t code, char buf[6]) {
 }
 
 /*
- *	Toml has 3 data structures: value, array, table.
+ *	toml_t has 3 data structures: value, array, table.
  *	Each of them can have identification key.
  */
 typedef struct toml_keyval_t toml_keyval_t;
@@ -1469,10 +1469,10 @@ toml_table_t* toml_parse(char* conf, char* errbuf, int errbufsz) {
     return ctx.root;
     
 fail:
-    // Something bad has happened. Free resources and return error.
+    // Something bad has happened. free resources and return error.
     for (int i = 0; i < ctx.tpath.top; i++)
         xfree(ctx.tpath.key[i]);
-    toml_free(ctx.root);
+    __toml_free(ctx.root);
     return 0;
 }
 
@@ -1579,7 +1579,7 @@ static void xfree_tab(toml_table_t* p) {
     xfree(p);
 }
 
-void toml_free(toml_table_t* tab) {
+void __toml_free(toml_table_t* tab) {
     xfree_tab(tab);
 }
 

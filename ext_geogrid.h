@@ -155,7 +155,7 @@ typedef struct Split {
     struct {
         bool     useCustomColor : 1;
         bool     useCustomPaint : 1;
-        RGB8     color;
+        rgb8_t     color;
         NVGpaint paint;
     } bg;
     
@@ -284,8 +284,8 @@ typedef struct PropColor {
     f32   hue;
     Vec2f pos;
     union {
-        RGBA8* rgba8;
-        RGB8*  rgb8;
+        rgba8_t* rgba8;
+        rgb8_t*  rgb8;
     };
     struct {
         bool updateImg  : 1;

@@ -3,12 +3,12 @@
    (Implements POSIX draft P1003.2/D11.2, except for some of the
    internationalization features.)
 
-   Copyright (C) 1993-2022 Free Software Foundation, Inc.
+   Copyright (C) 1993-2022 free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
+   License as published by the free Software Foundation; either
    version 2.1 of the License, or (at your option) any later version.
 
    The GNU C Library is distributed in the hope that it will be useful,
@@ -17,7 +17,7 @@
    Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, write to the Free
+   License along with the GNU C Library; if not, write to the free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
    02110-1301 USA.  */
 
@@ -180,7 +180,7 @@ extern "C" {
    before GCC 3.3, but as of 3.3 we need to add the `nonnull'
    attribute to retain this behavior.  */
     #ifndef ATTRIBUTE_PRINTF
-#define ATTRIBUTE_PRINTF(m, n) __attribute__ ((__format__ (__printf__, m, n))) ATTRIBUTE_NONNULL(m)
+#define ATTRIBUTE_PRINTF(m, n) __attribute__ ((__format__ (__print__, m, n))) ATTRIBUTE_NONNULL(m)
 #define ATTRIBUTE_PRINTF_1 ATTRIBUTE_PRINTF(1, 2)
 #define ATTRIBUTE_PRINTF_2 ATTRIBUTE_PRINTF(2, 3)
 #define ATTRIBUTE_PRINTF_3 ATTRIBUTE_PRINTF(3, 4)
@@ -208,7 +208,7 @@ extern "C" {
    NULL format specifier was allowed as of gcc 3.3.  */
     #ifndef ATTRIBUTE_NULL_PRINTF
         #if (GCC_VERSION >= 3003)
-#define ATTRIBUTE_NULL_PRINTF(m, n) __attribute__ ((__format__ (__printf__, m, n)))
+#define ATTRIBUTE_NULL_PRINTF(m, n) __attribute__ ((__format__ (__print__, m, n)))
         #else
 #define ATTRIBUTE_NULL_PRINTF(m, n)
         #endif /* GNUC >= 3.3 */
@@ -2514,7 +2514,7 @@ typedef struct {
 
 static PREFIX(fail_stack_type) fail_stack;
 
-/* Size with which the following vectors are currently allocated.
+/* size_t with which the following vectors are currently allocated.
    That is so we can make them bigger as needed,
    but never make them smaller.  */
         #ifdef DEFINED_ONCE
@@ -2724,7 +2724,7 @@ PREFIX(regex_compile) (
                                    enough space.  This loses if buffer's address is bogus, but
                                    that is the user's responsibility.  */
     #ifdef WCHAR
-            /* Free bufp->buffer and allocate an array for wchar_t pattern
+            /* free bufp->buffer and allocate an array for wchar_t pattern
                buffer.  */
             free(bufp->buffer);
             COMPILED_BUFFER_VAR = TALLOC (
@@ -5231,9 +5231,9 @@ weak_alias (__re_search_2, re_search_2)
 #ifdef INSIDE_RECURSION
 
     #ifdef MATCH_MAY_ALLOCATE
-#define FREE_VAR(var) if (var) REGEX_FREE (var); var = NULL
+#define FREE_VAR(v) if (v) REGEX_FREE (v); v = NULL
     #else
-#define FREE_VAR(var) free (var); var = NULL
+#define FREE_VAR(v) free (v); v = NULL
     #endif
 
     #ifdef WCHAR
@@ -5578,7 +5578,7 @@ advance:
     || WORDCHAR_P (d - 1) != WORDCHAR_P (d))
     #endif
 
-/* Free everything we malloc.  */
+/* free everything we malloc.  */
     #ifdef MATCH_MAY_ALLOCATE
         #ifdef WCHAR
 #define FREE_VARIABLES()                     \
@@ -8316,7 +8316,7 @@ regerror (int errcode, const regex_t* preg ATTRIBUTE_UNUSED,
 weak_alias (__regerror, regerror)
         #endif
 
-/* Free dynamically allocated space used by PREG.  */
+/* free dynamically allocated space used by PREG.  */
 
 void
 regfree (regex_t* preg) {

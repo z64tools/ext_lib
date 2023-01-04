@@ -1,9 +1,10 @@
 #pragma GCC diagnostic ignored "-Wunused-result"
 #pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
 
+//crustify
 #ifndef _WIN32
-#define _XOPEN_SOURCE 500
-#define _DEFAULT_SOURCE
+    #define _XOPEN_SOURCE 500
+    #define _DEFAULT_SOURCE
 #endif
 
 #include "ext_lib.h"
@@ -13,7 +14,6 @@
 #include <ftw.h>
 #include <time.h>
 
-//crustify
 #ifndef EXTLIB_PERMISSIVE
 	#ifdef EXTLIB
 		#if EXTLIB < THIS_EXTLIB_VERSION
@@ -21,3441 +21,122 @@
 		#endif
 	#endif
 #endif
-//uncrustify
 
 #ifdef _WIN32
-#include <windows.h>
-#include <libloaderapi.h>
+    #include <windows.h>
+    #include <libloaderapi.h>
 #endif
+//uncrustify
 
-#define stdlog stderr
-
-f32 EPSILON = 0.0000001f;
+const f32 EPSILON = 0.0000001f;
 f32 gDeltaTime = 1.0f;
 
-// # # # # # # # # # # # # # # # # # # # #
-// # THREAD                              #
-// # # # # # # # # # # # # # # # # # # # #
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-vbool gThreadMode;
-Mutex gThreadMutex;
-static vbool gKillFlag;
-
-// # # # # # # # # # # # # # # # # # # # #
-// # ext_lib Construct Destruct          #
-// # # # # # # # # # # # # # # # # # # # #
-
-typedef struct PostFreeNode {
-    struct PostFreeNode* next;
+typedef struct freelist_node_t {
+    struct freelist_node_t* next;
     void* ptr;
-    void (*free)(void*);
-} PostFreeNode;
+    void (*dest)(void*);
+} freelist_node_t;
 
-static PostFreeNode* sPostFreeHead;
-static PostFreeNode* sPostFreeHead2;
-static Mutex sQMutex;
+static freelist_node_t* s_freelist_dest;
+static freelist_node_t* s_freelist_temp;
+static mutex_t s_freelist_mutex;
 
-void* qFree(const void* ptr) {
-    pthread_mutex_lock(&sQMutex); {
-        PostFreeNode* node;
+void* dfree(const void* ptr) {
+    pthread_mutex_lock(&s_freelist_mutex); {
+        freelist_node_t* node;
         
-        node = Calloc(sizeof(struct PostFreeNode));
+        node = calloc(sizeof(struct freelist_node_t));
         node->ptr = (void*)ptr;
         
-        Node_Add(sPostFreeHead, node);
-    } pthread_mutex_unlock(&sQMutex);
+        Node_Add(s_freelist_dest, node);
+    } pthread_mutex_unlock(&s_freelist_mutex);
     
     return (void*)ptr;
 }
 
-void* PostFree_Queue(void* ptr) {
-    PostFreeNode* n = New(PostFreeNode);
+void* freelist_que(void* ptr) {
+    freelist_node_t* n = new(freelist_node_t);
     
     Mutex_Lock();
-    Node_Add(sPostFreeHead2, n);
+    Node_Add(s_freelist_temp, n);
     Mutex_Unlock();
     n->ptr = ptr;
     
     return ptr;
 }
 
-void* PostFree_QueueCallback(void* callback, void* ptr) {
-    PostFreeNode* n = New(PostFreeNode);
+void* freelist_quecall(void* callback, void* ptr) {
+    freelist_node_t* n = new(freelist_node_t);
     
     Mutex_Lock();
-    Node_Add(sPostFreeHead2, n);
+    Node_Add(s_freelist_temp, n);
     Mutex_Unlock();
     n->ptr = ptr;
-    n->free = callback;
+    n->dest = callback;
     
     return ptr;
 }
 
-void PostFree_Free(void) {
-    while (sPostFreeHead2) {
-        if (sPostFreeHead2->free)
-            sPostFreeHead2->free(sPostFreeHead2->ptr);
+void freelist_free(void) {
+    while (s_freelist_temp) {
+        if (s_freelist_temp->dest)
+            s_freelist_temp->dest(s_freelist_temp->ptr);
         else
-            Free(sPostFreeHead2->ptr);
+            free(s_freelist_temp->ptr);
         
-        Node_Kill(sPostFreeHead2, sPostFreeHead2);
+        Node_Kill(s_freelist_temp, s_freelist_temp);
     }
 }
 
-static struct timeval sProfiTime;
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-__attribute__ ((constructor)) void ExtLib_Init(void) {
-    gettimeofday(&sProfiTime, NULL);
+const_func extlib_init(void) {
     Log_Init();
     
     srand((u32)(clock() + time(0)));
     
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
-    printf_WinFix();
+    print_win32_fix();
 #endif
 }
 
-static void* sDestructorArg;
-static void (*sDestructor)(void*);
-
-void Sys_SetDestFunc(void* func, void* arg) {
-    sDestructor = func;
-    sDestructorArg = arg;
-}
-
-__attribute__ ((destructor)) void ExtLib_Destroy(void) {
-    while (sPostFreeHead) {
-        Free(sPostFreeHead->ptr);
-        Node_Kill(sPostFreeHead, sPostFreeHead);
+dest_func extlib_dest(void) {
+    while (s_freelist_dest) {
+        free(s_freelist_dest->ptr);
+        Node_Kill(s_freelist_dest, s_freelist_dest);
     }
-    
-    if (sDestructor)
-        sDestructor(sDestructorArg);
     
     Log_Free();
 }
 
-void profilog(const char* msg) {
-    struct timeval next;
-    f32 time;
-    
-    gettimeofday(&next, NULL);
-    
-    time = (next.tv_sec - sProfiTime.tv_sec) + (next.tv_usec - sProfiTime.tv_usec) / 1000000.0;
-    sProfiTime = next;
-    
-    printf("" PRNT_PRPL "-" PRNT_GRAY ": " PRNT_RSET "%-16s " PRNT_YELW "%.2f " PRNT_RSET "ms\n", msg,  time * 1000.0f);
-}
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-void profilogdiv(const char* msg, f32 div) {
-    struct timeval next;
-    f32 time;
-    
-    gettimeofday(&next, NULL);
-    time = (next.tv_sec - sProfiTime.tv_sec) + (next.tv_usec - sProfiTime.tv_usec) / 1000000.0;
-    time /= div;
-    sProfiTime = next;
-    
-    printf("" PRNT_PRPL "~" PRNT_GRAY ": " PRNT_RSET "%-16s " PRNT_YELW "%.2f " PRNT_RSET "ms\n", msg,  time * 1000.0f);
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # ThreadPool                          #
-// # # # # # # # # # # # # # # # # # # # #
-
-typedef enum {
-    T_IDLE,
-    T_RUN,
-    T_DONE,
-} Tstate;
-
-typedef struct ThdItem {
-    struct ThdItem* next;
-    volatile Tstate state;
-    Thread thd;
-    void (*function)(void*);
-    void* arg;
-    vu8   nid;
-    vu8   numDep;
-    vs32  dep[16];
-} ThdItem;
-
-typedef struct {
-    ThdItem* head;
-    vu32     num;
-    vu16     dep[__UINT8_MAX__];
-    struct {
-        vbool mutex : 1;
-        vbool on    : 1;
-    };
-} ThdPool;
-
-static ThdPool* gTPool;
-
-static __attribute__((noinline)) void ThdPool_AddToHead(ThdItem* t) {
-    if (t->nid)
-        gTPool->dep[t->nid]++;
-    
-    Node_Add(gTPool->head, t);
-    gTPool->num++;
-}
-
-#undef ThdPool_Add
-void ThdPool_Add(void* function, void* arg, u32 n, ...) {
-    ThdItem* t = New(ThdItem);
-    va_list va;
-    
-    if (!gTPool) {
-        gTPool = qFree(New(ThdPool));
-        Assert(gTPool);
-    }
-    
-    Assert(gTPool->on == false);
-    
-    t->function = function;
-    t->arg = arg;
-    
-    va_start(va, n);
-    for (s32 i = 0; i < n; i++) {
-        s32 val = va_arg(va, s32);
-        
-        if (val > 0)
-            t->nid = val;
-        
-        if (val < 0)
-            t->dep[t->numDep++] = -val;
-    }
-    va_end(va);
-    
-    Mutex_Lock();
-    ThdPool_AddToHead(t);
-    Mutex_Unlock();
-    Log("%d", gTPool->num);
-}
-
-static void ThdPool_RunThd(ThdItem* thd) {
-    thd->function(thd->arg);
-    thd->state = T_DONE;
-}
-
-static bool ThdPool_CheckDep(ThdItem* t) {
-    if (!t->numDep)
-        return true;
-    
-    for (s32 i = 0; i < t->numDep; i++)
-        if (gTPool->dep[t->dep[i]] != 0)
-            return false;
-    
-    return true;
-}
-
-const char* gThdPool_ProgressMessage;
-
-void ThdPool_Exec(u32 max, bool mutex) {
-    u32 amount = gTPool->num;
-    u32 prev = 1;
-    u32 prog = 0;
-    u32 cur = 0;
-    ThdItem* t;
-    bool msg = gThdPool_ProgressMessage != NULL;
-    
-    max = ClampMin(max, 1);
-    
-    if (mutex)
-        Mutex_Enable();
-    
-    gTPool->on = true;
-    
-    Log("Num: %d", gTPool->num);
-    Log("Max: %d", max);
-    
-    while (gTPool->num) {
-        
-        if (msg && prev != prog)
-            printf_progress(gThdPool_ProgressMessage, prog + 1, amount);
-        
-        max = Min(max, gTPool->num);
-        
-        if (cur < max) { /* Assign */
-            t = gTPool->head;
-            
-            while (t) {
-                if (t->state == T_IDLE)
-                    if (ThdPool_CheckDep(t))
-                        break;
-                
-                t = t->next;
-            }
-            
-            if (t) {
-                while (t->state != T_RUN)
-                    t->state = T_RUN;
-                
-                if (max > 1) {
-                    Log("Create Thread");
-                    if (Thread_Create(&t->thd, ThdPool_RunThd, t))
-                        printf_error("ThdPool: Could not create thread");
-                } else
-                    ThdPool_RunThd(t);
-                
-                cur++;
-            }
-            
-        }
-        
-        prev = prog;
-        if (true) { /* Clean */
-            t = gTPool->head;
-            while (t) {
-                if (t->state == T_DONE) {
-                    if (max > 1)
-                        Thread_Join(&t->thd);
-                    break;
-                }
-                
-                t = t->next;
-            }
-            
-            if (t) {
-                if (t->nid)
-                    gTPool->dep[t->nid]--;
-                
-                Node_Kill(gTPool->head, t);
-                
-                cur--;
-                gTPool->num--;
-                prog++;
-            }
-        }
-    }
-    
-    if (mutex)
-        Mutex_Disable();
-    
-    gThdPool_ProgressMessage = NULL;
-    gTPool->on = false;
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # SEGMENT                             #
-// # # # # # # # # # # # # # # # # # # # #
-
-static u8** sSegment;
-
-void SetSegment(const u8 id, void* segment) {
-    Log("%-4d%08X", id, segment);
-    if (!sSegment) {
-        sSegment = qFree(New(char*[255]));
-        Assert(sSegment);
-    }
-    
-    sSegment[id] = segment;
-}
-
-void* SegmentedToVirtual(const u8 id, void32 ptr) {
-    if (sSegment[id] == NULL)
-        printf_error("Segment 0x%X == NULL", id);
-    
-    return &sSegment[id][ptr];
-}
-
-void32 VirtualToSegmented(const u8 id, void* ptr) {
-    return (uptr)ptr - (uptr)sSegment[id];
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # TMP                                 #
-// # # # # # # # # # # # # # # # # # # # #
-
-typedef struct {
-    u8*  head;
-    Size offset;
-    Size max;
-    Size f;
-} BufferX;
-
-void* x_alloc(Size size) {
-    static Mutex xmutex;
-    static BufferX this = {
-        .max = MbToBin(8),
-        .f   = MbToBin(2),
-    };
-    u8* ret;
-    
-    if (size <= 0)
-        return NULL;
-    
-    if (size >= this.f)
-        printf_error("Biggest Failure");
-    
-    pthread_mutex_lock(&xmutex);
-    if (this.head == NULL) {
-        this.head = qFree(Alloc(this.max));
-        Assert(this.head != NULL);
-    }
-    
-    if (this.offset + size + 10 >= this.max) {
-        Log("Rewind: [ %.3fkB / %.3fkB ]", BinToKb(this.offset), BinToKb(this.max));
-        this.offset = 0;
-    }
-    
-    ret = &this.head[this.offset];
-    this.offset += size + 1;
-    pthread_mutex_unlock(&xmutex);
-    
-    return memset(ret, 0, size + 1);
-}
-
-char* x_strdup(const char* str) {
-    return x_memdup(str, strlen(str) + 1);
-}
-
-char* x_strndup(const char* s, Size n) {
-    if (!n || !s) return NULL;
-    Size csz = strnlen(s, n);
-    char* new = x_alloc(n + 1);
-    char* res = memcpy (new, s, csz);
-    
-    return res;
-}
-
-char* x_memdup(const char* data, Size size) {
-    if (!data || !size)
-        return NULL;
-    
-    return memcpy(x_alloc(size), data, size);
-}
-
-char* x_fmt(const char* fmt, ...) {
-    char buf[4096];
-    s32 len;
-    va_list va;
-    
-    va_start(va, fmt);
-    Assert((len = vsnprintf(buf, 4096, fmt, va)) < 4096);
-    va_end(va);
-    
-    return x_memdup(buf, len + 1);
-}
-
-char* x_rep(const char* str, const char* a, const char* b) {
-    char* r = x_alloc(strlen(str) * 4 + strlen(b) * 8);
-    
-    strcpy(r, str);
-    StrRep(r, a, b);
-    
-    return r;
-}
-
-char* x_line(const char* str, s32 line) {
-    if (!(str = Line(str, line))) return NULL;
-    
-    return x_strndup(str, LineLen(str));
-}
-
-char* x_word(const char* str, s32 word) {
-    if (!(str = Word(str, word))) return NULL;
-    
-    return x_strndup(str, WordLen(str));
-}
-
-static void SlashAndPoint(const char* src, s32* slash, s32* point) {
-    s32 strSize = strlen(src);
-    
-    *slash = 0;
-    *point = 0;
-    
-    for (s32 i = strSize; i > 0; i--) {
-        if (*point == 0 && src[i] == '.') {
-            *point = i;
-        }
-        if (src[i] == '/' || src[i] == '\\') {
-            *slash = i;
-            break;
-        }
-    }
-}
-
-char* x_path(const char* src) {
-    char* buffer;
-    s32 point;
-    s32 slash;
-    
-    if (src == NULL)
-        return NULL;
-    
-    SlashAndPoint(src, &slash, &point);
-    
-    if (slash == 0)
-        slash = -1;
-    
-    buffer = x_alloc(slash + 1 + 1);
-    memcpy(buffer, src, slash + 1);
-    buffer[slash + 1] = '\0';
-    
-    return buffer;
-}
-
-char* x_pathslot(const char* src, s32 num) {
-    const char* slot = src;
-    
-    if (src == NULL)
-        return NULL;
-    
-    if (num < 0)
-        num = PathNum(src) - 1;
-    
-    for (; num; num--) {
-        slot = strchr(slot, '/');
-        if (slot) slot++;
-    }
-    if (!slot) return NULL;
-    
-    const s32 s = strcspn(slot, "/");
-    char* r = x_strndup(slot, s ? s + 1 : 0);
-    Log("[%s]", r);
-    return r;
-}
-
-char* x_basename(const char* src) {
-    char* ls = StrChrAcpt(src, "\\/");
-    
-    if (!ls++)
-        ls = (char*)src;
-    
-    return x_strndup(ls, strcspn(ls, "."));
-}
-
-char* x_filename(const char* src) {
-    char* ls = StrChrAcpt(src, "\\/");
-    
-    if (!ls++)
-        ls = (char*)src;
-    
-    return x_strdup(ls);
-}
-
-const char sDefCharSet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
-char* x_randstr(Size size, const char* charset) {
-    const char* set = charset ? charset : sDefCharSet;
-    const s32 setz = (charset ? strlen(charset) : sizeof(sDefCharSet)) - 1;
-    char* str = x_alloc(size);
-    
-    if (size) {
-        --size;
-        for (size_t n = 0; n < size; n++) {
-            int key = rand() % setz;
-            str[n] = set[key];
-        }
-        str[size] = '\0';
-    }
-    return str;
-}
-
-char* x_strunq(const char* str) {
-    char* new = x_strdup(str);
-    
-    StrRep(new, "\"", "");
-    StrRep(new, "'", "");
-    
-    return new;
-}
-
-char* basename(const char* src) {
-    char* ls = StrChrAcpt(src, "\\/");
-    
-    if (!ls++)
-        ls = (char*)src;
-    
-    return strndup(ls, strcspn(ls, "."));
-}
-
-char* filename(const char* src) {
-    char* ls = StrChrAcpt(src, "\\/");
-    
-    if (!ls++)
-        ls = (char*)src;
-    
-    return strdup(ls);
-}
-
-static char* x_ifyize(const char* str, int (*tocase)(int)) {
-    char* new = x_alloc(strlen(str) * 8);
-    u32 w = 0;
-    const u32 len = strlen(str);
-    
-    enum {
-        NONE = 0,
-        IS_LOWER,
-        IS_UPPER,
-        NONALNUM,
-    } prev = NONE, this = NONE;
-    
-    for (s32 i = 0; i < len; i++) {
-        const char chr = str[i];
-        
-        if (isalnum(chr)) {
-            
-            if (isupper(chr))
-                this = IS_UPPER;
-            else
-                this = IS_LOWER;
-            
-            if (this == IS_UPPER && prev == IS_LOWER)
-                new[w++] = '_';
-            else if (prev == NONALNUM)
-                new[w++] = '_';
-            new[w++] = tocase(chr);
-            
-        } else
-            this = NONALNUM;
-        
-        prev = this;
-    }
-    
-    return new;
-}
-
-char* x_enumify(const char* str) {
-    return x_ifyize(str, toupper);
-}
-
-char* x_canitize(const char* str) {
-    return x_ifyize(str, tolower);
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # TIME                                #
-// # # # # # # # # # # # # # # # # # # # #
-
-thread_local static struct timeval sTimeStart[255];
-
-void Time_Start(u32 slot) {
-    gettimeofday(&sTimeStart[slot], NULL);
-}
-
-f32 Time_Get(u32 slot) {
-    struct timeval sTimeStop;
-    
-    gettimeofday(&sTimeStop, NULL);
-    
-    return (sTimeStop.tv_sec - sTimeStart[slot].tv_sec) + (f32)(sTimeStop.tv_usec - sTimeStart[slot].tv_usec) / 1000000;
-}
-
-typedef struct {
-    struct timeval t;
-    f32 ring[20];
-    s8  k;
-} ProfilerSlot;
-
-struct {
-    ProfilerSlot s[255];
-} gProfilerCtx;
-
-void Profiler_I(u8 s) {
-    ProfilerSlot* p = &gProfilerCtx.s[s];
-    
-    gettimeofday(&p->t, 0);
-}
-
-void Profiler_O(u8 s) {
-    struct timeval t;
-    ProfilerSlot* p = &gProfilerCtx.s[s];
-    
-    gettimeofday(&t, 0);
-    
-    p->ring[p->k] = t.tv_sec - p->t.tv_sec + (f32)(t.tv_usec - p->t.tv_usec) * 0.000001f;
-}
-
-f32 Profiler_Time(u8 s) {
-    ProfilerSlot* p = &gProfilerCtx.s[s];
-    f32 sec = 0.0f;
-    
-    for (s32 i = 0; i < 20; i++)
-        sec += p->ring[i];
-    sec /= 20;
-    p->k++;
-    if (p->k >= 20)
-        p->k = 0;
-    
-    return sec;
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # SYS                                 #
-// # # # # # # # # # # # # # # # # # # # #
-
-thread_local struct {
-    bool makeDir;
-    char path[261];
-} sFileSys;
-
-void FileSys_MakePath(bool flag) {
-    sFileSys.makeDir = flag;
-}
-
-void FileSys_Path(const char* fmt, ...) {
-    va_list va;
-    
-    va_start(va, fmt);
-    vsnprintf(sFileSys.path, 261, fmt, va);
-    va_end(va);
-    
-    Log("Path [%s]", sFileSys.path);
-    
-    if (sFileSys.makeDir)
-        Sys_MakeDir(sFileSys.path);
-}
-
-char* FileSys_File(const char* str, ...) {
-    char buffer[261];
-    char* ret;
-    va_list va;
-    
-    va_start(va, str);
-    vsnprintf(buffer, 261, str, va);
-    va_end(va);
-    
-    Log("%s", str);
-    
-    if (buffer[0] != '/' && buffer[0] != '\\')
-        ret = x_fmt("%s%s", sFileSys.path, buffer);
-    else
-        ret = x_strdup(buffer + 1);
-    
-    return ret;
-}
-
-char* FileSys_FindFile(const char* str) {
-    char* file = NULL;
-    Time stat = 0;
-    ItemList list = ItemList_Initialize();
-    
-    if (*str == '*') str++;
-    
-    Log("Find: [%s] in [%s]", str, sFileSys.path);
-    
-    ItemList_List(&list, sFileSys.path, 0, LIST_FILES | LIST_NO_DOT);
-    
-    for (s32 i = 0; i < list.num; i++) {
-        if (StrEndCase(list.item[i], str)) {
-            Time s = Sys_Stat(list.item[i]);
-            
-            if (s > stat) {
-                file = list.item[i];
-                stat = s;
-            }
-        }
-    }
-    
-    if (file) {
-        file = x_strdup(file);
-        Log("Found: %s", file);
-    }
-    
-    ItemList_Free(&list);
-    
-    return file;
-}
-
-#undef BUF_SIZE
-
-// # # # # # # # # # # # # # # # # # # # #
-// # SYS                                 #
-// # # # # # # # # # # # # # # # # # # # #
-
-static s32 sSysIgnore;
-static s32 sSysReturn;
-
-bool Sys_IsDir(const char* path) {
-    struct stat st = { 0 };
-    
-    stat(path, &st);
-    if (S_ISDIR(st.st_mode))
-        return true;
-    
-    if (StrEnd(path, "/")) {
-        char* tmp = x_strdup(path);
-        StrEnd(tmp, "/")[0] = '\0';
-        
-        stat(tmp, &st);
-        
-        if (S_ISDIR(st.st_mode))
-            return true;
-    }
-    
-    return false;
-}
-
-Time Sys_Stat(const char* item) {
-    struct stat st = { 0 };
-    Time t = 0;
-    s32 free = 0;
-    
-    if (item == NULL)
-        return 0;
-    
-    if (StrEnd(item, "/") || StrEnd(item, "\\")) {
-        free = 1;
-        item = strdup(item);
-        ((char*)item)[strlen(item) - 1] = 0;
-    }
-    
-    if (stat(item, &st) == -1) {
-        if (free) Free(item);
-        
-        return 0;
-    }
-    
-    // No access time
-    // t = Max(st.st_atime, t);
-    t = Max(st.st_mtime, t);
-    t = Max(st.st_ctime, t);
-    
-    if (free) Free(item);
-    
-    return t;
-}
-
-Time Sys_StatF(const char* item, StatFlag flag) {
-    struct stat st = { 0 };
-    Time t = 0;
-    
-    if (item == NULL)
-        return 0;
-    
-    if (stat(item, &st) == -1)
-        return 0;
-    
-    if (flag & STAT_ACCS)
-        t = Max(st.st_atime, t);
-    
-    if (flag & STAT_MODF)
-        t = Max(st.st_mtime, t);
-    
-    if (flag & STAT_CREA)
-        t = Max(st.st_ctime, t);
-    
-    return t;
-}
-
-const char* Sys_ThisApp(void) {
-    static char buf[512];
-    
-#ifdef _WIN32
-    GetModuleFileName(NULL, buf, 512);
-#else
-    (void)readlink("/proc/self/exe", buf, 512);
-#endif
-    
-    return buf;
-}
-
-const char* Sys_ThisAppData(void) {
-    const char* app = x_basename(Sys_ThisApp());
-    static char buf[512];
-    
-    snprintf(buf, 512, "%s/%s/", Sys_GetEnv(ENV_APPDATA), app);
-    Sys_MakeDir("%s", buf);
-    
-    return buf;
-}
-
-Time Sys_Time(void) {
-    Time tme;
-    
-    time(&tme);
-    
-    return tme;
-}
-
-void Sys_Sleep(f64 sec) {
-    struct timespec ts = { 0 };
-    
-    if (sec <= 0)
-        return;
-    
-    ts.tv_sec = floor(sec);
-    ts.tv_nsec = (sec - floor(sec)) * 1000000000;
-    
-    nanosleep(&ts, NULL);
-}
-
-static void __recursive_mkdir(const char* dir) {
-    char tmp[256];
-    char* p = NULL;
-    Size len;
-    
-    snprintf(tmp, sizeof(tmp), "%s", dir);
-    len = strlen(tmp);
-    if (tmp[len - 1] == '/')
-        tmp[len - 1] = 0;
-    for (p = tmp + 1; *p; p++)
-        if (*p == '/') {
-            *p = 0;
-            if (!Sys_Stat(tmp))
-                mkdir(
-                    tmp
-#ifndef _WIN32
-                    ,
-                    S_IRWXU
-#endif
-                );
-            *p = '/';
-        }
-    if (!Sys_Stat(tmp))
-        mkdir(
-            tmp
-#ifndef _WIN32
-            ,
-            S_IRWXU
-#endif
-        );
-}
-
-void __MakeDir(const char* buffer) {
-    if (Sys_Stat(buffer))
-        return;
-    
-    __recursive_mkdir(buffer);
-    if (!Sys_Stat(buffer))
-        Log("mkdir error: [%s]", buffer);
-}
-
-void Sys_MakeDir(const char* dir, ...) {
-    char buffer[261];
-    va_list args;
-    
-    va_start(args, dir);
-    vsnprintf(buffer, 261, dir, args);
-    va_end(args);
-    
-    const s32 m = strlen(buffer);
-    
-#ifdef _WIN32
-    s32 i = 0;
-    if (PathIsAbs(buffer))
-        i = 3;
-    
-    for (; i < m; i++) {
-        switch (buffer[i]) {
-            case ':':
-            case '*':
-            case '?':
-            case '"':
-            case '<':
-            case '>':
-            case '|':
-                printf_error("MakeDir: Can't make folder with illegal character! '%s'", buffer);
-                break;
-            default:
-                break;
-        }
-    }
-#endif
-    
-    if (!Sys_IsDir(dir)) {
-        for (s32 i = m - 1; i >= 0; i--) {
-            if (buffer[i] == '/' || buffer[i] == '\\')
-                break;
-            buffer[i] = '\0';
-        }
-    }
-    
-    __MakeDir(buffer);
-}
-
-const char* Sys_WorkDir(void) {
-    static char buf[512];
-    
-    if (getcwd(buf, sizeof(buf)) == NULL)
-        printf_error("Could not get Sys_WorkDir");
-    
-    const u32 m = strlen(buf);
-    for (s32 i = 0; i < m; i++) {
-        if (buf[i] == '\\')
-            buf[i] = '/';
-    }
-    
-    strcat(buf, "/");
-    
-    return buf;
-}
-
-char* sAppDir;
-
-const char* Sys_AppDir(void) {
-    if (!sAppDir) {
-        sAppDir = qFree(strndup(x_path(Sys_ThisApp()), 512));
-        StrRep(sAppDir, "\\", "/");
-        
-        if (!StrEnd(sAppDir, "/"))
-            strcat(sAppDir, "/");
-    }
-    
-    return sAppDir;
-}
-
-s32 Sys_Rename(const char* input, const char* output) {
-    if (Sys_Stat(output))
-        Sys_Delete(output);
-    
-    return rename(input, output);
-}
-
-static s32 __rm_func(const char* item, const struct stat* bug, s32 type, struct FTW* ftw) {
-    if (Sys_Delete(item))
-        printf_error_align("Delete", "%s", item);
-    
-    return 0;
-}
-
-s32 Sys_Delete(const char* item) {
-    if (Sys_IsDir(item))
-        return rmdir(item);
-    else
-        return remove(item);
-}
-
-s32 Sys_Delete_Recursive(const char* item) {
-    if (!Sys_IsDir(item))
-        return 1;
-    if (!Sys_Stat(item))
-        return 0;
-    if (nftw(item, __rm_func, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
-        printf_error("nftw error: %s %s", item, __FUNCTION__);
-    
-    return 0;
-}
-
-void Sys_SetWorkDir(const char* txt) {
-    if (PathIsRel(txt))
-        txt = PathAbs(txt);
-    
-    chdir(txt);
-}
-
-void SysExe_IgnoreError() {
-    sSysIgnore = true;
-}
-
-s32 SysExe_GetError() {
-    return sSysReturn;
-}
-
-static const char* SysExe_ExecString(const char* str) {
-#ifdef _WIN32
-    char* n = x_strdup(str);
-    char* e = StrStr(n, ".exe");
-    
-    Assert(e != NULL);
-    for (; (uptr)e >= (uptr)n; e--)
-        if (*e == '/') *e = '\\';
-    
-    return n;
-#endif
-    return str;
-}
-
-s32 SysExe(const char* cmd) {
-    s32 ret;
-    
-    ret = system(SysExe_ExecString(cmd));
-    
-    if (ret != 0)
-        Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExe(" PRNT_REDD "%s" PRNT_GRAY ");", ret, cmd);
-    
-    return ret;
-}
-
-void SysExeD(const char* cmd) {
-#ifdef _WIN32
-    SysExe(x_fmt("start %s", SysExe_ExecString(cmd)));
-#else
-    SysExe(x_fmt("nohup %s", cmd));
-#endif
-}
-
-char* SysExeO(const char* cmd) {
-    char* sExeBuffer;
-    char result[1025];
-    FILE* file = NULL;
-    u32 size = 0;
-    
-    if ((file = popen(SysExe_ExecString(cmd), "r")) == NULL) {
-        Log(PRNT_REDD "SysExeO(%s);", cmd);
-        Log("popen failed!");
-        
-        return NULL;
-    }
-    
-    sExeBuffer = Alloc(MbToBin(4));
-    Assert(sExeBuffer != NULL);
-    sExeBuffer[0] = '\0';
-    
-    while (fgets(result, 1024, file)) {
-        size += strlen(result);
-        Assert (size < MbToBin(4));
-        strcat(sExeBuffer, result);
-    }
-    
-    if ((sSysReturn = pclose(file)) != 0) {
-        if (sSysIgnore == 0) {
-            printf("%s\n", sExeBuffer);
-            Log(PRNT_REDD "[%d] " PRNT_GRAY "SysExeO(" PRNT_REDD "%s" PRNT_GRAY ");", sSysReturn, cmd);
-            printf_error("SysExeO [%s]", SysExe_ExecString(cmd));
-        }
-    }
-    
-    return sExeBuffer;
-}
-
-s32 SysExeC(const char* cmd, s32 (*callback)(void*, const char*), void* arg) {
-    char* s;
-    FILE* file;
-    
-    if ((file = popen(SysExe_ExecString(cmd), "r")) == NULL) {
-        Log(PRNT_REDD "SysExeO(%s);", cmd);
-        Log("popen failed!");
-        
-        return -1;
-    }
-    
-    s = Alloc(1025);
-    while (fgets(s, 1024, file))
-        if (callback)
-            if (callback(arg, s))
-                break;
-    Free(s);
-    
-    return pclose(file);
-}
-
-void Sys_TerminalSize(s32* r) {
-    s32 x = 0;
-    s32 y = 0;
-    
-#ifdef _WIN32
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    
-    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-    x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-    y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
-#else
-#ifndef __clang__
-#include <sys/ioctl.h>
-    struct winsize w;
-    
-    ioctl(0, TIOCGWINSZ, &w);
-    
-    x = w.ws_col;
-    y = w.ws_row;
-#endif // __clang__
-#endif // _WIN32
-    
-    r[0] = x;
-    r[1] = y;
-}
-
-void Sys_TerminalCursorPos(s32* r) {
-    s32 x = 0;
-    s32 y = 0;
-    
-#ifdef _WIN32
-    CONSOLE_SCREEN_BUFFER_INFO cbsi;
-    
-    Assert (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cbsi));
-    
-    x = cbsi.dwCursorPosition.X;
-    y = cbsi.dwCursorPosition.Y;
-#else
-#endif // _WIN32
-    
-    r[0] = x;
-    r[1] = y;
-}
-
-s32 Sys_Touch(const char* file) {
-    if (!Sys_Stat(file)) {
-        FILE* f = fopen(file, "w");
-        Assert(f != NULL);
-        fclose(f);
-        
-        return 0;
-    }
-    
-#include <utime.h>
-    struct stat st;
-    struct utimbuf nTime;
-    
-    stat(file, &st);
-    nTime.actime = st.st_atime;
-    nTime.modtime = time(NULL);
-    utime(file, &nTime);
-    
-    return 0;
-}
-
-s32 Sys_Copy(const char* src, const char* dest) {
-    if (Sys_IsDir(src)) {
-        ItemList list = ItemList_Initialize();
-        
-        ItemList_List(&list, src, -1, LIST_FILES);
-        
-        forlist(i, list) {
-            char* dfile = x_fmt(
-                "%s%s%s",
-                dest,
-                StrEnd(dest, "/") ? "" : "/",
-                list.item[i] + strlen(src)
-            );
-            
-            Log("Copy: %s -> %s", list.item[i], dfile);
-            
-            Sys_MakeDir(x_path(dfile));
-            if (Sys_Copy(list.item[i], dfile))
-                return 1;
-        }
-        
-        ItemList_Free(&list);
-    } else {
-        MemFile a = MemFile_Initialize();
-        
-        a.param.throwError = false;
-        
-        if (MemFile_LoadFile(&a, src))
-            return -1;
-        if (MemFile_SaveFile(&a, dest))
-            return 1;
-        MemFile_Free(&a);
-    }
-    
-    return 0;
-}
-
-Date Sys_Date(Time time) {
-    Date date = { 0 };
-    
-#ifndef __clang__
-    struct tm* tistr = localtime(&time);
-    
-    date.year = tistr->tm_year + 1900;
-    date.month = tistr->tm_mon + 1;
-    date.day = tistr->tm_mday;
-    date.hour = tistr->tm_hour;
-    date.minute = tistr->tm_min;
-    date.second = tistr->tm_sec;
-#endif
-    
-    return date;
-}
-
-s32 Sys_GetCoreCount(void) {
-    {
-#ifndef __clang__
-#ifdef _WIN32
-        #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-        s64 nprocs = -1;
-        s64 nprocs_max = -1;
-        
-#ifdef _WIN32
-#ifndef _SC_NPROCESSORS_ONLN
-        SYSTEM_INFO info;
-        GetSystemInfo(&info);
-        #define sysconf(a) info.dwNumberOfProcessors
-        #define _SC_NPROCESSORS_ONLN
-#endif
-#endif
-#ifdef _SC_NPROCESSORS_ONLN
-        nprocs = sysconf(_SC_NPROCESSORS_ONLN);
-        if (nprocs < 1) {
-            return 0;
-        }
-        nprocs_max = sysconf(_SC_NPROCESSORS_CONF);
-        if (nprocs_max < 1) {
-            return 0;
-        }
-        
-        return nprocs;
-#else
-        
-#endif
-#endif
-    }
-    
-    return 0;
-}
-
-Size Sys_GetFileSize(const char* file) {
-    FILE* f = fopen(file, "r");
-    u32 result = -1;
-    
-    if (!f) return result;
-    
-    fseek(f, 0, SEEK_END);
-    result = ftell(f);
-    fclose(f);
-    
-    return result;
-}
-
-const char* Sys_GetEnv(SysEnv env) {
-    switch (env) {
-#ifdef _WIN32
-        case ENV_USERNAME:
-            return x_strdup(getenv("USERNAME"));
-        case ENV_APPDATA:
-            return StrSlash(x_strdup(getenv("APPDATA")));
-        case ENV_HOME:
-            return StrSlash(x_strdup(getenv("USERPROFILE")));
-        case ENV_TEMP:
-            return StrSlash(x_strdup(getenv("TMP")));
-            
-#else // UNIX
-        case ENV_USERNAME:
-            return x_strdup(getenv("USER"));
-        case ENV_APPDATA:
-            return x_strdup("~/.local");
-        case ENV_HOME:
-            return x_strdup(getenv("HOME"));
-        case ENV_TEMP:
-            return x_strdup("/tmp");
-            
-#endif
-    }
-    
-    return NULL;
-}
-
-const char* Sys_TmpFile(const char* path) {
-    u64 l;
-    
-redo:
-    l = RandF() * (f64)__UINT64_MAX__;
-    
-    Sys_MakeDir("%s/ext_lib/%s%s",
-        Sys_GetEnv(ENV_TEMP),
-        path ? path : "",
-        path ? (StrEnd(path, "/") ? "" : "/") : "");
-    
-    const char* mk = x_fmt("%s/ext_lib/%s%s%02X%02X%02X%02X-%016X.tmp",
-            Sys_GetEnv(ENV_TEMP),
-            path ? path : "",
-            StrEnd(path, "/") ? "" : "/",
-            Sys_Date(Sys_Time()).month,
-            Sys_Date(Sys_Time()).day,
-            Sys_Date(Sys_Time()).minute,
-            Sys_Date(Sys_Time()).second,
-            l);
-    
-    if (Sys_Stat(mk))
-        goto redo;
-    
-    return mk;
-}
-
-#ifdef EXT_LIB_SYS_AUDIO
-
-void Sys_Beep(s32 freq, s32 time) {
-    Beep(freq, time);
-}
-
-void Sys_Sound(const char* type) {
-#ifdef _WIN32
-    if (!stricmp(type, "error"))
-        PlaySound("SystemHand", NULL, SND_ASYNC);
-    if (!stricmp(type, "warning"))
-        PlaySound("SystemExclamation", NULL, SND_ASYNC);
-#endif
-}
-
-static volatile bool sKill;
-static volatile bool sRunning;
-
-static s32 FatalJingle(void* this) {
-    struct {
-        s32 freq;
-        s32 time;
-    } jingle[] = {
-        { 349, 125 }, { 392, 125 }, { 466, 125 }, { 392, 125  },
-        { 587, 375 }, { 587, 375 }, { 523, 750 }, { 349, 125  },
-        { 392, 125 }, { 466, 125 }, { 392, 125 }, { 523, 375  },
-        { 523, 375 }, { 466, 500 }, { 440, 125 }, { 392, 250  },
-        { 349, 125 }, { 392, 125 }, { 466, 125 }, { 392, 125  },
-        { 466, 500 }, { 523, 250 }, { 440, 375 }, { 392, 125  },
-        { 349, 500 }, { 349, 250 }, { 523, 500 }, { 466, 1000 },
-        { 349, 125 }, { 392, 125 }, { 466, 125 }, { 392, 125  },
-        { 587, 375 }, { 587, 375 }, { 523, 750 }, { 349, 125  },
-        { 392, 125 }, { 466, 125 }, { 392, 125 }, { 698, 500  },
-        { 440, 250 }, { 466, 500 }, { 440, 125 }, { 392, 250  },
-        { 349, 125 }, { 392, 125 }, { 466, 125 }, { 392, 125  },
-        { 466, 500 }, { 523, 250 }, { 440, 375 }, { 392, 125  },
-        { 349, 500 }, { 349, 250 }, { 523, 500 }, { 466, 1000 }
-    };
-    
-    foreach(i, jingle) {
-        Sys_Beep(jingle[i].freq, jingle[i].time);
-        if (sKill) {
-            sRunning = false;
-            return 0;
-        }
-    }
-    
-    sRunning = false;
-    return 0;
-}
-
-void Sys_FatalJingle(void) {
-    static Thread t;
-    
-    while (sRunning) {
-        sKill = true;
-    }
-    sKill = false;
-    
-    sRunning = true;
-    Thread_Create(&t, FatalJingle, NULL);
-}
-
-#endif
-
-// # # # # # # # # # # # # # # # # # # # #
-// # TERMINAL                            #
-// # # # # # # # # # # # # # # # # # # # #
-
-bool Terminal_YesOrNo(void) {
-    char line[16] = {};
-    u32 clear = 0;
-    bool ret = true;
-    
-    while (stricmp(line, "y") && stricmp(line, "n")) {
-        if (gKillFlag)
-            return -1;
-        if (clear++)
-            Terminal_ClearLines(2);
-        
-        printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
-        fgets(line, 16, stdin);
-        
-        while (StrEnd(line, "\n"))
-            StrEnd(line, "\n")[0] = '\0';
-    }
-    
-    if (!stricmp(line, "n"))
-        ret = false;
-    
-    Terminal_ClearLines(2);
-    
-    return ret;
-}
-
-void Terminal_ClearScreen(void) {
-    printf("\033[2J");
-    fflush(stdout);
-}
-
-void Terminal_ClearLines(u32 i) {
-    printf("\x1b[2K");
-    for (s32 j = 1; j < i; j++) {
-        Terminal_Move_PrevLine();
-        printf("\x1b[2K");
-    }
-    fflush(stdout);
-}
-
-void Terminal_Move_PrevLine(void) {
-    printf("\x1b[1F");
-    fflush(stdout);
-}
-
-const char* Terminal_GetStr(void) {
-    static char line[512] = { 0 };
-    
-    printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_RSET);
-    fgets(line, 511, stdin);
-    
-    while (StrEnd(line, "\n"))
-        StrEnd(line, "\n")[0] = '\0';
-    
-    Log("[%s]", line);
-    
-    return line;
-}
-
-char Terminal_GetChar() {
-    char line[16] = {};
-    
-    printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
-    fgets(line, 16, stdin);
-    
-    Terminal_ClearLines(2);
-    
-    return 0;
-}
-
-void Terminal_Hide(void) {
-#ifdef _WIN32
-    HWND window = GetConsoleWindow();
-    ShowWindow(window, SW_HIDE);
-    
-#else
-#endif
-}
-
-void Terminal_Show(void) {
-#ifdef _WIN32
-    HWND window = GetConsoleWindow();
-    ShowWindow(window, SW_SHOW);
-#else
-#endif
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # VARIOUS                             #
-// # # # # # # # # # # # # # # # # # # # #
-
-f32 RandF() {
-    f64 r = rand() / (f32)__INT16_MAX__;
-    
-    return fmod(r, 1.0f);
-}
-
-void* MemMem(const void* haystack, Size haystacklen, const void* needle, Size needlelen) {
-    char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
-    
-    if (haystacklen < needlelen || !haystack || !needle || !haystacklen || !needlelen)
-        return NULL;
-    
-    while ((haystacklen - (p - bf)) >= needlelen) {
-        if (NULL != (p = memchr(p, (s32)(*pt), haystacklen - (p - bf)))) {
-            if (!memcmp(p, needle, needlelen))
-                return p;
-            ++p;
-        } else
-            break;
-    }
-    
-    return NULL;
-}
-
-char* StrStr(const char* haystack, const char* needle) {
-    if (!haystack || !needle)
-        return NULL;
-    
-    return MemMem(haystack, strlen(haystack), needle, strlen(needle));
-}
-
-char* StrStrWhole(const char* haystack, const char* needle) {
-    char* p = StrStr(haystack, needle);
-    
-    while (p) {
-        if (!isgraph(p[-1]) && !isgraph(p[strlen(needle)]))
-            return p;
-        
-        p = StrStr(p + 1, needle);
-    }
-    
-    return NULL;
-}
-
-char* StrStrCase(const char* haystack, const char* needle) {
-    char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
-    
-    if (!haystack || !needle)
-        return NULL;
-    
-    u32 haystacklen = strlen(haystack);
-    u32 needlelen = strlen(needle);
-    
-    while (needlelen <= (haystacklen - (p - bf))) {
-        char* a, * b;
-        
-        a = memchr(p, tolower((s32)(*pt)), haystacklen - (p - bf));
-        b = memchr(p, toupper((s32)(*pt)), haystacklen - (p - bf));
-        
-        if (a == NULL)
-            p = b;
-        else if (b == NULL)
-            p = a;
-        else
-            p = Min(a, b);
-        
-        if (p) {
-            if (0 == strnicmp(p, needle, needlelen))
-                return p;
-            ++p;
-        } else
-            break;
-    }
-    
-    return NULL;
-}
-
-void* MemStrCase(const char* haystack, u32 haystacklen, const char* needle) {
-    char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
-    
-    if (!haystack || !needle)
-        return NULL;
-    
-    u32 needlelen = strlen(needle);
-    
-    while (needlelen <= (haystacklen - (p - bf))) {
-        char* a, * b;
-        
-        a = memchr(p, tolower((s32)(*pt)), haystacklen - (p - bf));
-        b = memchr(p, toupper((s32)(*pt)), haystacklen - (p - bf));
-        
-        if (a == NULL)
-            p = b;
-        else if (b == NULL)
-            p = a;
-        else
-            p = Min(a, b);
-        
-        if (p) {
-            if (0 == strnicmp(p, needle, needlelen))
-                return p;
-            ++p;
-        } else
-            break;
-    }
-    
-    return NULL;
-}
-
-void* MemMemAlign(u32 val, const void* haystack, Size haystacklen, const void* needle, Size needlelen) {
-    char* s = (char*)needle;
-    char* bf = (char*)haystack;
-    char* p = (char*)haystack;
-    
-    if (haystacklen < needlelen || !haystack || !needle || !haystacklen || !needlelen || !val)
-        return NULL;
-    
-    while (haystacklen - (p - bf) >= needlelen) {
-        if (p[0] == s[0] && !memcmp(p, needle, needlelen))
-            return p;
-        p += val;
-    }
-    
-    return NULL;
-}
-
-char* StrEnd(const char* src, const char* ext) {
-    char* fP;
-    const s32 xlen = strlen(ext);
-    const s32 slen = strlen(src);
-    
-    if (slen < xlen) return NULL;
-    fP = (char*)(src + slen - xlen);
-    if (!strcmp(fP, ext)) return fP;
-    
-    return NULL;
-}
-
-char* StrEndCase(const char* src, const char* ext) {
-    char* fP;
-    const s32 xlen = strlen(ext);
-    const s32 slen = strlen(src);
-    
-    if (slen < xlen) return NULL;
-    fP = (char*)(src + slen - xlen);
-    if (!stricmp(fP, ext)) return fP;
-    
-    return NULL;
-}
-
-char* StrStart(const char* src, const char* ext) {
-    Size extlen = strlen(ext);
-    
-    if (strnlen(src, extlen) < extlen)
-        return NULL;
-    
-    if (!strncmp(src, ext, extlen))
-        return (char*)src;
-    
-    return NULL;
-}
-
-char* StrStartCase(const char* src, const char* ext) {
-    if (!strnicmp(src, ext, strlen(ext)))
-        return (char*)src;
-    
-    return NULL;
-}
-
-void ByteSwap(void* src, s32 size) {
+void bswap(void* src, int size) {
     u32 buffer[64] = { 0 };
     u8* temp = (u8*)buffer;
     u8* srcp = src;
     
-    for (s32 i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++) {
         temp[size - i - 1] = srcp[i];
     }
     
-    for (s32 i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++) {
         srcp[i] = temp[i];
     }
 }
 
-void* Alloc(s32 size) {
+void* alloc(int size) {
     return malloc(size);
 }
 
-void* Calloc(s32 size) {
-    return calloc(2, size );
-}
-
-void* Realloc(const void* data, s32 size) {
-    return realloc((void*)data, size);
-}
-
-void* memdup(const void* src, Size size) {
-    if (src == NULL)
-        return NULL;
-    
-    return memcpy(Alloc(size), src, size);
-}
-
-char* Fmt(const char* fmt, ...) {
-    char s[8192];
-    s32 len;
-    va_list va;
-    
-    va_start(va, fmt);
-    Assert((len = vsprintf(s, fmt, va)) < 8192);
-    va_end(va);
-    
-    char* r = memdup(s, len + 1);
-    Assert(r != NULL);
-    
-    return r;
-}
-
-s32 ArgStr(const char* args[], const char* arg) {
-    
-    for (s32 i = 1; args[i] != NULL; i++) {
-        const char* this = args[i];
-        
-        if (this[0] != '-')
-            continue;
-        this += strspn(this, "-");
-        if (!strcmp(this, arg))
-            return i + 1;
-    }
-    
-    return 0;
-}
-
-char* StrChrAcpt(const char* str, char* c) {
-    char* v = (char*)str;
-    u32 an = strlen(c);
-    
-    if (!v) return NULL;
-    else v = strchr(str, '\0');
-    
-    while (--v >= str)
-        for (s32 i = 0; i < an; i++)
-            if (*v == c[i])
-                return v;
-    
-    return NULL;
-}
-
-char* LineHead(const char* str, const char* head) {
-    if (str == NULL) return NULL;
-    
-    for (s32 i = 0;; i--) {
-        if (str[i - 1] == '\n' || &str[i] == head)
-            return (char*)&str[i];
-    }
-}
-
-static char* revstrchr (register const char* s, int c) {
-    do {
-        if (*s == c) {
-            return (char*)s;
-        }
-    } while (*s--);
-    
-    return (0);
-}
-
-char* Line(const char* str, s32 line) {
-    const char* ln = str;
-    
-    if (!str)
-        return NULL;
-    
-    if (line) {
-        if (line > 0) {
-            while (line--) {
-                ln = strchr(ln, '\n');
-                
-                if (!ln++)
-                    return NULL;
-                
-                if (*ln == '\r')
-                    ln++;
-            }
-        } else {
-            while (line++) {
-                ln = revstrchr(ln, '\n');
-                
-                if (!ln--)
-                    return NULL;
-            }
-            
-            if (ln)
-                ln += 2;
-        }
-    }
-    
-    return (char*)ln;
-}
-
-char* Word(const char* str, s32 word) {
-    if (!str)
-        return NULL;
-    
-    while (!isgraph(*str)) str++;
-    while (word--) {
-        if (!(str = strpbrk(str, " \t\n\r"))) return NULL;
-        while (!isgraph(*str)) str++;
-    }
-    
-    return (char*)str;
-}
-
-Size LineLen(const char* str) {
-    return strcspn(str, "\n");
-}
-
-Size WordLen(const char* str) {
-    return strcspn(str, " \t\n\r");
-}
-
-char* FileExtension(const char* str) {
-    s32 slash;
-    s32 point;
-    
-    SlashAndPoint(str, &slash, &point);
-    
-    return (void*)&str[point];
-}
-
-void CaseToLow(char* s, s32 i) {
-    if (i <= 0)
-        i = strlen(s);
-    
-    for (s32 k = 0; k < i; k++) {
-        if (s[k] >= 'A' && s[k] <= 'Z') {
-            s[k] = s[k] + 32;
-        }
-    }
-}
-
-void CaseToUp(char* s, s32 i) {
-    if (i <= 0)
-        i = strlen(s);
-    
-    for (s32 k = 0; k < i; k++) {
-        if (s[k] >= 'a' && s[k] <= 'z') {
-            s[k] = s[k] - 32;
-        }
-    }
-}
-
-s32 LineNum(const char* str) {
-    s32 num = 1;
-    
-    while (*str != '\0') {
-        if (*str == '\n' || *str == '\r')
-            num++;
-        str++;
-    }
-    
-    return num;
-}
-
-s32 PathNum(const char* src) {
-    s32 dir = -1;
-    const u32 m = strlen(src);
-    
-    for (s32 i = 0; i < m; i++) {
-        if (src[i] == '/')
-            dir++;
-    }
-    
-    return dir + 1;
-}
-
-char* CopyLine(const char* str, s32 line) {
-    if (!(str = Line(str, line))) return NULL;
-    
-    return x_strndup(str, LineLen(str));
-}
-
-char* CopyWord(const char* str, s32 word) {
-    if (!(str = Word(str, word))) return NULL;
-    
-    return x_strndup(str, WordLen(str));
-}
-
-char* PathRel_From(const char* from, const char* item) {
-    if (from[0] != item[0])
-        return StrSlash(x_strdup(item));
-    
-    item = StrSlash(x_strunq(item));
-    char* work = StrSlash(x_strdup(from));
-    s32 lenCom = StrComLen(work, item);
-    s32 subCnt = 0;
-    char* sub = (char*)&work[lenCom];
-    char* fol = (char*)&item[lenCom];
-    char* buffer = x_alloc(strlen(work) + strlen(item));
-    
-    forstr(i, sub) {
-        if (sub[i] == '/' || sub[i] == '\\')
-            subCnt++;
-    }
-    
-    for (s32 i = 0; i < subCnt; i++)
-        strcat(buffer, "../");
-    
-    strcat(buffer, fol);
-    
-    return buffer;
-}
-
-char* PathAbs_From(const char* from, const char* item) {
-    item = StrSlash(x_strunq(item));
-    char* path = StrSlash(x_strdup(from));
-    char* t = StrStr(item, "../");
-    char* f = (char*)item;
-    s32 subCnt = 0;
-    
-    while (t) {
-        f = &f[strlen("../")];
-        subCnt++;
-        t = StrStr(t + 1, "../");
-    }
-    
-    for (s32 i = 0; i < subCnt; i++) {
-        path[strlen(path) - 1] = '\0';
-        path = x_path(path);
-    }
-    
-    return x_fmt("%s%s", path, f);
-}
-
-char* PathRel(const char* item) {
-    return PathRel_From(Sys_WorkDir(), item);
-}
-
-char* PathAbs(const char* item) {
-    return PathAbs_From(Sys_WorkDir(), item);
-}
-
-s32 PathIsAbs(const char* item) {
-    while (item[0] == '\'' || item[0] == '\"')
-        item++;
-    
-    if (isalpha(item[0]) && item[1] == ':' && (item[2] == '/' || item[2] == '\\')) {
-        
-        return 1;
-    }
-    if (item[0] == '/' || item[0] == '\\') {
-        
-        return 1;
-    }
-    
-    return 0;
-}
-
-s32 PathIsRel(const char* item) {
-    return !PathIsAbs(item);
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # COLOR                               #
-// # # # # # # # # # # # # # # # # # # # #
-
-static f32 hue2rgb(f32 p, f32 q, f32 t) {
-    if (t < 0.0) t += 1;
-    if (t > 1.0) t -= 1;
-    if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t;
-    if (t < 1.0 / 2.0) return q;
-    if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
-    
-    return p;
-}
-
-HSL8 Color_GetHSL(f32 r, f32 g, f32 b) {
-    HSL8 hsl;
-    HSL8* dest = &hsl;
-    f32 cmax, cmin, d;
-    
-    r /= 255;
-    g /= 255;
-    b /= 255;
-    
-    cmax = fmax(r, (fmax(g, b)));
-    cmin = fmin(r, (fmin(g, b)));
-    dest->l = (cmax + cmin) / 2;
-    d = cmax - cmin;
-    
-    if (cmax == cmin)
-        dest->h = dest->s = 0;
-    else {
-        dest->s = dest->l > 0.5 ? d / (2 - cmax - cmin) : d / (cmax + cmin);
-        
-        if (cmax == r) {
-            dest->h = (g - b) / d + (g < b ? 6 : 0);
-        } else if (cmax == g) {
-            dest->h = (b - r) / d + 2;
-        } else if (cmax == b) {
-            dest->h = (r - g) / d + 4;
-        }
-        dest->h /= 6.0;
-    }
-    
-    return hsl;
-}
-
-RGB8 Color_GetRGB8(f32 h, f32 s, f32 l) {
-    RGB8 rgb = { };
-    
-    if (s == 0) {
-        rgb.r = rgb.g = rgb.b = l * 255;
-    } else {
-        f32 q = l < 0.5f ? l * (1 + s) : l + s - l * s;
-        f32 p = 2.0f * l - q;
-        rgb.r = hue2rgb(p, q, h + 1.0f / 3.0f) * 255;
-        rgb.g = hue2rgb(p, q, h) * 255;
-        rgb.b = hue2rgb(p, q, h - 1.0f / 3.0f) * 255;
-    }
-    
-    return rgb;
-}
-
-RGBA8 Color_GetRGBA8(f32 h, f32 s, f32 l) {
-    RGBA8 rgb = { .a = 0xFF };
-    RGB8* d = (void*)&rgb;
-    
-    *d = Color_GetRGB8(h, s, l);
-    
-    return rgb;
-}
-
-void Color_ToHSL(HSL8* dest, RGB8* src) {
-    *dest = Color_GetHSL(UnfoldRGB(*src));
-}
-
-void Color_ToRGB(RGB8* dest, HSL8* src) {
-    RGBA8 c = Color_GetRGBA8(src->h, src->s, src->l);
-    
-    dest->r = c.r;
-    dest->g = c.g;
-    dest->b = c.b;
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # VALUE                               #
-// # # # # # # # # # # # # # # # # # # # #
-
-u32 Value_Hex(const char* string) {
-    return strtoul(string, NULL, 16);
-}
-
-s32 Value_Int(const char* string) {
-    if (strnlen(string, 3) >= 2 && !memcmp(string, "0x", 2)) {
-        return strtoul(string, NULL, 16);
-    } else {
-        return strtol(string, NULL, 10);
-    }
-}
-
-f32 Value_Float(const char* string) {
-    f32 fl;
-    void* str = NULL;
-    
-    if (StrStr(string, ",")) {
-        string = strdup(string);
-        str = (void*)string;
-        StrRep((void*)string, ",", ".");
-    }
-    
-    fl = strtod(string, NULL);
-    Free(str);
-    
-    return fl;
-}
-
-s32 Value_Bool(const char* string) {
-    if (string == NULL)
-        return -1;
-    
-    if (!stricmp(string, "true"))
-        return true;
-    else if (!stricmp(string, "false"))
-        return false;
-    
-    return -1;
-}
-
-s32 Value_ValidateHex(const char* str) {
-    s32 isOk = false;
-    
-    for (s32 i = 0;; i++) {
-        if (ispunct(str[i]) || str[i] == '\0')
-            break;
-        if (
-            (str[i] >= 'A' && str[i] <= 'F') ||
-            (str[i] >= 'a' && str[i] <= 'f') ||
-            (str[i] >= '0' && str[i] <= '9') ||
-            str[i] == 'x' || str[i] == 'X' ||
-            str[i] == ' ' || str[i] == '\t'
-        ) {
-            isOk = true;
-            continue;
-        }
-        
-        return false;
-    }
-    
-    return isOk;
-}
-
-s32 Value_ValidateInt(const char* str) {
-    s32 isOk = false;
-    
-    for (s32 i = 0;; i++) {
-        if (ispunct(str[i]) || str[i] == '\0')
-            break;
-        if (
-            (str[i] >= '0' && str[i] <= '9')
-        ) {
-            isOk = true;
-            continue;
-        }
-        
-        return false;
-    }
-    
-    return isOk;
-}
-
-s32 Value_ValidateFloat(const char* str) {
-    s32 isOk = false;
-    
-    for (s32 i = 0;; i++) {
-        if (ispunct(str[i]) || str[i] == '\0')
-            break;
-        if (
-            (str[i] >= '0' && str[i] <= '9') || str[i] == '.'
-        ) {
-            isOk = true;
-            continue;
-        }
-        
-        return false;
-    }
-    
-    return isOk;
-}
-
-ValueType Value_Type(const char* variable) {
-    ValueType type = {
-        .isFloat = true,
-        .isHex   = true,
-        .isDec   = true,
-        .isBool  = false,
-    };
-    
-    if (!strcmp(variable, "true") || !strcmp(variable, "false")) {
-        type = (ValueType) {
-            .isBool = true,
-        };
-        
-        return type;
-    }
-    
-    for (s32 i = 0; i < strlen(variable); i++) {
-        if (variable[i] <= ' ') {
-            type.isFloat = false;
-            type.isDec = false;
-            type.isHex = false;
-        }
-        
-        if (isalpha(variable[i])) {
-            type.isFloat = false;
-            type.isDec = false;
-        }
-        
-        if (variable[i] == '.')
-            type.isDec = false;
-        
-        switch (variable[i]) {
-            case 'a' ... 'f':
-            case 'A' ... 'F':
-            case '0' ... '9':
-            case 'x':
-                break;
-            default:
-                type.isHex = false;
-                break;
-        }
-    }
-    
-    if (type.isDec) {
-        type.isFloat = type.isHex = false;
-    }
-    
-    return type;
-}
-
-s32 Digits_Int(s32 i) {
-    s32 d = 0;
-    
-    for (; i; d++)
-        i *= 0.1f;
-    
-    return ClampMin(d, 1);
-}
-
-s32 Digits_Hex(s32 i) {
-    u32 d = 0;
-    
-    for (d = 7; d > 0 && !(i & (0xF << (d * 4)));)
-        d--;
-    
-    return ClampMin(d + 1, 1);
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # MUSIC                               #
-// # # # # # # # # # # # # # # # # # # # #
-
-static const char* sNoteName[12] = {
-    "C", "C#",
-    "D", "D#",
-    "E",
-    "F", "F#",
-    "G", "G#",
-    "A", "A#",
-    "B",
-};
-
-s32 Music_NoteIndex(const char* note) {
-    s32 id = 0;
-    u32 octave;
-    
-    foreach(i, sNoteName) {
-        if (sNoteName[i][1] == '#')
-            continue;
-        if (note[0] == sNoteName[i][0]) {
-            id = i;
-            
-            if (note[1] == '#')
-                id++;
-            
-            break;
-        }
-    }
-    
-    while (!isdigit(note[0]) && note[0] != '-') note++;
-    
-    octave = 12 * (Value_Int(note));
-    
-    return id + octave;
-}
-
-const char* Music_NoteWord(s32 note) {
-    f32 octave = (f32)note / 12;
-    
-    note %= 12;
-    
-    return x_fmt("%s%d", sNoteName[note], (s32)floorf(octave));
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # STRING                              #
-// # # # # # # # # # # # # # # # # # # # #
-
-// Insert
-void StrIns(char* point, const char* insert) {
-    s32 insLen = strlen(insert);
-    char* insEnd = point + insLen;
-    s32 remLen = strlen(point);
-    
-    memmove(insEnd, point, remLen + 1);
-    insEnd[remLen] = 0;
-    memcpy(point, insert, insLen);
-}
-
-// Insert
-void StrIns2(char* origin, const char* insert, s32 pos, s32 size) {
-    char* new = x_alloc(strlen(origin) + strlen(insert) + 2);
-    
-    strncpy(new, origin, pos);
-    strcat(new, insert);
-    strcat(new, &origin[pos]);
-    
-    strncpy(origin, new, size);
-}
-
-// Remove
-void StrRem(char* point, s32 amount) {
-    char* get = point + amount;
-    s32 len = strlen(get);
-    
-    if (len)
-        memcpy(point, get, strlen(get));
-    point[len] = 0;
-}
-
-// Replace
-s32 StrRep(char* src, const char* word, const char* replacement) {
-    u32 repLen = strlen(replacement);
-    u32 wordLen = strlen(word);
-    s32 diff = 0;
-    char* ptr;
-    
-    if ((uptr)word >= (uptr)src && (uptr)word < (uptr)src + strlen(src)) {
-        printf("[%s] [%s]", word, replacement);
-        printf_error("Replacing with self!");
-    }
-    
-    ptr = StrStr(src, word);
-    
-    while (ptr != NULL) {
-        u32 remLen = strlen(ptr + wordLen);
-        memmove(ptr + repLen, ptr + wordLen, remLen + 1);
-        memcpy(ptr, replacement, repLen);
-        ptr = StrStr(ptr + repLen, word);
-        diff = true;
-    }
-    
-    return diff;
-}
-
-s32 StrRepWhole(char* src, const char* word, const char* replacement) {
-    u32 repLen = strlen(replacement);
-    u32 wordLen = strlen(word);
-    s32 diff = 0;
-    char* ptr;
-    
-    if ((uptr)word >= (uptr)src && (uptr)word < (uptr)src + strlen(src)) {
-        printf("[%s] [%s]", word, replacement);
-        printf_error("Replacing with self!");
-    }
-    
-    ptr = StrStrWhole(src, word);
-    
-    while (ptr != NULL) {
-        u32 remLen = strlen(ptr + wordLen);
-        memmove(ptr + repLen, ptr + wordLen, remLen + 1);
-        memcpy(ptr, replacement, repLen);
-        ptr = StrStrWhole(ptr  + repLen, word);
-        diff = true;
-    }
-    
-    return diff;
-}
-
-char* StrSlash(char* t) {
-    StrRep(t, "\\", "/");
-    
-    return t;
-}
-
-char* StrStripIllegalChar(char* t) {
-    StrRep(t, "\\", "");
-    StrRep(t, "/", "");
-    StrRep(t, ":", "");
-    StrRep(t, "*", "");
-    StrRep(t, "?", "");
-    StrRep(t, "\"", "");
-    StrRep(t, "<", "");
-    StrRep(t, ">", "");
-    StrRep(t, "|", "");
-    
-    return t;
-}
-
-// Common length
-s32 StrComLen(const char* a, const char* b) {
-    s32 s = 0;
-    const u32 m = strlen(b);
-    
-    for (; s < m; s++) {
-        if (b[s] != a[s])
-            return s;
-    }
-    
-    return s;
-}
-
-char* String_GetSpacedArg(const char** args, s32 cur) {
-    char tempBuf[512];
-    s32 i = cur + 1;
-    
-    if (args[i] && args[i][0] != '-' && args[i][1] != '-') {
-        strcpy(tempBuf, args[cur]);
-        
-        while (args[i] && args[i][0] != '-' && args[i][1] != '-') {
-            strcat(tempBuf, " ");
-            strcat(tempBuf, args[i++]);
-        }
-        
-        return x_strdup(tempBuf);
-    }
-    
-    return x_strdup(args[cur]);
-}
-
-void String_SwapExtension(char* dest, const char* src, const char* ext) {
-    strcpy(dest, x_path(src));
-    strcat(dest, x_basename(src));
-    strcat(dest, ext);
-}
-
-char* StrUpper(char* str) {
-    forstr(i, str)
-    str[i] = toupper(str[i]);
-    
-    return str;
-}
-
-char* StrLower(char* str) {
-    forstr(i, str)
-    str[i] = tolower(str[i]);
-    
-    return str;
-}
-
-bool ChrPool(const char c, const char* pool) {
-    u32 m = strlen(pool);
-    
-    for (u32 i = 0; i < m; i++)
-        if (c == pool[i])
-            return true;
-    
-    return false;
-}
-
-bool StrPool(const char* s, const char* pool) {
-    if (!s) return false;
-    
-    do {
-        if (!ChrPool(*s, pool))
-            return false;
-    } while (*(++s) != '\0');
-    
-    return true;
-}
-
-static char* StrCatAlloc(const char** list, Size size, char* separator) {
-    char* s = Alloc(size + 1);
-    
-    s[0] = '\0';
-    
-    for (s32 i = 0; list[i] != NULL; i++) {
-        strcat(s, list[i]);
-        
-        if (list[i + 1])
-            strcat(s, separator);
-    }
-    
-    return s;
-}
-
-char* StrCatArg(const char** list, char separator) {
-    char sep[2] = { separator, '\0' };
-    u32 i = 0;
-    u32 ln = 0;
-    
-    for (; list[i] != NULL; i++) {
-        ln += strlen(list[i]);
-    }
-    ln += strlen(sep) * (i - 1);
-    
-    return StrCatAlloc(list, ln, sep);
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # utf8 <-> utf16                      #
-// # # # # # # # # # # # # # # # # # # # #
-// https://github.com/Davipb/utf8-utf16-converter
-
-typedef enum {
-    BMP_END                          = 0xFFFF,
-    UNICODE_MAX                      = 0x10FFFF,
-    INVALID_CODEPOINT                = 0xFFFD,
-    GENERIC_SURROGATE_VALUE          = 0xD800,
-    GENERIC_SURROGATE_MASK           = 0xF800,
-    HIGH_SURROGATE_VALUE             = 0xD800,
-    LOW_SURROGATE_VALUE              = 0xDC00,
-    SURROGATE_MASK                   = 0xFC00,
-    SURROGATE_CODEPOINT_OFFSET       = 0x10000,
-    SURROGATE_CODEPOINT_MASK         = 0x03FF,
-    SURROGATE_CODEPOINT_BITS         = 10,
-    UTF8_1_MAX                       = 0x7F,
-    UTF8_2_MAX                       = 0x7FF,
-    UTF8_3_MAX                       = 0xFFFF,
-    UTF8_4_MAX                       = 0x10FFFF,
-    UTF8_CONTINUATION_VALUE          = 0x80,
-    UTF8_CONTINUATION_MASK           = 0xC0,
-    UTF8_CONTINUATION_CODEPOINT_BITS = 6,
-    UTF8_LEADING_BYTES_LEN           = 4,
-} __utf8_define_t;
-
-typedef struct {
-    u8 mask;
-    u8 value;
-} utf8_pattern;
-
-static const utf8_pattern utf8_leading_bytes[] = {
-    { 0x80, 0x00 }, // 0xxxxxxx
-    { 0xE0, 0xC0 }, // 110xxxxx
-    { 0xF0, 0xE0 }, // 1110xxxx
-    { 0xF8, 0xF0 }, // 11110xxx
-};
-
-static s32 CalcLenU8(u32 codepoint) {
-    if (codepoint <= UTF8_1_MAX)
-        return 1;
-    
-    if (codepoint <= UTF8_2_MAX)
-        return 2;
-    
-    if (codepoint <= UTF8_3_MAX)
-        return 3;
-    
-    return 4;
-}
-
-#if 0
-static s32 CalcLenU16(u32 codepoint) {
-    if (codepoint <= BMP_END)
-        return 1;
-    
-    return 2;
-}
-#endif
-
-static Size EncodeU8(u32 codepoint, char* utf8, Size index) {
-    s32 size = CalcLenU8(codepoint);
-    
-    // Write the continuation bytes in reverse order first
-    for (s32 cont_index = size - 1; cont_index > 0; cont_index--) {
-        u8 cont = codepoint & ~UTF8_CONTINUATION_MASK;
-        cont |= UTF8_CONTINUATION_VALUE;
-        
-        utf8[index + cont_index] = cont;
-        codepoint >>= UTF8_CONTINUATION_CODEPOINT_BITS;
-    }
-    
-    utf8_pattern pattern = utf8_leading_bytes[size - 1];
-    
-    u8 lead = codepoint & ~(pattern.mask);
-    
-    lead |= pattern.value;
-    
-    utf8[index] = lead;
-    
-    return size;
-}
-
-static Size EncodeU16(u32 codepoint, wchar* utf16, Size index) {
-    if (codepoint <= BMP_END) {
-        utf16[index] = codepoint;
-        
-        return 1;
-    }
-    
-    codepoint -= SURROGATE_CODEPOINT_OFFSET;
-    
-    u16 low = LOW_SURROGATE_VALUE;
-    low |= codepoint & SURROGATE_CODEPOINT_MASK;
-    
-    codepoint >>= SURROGATE_CODEPOINT_BITS;
-    
-    u16 high = HIGH_SURROGATE_VALUE;
-    high |= codepoint & SURROGATE_CODEPOINT_MASK;
-    
-    utf16[index] = high;
-    utf16[index + 1] = low;
-    
-    return 2;
-}
-
-static u32 DecodeU8(const char* utf8, Size len, Size* index) {
-    u8 leading = utf8[*index];
-    s32 encoding_len = 0;
-    utf8_pattern leading_pattern;
-    bool matches = false;
-    
-    do {
-        encoding_len++;
-        leading_pattern = utf8_leading_bytes[encoding_len - 1];
-        
-        matches = (leading & leading_pattern.mask) == leading_pattern.value;
-        
-    } while (!matches && encoding_len < UTF8_LEADING_BYTES_LEN);
-    
-    if (!matches)
-        return INVALID_CODEPOINT;
-    
-    u32 codepoint = leading & ~leading_pattern.mask;
-    
-    for (s32 i = 0; i < encoding_len - 1; i++) {
-        if (*index + 1 >= len)
-            return INVALID_CODEPOINT;
-        
-        u8 continuation = utf8[*index + 1];
-        if ((continuation & UTF8_CONTINUATION_MASK) != UTF8_CONTINUATION_VALUE)
-            return INVALID_CODEPOINT;
-        
-        codepoint <<= UTF8_CONTINUATION_CODEPOINT_BITS;
-        codepoint |= continuation & ~UTF8_CONTINUATION_MASK;
-        
-        (*index)++;
-    }
-    
-    s32 proper_len = CalcLenU8(codepoint);
-    
-    if (proper_len != encoding_len)
-        return INVALID_CODEPOINT;
-    if (codepoint < BMP_END && (codepoint & GENERIC_SURROGATE_MASK) == GENERIC_SURROGATE_VALUE)
-        return INVALID_CODEPOINT;
-    if (codepoint > UNICODE_MAX)
-        return INVALID_CODEPOINT;
-    
-    return codepoint;
-}
-
-static u32 DecodeU16(const wchar* utf16, Size len, Size* index) {
-    u16 high = utf16[*index];
-    
-    if ((high & GENERIC_SURROGATE_MASK) != GENERIC_SURROGATE_VALUE)
-        return high;
-    if ((high & SURROGATE_MASK) != HIGH_SURROGATE_VALUE)
-        return INVALID_CODEPOINT;
-    if (*index == len - 1)
-        return INVALID_CODEPOINT;
-    
-    u16 low = utf16[*index + 1];
-    
-    if ((low & SURROGATE_MASK) != LOW_SURROGATE_VALUE)
-        return INVALID_CODEPOINT;
-    (*index)++;
-    u32 result = high & SURROGATE_CODEPOINT_MASK;
-    
-    result <<= SURROGATE_CODEPOINT_BITS;
-    result |= low & SURROGATE_CODEPOINT_MASK;
-    result += SURROGATE_CODEPOINT_OFFSET;
-    
-    return result;
-}
-
-char* StrU8(char* dst, const wchar* src) {
-    Size dstIndex = 0;
-    Size len = strwlen(src) + 1;
-    
-    if (!dst)
-        dst = x_alloc(len);
-    
-    for (Size indexSrc = 0; indexSrc < len; indexSrc++)
-        dstIndex += EncodeU8(DecodeU16(src, len, &indexSrc), dst, dstIndex);
-    
-    return dst;
-}
-
-wchar* StrU16(wchar* dst, const char* src) {
-    Size dstIndex = 0;
-    Size len = strlen(src) + 1;
-    
-    if (!dst)
-        dst = x_alloc(len * 3);
-    
-    for (Size srcIndex = 0; srcIndex < len; srcIndex++)
-        dstIndex += EncodeU16(DecodeU8(src, len, &srcIndex), dst, dstIndex);
-    
-    return dst;
-}
-
-Size strwlen(const wchar* s) {
-    Size len = 0;
-    
-    while (s[len] != 0)
-        len++;
-    
-    return len;
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # TSV                                 #
-// # # # # # # # # # # # # # # # # # # # #
-
-char* String_Tsv(char* str, s32 rowNum, s32 lineNum) {
-    char* line = Line(str, lineNum);
-    u32 size = 0;
-    char* r;
-    
-    for (s32 i = 0; i < rowNum; i++) {
-        while (*line != '\t') {
-            line++;
-            
-            if (*line == '\0' || *line == '\n')
-                return NULL;
-        }
-        
-        line++;
-        
-        if (*line == '\0' || *line == '\n')
-            return NULL;
-    }
-    
-    if (*line == '\t') return NULL;
-    while (line[size] != '\t' && line[size] != '\0' && line[size] != '\n') size++;
-    
-    r = x_alloc(size + 1);
-    memcpy(r, line, size);
-    
-    return r;
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # LOG                                 #
-// # # # # # # # # # # # # # # # # # # # #
-
-#include <signal.h>
-
-#define FAULT_BUFFER_SIZE (1024)
-#define FAULT_LOG_NUM     28
-
-static char* sLogMsg[FAULT_LOG_NUM];
-static char* sLogFunc[FAULT_LOG_NUM];
-static u32 sLogLine[FAULT_LOG_NUM];
-static vs32 sLogInit;
-static vs32 sLogOutput = true;
-
-void Log_NoOutput(void) {
-    sLogOutput = false;
-}
-
-static void Log_Signal_PrintTitle(s32 arg, FILE* file) {
-    const char* errorMsg[] = {
-        "\a0",
-        "\a1 - Hang Up",
-        "\a2 - Interrupted",   // SIGINT
-        "\a3 - Quit",
-        "\a4 - Illegal Instruction",
-        "\a5 - Trap",
-        "\a6 - Abort()",
-        "\a7 - Illegal Memory Access",
-        "\a8 - Floating Point Exception",
-        "\a9 - Killed",
-        "\a10 - Programmer Error",
-        "\a11 - Segmentation Fault",
-        "\a12 - Programmer Error",
-        "\a13 - Pipe Death",
-        "\a14 - Alarm",
-        "\a15 - Killed",
-        
-        "\aLog List",
-    };
-    
-    if (gPrintfProgressing)
-        fprintf(file, "\n");
-    
-    if (arg != 0xDEADBEEF)
-        fprintf(file, "" PRNT_GRAY "[ " PRNT_REDD "%s " PRNT_GRAY "]\n", errorMsg[ClampMax(arg, 16)]);
-    else
-        fprintf(file, "" PRNT_GRAY "[ " PRNT_REDD "LOG " PRNT_GRAY "]\n");
-    fprintf(file, "\n");
-}
-
-static void Log_Printinf(s32 arg, FILE* file) {
-    
-    for (s32 i = FAULT_LOG_NUM - 1, j = 0; i >= 0; i--, j++) {
-        char* pfunc = j == 0 ? "__log_none__" : sLogFunc[i + 1];
-        char fmt[16];
-        
-        snprintf(fmt, 16, "%d:", sLogLine[i]);
-        if (strcmp(sLogFunc[i], pfunc))
-            fprintf(file, "" PRNT_YELW "%s" PRNT_GRAY "();\n", sLogFunc[i]);
-        fprintf(file, "" PRNT_GRAY "%-8s" PRNT_RSET "%s\n", fmt, sLogMsg[i]);
-    }
-    
-    if (arg == 16)
-        fprintf(file, "\n");
-}
-
-static void Log_Signal(s32 arg) {
-    static volatile bool ran = 0;
-    
-    if (!sLogInit)
-        return;
-    if (ran) return;
-    ran = true;
-    sLogInit = false;
-    gKillFlag = true;
-    
-    Log_Signal_PrintTitle(arg, stdlog);
-    Log_Printinf(arg, stdlog);
-    
-    if (arg == 0xDEADBEEF) {
-        ran = false;
-        sLogInit = true;
-        gKillFlag = false;
-        
-        return;
-    }
-    
-#ifdef _WIN32
-    printf_getchar("Press enter to exit");
-#endif
-    exit(arg);
-}
-
-void Log_Init() {
-    if (sLogInit)
-        return;
-    for (s32 i = 1; i < 16; i++)
-        signal(i, Log_Signal);
-    for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-        sLogMsg[i] = Calloc(FAULT_BUFFER_SIZE);
-        sLogFunc[i] = Calloc(128);
-    }
-    
-    sLogInit = true;
-}
-
-void Log_Free() {
-    if (!sLogInit)
-        return;
-    sLogInit = 0;
-    for (s32 i = 0; i < FAULT_LOG_NUM; i++) {
-        Free(sLogMsg[i]);
-        Free(sLogFunc[i]);
-    }
-}
-
-void Log_Print() {
-    if (!sLogInit)
-        return;
-    if (sLogMsg[0] == NULL)
-        return;
-    if (sLogMsg[0][0] != 0)
-        Log_Signal(0xDEADBEEF);
-}
-
-void __Log(const char* func, u32 line, const char* txt, ...) {
-    
-#if 0
-    va_list va;
-    char buf[512];
-    
-    va_start(va, txt);
-    vsnprintf(buf, 512, txt, va);
-    printf_info("" PRNT_GRAY "[%s::%d]" PRNT_RSET " %s", func, line, buf);
-    va_end(va);
-    
-    return;
-#endif
-    
-    if (!sLogInit)
-        return;
-    
-    if (sLogMsg[0] == NULL)
-        return;
-    
-    Mutex_Lock();
-    {
-        ArrMoveR(sLogMsg, 0, FAULT_LOG_NUM);
-        ArrMoveR(sLogFunc, 0, FAULT_LOG_NUM);
-        ArrMoveR(sLogLine, 0, FAULT_LOG_NUM);
-        
-        va_list args;
-        va_start(args, txt);
-        vsnprintf(sLogMsg[0], FAULT_BUFFER_SIZE, txt, args);
-        va_end(args);
-        
-        strcpy(sLogFunc[0], func);
-        sLogLine[0] = line;
-        
-#if 0
-        if (strcmp(sLogFunc[0], sLogFunc[1]))
-            fprintf(stdlog, "" PRNT_REDD "%s" PRNT_GRAY "();\n", sLogFunc[0]);
-        fprintf(stdlog, "" PRNT_GRAY "%-8d" PRNT_RSET "%s\n", sLogLine[0], sLogMsg[0]);
-#endif
-    }
-    Mutex_Unlock();
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # PRINTF                              #
-// # # # # # # # # # # # # # # # # # # # #
-
-PrintfSuppressLevel gPrintfSuppress = 0;
-u8 gPrintfProgressing;
-
-void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
-    gPrintfSuppress = lvl;
-}
-
-void printf_SetPrefix(char* fmt) {
-}
-
-void printf_toolinfo(const char* toolname, const char* fmt, ...) {
-    static u32 printed = 0;
-    
-    if (gPrintfSuppress >= PSL_NO_INFO)
-        return;
-    
-    if (printed != 0) return;
-    printed++;
-    
-    u32 strln = strlen(toolname);
-    u32 rmv = 0;
-    u32 tmp = strln;
-    va_list args;
-    
-    for (s32 i = 0; i < strln; i++) {
-        if (rmv) {
-            if (toolname[i] != 'm') {
-                tmp--;
-            } else {
-                tmp -= 2;
-                rmv = false;
-            }
-        } else {
-            if (toolname[i] == '\e' && toolname[i + 1] == '[') {
-                rmv = true;
-                strln--;
-            }
-        }
-    }
-    
-    strln = tmp;
-    
-    printf(PRNT_GRAY "[>]--");
-    for (s32 i = 0; i < strln; i++)
-        printf("-");
-    printf("------[>]\n");
-    
-    printf(" |   ");
-    printf(PRNT_CYAN "%s" PRNT_GRAY, toolname);
-    printf("       |\n");
-    
-    printf("[>]--");
-    for (s32 i = 0; i < strln; i++)
-        printf("-");
-    printf("------[>]\n" PRNT_RSET);
-    printf("     ");
-    
-    if (fmt) {
-        va_start(args, fmt);
-        vprintf(
-            fmt,
-            args
-        );
-        va_end(args);
-        if (strlen(fmt) > 1)
-            printf("\n");
-    }
-    printf("\n" PRNT_RSET);
-    
-}
-
-static void __printf_call(u32 type, FILE* file) {
-    const char* color[4] = {
-        PRNT_PRPL,
-        PRNT_REDD,
-        PRNT_REDD,
-        PRNT_BLUE
-    };
-    
-    fprintf(
-        file,
-        "" PRNT_GRAY "%s>" PRNT_GRAY ": " PRNT_RSET,
-        color[type]
-    );
-}
-
-void printf_warning(const char* fmt, ...) {
-    if (gPrintfSuppress >= PSL_NO_WARNING)
-        return;
-    
-    if (gKillFlag)
-        return;
-    
-    if (gPrintfProgressing) {
-        printf("\n");
-        gPrintfProgressing = false;
-    }
-    
-    va_list args;
-    
-    va_start(args, fmt);
-    __printf_call(1, stdlog);
-    vfprintf(
-        stdlog,
-        fmt,
-        args
-    );
-    fputs("\n", stdlog);
-    va_end(args);
-}
-
-void printf_warning_align(const char* info, const char* fmt, ...) {
-    if (gPrintfSuppress >= PSL_NO_WARNING)
-        return;
-    
-    if (gKillFlag)
-        return;
-    
-    if (gPrintfProgressing) {
-        printf("\n");
-        gPrintfProgressing = false;
-    }
-    
-    va_list args;
-    
-    va_start(args, fmt);
-    __printf_call(1, stdout);
-    fprintf(
-        stdout,
-        "%-16s " PRNT_RSET,
-        info
-    );
-    vfprintf(
-        stdout,
-        fmt,
-        args
-    );
-    fputs("\n", stdout);
-    va_end(args);
-}
-
-void printf_MuteOutput(FILE* output) {
-#ifdef _WIN32
-    freopen ("NUL", "w", output);
-#else
-    freopen ("/dev/null", "w", output);
-#endif
-}
-
-void printf_error(const char* fmt, ...) {
-    gKillFlag = 1;
-    
-    printf_MuteOutput(stdout);
-    
-    if (gPrintfSuppress < PSL_NO_ERROR) {
-        if (gPrintfProgressing) {
-            fputs("\n", stdlog);
-            gPrintfProgressing = false;
-        }
-        
-        va_list args;
-        
-        va_start(args, fmt);
-        
-        __printf_call(2, stdlog);
-        vfprintf(stdlog, fmt, args);
-        fputs("\n\a", stdlog);
-        fflush(stdlog);
-        
-        va_end(args);
-    }
-    
-#ifdef _WIN32
-    Terminal_GetChar();
-#endif
-    
-    exit(EXIT_FAILURE);
-}
-
-void printf_error_align(const char* info, const char* fmt, ...) {
-    gKillFlag = 1;
-    
-    printf_MuteOutput(stdout);
-    
-    if (gPrintfSuppress < PSL_NO_ERROR) {
-        if (gPrintfProgressing) {
-            fputs("\n", stdlog);
-            gPrintfProgressing = false;
-        }
-        
-        va_list args;
-        
-        va_start(args, fmt);
-        __printf_call(2, stdlog);
-        fprintf(
-            stdlog,
-            "%-16s " PRNT_RSET,
-            info
-        );
-        vfprintf(
-            stdlog,
-            fmt,
-            args
-        );
-        fputs("\n\a", stdlog);
-        
-        va_end(args);
-    }
-    
-#ifdef _WIN32
-    Terminal_GetChar();
-#endif
-    
-    exit(EXIT_FAILURE);
-}
-
-void printf_info(const char* fmt, ...) {
-    
-    if (gKillFlag)
-        return;
-    
-    if (gPrintfSuppress >= PSL_NO_INFO)
-        return;
-    
-    if (gPrintfProgressing) {
-        fputs("\n", stdout);
-        gPrintfProgressing = false;
-    }
-    va_list args;
-    
-    va_start(args, fmt);
-    __printf_call(3, stdout);
-    vfprintf(
-        stdout,
-        fmt,
-        args
-    );
-    fputs("\n", stdout);
-    va_end(args);
-}
-
-void printf_info_align(const char* info, const char* fmt, ...) {
-    if (gKillFlag)
-        return;
-    
-    if (gPrintfSuppress >= PSL_NO_INFO)
-        return;
-    
-    if (gPrintfProgressing) {
-        fputs("\n", stdout);
-        gPrintfProgressing = false;
-    }
-    va_list args;
-    
-    va_start(args, fmt);
-    __printf_call(3, stdout);
-    fprintf(
-        stdout,
-        "%-16s " PRNT_RSET,
-        info
-    );
-    vfprintf(
-        stdout,
-        fmt,
-        args
-    );
-    fputs("\n", stdout);
-    va_end(args);
-}
-
-void printf_prog_align(const char* info, const char* fmt, const char* color) {
-    if (gKillFlag)
-        return;
-    
-    if (gPrintfSuppress >= PSL_NO_INFO)
-        return;
-    
-    if (gPrintfProgressing) {
-        printf("\n");
-        gPrintfProgressing = false;
-    }
-    
-    printf("\n");
-    Terminal_ClearLines(2);
-    __printf_call(3, stdout);
-    printf("%-16s%s%s", info, color ? color : "", fmt);
-}
-
-void printf_progressFst(const char* info, u32 a, u32 b) {
-    if (gPrintfSuppress >= PSL_NO_INFO) {
-        return;
-    }
-    
-    if (gKillFlag)
-        return;
-    
-    printf(
-        // "%-16s" PRNT_RSET "[%4d / %-4d]",
-        x_fmt("\r" PRNT_BLUE ">" PRNT_GRAY ": " PRNT_RSET "%c-16s" PRNT_RSET " [ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
-        info,
-        a,
-        b
-    );
-    gPrintfProgressing = true;
-    
-    if (a == b) {
-        gPrintfProgressing = false;
-        printf("\n");
-    }
-}
-
-void printf_progress(const char* info, u32 a, u32 b) {
-    if (gPrintfSuppress >= PSL_NO_INFO)
-        return;
-    
-    if (gKillFlag)
-        return;
-    
-    if (a != b) {
-        static struct timeval p;
-        
-        if (a <= 1)
-            gettimeofday(&p, 0);
-        else {
-            struct timeval t;
-            
-            gettimeofday(&t, 0);
-            f32 sec = t.tv_sec - p.tv_sec + (f32)(t.tv_usec - p.tv_usec) * 0.000001f;
-            
-            if (sec >= 0.2f) {
-                p = t;
-            } else
-                return;
-        }
-    }
-    
-    printf("\r");
-    __printf_call(3, stdout);
-    printf(
-        // "%-16s" PRNT_RSET "[%4d / %-4d]",
-        x_fmt("%c-16s" PRNT_RSET " [ %c%dd / %c-%dd ]", '%', '%', Digits_Int(b), '%', Digits_Int(b)),
-        info,
-        a,
-        b
-    );
-    gPrintfProgressing = true;
-    
-    if (a == b) {
-        gPrintfProgressing = false;
-        printf("\n");
-    }
-}
-
-void printf_getchar(const char* txt) {
-    printf_info("%s", txt);
-    Terminal_GetChar();
-}
-
-void printf_lock(const char* fmt, ...) {
-    va_list va;
-    
-    if (gKillFlag)
-        return;
-    
-    va_start(va, fmt);
-    Mutex_Lock();
-    printf_WinFix();
-    vprintf(fmt, va);
-    fflush(NULL);
-    Mutex_Unlock();
-    va_end(va);
-}
-
-void printf_WinFix(void) {
-#ifdef _WIN32
-    system("\0");
-#endif
-}
-
-void printf_hex(const char* txt, const void* data, u32 size, u32 dispOffset) {
-    const u8* d = data;
-    u32 num = 8;
-    char* digit;
-    s32 i = 0;
-    
-    if (gKillFlag)
-        return;
-    
-    if (gPrintfSuppress >= PSL_NO_INFO)
-        return;
-    
-    for (;; num--)
-        if ((size + dispOffset) >> (num * 4))
-            break;
-    
-    digit = x_fmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
-    
-    if (txt)
-        printf_info("%s", txt);
-    for (; i < size; i++) {
-        if (i % 16 == 0)
-            printf(digit, i + dispOffset);
-        
-        printf("%02X", d[i]);
-        if ((i + 1) % 4 == 0)
-            printf(" ");
-        if ((i + 1) % 16 == 0)
-            printf("\n");
-    }
-    
-    if (i % 16 != 0)
-        printf("\n");
-}
-
-void printf_bit(const char* txt, const void* data, u32 size, u32 dispOffset) {
-    const u8* d = data;
-    s32 s = 0;
-    u32 num = 8;
-    char* digit;
-    
-    if (gKillFlag)
-        return;
-    
-    if (gPrintfSuppress >= PSL_NO_INFO)
-        return;
-    
-    for (;; num--)
-        if ((size + dispOffset) >> (num * 4))
-            break;
-    
-    digit = x_fmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
-    
-    if (txt)
-        printf_info("%s", txt);
-    for (s32 i = 0; i < size; i++) {
-        if (s % 4 == 0)
-            printf(digit, s + dispOffset);
-        
-        for (s32 j = 7; j >= 0; j--)
-            printf("%d", (d[i] >> j) & 1);
-        
-        printf(" ");
-        
-        if ((s + 1) % 4 == 0)
-            printf("\n");
-        
-        s++;
-    }
-    
-    if (s % 4 != 0)
-        printf("\n");
-}
-
-void printf_nl(void) {
-    if (gKillFlag)
-        return;
-    
-    if (gPrintfSuppress >= PSL_NO_INFO)
-        return;
-    
-    printf("\n");
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # MATH                                #
-// # # # # # # # # # # # # # # # # # # # #
-
-f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep) {
-    if (*pValue != target) {
-        f32 stepSize = (target - *pValue) * fraction;
-        
-        if ((stepSize >= minStep) || (stepSize <= -minStep)) {
-            if (stepSize > step) {
-                stepSize = step;
-            }
-            
-            if (stepSize < -step) {
-                stepSize = -step;
-            }
-            
-            *pValue += stepSize;
-        } else {
-            if (stepSize < minStep) {
-                *pValue += minStep;
-                stepSize = minStep;
-                
-                if (target < *pValue) {
-                    *pValue = target;
-                }
-            }
-            if (stepSize > -minStep) {
-                *pValue += -minStep;
-                
-                if (*pValue < target) {
-                    *pValue = target;
-                }
-            }
-        }
-    }
-    
-    return fabsf(target - *pValue);
-}
-
-f32 Math_Spline(f32 k, f32 xm1, f32 x0, f32 x1, f32 x2) {
-    f32 a = (3.0f * (x0 - x1) - xm1 + x2) * 0.5f;
-    f32 b = 2.0f * x1 + xm1 - (5.0f * x0 + x2) * 0.5f;
-    f32 c = (x1 - xm1) * 0.5f;
-    
-    return (((((a * k) + b) * k) + c) * k) + x0;
-}
-
-void Math_ApproachF(f32* pValue, f32 target, f32 fraction, f32 step) {
-    if (*pValue != target) {
-        f32 stepSize = (target - *pValue) * fraction;
-        
-        if (stepSize > step) {
-            stepSize = step;
-        } else if (stepSize < -step) {
-            stepSize = -step;
-        }
-        
-        *pValue += stepSize;
-    }
-}
-
-void Math_ApproachS(s16* pValue, s16 target, s16 scale, s16 step) {
-    s16 diff = target - *pValue;
-    
-    diff /= scale;
-    
-    if (diff > step) {
-        *pValue += step;
-    } else if (diff < -step) {
-        *pValue -= step;
-    } else {
-        *pValue += diff;
-    }
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # SHA                                 #
-// # # # # # # # # # # # # # # # # # # # #
-
-/*
-   Calculate the sha256 digest of some data
-   Author: Vitor Henrique Andrade Helfensteller Straggiotti Silva
-   Date: 26/06/2021 (DD/MM/YYYY)
- */
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+// Calculate the sha256 digest of some data
+// Author: Vitor Henrique Andrade Helfensteller Straggiotti Silva
+// date_t: 26/06/2021 (DD/MM/YYYY)
 
 static u32 Sha_Sgima1(u32 x) {
     u32 RotateRight17, RotateRight19, ShiftRight10;
@@ -3639,8 +320,8 @@ static void Sha_Compression(u32* Hash, u32* W) {
     Hash[7] += TmpHash[h];
 }
 
-static Checksum Sha_ExtractDigest(u32* Hash) {
-    Checksum Digest;
+static hash_t Sha_ExtractDigest(u32* Hash) {
+    hash_t Digest;
     
     for (u32 i = 0; i < 32; i += 4) {
         Digest.hash[i] = (u8)((Hash[i / 4] >> 24) & 0x000000FF);
@@ -3652,14 +333,14 @@ static Checksum Sha_ExtractDigest(u32* Hash) {
     return Digest;
 }
 
-Checksum Checksum_Get(const void* data, u64 size) {
+hash_t hash_get(const void* data, size_t size) {
     u32 W[64];
     u32 Hash[8] = {
         0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
         0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
     };
     u64 RemainingDataSizeByte = size;
-    Checksum dst;
+    hash_t dst;
     u8* d = (u8*)data;
     
     while (Sha_CreateCompleteScheduleArray(d, size, &RemainingDataSizeByte, W) == 1) {
@@ -3676,23 +357,2270 @@ Checksum Checksum_Get(const void* data, u64 size) {
     return dst;
 }
 
-bool Checksum_IsMatch(Checksum* a, Checksum* b) {
+bool hash_cmp(hash_t* a, hash_t* b) {
     return !memcmp(a->hash, b->hash, sizeof(a->hash));
 }
 
-#undef Free
-void* Free(const void* data) {
-    if (data != NULL)
-        free((void*)data);
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+static u8** sSegment;
+
+void SegmentSet(const u8 id, void* segment) {
+    _log("%-4d%08X", id, segment);
+    if (!sSegment) {
+        sSegment = dfree(new(char*[255]));
+        Assert(sSegment);
+    }
+    
+    sSegment[id] = segment;
+}
+
+void* SegmentedToVirtual(const u8 id, void32 ptr) {
+    if (sSegment[id] == NULL)
+        print_error("Segment 0x%X == NULL", id);
+    
+    return &sSegment[id][ptr];
+}
+
+void32 VirtualToSegmented(const u8 id, void* ptr) {
+    return (uaddr_t)ptr - (uaddr_t)sSegment[id];
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+static struct {
+    char*       head;
+    size_t      offset;
+    size_t      max;
+    size_t      f;
+    const char* header;
+} gBufX = {
+    .max    = 8000000,
+    .f      =  100000,
+    
+    .header = "xbuf\xDE\xAD\xBE\xEF"
+};
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+const_func x_init() {
+    gBufX.head = calloc(gBufX.max);
+}
+
+dest_func x_dest() {
+    free(gBufX.head);
+}
+
+void* x_alloc(size_t size) {
+    static mutex_t xmutex;
+    char* ret;
+    
+    if (size <= 0)
+        return NULL;
+    
+    // if (size >= gBufX.f)
+    //     print_error("Biggest Failure");
+    
+    pthread_mutex_lock(&xmutex);
+    if (gBufX.offset + size + 10 >= gBufX.max)
+        gBufX.offset = 0;
+    
+    // Write Header
+    ret = &gBufX.head[gBufX.offset];
+    memcpy(ret, gBufX.header, 8);
+    gBufX.offset += 8;
+    
+    // Write Data
+    ret = &gBufX.head[gBufX.offset];
+    gBufX.offset += size + 1;
+    pthread_mutex_unlock(&xmutex);
+    
+    return memset(ret, 0, size + 1);
+}
+
+static void* m_alloc(size_t s) {
+    void* addr = calloc(s);
+    
+    Assert(addr != NULL);
+    
+    return addr;
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+static void slash_n_point (const char* src, int* slash, int* point) {
+    int strSize = strlen(src);
+    
+    *slash = 0;
+    *point = 0;
+    
+    for (int i = strSize; i > 0; i--) {
+        if (*point == 0 && src[i] == '.') {
+            *point = i;
+        }
+        if (src[i] == '/' || src[i] == '\\') {
+            *slash = i;
+            break;
+        }
+    }
+};
+
+static char* __impl_memdup(void* (*falloc)(size_t), const char* data, size_t size) {
+    if (!data || !size)
+        return NULL;
+    
+    return memcpy(falloc(size), data, size);
+}
+
+static char* __impl_strdup(void* (*falloc)(size_t), const char* s) {
+    return __impl_memdup(falloc, s, strlen(s) + 1);
+}
+
+static char* __impl_strndup(void* (*falloc)(size_t), const char* s, size_t n) {
+    if (!n || !s) return NULL;
+    size_t csz = strnlen(s, n);
+    char* new = falloc(n + 1);
+    char* res = memcpy (new, s, csz);
+    
+    return res;
+}
+
+static char* __impl_fmt(void* (*falloc)(size_t), const char* fmt, va_list va) {
+    char buf[8192];
+    int len;
+    
+    len = vsnprintf(buf, 8192, fmt, va);
+    
+    return __impl_memdup(falloc, buf, len + 1);
+}
+
+static char* __impl_rep(void* (*falloc)(size_t), const char* s, const char* a, const char* b) {
+    char* r = falloc(strlen(s) * 4 + strlen(b) * 8);
+    
+    strcpy(r, s);
+    strrep(r, a, b);
+    
+    return r;
+}
+
+static char* __impl_cpyline(void* (*falloc)(size_t), const char* s, size_t cpyline) {
+    if (!(s = strline(s, cpyline))) return NULL;
+    
+    return __impl_strndup(falloc, s, linelen(s));
+}
+
+static char* __impl_cpyword(void* (*falloc)(size_t), const char* s, size_t word) {
+    if (!(s = strword(s, word))) return NULL;
+    
+    return __impl_strndup(falloc, s, wordlen(s));
+}
+
+static char* __impl_path(void* (*falloc)(size_t), const char* s) {
+    char* buffer;
+    int point;
+    int slash;
+    
+    if (s == NULL)
+        return NULL;
+    
+    slash_n_point(s, &slash, &point);
+    
+    if (slash == 0)
+        slash = -1;
+    
+    buffer = falloc(slash + 1 + 1);
+    memcpy(buffer, s, slash + 1);
+    buffer[slash + 1] = '\0';
+    
+    return buffer;
+}
+
+static char* __impl_pathslot(char* (*fstrndup)(const char*, size_t), const char* src, int num) {
+    const char* slot = src;
+    
+    if (src == NULL)
+        return NULL;
+    
+    if (num < 0)
+        num = dirnum(src) - 1;
+    
+    for (; num; num--) {
+        slot = strchr(slot, '/');
+        if (slot) slot++;
+    }
+    if (!slot) return NULL;
+    
+    int s = strcspn(slot, "/");
+    char* r = fstrndup(slot, s ? s + 1 : 0);
+    
+    return r;
+}
+
+static char* __impl_basename(void* (*falloc)(size_t), const char* s) {
+    char* la = strrchr(s, '/');
+    char* lb = strrchr(s, '\\');
+    char* ls = (char*)min((uaddr_t)la, (uaddr_t)lb);
+    
+    if (!ls++)
+        ls = (char*)s;
+    
+    return __impl_strndup(falloc, ls, strcspn(ls, "."));
+}
+
+static char* __impl_filename(void* (*falloc)(size_t), const char* s) {
+    char* la = strrchr(s, '/');
+    char* lb = strrchr(s, '\\');
+    char* ls = (char*)min((uaddr_t)la, (uaddr_t)lb);
+    
+    if (!ls++)
+        ls = (char*)s;
+    
+    return __impl_strdup(falloc, ls);
+}
+
+static char* __impl_randstr(void* (*falloc)(size_t), size_t size, const char* charset) {
+    const char defcharset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const char* set = charset ? charset : defcharset;
+    const int setz = (charset ? strlen(charset) : sizeof(defcharset)) - 1;
+    char* str = falloc(size);
+    
+    if (size) {
+        --size;
+        for (size_t n = 0; n < size; n++) {
+            int key = rand() % setz;
+            str[n] = set[key];
+        }
+        str[size] = '\0';
+    }
+    return str;
+}
+
+static char* __impl_strunq(void* (*falloc)(size_t), const char* s) {
+    char* new = __impl_strdup(falloc, s);
+    
+    strrep(new, "\"", "");
+    strrep(new, "'", "");
+    
+    return new;
+}
+
+static inline char* ifyize(char* new, const char* str, int (*tocase)(int)) {
+    size_t w = 0;
+    const size_t len = strlen(str);
+    
+    enum {
+        NONE = 0,
+        IS_LOWER,
+        IS_UPPER,
+        NONALNUM,
+    } prev = NONE, this = NONE;
+    
+    for (size_t i = 0; i < len; i++) {
+        const char chr = str[i];
+        
+        if (isalnum(chr)) {
+            
+            if (isupper(chr))
+                this = IS_UPPER;
+            else
+                this = IS_LOWER;
+            
+            if (this == IS_UPPER && prev == IS_LOWER)
+                new[w++] = '_';
+            else if (prev == NONALNUM)
+                new[w++] = '_';
+            new[w++] = tocase(chr);
+            
+        } else
+            this = NONALNUM;
+        
+        prev = this;
+    }
+    
+    return new;
+}
+
+static char* __impl_enumify(void* (*falloc)(size_t), const char* s) {
+    char* new = falloc(strlen(s) * 2);
+    
+    return ifyize(new, s, toupper);
+}
+
+static char* __impl_canitize(void* (*falloc)(size_t), const char* s) {
+    char* new = falloc(strlen(s) * 2);
+    
+    return ifyize(new, s, tolower);
+}
+
+static char* __impl_dirrel_f(void* (*falloc)(size_t), const char* from, const char* item) {
+    if (from[0] != item[0])
+        return strflipslash(x_strdup(item));
+    
+    item = strflipslash(x_strunq(item));
+    char* work = strflipslash(x_strdup(from));
+    int lenCom = strstrlen(work, item);
+    int subCnt = 0;
+    char* sub = (char*)&work[lenCom];
+    char* fol = (char*)&item[lenCom];
+    char* buffer = falloc(strlen(work) + strlen(item));
+    
+    forstr(i, sub) {
+        if (sub[i] == '/' || sub[i] == '\\')
+            subCnt++;
+    }
+    
+    for (int i = 0; i < subCnt; i++)
+        strcat(buffer, "../");
+    
+    strcat(buffer, fol);
+    
+    return buffer;
+}
+
+static char* __impl_dirabs_f(char* (*ffmt)(const char*, ...), const char* from, const char* item) {
+    item = strflipslash(x_strunq(item));
+    char* path = strflipslash(x_strdup(from));
+    char* t = strstr(item, "../");
+    char* f = (char*)item;
+    int subCnt = 0;
+    
+    while (t) {
+        f = &f[strlen("../")];
+        subCnt++;
+        t = strstr(t + 1, "../");
+    }
+    
+    for (int i = 0; i < subCnt; i++) {
+        path[strlen(path) - 1] = '\0';
+        path = x_path(path);
+    }
+    
+    return ffmt("%s%s", path, f);
+}
+
+static char* __impl_dirrel(void* (*falloc)(size_t), const char* item) {
+    return __impl_dirrel_f(falloc, sys_workdir(), item);
+}
+
+static char* __impl_dirabs(char* (*ffmt)(const char*, ...), const char* item) {
+    return __impl_dirabs_f(ffmt, sys_workdir(), item);
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+char* x_strdup(const char* s) {
+    return __impl_strdup(x_alloc, s);
+}
+char* x_strndup(const char* s, size_t n) {
+    return __impl_strndup(x_alloc, s, n);
+}
+void* x_memdup(const void* d, size_t n) {
+    return __impl_memdup(x_alloc, d, n);
+}
+char* x_fmt(const char* fmt, ...) {
+    va_list va; va_start(va, fmt);
+    char* r = __impl_fmt(x_alloc, fmt, va);
+    
+    va_end(va);
+    return r;
+}
+char* x_rep(const char* s, const char* a, const char* b) {
+    return __impl_rep(x_alloc, s, a, b);
+}
+char* x_cpyline(const char* s, size_t i) {
+    return __impl_cpyline(x_alloc, s, i);
+}
+char* x_cpyword(const char* s, size_t i) {
+    return __impl_cpyword(x_alloc, s, i);
+}
+char* x_path(const char* s) {
+    return __impl_path(x_alloc, s);
+}
+char* x_pathslot(const char* s, int i) {
+    return __impl_pathslot(x_strndup, s, i);
+}
+char* x_basename(const char* s) {
+    return __impl_basename(x_alloc, s);
+}
+char* x_filename(const char* s) {
+    return __impl_filename(x_alloc, s);
+}
+char* x_randstr(size_t size, const char* charset) {
+    return __impl_randstr(x_alloc, size, charset);
+}
+char* x_strunq(const char* s) {
+    return __impl_strunq(x_alloc, s);
+}
+char* x_enumify(const char* s) {
+    return __impl_enumify(x_alloc, s);
+}
+char* x_canitize(const char* s) {
+    return __impl_canitize(x_alloc, s);
+}
+char* x_dirrel_f(const char* from, const char* item) {
+    return __impl_dirrel_f(x_alloc, from, item);
+}
+char* x_dirabs_f(const char* from, const char* item) {
+    return __impl_dirabs_f(x_fmt, from, item);
+}
+char* x_dirrel( const char* item) {
+    return __impl_dirrel(x_alloc, item);
+}
+char* x_dirabs(const char* item) {
+    return __impl_dirabs(x_fmt, item);
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+char* strdup(const char* s) {
+    return __impl_strdup(m_alloc, s);
+}
+char* strndup(const char* s, size_t n) {
+    return __impl_strndup(m_alloc, s, n);
+}
+void* memdup(const void* d, size_t n) {
+    return __impl_memdup(m_alloc, d, n);
+}
+char* fmt(const char* fmt, ...) {
+    va_list va; va_start(va, fmt);
+    char* r = __impl_fmt(m_alloc, fmt, va);
+    
+    va_end(va);
+    return r;
+}
+char* rep(const char* s, const char* a, const char* b) {
+    return __impl_rep(m_alloc, s, a, b);
+}
+char* cpyline(const char* s, size_t i) {
+    return __impl_cpyline(m_alloc, s, i);
+}
+char* cpyword(const char* s, size_t i) {
+    return __impl_cpyword(m_alloc, s, i);
+}
+char* path(const char* s) {
+    return __impl_path(m_alloc, s);
+}
+char* pathslot(const char* s, int i) {
+    return __impl_pathslot(strndup, s, i);
+}
+char* basename(const char* s) {
+    return __impl_basename(m_alloc, s);
+}
+char* filename(const char* s) {
+    return __impl_filename(m_alloc, s);
+}
+char* randstr(size_t size, const char* charset) {
+    return __impl_randstr(m_alloc, size, charset);
+}
+char* strunq(const char* s) {
+    return __impl_strunq(m_alloc, s);
+}
+char* enumify(const char* s) {
+    return __impl_enumify(m_alloc, s);
+}
+char* canitize(const char* s) {
+    return __impl_canitize(m_alloc, s);
+}
+char* dirrel_f(const char* from, const char* item) {
+    return __impl_dirrel_f(m_alloc, from, item);
+}
+char* dirabs_f(const char* from, const char* item) {
+    return __impl_dirabs_f(fmt, from, item);
+}
+char* dirrel( const char* item) {
+    return __impl_dirrel(m_alloc, item);
+}
+char* dirabs(const char* item) {
+    return __impl_dirabs(fmt, item);
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+int shex(const char* string) {
+    return strtoul(string, NULL, 16);
+}
+
+int sint(const char* string) {
+    if (strnlen(string, 3) >= 2 && !memcmp(string, "0x", 2)) {
+        return strtoul(string, NULL, 16);
+    } else {
+        return strtol(string, NULL, 10);
+    }
+}
+
+f32 sfloat(const char* string) {
+    f32 fl;
+    void* str = NULL;
+    
+    if (strstr(string, ",")) {
+        string = strdup(string);
+        str = (void*)string;
+        strrep((void*)string, ",", ".");
+    }
+    
+    fl = strtod(string, NULL);
+    free(str);
+    
+    return fl;
+}
+
+int sbool(const char* string) {
+    if (string == NULL)
+        return -1;
+    
+    if (!stricmp(string, "true"))
+        return true;
+    else if (!stricmp(string, "false"))
+        return false;
+    
+    return -1;
+}
+
+int vldt_hex(const char* str) {
+    int isOk = false;
+    
+    for (int i = 0;; i++) {
+        if (ispunct(str[i]) || str[i] == '\0')
+            break;
+        if (
+            (str[i] >= 'A' && str[i] <= 'F') ||
+            (str[i] >= 'a' && str[i] <= 'f') ||
+            (str[i] >= '0' && str[i] <= '9') ||
+            str[i] == 'x' || str[i] == 'X' ||
+            str[i] == ' ' || str[i] == '\t'
+        ) {
+            isOk = true;
+            continue;
+        }
+        
+        return false;
+    }
+    
+    return isOk;
+}
+
+int vldt_int(const char* str) {
+    int isOk = false;
+    
+    for (int i = 0;; i++) {
+        if (ispunct(str[i]) || str[i] == '\0')
+            break;
+        if (
+            (str[i] >= '0' && str[i] <= '9')
+        ) {
+            isOk = true;
+            continue;
+        }
+        
+        return false;
+    }
+    
+    return isOk;
+}
+
+int vldt_float(const char* str) {
+    int isOk = false;
+    
+    for (int i = 0;; i++) {
+        if (ispunct(str[i]) || str[i] == '\0')
+            break;
+        if (
+            (str[i] >= '0' && str[i] <= '9') || str[i] == '.'
+        ) {
+            isOk = true;
+            continue;
+        }
+        
+        return false;
+    }
+    
+    return isOk;
+}
+
+int digint(int i) {
+    int d = 0;
+    
+    for (; i; d++)
+        i *= 0.1f;
+    
+    return clamp_min(d, 1);
+}
+
+int dighex(int i) {
+    u32 d = 0;
+    
+    for (d = 7; d > 0 && !(i & (0xF << (d * 4)));)
+        d--;
+    
+    return clamp_min(d + 1, 1);
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+static f32 hue2rgb(f32 p, f32 q, f32 t) {
+    if (t < 0.0) t += 1;
+    if (t > 1.0) t -= 1;
+    if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t;
+    if (t < 1.0 / 2.0) return q;
+    if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
+    
+    return p;
+}
+
+hsl_t color_hsl(u8 r, u8 g, u8 b) {
+    hsl_t hsl;
+    hsl_t* dest = &hsl;
+    f32 cmax, cmin, d;
+    
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    
+    cmax = fmax(r, (fmax(g, b)));
+    cmin = fmin(r, (fmin(g, b)));
+    dest->l = (cmax + cmin) / 2;
+    d = cmax - cmin;
+    
+    if (cmax == cmin)
+        dest->h = dest->s = 0;
+    else {
+        dest->s = dest->l > 0.5 ? d / (2 - cmax - cmin) : d / (cmax + cmin);
+        
+        if (cmax == r) {
+            dest->h = (g - b) / d + (g < b ? 6 : 0);
+        } else if (cmax == g) {
+            dest->h = (b - r) / d + 2;
+        } else if (cmax == b) {
+            dest->h = (r - g) / d + 4;
+        }
+        dest->h /= 6.0;
+    }
+    
+    return hsl;
+}
+
+rgb8_t color_rgb8(f32 h, f32 s, f32 l) {
+    rgb8_t rgb = { };
+    
+    if (s == 0) {
+        rgb.r = rgb.g = rgb.b = l * 255;
+    } else {
+        f32 q = l < 0.5f ? l * (1 + s) : l + s - l * s;
+        f32 p = 2.0f * l - q;
+        rgb.r = hue2rgb(p, q, h + 1.0f / 3.0f) * 255;
+        rgb.g = hue2rgb(p, q, h) * 255;
+        rgb.b = hue2rgb(p, q, h - 1.0f / 3.0f) * 255;
+    }
+    
+    return rgb;
+}
+
+rgba8_t color_rgba8(f32 h, f32 s, f32 l) {
+    rgba8_t rgb = { .a = 0xFF };
+    rgb8_t* d = (void*)&rgb;
+    
+    *d = color_rgb8(h, s, l);
+    
+    return rgb;
+}
+
+void color_cnvtohsl(hsl_t* dest, rgb8_t* src) {
+    *dest = color_hsl(unfold_rgb(*src));
+}
+
+void color_cnvtorgb(rgb8_t* dest, hsl_t* src) {
+    rgba8_t c = color_rgba8(src->h, src->s, src->l);
+    
+    dest->r = c.r;
+    dest->g = c.g;
+    dest->b = c.b;
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+static const char* sNoteName[12] = {
+    "C", "C#",
+    "D", "D#",
+    "E",
+    "F", "F#",
+    "G", "G#",
+    "A", "A#",
+    "B",
+};
+
+int Music_NoteIndex(const char* note) {
+    int id = 0;
+    u32 octave;
+    
+    foreach(i, sNoteName) {
+        if (sNoteName[i][1] == '#')
+            continue;
+        if (note[0] == sNoteName[i][0]) {
+            id = i;
+            
+            if (note[1] == '#')
+                id++;
+            
+            break;
+        }
+    }
+    
+    while (!isdigit(note[0]) && note[0] != '-') note++;
+    
+    octave = 12 * (sint(note));
+    
+    return id + octave;
+}
+
+const char* Music_NoteWord(int note) {
+    f32 octave = (f32)note / 12;
+    
+    note %= 12;
+    
+    return x_fmt("%s%d", sNoteName[note], (int)floorf(octave));
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+f32 randf() {
+    f64 r = rand() / (f32)__INT16_MAX__;
+    
+    return fmod(r, 1.0f);
+}
+
+f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep) {
+    if (*pValue != target) {
+        f32 stepSize = (target - *pValue) * fraction;
+        
+        if ((stepSize >= minStep) || (stepSize <= -minStep)) {
+            if (stepSize > step) {
+                stepSize = step;
+            }
+            
+            if (stepSize < -step) {
+                stepSize = -step;
+            }
+            
+            *pValue += stepSize;
+        } else {
+            if (stepSize < minStep) {
+                *pValue += minStep;
+                stepSize = minStep;
+                
+                if (target < *pValue) {
+                    *pValue = target;
+                }
+            }
+            if (stepSize > -minStep) {
+                *pValue += -minStep;
+                
+                if (*pValue < target) {
+                    *pValue = target;
+                }
+            }
+        }
+    }
+    
+    return fabsf(target - *pValue);
+}
+
+f32 Math_Spline(f32 k, f32 xm1, f32 x0, f32 x1, f32 x2) {
+    f32 a = (3.0f * (x0 - x1) - xm1 + x2) * 0.5f;
+    f32 b = 2.0f * x1 + xm1 - (5.0f * x0 + x2) * 0.5f;
+    f32 c = (x1 - xm1) * 0.5f;
+    
+    return (((((a * k) + b) * k) + c) * k) + x0;
+}
+
+void Math_ApproachF(f32* pValue, f32 target, f32 fraction, f32 step) {
+    if (*pValue != target) {
+        f32 stepSize = (target - *pValue) * fraction;
+        
+        if (stepSize > step) {
+            stepSize = step;
+        } else if (stepSize < -step) {
+            stepSize = -step;
+        }
+        
+        *pValue += stepSize;
+    }
+}
+
+void Math_ApproachS(s16* pValue, s16 target, s16 scale, s16 step) {
+    s16 diff = target - *pValue;
+    
+    diff /= scale;
+    
+    if (diff > step) {
+        *pValue += step;
+    } else if (diff < -step) {
+        *pValue -= step;
+    } else {
+        *pValue += diff;
+    }
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+void* memmem(const void* hay, size_t haylen, const void* nee, size_t neelen) {
+    char* bf = (char*) hay, * pt = (char*) nee, * p = bf;
+    
+    if (haylen < neelen || !bf || !pt || !haylen || !neelen)
+        return NULL;
+    
+    while ((haylen - (p - bf)) >= neelen) {
+        if (NULL != (p = memchr(p, *pt, haylen - (p - bf)))) {
+            if (!memcmp(p, nee, neelen))
+                return p;
+            ++p;
+        } else
+            break;
+    }
     
     return NULL;
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// # QSort                               #
-// # # # # # # # # # # # # # # # # # # # #
+void* memmem_align(u32 val, const void* haystack, size_t haystacklen, const void* needle, size_t needlelen) {
+    char* s = (char*)needle;
+    char* bf = (char*)haystack;
+    char* p = (char*)haystack;
+    
+    if (haystacklen < needlelen || !haystack || !needle || !haystacklen || !needlelen || !val)
+        return NULL;
+    
+    while (haystacklen - (p - bf) >= needlelen) {
+        if (p[0] == s[0] && !memcmp(p, needle, needlelen))
+            return p;
+        p += val;
+    }
+    
+    return NULL;
+}
 
-int QSortCallback_Str_NumHex(const void* ptrA, const void* ptrB) {
+char* stristr(const char* haystack, const char* needle) {
+    char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
+    
+    if (!haystack || !needle)
+        return NULL;
+    
+    u32 haystacklen = strlen(haystack);
+    u32 needlelen = strlen(needle);
+    
+    while (needlelen <= (haystacklen - (p - bf))) {
+        char* a, * b;
+        
+        a = memchr(p, tolower((int)(*pt)), haystacklen - (p - bf));
+        b = memchr(p, toupper((int)(*pt)), haystacklen - (p - bf));
+        
+        if (a == NULL)
+            p = b;
+        else if (b == NULL)
+            p = a;
+        else
+            p = Min(a, b);
+        
+        if (p) {
+            if (0 == strnicmp(p, needle, needlelen))
+                return p;
+            ++p;
+        } else
+            break;
+    }
+    
+    return NULL;
+}
+
+char* strwstr(const char* hay, const char* nee) {
+    char* p = strstr(hay, nee);
+    
+    while (p) {
+        if (!isgraph(p[-1]) && !isgraph(p[strlen(nee)]))
+            return p;
+        
+        p = strstr(p + 1, nee);
+    }
+    
+    return NULL;
+}
+
+char* strnstr(const char* hay, const char* nee, size_t n) {
+    return memmem(hay, strnlen(hay, n), nee, strlen(nee));
+}
+
+char* strend(const char* src, const char* ext) {
+    const size_t xlen = strlen(ext);
+    const size_t slen = strlen(src);
+    char* fP;
+    
+    if (slen < xlen) return NULL;
+    fP = (char*)(src + slen - xlen);
+    if (!strcmp(fP, ext)) return fP;
+    
+    return NULL;
+}
+
+char* striend(const char* src, const char* ext) {
+    char* fP;
+    const int xlen = strlen(ext);
+    const int slen = strlen(src);
+    
+    if (slen < xlen) return NULL;
+    fP = (char*)(src + slen - xlen);
+    if (!stricmp(fP, ext)) return fP;
+    
+    return NULL;
+}
+
+char* strstart(const char* src, const char* ext) {
+    size_t extlen = strlen(ext);
+    
+    if (strnlen(src, extlen) < extlen)
+        return NULL;
+    
+    if (!strncmp(src, ext, extlen))
+        return (char*)src;
+    
+    return NULL;
+}
+
+char* stristart(const char* src, const char* ext) {
+    if (!strnicmp(src, ext, strlen(ext)))
+        return (char*)src;
+    
+    return NULL;
+}
+
+int strarg(const char* args[], const char* arg) {
+    
+    for (int i = 1; args[i] != NULL; i++) {
+        const char* this = args[i];
+        
+        if (this[0] != '-')
+            continue;
+        this += strspn(this, "-");
+        if (!strcmp(this, arg))
+            return i + 1;
+    }
+    
+    return 0;
+}
+
+char* strracpt(const char* str, const char* c) {
+    char* v = (char*)str;
+    u32 an = strlen(c);
+    
+    if (!v) return NULL;
+    else v = strchr(str, '\0');
+    
+    while (--v >= str)
+        for (int i = 0; i < an; i++)
+            if (*v == c[i])
+                return v;
+    
+    return NULL;
+}
+
+char* strlnhead(const char* str, const char* head) {
+    if (str == NULL) return NULL;
+    
+    for (int i = 0;; i--) {
+        if (str[i - 1] == '\n' || &str[i] == head)
+            return (char*)&str[i];
+    }
+}
+
+char* strline(const char* str, int line) {
+    const char* ln = str;
+    
+    nested(char*, revstrchr, (const char* s, int c)) {
+        do {
+            if (*s == c) {
+                return (char*)s;
+            }
+        } while (*s--);
+        
+        return (0);
+    };
+    
+    if (!str)
+        return NULL;
+    
+    if (line) {
+        if (line > 0) {
+            while (line--) {
+                ln = strchr(ln, '\n');
+                
+                if (!ln++)
+                    return NULL;
+                
+                if (*ln == '\r')
+                    ln++;
+            }
+        } else {
+            while (line++) {
+                ln = revstrchr(ln, '\n');
+                
+                if (!ln--)
+                    return NULL;
+            }
+            
+            if (ln)
+                ln += 2;
+        }
+    }
+    
+    return (char*)ln;
+}
+
+char* strword(const char* str, int word) {
+    if (!str)
+        return NULL;
+    
+    while (!isgraph(*str)) str++;
+    while (word--) {
+        if (!(str = strpbrk(str, " \t\n\r"))) return NULL;
+        while (!isgraph(*str)) str++;
+    }
+    
+    return (char*)str;
+}
+
+size_t linelen(const char* str) {
+    return strcspn(str, "\n");
+}
+
+size_t wordlen(const char* str) {
+    return strcspn(str, " \t\n\r");
+}
+
+bool chrspn(int c, const char* accept) {
+    for (; *accept; accept++)
+        if (c == *accept)
+            return true;
+    return false;
+}
+
+static int __impl_strnocc(const char* s, int n, const char* accept) {
+    int c = 0;
+    
+    for (; n && *s; n--, s++)
+        if (chrspn(*s, accept))
+            c++;
+    return c;
+}
+
+int strnocc(const char* s, size_t n, const char* accept) {
+    return __impl_strnocc(s, max(n, 0), accept);
+}
+
+int strocc(const char* s, const char* accept) {
+    return __impl_strnocc(s, -1, accept);
+}
+
+static int __impl_memnins(char* dst, size_t __dst_size, const char* src, size_t src_size, int pos, size_t __max_size) {
+    int dst_size = __dst_size - pos;
+    int max_size = __max_size - pos;
+    
+    if (dst_size <= 0 || max_size <= 0)
+        return 0;
+    
+    dst += pos;
+    
+    // Check if there is room to move
+    if (src_size == clamp_max(src_size, max_size)) {
+        int move_size = clamp_max(src_size + dst_size, max_size) - src_size;
+        
+        memmove(dst + src_size, dst, move_size);
+    }
+    
+    src_size = clamp_max(src_size, max_size);
+    memcpy(dst, src, src_size);
+    
+    return src_size;
+}
+
+int strnins(char* dst, const char* src, size_t pos, int n) {
+    return __impl_memnins(dst, strlen(dst) + 1, src, strlen(src), pos, n - 1);
+}
+
+int strins(char* dst, const char* src, size_t pos) {
+    return __impl_memnins(dst, strlen(dst) + 1, src, strlen(src), pos, __INT_MAX__);
+}
+
+int strinsat(char* str, const char* ins) {
+    return __impl_memnins(str, strlen(str) + 1, ins, strlen(ins), 0, __INT_MAX__);
+}
+
+static int __impl_strnrep(char* str, int len, char* (*__strstr)(const char*, const char*), const char* mtch, const char* rep) {
+    char* o = str;
+    int mtch_len = strlen(mtch);
+    int rep_len = strlen(rep);
+    int max_len;
+    int nlen;
+    
+    switch (len) {
+        case 0:
+            max_len = 0;
+            nlen = len = strlen(str);
+            break;
+            
+        default:
+            max_len = len;
+            nlen = len = strnlen(str, max_len);
+            break;
+    }
+    
+    while ( (str = __strstr(str, mtch)) ) {
+        int point = (int)((uaddr_t)str - (uaddr_t)o);
+        int mve_len = nlen - (point + mtch_len);
+        int oins_len = rep_len;
+        int ins_len = rep_len;
+        
+        if (max_len) {
+            oins_len = ins_len;
+            
+            mve_len = clamp(mve_len + point, 0, max_len) - point;
+            ins_len = clamp(ins_len + point, 0, max_len) - point;
+        }
+        
+        if (oins_len == ins_len && mve_len > 0) {
+            memmove(str + rep_len, str + mtch_len, mve_len );
+        }
+        
+        if (ins_len > 0) {
+            memcpy(str, rep, ins_len);
+            
+            nlen += (ins_len - mtch_len);
+            if (max_len) nlen = clamp_max(nlen, max_len);
+            o[nlen] = '\0';
+        }
+        
+        if (max_len) {
+            if (oins_len != ins_len)
+                break;
+        }
+        
+        str += ins_len;
+    }
+    
+    return nlen - len;
+}
+
+int strrep(char* src, const char* mtch, const char* rep) {
+    return __impl_strnrep(src, 0, strstr, mtch, rep);
+}
+
+int strnrep(char* src, int len, const char* mtch, const char* rep) {
+    return __impl_strnrep(src, len - 1, strstr, mtch, rep);
+}
+
+int strwrep(char* src, const char* mtch, const char* rep) {
+    return __impl_strnrep(src, 0, strwstr, mtch, rep);
+}
+
+int strwnrep(char* src, int len, const char* mtch, const char* rep) {
+    return __impl_strnrep(src, len - 1, strwstr, mtch, rep);
+}
+
+char* strfext(const char* str) {
+    int slash;
+    int point;
+    
+    slash_n_point(str, &slash, &point);
+    
+    return (void*)&str[point];
+}
+
+char* strtoup(char* str) {
+    forstr(i, str)
+    str[i] = toupper(str[i]);
+    
+    return str;
+}
+
+char* strtolo(char* str) {
+    forstr(i, str)
+    str[i] = tolower(str[i]);
+    
+    return str;
+}
+
+void strntolo(char* s, int i) {
+    if (i <= 0)
+        i = strlen(s);
+    
+    for (int k = 0; k < i; k++) {
+        if (s[k] >= 'A' && s[k] <= 'Z') {
+            s[k] = s[k] + 32;
+        }
+    }
+}
+
+void strntoup(char* s, int i) {
+    if (i <= 0)
+        i = strlen(s);
+    
+    for (int k = 0; k < i; k++) {
+        if (s[k] >= 'a' && s[k] <= 'z') {
+            s[k] = s[k] - 32;
+        }
+    }
+}
+
+void strrem(char* point, int amount) {
+    char* get = point + amount;
+    int len = strlen(get);
+    
+    if (len)
+        memcpy(point, get, strlen(get));
+    point[len] = 0;
+}
+
+char* strflipslash(char* t) {
+    strrep(t, "\\", "/");
+    
+    return t;
+}
+
+char* strfssani(char* t) {
+    strrep(t, "\\", "");
+    strrep(t, "/", "");
+    strrep(t, ":", "");
+    strrep(t, "*", "");
+    strrep(t, "?", "");
+    strrep(t, "\"", "");
+    strrep(t, "<", "");
+    strrep(t, ">", "");
+    strrep(t, "|", "");
+    
+    return t;
+}
+
+int strstrlen(const char* a, const char* b) {
+    int s = 0;
+    const u32 m = strlen(b);
+    
+    for (; s < m; s++) {
+        if (b[s] != a[s])
+            return s;
+    }
+    
+    return s;
+}
+
+__attribute__ ((deprecated))
+char* String_GetSpacedArg(const char** args, int cur) {
+    char tempBuf[512];
+    int i = cur + 1;
+    
+    if (args[i] && args[i][0] != '-' && args[i][1] != '-') {
+        strcpy(tempBuf, args[cur]);
+        
+        while (args[i] && args[i][0] != '-' && args[i][1] != '-') {
+            strcat(tempBuf, " ");
+            strcat(tempBuf, args[i++]);
+        }
+        
+        return x_strdup(tempBuf);
+    }
+    
+    return x_strdup(args[cur]);
+}
+
+void strswapext(char* dest, const char* src, const char* ext) {
+    strcpy(dest, x_path(src));
+    strcat(dest, x_basename(src));
+    strcat(dest, ext);
+}
+
+static char* __impl_strarrcat(const char** list, size_t size, const char* separator) {
+    char* s = alloc(size + 1);
+    
+    s[0] = '\0';
+    
+    for (int i = 0; list[i] != NULL; i++) {
+        strcat(s, list[i]);
+        
+        if (list[i + 1])
+            strcat(s, separator);
+    }
+    
+    return s;
+}
+
+char* strarrcat(const char** list, const char* separator) {
+    u32 i = 0;
+    u32 ln = 0;
+    
+    for (; list[i] != NULL; i++) {
+        ln += strlen(list[i]);
+    }
+    ln += strlen(separator) * (i - 1);
+    
+    return __impl_strarrcat(list, ln, separator);
+}
+
+typedef enum {
+    BMP_END                          = 0xFFFF,
+    UNICODE_MAX                      = 0x10FFFF,
+    INVALID_CODEPOINT                = 0xFFFD,
+    GENERIC_SURROGATE_VALUE          = 0xD800,
+    GENERIC_SURROGATE_MASK           = 0xF800,
+    HIGH_SURROGATE_VALUE             = 0xD800,
+    LOW_SURROGATE_VALUE              = 0xDC00,
+    SURROGATE_MASK                   = 0xFC00,
+    SURROGATE_CODEPOINT_OFFSET       = 0x10000,
+    SURROGATE_CODEPOINT_MASK         = 0x03FF,
+    SURROGATE_CODEPOINT_BITS         = 10,
+    UTF8_1_MAX                       = 0x7F,
+    UTF8_2_MAX                       = 0x7FF,
+    UTF8_3_MAX                       = 0xFFFF,
+    UTF8_4_MAX                       = 0x10FFFF,
+    UTF8_CONTINUATION_VALUE          = 0x80,
+    UTF8_CONTINUATION_MASK           = 0xC0,
+    UTF8_CONTINUATION_CODEPOINT_BITS = 6,
+    UTF8_LEADING_BYTES_LEN           = 4,
+} __utf8_define_t;
+
+typedef struct {
+    u8 mask;
+    u8 value;
+} utf8_pattern;
+
+static const utf8_pattern utf8_leading_bytes[] = {
+    { 0x80, 0x00 }, // 0xxxxxxx
+    { 0xE0, 0xC0 }, // 110xxxxx
+    { 0xF0, 0xE0 }, // 1110xxxx
+    { 0xF8, 0xF0 }, // 11110xxx
+};
+
+static int __wcharconv_calclen8(u32 codepoint) {
+    if (codepoint <= UTF8_1_MAX)
+        return 1;
+    
+    if (codepoint <= UTF8_2_MAX)
+        return 2;
+    
+    if (codepoint <= UTF8_3_MAX)
+        return 3;
+    
+    return 4;
+}
+
+static size_t __wcharconv_encode8(u32 codepoint, char* utf8, size_t index) {
+    int size = __wcharconv_calclen8(codepoint);
+    
+    // Write the continuation bytes in reverse order first
+    for (int cont_index = size - 1; cont_index > 0; cont_index--) {
+        u8 cont = codepoint & ~UTF8_CONTINUATION_MASK;
+        cont |= UTF8_CONTINUATION_VALUE;
+        
+        utf8[index + cont_index] = cont;
+        codepoint >>= UTF8_CONTINUATION_CODEPOINT_BITS;
+    }
+    
+    utf8_pattern pattern = utf8_leading_bytes[size - 1];
+    
+    u8 lead = codepoint & ~(pattern.mask);
+    
+    lead |= pattern.value;
+    
+    utf8[index] = lead;
+    
+    return size;
+}
+
+static size_t __wcharconv_encode16(u32 codepoint, wchar* utf16, size_t index) {
+    if (codepoint <= BMP_END) {
+        utf16[index] = codepoint;
+        
+        return 1;
+    }
+    
+    codepoint -= SURROGATE_CODEPOINT_OFFSET;
+    
+    u16 low = LOW_SURROGATE_VALUE;
+    low |= codepoint & SURROGATE_CODEPOINT_MASK;
+    
+    codepoint >>= SURROGATE_CODEPOINT_BITS;
+    
+    u16 high = HIGH_SURROGATE_VALUE;
+    high |= codepoint & SURROGATE_CODEPOINT_MASK;
+    
+    utf16[index] = high;
+    utf16[index + 1] = low;
+    
+    return 2;
+}
+
+static u32 __wcharconv_decode8(const char* utf8, size_t len, size_t* index) {
+    u8 leading = utf8[*index];
+    int encoding_len = 0;
+    utf8_pattern leading_pattern;
+    bool matches = false;
+    
+    do {
+        encoding_len++;
+        leading_pattern = utf8_leading_bytes[encoding_len - 1];
+        
+        matches = (leading & leading_pattern.mask) == leading_pattern.value;
+        
+    } while (!matches && encoding_len < UTF8_LEADING_BYTES_LEN);
+    
+    if (!matches)
+        return INVALID_CODEPOINT;
+    
+    u32 codepoint = leading & ~leading_pattern.mask;
+    
+    for (int i = 0; i < encoding_len - 1; i++) {
+        if (*index + 1 >= len)
+            return INVALID_CODEPOINT;
+        
+        u8 continuation = utf8[*index + 1];
+        if ((continuation & UTF8_CONTINUATION_MASK) != UTF8_CONTINUATION_VALUE)
+            return INVALID_CODEPOINT;
+        
+        codepoint <<= UTF8_CONTINUATION_CODEPOINT_BITS;
+        codepoint |= continuation & ~UTF8_CONTINUATION_MASK;
+        
+        (*index)++;
+    }
+    
+    int proper_len = __wcharconv_calclen8(codepoint);
+    
+    if (proper_len != encoding_len)
+        return INVALID_CODEPOINT;
+    if (codepoint < BMP_END && (codepoint & GENERIC_SURROGATE_MASK) == GENERIC_SURROGATE_VALUE)
+        return INVALID_CODEPOINT;
+    if (codepoint > UNICODE_MAX)
+        return INVALID_CODEPOINT;
+    
+    return codepoint;
+}
+
+static u32 __wcharconv_decode16(const wchar* utf16, size_t len, size_t* index) {
+    u16 high = utf16[*index];
+    
+    if ((high & GENERIC_SURROGATE_MASK) != GENERIC_SURROGATE_VALUE)
+        return high;
+    if ((high & SURROGATE_MASK) != HIGH_SURROGATE_VALUE)
+        return INVALID_CODEPOINT;
+    if (*index == len - 1)
+        return INVALID_CODEPOINT;
+    
+    u16 low = utf16[*index + 1];
+    
+    if ((low & SURROGATE_MASK) != LOW_SURROGATE_VALUE)
+        return INVALID_CODEPOINT;
+    (*index)++;
+    u32 result = high & SURROGATE_CODEPOINT_MASK;
+    
+    result <<= SURROGATE_CODEPOINT_BITS;
+    result |= low & SURROGATE_CODEPOINT_MASK;
+    result += SURROGATE_CODEPOINT_OFFSET;
+    
+    return result;
+}
+
+size_t strwlen(const wchar* s) {
+    size_t len = 0;
+    
+    while (s[len] != 0)
+        len++;
+    
+    return len;
+}
+
+char* strto8(char* dst, const wchar* src) {
+    size_t dstIndex = 0;
+    size_t len = strwlen(src) + 1;
+    
+    if (!dst)
+        dst = x_alloc(len);
+    
+    for (size_t indexSrc = 0; indexSrc < len; indexSrc++)
+        dstIndex += __wcharconv_encode8(__wcharconv_decode16(src, len, &indexSrc), dst, dstIndex);
+    
+    return dst;
+}
+
+wchar* strto16(wchar* dst, const char* src) {
+    size_t dstIndex = 0;
+    size_t len = strlen(src) + 1;
+    
+    if (!dst)
+        dst = x_alloc(len * 3);
+    
+    for (size_t srcIndex = 0; srcIndex < len; srcIndex++)
+        dstIndex += __wcharconv_encode16(__wcharconv_decode8(src, len, &srcIndex), dst, dstIndex);
+    
+    return dst;
+}
+
+int linenum(const char* str) {
+    int num = 1;
+    
+    while (*str != '\0') {
+        if (*str == '\n' || *str == '\r')
+            num++;
+        str++;
+    }
+    
+    return num;
+}
+
+int dirnum(const char* src) {
+    int dir = -1;
+    const u32 m = strlen(src);
+    
+    for (int i = 0; i < m; i++) {
+        if (src[i] == '/')
+            dir++;
+    }
+    
+    return dir + 1;
+}
+
+int dir_isabs(const char* item) {
+    while (item[0] == '\'' || item[0] == '\"')
+        item++;
+    
+    if (isalpha(item[0]) && item[1] == ':' && (item[2] == '/' || item[2] == '\\')) {
+        
+        return 1;
+    }
+    if (item[0] == '/' || item[0] == '\\') {
+        
+        return 1;
+    }
+    
+    return 0;
+}
+
+int dir_isrel(const char* item) {
+    return !dir_isabs(item);
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+bool sys_isdir(const char* path) {
+    struct stat st = { 0 };
+    
+    stat(path, &st);
+    if (S_ISDIR(st.st_mode))
+        return true;
+    
+    if (strend(path, "/")) {
+        char* tmp = x_strdup(path);
+        strend(tmp, "/")[0] = '\0';
+        
+        stat(tmp, &st);
+        
+        if (S_ISDIR(st.st_mode))
+            return true;
+    }
+    
+    return false;
+}
+
+time_t sys_stat(const char* item) {
+    struct stat st = { 0 };
+    time_t t = 0;
+    int f = 0;
+    
+    if (item == NULL)
+        return 0;
+    
+    if (strend(item, "/") || strend(item, "\\")) {
+        f = 1;
+        item = strdup(item);
+        ((char*)item)[strlen(item) - 1] = 0;
+    }
+    
+    if (stat(item, &st) == -1) {
+        if (f) free(item);
+        
+        return 0;
+    }
+    
+    // No access time
+    // t = Max(st.st_atime, t);
+    t = Max(st.st_mtime, t);
+    t = Max(st.st_ctime, t);
+    
+    if (f) free(item);
+    
+    return t;
+}
+
+const char* sys_app(void) {
+    static char buf[512];
+    
+#ifdef _WIN32
+    GetModuleFileName(NULL, buf, 512);
+#else
+    (void)readlink("/proc/self/exe", buf, 512);
+#endif
+    
+    return buf;
+}
+
+const char* sys_appdata(void) {
+    const char* app = x_basename(sys_app());
+    static char buf[512];
+    
+    snprintf(buf, 512, "%s/%s/", sys_env(ENV_APPDATA), app);
+    sys_mkdir("%s", buf);
+    
+    return buf;
+}
+
+time_t sys_time(void) {
+    time_t tme;
+    
+    time(&tme);
+    
+    return tme;
+}
+
+void sys_sleep(f64 sec) {
+    struct timespec ts = { 0 };
+    
+    if (sec <= 0)
+        return;
+    
+    ts.tv_sec = floor(sec);
+    ts.tv_nsec = (sec - floor(sec)) * 1000000000;
+    
+    nanosleep(&ts, NULL);
+}
+
+static void __impl_makedir_recurse(const char* s) {
+    char tmp[261];
+    char* p = NULL;
+    size_t len;
+    
+    snprintf(tmp, sizeof(tmp), "%s", s);
+    len = strlen(tmp);
+    if (tmp[len - 1] == '/')
+        tmp[len - 1] = 0;
+    for (p = tmp + 1; *p; p++)
+        if (*p == '/') {
+            *p = 0;
+            if (!sys_stat(tmp))
+                mkdir(
+                    tmp
+#ifndef _WIN32
+                    ,
+                    S_IRWXU
+#endif
+                );
+            *p = '/';
+        }
+    if (!sys_stat(tmp))
+        mkdir(
+            tmp
+#ifndef _WIN32
+            ,
+            S_IRWXU
+#endif
+        );
+}
+
+static void __impl_makedir(const char* s) {
+    if (sys_stat(s))
+        return;
+    
+    __impl_makedir_recurse(s);
+    if (!sys_stat(s))
+        _log("mkdir error: [%s]", s);
+}
+
+void sys_mkdir(const char* dir, ...) {
+    char buffer[261];
+    va_list args;
+    
+    va_start(args, dir);
+    vsnprintf(buffer, 261, dir, args);
+    va_end(args);
+    
+    const int m = strlen(buffer);
+    
+#ifdef _WIN32
+    int i = 0;
+    if (dir_isabs(buffer))
+        i = 3;
+    
+    for (; i < m; i++) {
+        switch (buffer[i]) {
+            case ':':
+            case '*':
+            case '?':
+            case '"':
+            case '<':
+            case '>':
+            case '|':
+                print_error("MakeDir: Can't make folder with illegal character! '%s'", buffer);
+                break;
+            default:
+                break;
+        }
+    }
+#endif
+    
+    if (!sys_isdir(dir)) {
+        for (int i = m - 1; i >= 0; i--) {
+            if (buffer[i] == '/' || buffer[i] == '\\')
+                break;
+            buffer[i] = '\0';
+        }
+    }
+    
+    __impl_makedir(buffer);
+}
+
+const char* sys_workdir(void) {
+    static char buf[512];
+    
+    if (getcwd(buf, sizeof(buf)) == NULL)
+        print_error("Could not get sys_workdir");
+    
+    const u32 m = strlen(buf);
+    for (int i = 0; i < m; i++) {
+        if (buf[i] == '\\')
+            buf[i] = '/';
+    }
+    
+    strcat(buf, "/");
+    
+    return buf;
+}
+
+const char* sys_appdir(void) {
+    static char* appdir;
+    
+    if (!appdir) {
+        appdir = dfree(strndup(x_path(sys_app()), 512));
+        strrep(appdir, "\\", "/");
+        
+        if (!strend(appdir, "/"))
+            strcat(appdir, "/");
+    }
+    
+    return appdir;
+}
+
+int sys_mv(const char* input, const char* output) {
+    if (sys_stat(output))
+        sys_rm(output);
+    
+    return rename(input, output);
+}
+
+static int __impl_rmdir(const char* item, const struct stat* bug, int type, struct FTW* ftw) {
+    if (sys_rm(item))
+        print_error_align("Delete", "%s", item);
+    
+    return 0;
+}
+
+int sys_rm(const char* item) {
+    if (sys_isdir(item))
+        return rmdir(item);
+    else
+        return remove(item);
+}
+
+int sys_rmdir(const char* item) {
+    if (!sys_isdir(item))
+        return 1;
+    if (!sys_stat(item))
+        return 0;
+    if (nftw(item, __impl_rmdir, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
+        print_error("nftw error: %s %s", item, __FUNCTION__);
+    
+    return 0;
+}
+
+void sys_setworkpath(const char* txt) {
+    if (dir_isrel(txt))
+        txt = x_dirabs(txt);
+    
+    chdir(txt);
+}
+
+int sys_touch(const char* file) {
+    if (!sys_stat(file)) {
+        FILE* f = fopen(file, "w");
+        Assert(f != NULL);
+        fclose(f);
+        
+        return 0;
+    }
+    
+#include <utime.h>
+    struct stat st;
+    struct utimbuf nTime;
+    
+    stat(file, &st);
+    nTime.actime = st.st_atime;
+    nTime.modtime = time(NULL);
+    utime(file, &nTime);
+    
+    return 0;
+}
+
+int sys_cp(const char* src, const char* dest) {
+    if (sys_isdir(src)) {
+        list_t list = list_new();
+        
+        list_walk(&list, src, -1, LIST_FILES);
+        
+        forlist(i, list) {
+            char* dfile = x_fmt(
+                "%s%s%s",
+                dest,
+                strend(dest, "/") ? "" : "/",
+                list.item[i] + strlen(src)
+            );
+            
+            _log("Copy: %s -> %s", list.item[i], dfile);
+            
+            sys_mkdir(x_path(dfile));
+            if (sys_cp(list.item[i], dfile))
+                return 1;
+        }
+        
+        list_free(&list);
+    } else {
+        memfile_t a = memfile_new();
+        
+        a.param.throwError = false;
+        
+        if (memfile_load_bin(&a, src))
+            return -1;
+        if (memfile_save_bin(&a, dest))
+            return 1;
+        memfile_free(&a);
+    }
+    
+    return 0;
+}
+
+date_t sys_timedate(time_t time) {
+    date_t date = { 0 };
+    
+#ifndef __clang__
+    struct tm* tistr = localtime(&time);
+    
+    date.year = tistr->tm_year + 1900;
+    date.month = tistr->tm_mon + 1;
+    date.day = tistr->tm_mday;
+    date.hour = tistr->tm_hour;
+    date.minute = tistr->tm_min;
+    date.second = tistr->tm_sec;
+#endif
+    
+    return date;
+}
+
+int sys_getcorenum(void) {
+    {
+#ifndef __clang__
+#ifdef _WIN32
+        #define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+        s64 nprocs = -1;
+        s64 nprocs_max = -1;
+        
+#ifdef _WIN32
+#ifndef _SC_NPROCESSORS_ONLN
+        SYSTEM_INFO info;
+        GetSystemInfo(&info);
+        #define sysconf(a) info.dwNumberOfProcessors
+        #define _SC_NPROCESSORS_ONLN
+#endif
+#endif
+#ifdef _SC_NPROCESSORS_ONLN
+        nprocs = sysconf(_SC_NPROCESSORS_ONLN);
+        if (nprocs < 1) {
+            return 0;
+        }
+        nprocs_max = sysconf(_SC_NPROCESSORS_CONF);
+        if (nprocs_max < 1) {
+            return 0;
+        }
+        
+        return nprocs;
+#else
+        
+#endif
+#endif
+    }
+    
+    return 0;
+}
+
+size_t sys_statsize(const char* file) {
+    FILE* f = fopen(file, "r");
+    u32 result = -1;
+    
+    if (!f) return result;
+    
+    fseek(f, 0, SEEK_END);
+    result = ftell(f);
+    fclose(f);
+    
+    return result;
+}
+
+const char* sys_env(env_index_t env) {
+    switch (env) {
+#ifdef _WIN32
+        case ENV_USERNAME:
+            return x_strdup(getenv("USERNAME"));
+        case ENV_APPDATA:
+            return strflipslash(x_strdup(getenv("APPDATA")));
+        case ENV_HOME:
+            return strflipslash(x_strdup(getenv("USERPROFILE")));
+        case ENV_TEMP:
+            return strflipslash(x_strdup(getenv("TMP")));
+            
+#else // UNIX
+        case ENV_USERNAME:
+            return x_strdup(getenv("USER"));
+        case ENV_APPDATA:
+            return x_strdup("~/.local");
+        case ENV_HOME:
+            return x_strdup(getenv("HOME"));
+        case ENV_TEMP:
+            return x_strdup("/tmp");
+            
+#endif
+    }
+    
+    return NULL;
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+static int sSysIgnore;
+static int sSysReturn;
+
+static const char* sys_exe_s(const char* str) {
+#ifdef _WIN32
+    char* n = x_strdup(str);
+    char* e = strstr(n, ".exe");
+    
+    Assert(e != NULL);
+    for (; (uaddr_t)e >= (uaddr_t)n; e--)
+        if (*e == '/') *e = '\\';
+    
+    return n;
+#endif
+    return str;
+}
+
+int sys_exe(const char* cmd) {
+    int ret;
+    
+    ret = system(sys_exe_s(cmd));
+    
+    if (ret != 0)
+        _log(PRNT_REDD "[%d] " PRNT_GRAY "sys_exe(" PRNT_REDD "%s" PRNT_GRAY ");", ret, cmd);
+    
+    return ret;
+}
+
+void sys_exed(const char* cmd) {
+#ifdef _WIN32
+    sys_exe(x_fmt("start %s", sys_exe_s(cmd)));
+#else
+    sys_exe(x_fmt("nohup %s", cmd));
+#endif
+}
+
+int sys_exel(const char* cmd, int (*callback)(void*, const char*), void* arg) {
+    char* s;
+    FILE* file;
+    
+    if ((file = popen(sys_exe_s(cmd), "r")) == NULL) {
+        _log(PRNT_REDD "sys_exes(%s);", cmd);
+        _log("popen failed!");
+        
+        return -1;
+    }
+    
+    s = alloc(1025);
+    while (fgets(s, 1024, file))
+        if (callback)
+            if (callback(arg, s))
+                break;
+    free(s);
+    
+    return pclose(file);
+}
+
+void sys_exes_noerr() {
+    sSysIgnore = true;
+}
+
+int sys_exes_return() {
+    return sSysReturn;
+}
+
+char* sys_exes(const char* cmd) {
+    char* sExeBuffer;
+    char result[1025];
+    FILE* file = NULL;
+    u32 size = 0;
+    
+    if ((file = popen(sys_exe_s(cmd), "r")) == NULL) {
+        _log(PRNT_REDD "sys_exes(%s);", cmd);
+        _log("popen failed!");
+        
+        return NULL;
+    }
+    
+    sExeBuffer = alloc(mb_to_bin(4));
+    Assert(sExeBuffer != NULL);
+    sExeBuffer[0] = '\0';
+    
+    while (fgets(result, 1024, file)) {
+        size += strlen(result);
+        Assert (size < mb_to_bin(4));
+        strcat(sExeBuffer, result);
+    }
+    
+    if ((sSysReturn = pclose(file)) != 0) {
+        if (sSysIgnore == 0) {
+            printf("%s\n", sExeBuffer);
+            _log(PRNT_REDD "[%d] " PRNT_GRAY "sys_exes(" PRNT_REDD "%s" PRNT_GRAY ");", sSysReturn, cmd);
+            print_error("sys_exes [%s]", sys_exe_s(cmd));
+        }
+    }
+    
+    return sExeBuffer;
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+thread_local struct {
+    bool makeDir;
+    char path[261];
+} sFileSys;
+
+void fs_mkflag(bool flag) {
+    sFileSys.makeDir = flag;
+}
+
+void fs_set(const char* fmt, ...) {
+    va_list va;
+    
+    va_start(va, fmt);
+    vsnprintf(sFileSys.path, 261, fmt, va);
+    va_end(va);
+    
+    _log("Path [%s]", sFileSys.path);
+    
+    if (sFileSys.makeDir)
+        sys_mkdir(sFileSys.path);
+}
+
+char* fs_item(const char* str, ...) {
+    char buffer[261];
+    char* ret;
+    va_list va;
+    
+    va_start(va, str);
+    vsnprintf(buffer, 261, str, va);
+    va_end(va);
+    
+    _log("%s", str);
+    
+    if (buffer[0] != '/' && buffer[0] != '\\')
+        ret = x_fmt("%s%s", sFileSys.path, buffer);
+    else
+        ret = x_strdup(buffer + 1);
+    
+    return ret;
+}
+
+char* fs_find(const char* str) {
+    char* file = NULL;
+    time_t stat = 0;
+    list_t list = list_new();
+    
+    if (*str == '*') str++;
+    
+    _log("Find: [%s] in [%s]", str, sFileSys.path);
+    
+    list_walk(&list, sFileSys.path, 0, LIST_FILES | LIST_NO_DOT);
+    
+    for (int i = 0; i < list.num; i++) {
+        if (striend(list.item[i], str)) {
+            time_t s = sys_stat(list.item[i]);
+            
+            if (s > stat) {
+                file = list.item[i];
+                stat = s;
+            }
+        }
+    }
+    
+    if (file) {
+        file = x_strdup(file);
+        _log("Found: %s", file);
+    }
+    
+    list_free(&list);
+    
+    return file;
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+bool cli_yesno(void) {
+    char line[16] = {};
+    int clear = 0;
+    bool ret = true;
+    
+    while (stricmp(line, "y") && stricmp(line, "n")) {
+        if (clear++)
+            cli_clearln(2);
+        
+        printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
+        fgets(line, 16, stdin);
+        
+        while (strend(line, "\n"))
+            strend(line, "\n")[0] = '\0';
+    }
+    
+    if (!stricmp(line, "n"))
+        ret = false;
+    
+    cli_clearln(2);
+    
+    return ret;
+}
+
+void cli_clear(void) {
+    printf("\033[2J");
+    fflush(stdout);
+}
+
+void cli_clearln(int i) {
+    printf("\x1b[2K");
+    for (int j = 1; j < i; j++) {
+        cli_gotoprevln();
+        printf("\x1b[2K");
+    }
+    fflush(stdout);
+}
+
+void cli_gotoprevln(void) {
+    printf("\x1b[1F");
+    fflush(stdout);
+}
+
+const char* cli_gets(void) {
+    static char line[512] = { 0 };
+    
+    printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_RSET);
+    fgets(line, 511, stdin);
+    
+    while (strend(line, "\n"))
+        strend(line, "\n")[0] = '\0';
+    
+    _log("[%s]", line);
+    
+    return line;
+}
+
+char cli_getc() {
+    char line[16] = {};
+    
+    printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
+    fgets(line, 16, stdin);
+    
+    cli_clearln(2);
+    
+    return 0;
+}
+
+void cli_hide(void) {
+#ifdef _WIN32
+    HWND window = GetConsoleWindow();
+    ShowWindow(window, SW_HIDE);
+    
+#else
+#endif
+}
+
+void cli_show(void) {
+#ifdef _WIN32
+    HWND window = GetConsoleWindow();
+    ShowWindow(window, SW_SHOW);
+#else
+#endif
+}
+
+void cli_getSize(int* r) {
+    int x = 0;
+    int y = 0;
+    
+#ifdef _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    x = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    y = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+#else
+#ifndef __clang__
+#include <sys/ioctl.h>
+    struct winsize w;
+    
+    ioctl(0, TIOCGWINSZ, &w);
+    
+    x = w.ws_col;
+    y = w.ws_row;
+#endif // __clang__
+#endif // _WIN32
+    
+    r[0] = x;
+    r[1] = y;
+}
+
+void cli_getPos(int* r) {
+    int x = 0;
+    int y = 0;
+    
+#ifdef _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO cbsi;
+    
+    Assert (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cbsi));
+    
+    x = cbsi.dwCursorPosition.X;
+    y = cbsi.dwCursorPosition.Y;
+#else
+#endif // _WIN32
+    
+    r[0] = x;
+    r[1] = y;
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+int qsort_method_numhex(const void* ptrA, const void* ptrB) {
     const char* a = *((char**)ptrA);
     const char* b = *((char**)ptrB);
     
@@ -3710,7 +2638,7 @@ int QSortCallback_Str_NumHex(const void* ptrA, const void* ptrB) {
         else if (remainderB - b != remainderA - a)
             return (remainderB - b) - (remainderA - a);
         else
-            return QSortCallback_Str_NumHex(&remainderA, &remainderB);
+            return qsort_method_numhex(&remainderA, &remainderB);
     }
     if (!memcmp(a, "0x", 2) || !memcmp(b, "0x", 2)) {
         return *a - *b;
@@ -3726,14 +2654,14 @@ int QSortCallback_Str_NumHex(const void* ptrA, const void* ptrB) {
         else if (remainderB - b != remainderA - a)
             return (remainderB - b) - (remainderA - a);
         else
-            return QSortCallback_Str_NumHex(&remainderA, &remainderB);
+            return qsort_method_numhex(&remainderA, &remainderB);
     }
     if (isdigit(*a) || isdigit(*b)) {
         return *a - *b;
     }
     while (*a && *b) {
         if (isdigit(*a) || isdigit(*b))
-            return QSortCallback_Str_NumHex(&a, &b);
+            return qsort_method_numhex(&a, &b);
         if (tolower(*a) != tolower(*b))
             return tolower(*a) - tolower(*b);
         a++;
@@ -3741,3 +2669,14 @@ int QSortCallback_Str_NumHex(const void* ptrA, const void* ptrB) {
     }
     return *a ? 1 : *b ? -1 : 0;
 }
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+#undef free
+void* __free(const void* data) {
+    if (data != NULL)
+        free((void*)data);
+    
+    return NULL;
+}
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #

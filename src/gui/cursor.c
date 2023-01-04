@@ -5,7 +5,7 @@ CursorIcon* gCursor;
 void Cursor_CreateCursor(CursorIndex id,  const u8* data, s32 size, s32 xcent, s32 ycent) {
     CursorBitmap* dest = &gCursor->cursor[id];
     
-    gCursor->cursor[id].bitmap = Alloc(sizeof(RGBA8) * size * size);
+    gCursor->cursor[id].bitmap = alloc(sizeof(rgba8_t) * size * size);
     
     for (s32 i = 0, j = 0; i < size * size; i++, j += 2) {
         dest->bitmap[i].r = data[j];

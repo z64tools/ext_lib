@@ -3,30 +3,30 @@
 
 #include "ext_lib.h"
 
-typedef struct ZipFile {
+typedef struct zip_file_t {
     void* pkg;
     char* filename;
-} ZipFile;
+} zip_file_t;
 
 typedef enum {
     ZIP_READ   = 'r',
     ZIP_WRITE  = 'w',
     ZIP_APPEND = 'a',
-} ZipParam;
+} zip_param_t;
 
 typedef enum {
     ZIP_ERROR_OPEN_ENTRY = 1,
     ZIP_ERROR_RW_ENTRY   = -1,
     ZIP_ERROR_CLOSE      = -2,
-} ZipReturn;
+} zip_return_t;
 
-void* ZipFile_Load(ZipFile* zip, const char* file, ZipParam mode);
-u32 ZipFile_GetEntriesNum(ZipFile* zip);
-s32 ZipFile_ReadEntry_Name(ZipFile* zip, const char* entry, MemFile* mem);
-s32 ZipFile_ReadEntry_Index(ZipFile* zip, Size index, MemFile* mem);
-s32 ZipFile_ReadEntries_Path(ZipFile* zip, const char* path, s32 (*callback)(const char* name, MemFile* mem));
-s32 ZipFile_WriteEntry(ZipFile* zip, MemFile* mem, const char* entry);
-s32 ZipFile_Extract(ZipFile* zip, const char* path, s32 (*callback)(const char* name, f32 prcnt));
-void ZipFile_Free(ZipFile* zip);
+void* zip_load(zip_file_t* zip, const char* file, zip_param_t mode);
+int zip_get_num_entries(zip_file_t* zip);
+int zip_read_name(zip_file_t* zip, const char* entry, memfile_t* mem);
+int zip_read_index(zip_file_t* zip, size_t index, memfile_t* mem);
+int zip_read_path(zip_file_t* zip, const char* path, int (*callback)(const char* name, memfile_t* mem));
+int zip_write(zip_file_t* zip, memfile_t* mem, const char* entry);
+int zip_dump(zip_file_t* zip, const char* path, int (*callback)(const char* name, f32 prcnt));
+void zip_free(zip_file_t* zip);
 
 #endif

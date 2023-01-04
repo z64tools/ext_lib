@@ -140,14 +140,14 @@ static void Camera_OrbitMode(View3D* this, Input* inputCtx, bool update) {
         if (inputCtx->cursor.clickMid.hold || Input_GetScroll(inputCtx) || disdiff || fovDiff) {
             if (inputCtx->key[KEY_LEFT_CONTROL].hold && Input_GetScroll(inputCtx)) {
                 cam->targetDist = cam->dist;
-                this->fovyTarget = Clamp(this->fovyTarget * (1.0 + (Input_GetScroll(inputCtx) / 20)), 10, 130);
+                this->fovyTarget = clamp(this->fovyTarget * (1.0 + (Input_GetScroll(inputCtx) / 20)), 10, 130);
                 fovDiff = -this->fovy;
             } else {
                 if (Input_GetScroll(inputCtx)) {
                     cam->targetDist -= Input_GetScroll(inputCtx) * distMult * 0.75f;
                 }
                 
-                cam->targetDist = ClampMin(cam->targetDist, 1.0f);
+                cam->targetDist = clamp_min(cam->targetDist, 1.0f);
             }
             
             if (inputCtx->cursor.clickMid.hold) {
@@ -244,7 +244,7 @@ static void Camera_Update_RotTo(View3D* this, Input* input) {
             { 90, 0,   0   },
         };
         
-        for (s32 i = 0; i < ArrayCount(key); i++) {
+        for (s32 i = 0; i < arrcount(key); i++) {
             if (Input_GetKey(input, key[i])->press) {
                 pass = i;
                 break;
@@ -367,7 +367,7 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
         Matrix_Projection(
             &this->projMtx, this->fovy, (f32)this->split->rect.w / (f32)this->split->rect.h, this->near, this->far, this->scale);
     
-    for (s32 i = 0; i < ArrayCount(camMode); i++)
+    for (s32 i = 0; i < arrcount(camMode); i++)
         camMode[i](this, inputCtx, (this->mode & (1 << i) && !this->interrupt));
     
     if (this->cameraControl && !this->interrupt) {
@@ -375,7 +375,7 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
             KEY_W, KEY_A, KEY_S, KEY_D
         };
         
-        for (s32 i = 0; i < ArrayCount(keyList); i++) {
+        for (s32 i = 0; i < arrcount(keyList); i++) {
             if (Input_GetKey(inputCtx, keyList[i])->hold)
                 this->isControlled = true;
         }

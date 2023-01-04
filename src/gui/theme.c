@@ -16,7 +16,7 @@ NVGcolor Theme_GetColor(ThemeColor pal, s32 alpha, f32 mult) {
     if (sIndex == 1)
         mult = 1 / mult;
     
-    return nvgHSLA(col.h, col.s * mult, col.l * mult, ClampMax(alpha, 255));
+    return nvgHSLA(col.h, col.s * mult, col.l * mult, clamp_max(alpha, 255));
 }
 
 void Theme_SmoothStepToCol(NVGcolor* src, NVGcolor target, f32 a, f32 b, f32 c) {

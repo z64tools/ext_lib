@@ -19,6 +19,8 @@
 #define PRNT_RNL  PRNT_RSET PRNT_NL
 #define PRNT_TODO "\e[91;2m" "TODO"
 
+#define calloc(size) calloc(1, size)
+
 #define catprintf(dest, ...) sprintf(dest + strlen(dest), __VA_ARGS__)
 
 #define Node_Add(head, node) do {               \
@@ -36,11 +38,11 @@
 #define Node_Kill(head, node) do {    \
         typeof(node) killNode = node; \
         Node_Remove(head, node);      \
-        Free(killNode);               \
+        free(killNode);               \
 } while (0)
 
 #define Swap(a, b) do { \
-        var y = a;      \
+        var_t y = a;    \
         a = b;          \
         b = y;          \
 } while (0)
@@ -73,7 +75,7 @@
         dest = ReadBE(get);     \
 }
 
-#define SwapBE(in) WriteBE(in, in)
+#define swapBE(in) WriteBE(in, in)
 
 #define Decr(x) (x -= (x > 0) ? 1 : 0)
 #define Incr(x) (x += (x < 0) ? 1 : 0)
@@ -86,26 +88,28 @@
 #define MaxAbs(a, b)         (Abs(a) > Abs(b) ? (a) : (b))
 #define MinAbs(a, b)         (Abs(a) <= Abs(b) ? (a) : (b))
 #define Abs(val)             ((val) < 0 ? -(val) : (val))
-#define Clamp(val, min, max) ((val) < (min) ? (min) : (val) > (max) ? (max) : (val))
-#define ClampMin(val, min)   ((val) < (min) ? (min) : (val))
-#define ClampMax(val, max)   ((val) > (max) ? (max) : (val))
+#define clamp(val, min, max) ((val) < (min) ? (min) : (val) > (max) ? (max) : (val))
+#define clamp_min(val, min)  ((val) < (min) ? (min) : (val))
+#define clamp_max(val, max)  ((val) > (max) ? (max) : (val))
+#define min(a, b)            ((a) < (b) ? (a) : (b))
+#define max(a, b)            ((a) > (b) ? (a) : (b))
 
-#define ClampS8(val)  (s8)Clamp(((f32)val), -__INT8_MAX__ - 1, __INT8_MAX__)
-#define ClampS16(val) (s16)Clamp(((f32)val), -__INT16_MAX__ - 1, __INT16_MAX__)
-#define ClampS32(val) (s32)Clamp(((f32)val), (-__INT32_MAX__ - 1), (f32)__INT32_MAX__)
+#define clamp_int8(val)  (s8)clamp(((f32)val), (-__INT8_MAX__ - 1), __INT8_MAX__)
+#define clamp_int16(val) (s16)clamp(((f32)val), (-__INT16_MAX__ - 1), __INT16_MAX__)
+#define clamp_int32(val) (s32)clamp(((f32)val), (-__INT32_MAX__ - 1), (f32)__INT32_MAX__)
 
-#define ArrayCount(arr)                  (u32)(sizeof(arr) / sizeof(arr[0]))
-#define BitNumMask(bitNum)               ((1 << (bitNum)) - 1)
-#define SizeMask(size)                   BitNumMask(size * 8)
-#define FieldData(data, bitCount, shift) (((data) >> (shift))&BitNumMask(bitCount))
+#define arrcount(arr) (u32)(sizeof(arr) / sizeof(arr[0]))
 
-#define BinToMb(x)        ((f32)(x) / (f32)0x100000)
-#define BinToKb(x)        ((f32)(x) / (f32)0x400)
-#define MbToBin(x)        (u32)(0x100000 * (x))
-#define KbToBin(x)        (u32)(0x400 * (x))
-#define Align(val, align) ((((val) % (align)) != 0) ? (val) + (align) - ((val) % (align)) : (val))
+#define bit_nummask(bitNum)              ((1 << (bitNum)) - 1)
+#define bit_sizemask(size)               bit_nummask(size * 8)
+#define bit_field(data, bitCount, shift) (((data) >> (shift))&bit_nummask(bitCount))
+#define bit_first(u32)                   __builtin_ctz(u32)
 
-#define bitscan32(u32) __builtin_ctz(u32)
+#define bin_to_mb(x)         ((f32)(x) / (f32)0x100000)
+#define bin_to_kb(x)         ((f32)(x) / (f32)0x400)
+#define mb_to_bin(x)         (u32)(0x100000 * (x))
+#define kb_to_bin(x)         (u32)(0x400 * (x))
+#define intalign(val, align) ((((val) % (align)) != 0) ? (val) + (align) - ((val) % (align)) : (val))
 
 #define VA1(NAME, ...)                                 NAME
 #define VA2(_1, NAME, ...)                             NAME
@@ -155,92 +159,83 @@
         , 8, 7, 6, 5, 4, 3, 2, 1                 \
     )
 
-#define Main(y1, y2) main(y1, y2)
 #define SEG_FAULT ((u32*)0)[0] = 0
 
 #if defined(_WIN32) && defined(UNICODE)
-#define UnicodeMain(count, args)                                   \
+#define uni_main(count, args)                                      \
     __x_main(int count, const char** args);                        \
     int wmain(int count, const wchar * *args) {                    \
-        char** nargv = qFree(Calloc(sizeof(char*) * (count + 1))); \
+        char** nargv = dfree(calloc(sizeof(char*) * (count + 1))); \
         for (s32 i = 0; i < count; i++) {                          \
-            nargv[i] = qFree(Calloc(strwlen(args[i])));            \
-            StrU8(nargv[i], args[i]);                              \
+            nargv[i] = dfree(calloc(strwlen(args[i])));            \
+            strto8(nargv[i], args[i]);                             \
         }                                                          \
-        Log("run " PRNT_YELW "main");                              \
+        _log("run " PRNT_YELW "main");                             \
         return __x_main(count, (void*)nargv);                      \
     }                                                              \
     int __x_main(int count, const char** args)
 #else
-#define UnicodeMain(count, args) main(int count, const char** args)
+#define uni_main(count, args) main(int count, const char** args)
 #endif
 
-#define TIME_I() Time_Start(45)
-#define TIME_O() printf_info("%s %d: %.3fs", __FUNCTION__, __LINE__, Time_Get(45))
+#define unfold_rgb(color)  (color).r, (color).g, (color).b
+#define unfold_rgba(color) (color).r, (color).g, (color).b, (color).a
+#define unfold_hsl(color)  (color).h, (color).s, (color).l
 
-#define UnfoldRGB(color)  (color).r, (color).g, (color).b
-#define UnfoldRGBA(color) (color).r, (color).g, (color).b, (color).a
-#define UnfoldHSL(color)  (color).h, (color).s, (color).l
-
-#define Stalloc(type)          ({ void* data = alloca(sizeof(type)); memset(data, 0, sizeof(type)); data; })
-#define New(type)              Calloc(sizeof(type))
+#define stalloc(type)          ({ void* data = alloca(sizeof(type)); memset(data, 0, sizeof(type)); data; })
+#define new(type)              calloc(sizeof(type))
 #define x_new(type)            x_alloc(sizeof(type))
-#define SleepF(sec)            usleep((u32)((f32)(sec) * 1000 * 1000))
-#define SleepS(sec)            sleep(sec)
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>]: " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
 
-#define foreach(val, arr)  for (int val = 0; val < ArrayCount(arr); val++)
+#define foreach(val, arr)  for (int val = 0; val < arrcount(arr); val++)
 #define forlist(val, list) for (int val = 0; val < (list).num; val++)
 #define fornode(val, head) for (typeof(head) val = head; val != NULL; val = val->next)
 #define forstr(val, str)   for (int val = 0; val < strlen(str); val++)
-#define forline(val, str)  for (const char* val = str; val; val = Line(val, 1))
+#define forline(val, str)  for (const char* val = str; val; val = strline(val, 1))
 
-#define ArrMoveR(arr, start, count) do {                      \
-        var v = (arr)[(start) + (count) - 1];                 \
+#define arrmve_r(arr, start, count) do {                      \
+        var_t v = (arr)[(start) + (count) - 1];               \
         for (int I = (count) + (start) - 1; I > (start); I--) \
         (arr)[I] = (arr)[I - 1];                              \
         (arr)[(start)] = v;                                   \
 } while (0)
 
-#define ArrMoveL(arr, start, count) do {                      \
-        var v = (arr)[(start)];                               \
+#define arrmve_l(arr, start, count) do {                      \
+        var_t v = (arr)[(start)];                             \
         for (int I = (start); I < (count) + (start) - 1; I++) \
         (arr)[I] = (arr)[I + 1];                              \
         (arr)[(count) + (start) - 1] = v;                     \
 } while (0)
 
-#define ArrZero(arr) memset(arr, 0, sizeof(arr))
-#define PtrZero(ptr) memset(ptr, 0, sizeof(*ptr));
+#define arrzero(arr)  memset(arr, 0, sizeof(arr))
+#define typezero(ptr) memset(ptr, 0, sizeof(*ptr));
 
 /**
  * These are only to satisfy clang IDE. These won't work
  * as expected if compiled with clang.
  */
 #ifdef __clang__
-#define Block(type, name, args) \
-    type (^ name) args = NULL;  \
+#define nested(type, name, args) \
+    type (^ name) args = NULL;   \
     name = ^ type args
-#define BlockDecl(type, name, args) \
-    type (^ name) args
-#define BlockVar(var)    typeof(var) var = (typeof(var)) 0;
-#define BlockVarArr(var) typeof(var) var = {}
+#define nested_var(v)  typeof(v) v = (typeof(v)) 0;
+#define nested_stru(v) typeof(v) v = {}
 
 #else
-#define Block(type, name, args) \
+#define nested(type, name, args) \
     type name args
-#define BlockDecl(type, name, args) (void)0
-#define BlockVar(var)               (void)0
-#define BlockVarArr(var)            (void)0
+#define nested_var(v)  (void)0
+#define nested_stru(v) (void)0
 #endif
 
-#define FOPEN(file, mode) ({                                                 \
-        FILE* f = fopen(file, mode);                                         \
-        if (f == NULL) {                                                     \
-            printf_warning("" PRNT_YELW "%s" PRNT_GRAY "();", __FUNCTION__); \
-            printf_error("fopen error: [%s]", file);                         \
-        }                                                                    \
-        f;                                                                   \
+#define FOPEN(file, mode) ({                                             \
+        FILE* f = fopen(file, mode);                                     \
+        if (f == NULL) {                                                 \
+            print_warn("" PRNT_YELW "%s" PRNT_GRAY "();", __FUNCTION__); \
+            print_error("fopen error: [%s]", file);                      \
+        }                                                                \
+        f;                                                               \
     })
 
 #define PPASSERT(predicate) _impl_CASSERT_LINE(predicate, __LINE__)

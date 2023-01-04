@@ -60,7 +60,7 @@ static void* Interface_AllocVG() {
     
     extern DataFile gVera;
     
-    Log("Register Fonts");
+    _log("Register Fonts");
     nvgCreateFontMem(vg, "default", gVera.data, gVera.size, 0);
     nvgCreateFontMem(vg, "default-bold", gVera.data, gVera.size, 0);
     
@@ -75,26 +75,26 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
     app->wdim.x = x;
     app->wdim.y = y;
     
-    Log("glfw Init");
+    _log("glfw Init");
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     
-    printf_info(glfwGetVersionString());
+    print_info(glfwGetVersionString());
     
     if (samples)
         glfwWindowHint(GLFW_SAMPLES, samples);
     
-    Log("Create AppInfo");
+    _log("Create AppInfo");
     app->window = glfwCreateWindow(app->wdim.x, app->wdim.y, title, NULL, NULL);
     strncpy(app->title, title, 64);
     
     if (app->window == NULL)
-        printf_error("Failed to create GLFW window.");
+        print_error("Failed to create GLFW window.");
     
     glfwSetWindowUserPointer(app->window, app);
-    Log("Set Callbacks");
+    _log("Set Callbacks");
     glfwMakeContextCurrent(app->window);
     glfwSetFramebufferSizeCallback(app->window, Interface_FramebufferCallback);
     glfwSetMouseButtonCallback(app->window, InputCallback_Mouse);
@@ -109,14 +109,14 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
         glfwSetDropCallback(app->window, (void*)dropCallback);
     
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-        printf_error("Failed to initialize GLAD.");
+        print_error("Failed to initialize GLAD.");
     
-    Log("Init Matrix, Input and set Framerate");
+    _log("Init Matrix, Input and set Framerate");
     Matrix_Init();
     Input_Init(input, app);
     glfwSwapInterval(1);
     
-    Log("Done!");
+    _log("Done!");
     
     return app->vg = Interface_AllocVG();
 }
@@ -125,7 +125,7 @@ static void Interface_Update(AppInfo* app) {
     if (app->updateCall == NULL || app->drawCall == NULL) {
         const char* TRUE = PRNT_BLUE "true" PRNT_RSET;
         const char* FALSE = PRNT_REDD "false" PRNT_RSET;
-        printf_error("Window " PRNT_GRAY "[" PRNT_YELW "%s" PRNT_GRAY "]" PRNT_RSET "\nUpdate: %s\nDraw: %s", app->title, app->updateCall != NULL ? TRUE : FALSE, app->drawCall != NULL ? TRUE : FALSE);
+        print_error("Window " PRNT_GRAY "[" PRNT_YELW "%s" PRNT_GRAY "]" PRNT_RSET "\nUpdate: %s\nDraw: %s", app->title, app->updateCall != NULL ? TRUE : FALSE, app->drawCall != NULL ? TRUE : FALSE);
     }
     
     if (!glfwGetWindowAttrib(app->window, GLFW_ICONIFIED)) {
@@ -161,7 +161,7 @@ static void Interface_Update_AppInfo(AppInfo* app) {
         
         Interface_Update(app);
     } else {
-        Log("Close Window: [%s]", app->title);
+        _log("Close Window: [%s]", app->title);
         app->state |= APP_CLOSED;
         glfwDestroyWindow(app->window);
         nvgDeleteGL3(app->vg);
@@ -194,13 +194,13 @@ static void Interface_Update_SubWindows(AppInfo* app) {
     this = app->subWinHead;
     while (this != NULL) {
         if (this->app.state & APP_CLOSED) {
-            Log("Kill Window: [%s]", this->app.title);
+            _log("Kill Window: [%s]", this->app.title);
             
             Node_Remove(app->subWinHead, this);
             if (!this->settings.noDestroy) {
                 if (this->destroyCall)
                     this->destroyCall(this->app.context);
-                Free(this->app.context);
+                free(this->app.context);
             }
         }
         
@@ -210,21 +210,21 @@ static void Interface_Update_SubWindows(AppInfo* app) {
 
 void Interface_Main(AppInfo* app) {
     while (!(app->state & APP_CLOSED)) {
-        Time_Start(0xF0);
+        Timer_Start(0xF0);
         
         Interface_Update_SubWindows(app);
         Interface_Update_AppInfo(app);
         
-        gDeltaTime = Time_Get(0xF0) / (1.0 / gNativeFPS);
+        gDeltaTime = Timer_End(0xF0) / (1.0 / gNativeFPS);
         glfwPollEvents();
     }
     
-    Log("Clear Sub Windows");
+    _log("Clear Sub Windows");
     for (SubWindow* sub = app->subWinHead; sub != NULL; sub = sub->next)
         sub->app.state |= APP_CLOSED;
     Interface_Update_SubWindows(app);
     
-    Log("OK");
+    _log("OK");
     glfwTerminate();
 }
 
@@ -244,27 +244,27 @@ const s32 sFileMagicValue = -23406137;
 static FileDialogConfig FileDialog_LoadConfig(const char* title) {
     FileDialogConfig config;
     
-    FileSys_Path("%s", Sys_ThisAppData());
+    fs_set("%s", sys_appdata());
     
-    strncpy(config.path, Sys_AppDir(), FILE_DIALOG_BUF);
+    strncpy(config.path, sys_appdir(), FILE_DIALOG_BUF);
     config.disp_split = true;
     
-    if (Sys_Stat(FileSys_File("file_dialog.toml"))) {
-        Toml toml = {};
+    if (sys_stat(fs_item("file_dialog.toml"))) {
+        toml_t toml = {};
         
-        Toml_LoadFile(&toml, FileSys_File("file_dialog.toml"));
+        toml_load(&toml, fs_item("file_dialog.toml"));
         
-        config.scale.x = Toml_GetInt(&toml, "scale[0]");
-        config.scale.y = Toml_GetInt(&toml, "scale[1]");
-        config.split = Toml_GetInt(&toml, "split");
+        config.scale.x = toml_get_int(&toml, "scale[0]");
+        config.scale.y = toml_get_int(&toml, "scale[1]");
+        config.split = toml_get_int(&toml, "split");
         
-        if (Toml_GetVar(&toml, "%s.disp_split", x_canitize(title)))
-            config.disp_split = Toml_GetBool(&toml, "%s.disp_split", x_canitize(title));
+        if (toml_get_var(&toml, "%s.disp_split", x_canitize(title)))
+            config.disp_split = toml_get_bool(&toml, "%s.disp_split", x_canitize(title));
         
-        if (Toml_GetVar(&toml, "%s.path", x_canitize(title)))
-            strncpy(config.path, Toml_GetString(&toml, "%s.path", x_canitize(title)), FILE_DIALOG_BUF);
+        if (toml_get_var(&toml, "%s.path", x_canitize(title)))
+            strncpy(config.path, toml_get_str(&toml, "%s.path", x_canitize(title)), FILE_DIALOG_BUF);
         
-        Toml_Free(&toml);
+        toml_free(&toml);
     } else {
         config.scale.x = 1920 / 2.0f;
         config.scale.y = 1080 / 2.0f;
@@ -275,68 +275,68 @@ static FileDialogConfig FileDialog_LoadConfig(const char* title) {
 }
 
 static void FileDialog_SaveConfig(FileDialog* this) {
-    Toml toml = {};
+    toml_t toml = {};
     
-    FileSys_Path("%s", Sys_ThisAppData());
+    fs_set("%s", sys_appdata());
     
-    if (!Sys_Stat(FileSys_File("file_dialog.toml")))
-        toml = Toml_New();
+    if (!sys_stat(fs_item("file_dialog.toml")))
+        toml = toml_new();
     else
-        Toml_LoadFile(&toml, FileSys_File("file_dialog.toml"));
+        toml_load(&toml, fs_item("file_dialog.toml"));
     
-    Toml_SetValue(&toml, "scale[0]", "%d", this->window.app.wdim.x);
-    Toml_SetValue(&toml, "scale[1]", "%d", this->window.app.wdim.y);
-    Toml_SetValue(&toml, "split", "%d", this->split);
-    Toml_SetValue(&toml, x_fmt("%s.disp_split", x_canitize(this->window.app.title)), "%s", this->settings.dispSplit ? "true" : "false");
-    Toml_SetValue(&toml, x_fmt("%s.path", x_canitize(this->window.app.title)), "\"%s\"", this->path);
+    toml_set_var(&toml, "scale[0]", "%d", this->window.app.wdim.x);
+    toml_set_var(&toml, "scale[1]", "%d", this->window.app.wdim.y);
+    toml_set_var(&toml, "split", "%d", this->split);
+    toml_set_var(&toml, x_fmt("%s.disp_split", x_canitize(this->window.app.title)), "%s", this->settings.dispSplit ? "true" : "false");
+    toml_set_var(&toml, x_fmt("%s.path", x_canitize(this->window.app.title)), "\"%s\"", this->path);
     
-    Toml_SaveFile(&toml, FileSys_File("file_dialog.toml"));
-    Toml_Free(&toml);
+    toml_save(&toml, fs_item("file_dialog.toml"));
+    toml_free(&toml);
 }
 
 static s32 FileDialog_PathRead(FileDialog* this, const char* travel) {
     char buf[sizeof(this->path)];
     s32 ret = 1;
     
-    printf_warning("Travel [%s]", travel);
+    print_warn("Travel [%s]", travel);
     
     if (travel) {
         strcpy(buf, travel);
-        StrRep(buf, "\\", "/");
+        strrep(buf, "\\", "/");
         
-        if (!Sys_IsDir(travel)) {
+        if (!sys_isdir(travel)) {
             ret = 0;
             goto exit;
         }
         
         strcpy(this->path, buf);
         
-        if (!StrEnd(this->path, "/"))
+        if (!strend(this->path, "/"))
             strcat(this->path, "/");
     }
     
-    ItemList_FreeItems(&this->files);
-    ItemList_FreeItems(&this->folders);
+    list_free_items(&this->files);
+    list_free_items(&this->folders);
     
     this->scroll = 0;
     this->selected = -1;
     
-    ItemList_List(&this->folders, this->path, 0, LIST_FOLDERS | LIST_RELATIVE);
-    ItemList_List(&this->files, this->path, 0, LIST_FILES | LIST_RELATIVE);
-    ItemList_SortNatural(&this->folders);
-    ItemList_SortNatural(&this->files);
+    list_walk(&this->folders, this->path, 0, LIST_FOLDERS | LIST_RELATIVE);
+    list_walk(&this->files, this->path, 0, LIST_FILES | LIST_RELATIVE);
+    list_sort(&this->folders);
+    list_sort(&this->files);
     
     forlist(i, this->folders) {
-        StrRep(this->folders.item[i], "\\", "");
-        StrRep(this->folders.item[i], "/", "");
+        strrep(this->folders.item[i], "\\", "");
+        strrep(this->folders.item[i], "/", "");
     }
     
     this->slot = this->files.num + this->folders.num;
     
-    Log("Ok");
+    _log("Ok");
     
     strncpy(this->travel.txt, this->path, sizeof(this->travel.txt));
-    ArrZero(this->search.txt);
+    arrzero(this->search.txt);
     glfwSetWindowTitle(this->window.app.window, x_fmt("%s ─ %s", this->window.app.title, this->path));
     
 exit:
@@ -350,9 +350,9 @@ static void FileDialog_PathAppend(FileDialog* this, const char* dst) {
         strcpy(path, this->path);
         
         if (!strcmp(dst, "..")) {
-            var slash = 0;
+            var_t slash = 0;
             
-            for (var c = strnlen(path, FILE_DIALOG_BUF); c >= strlen("X:"); c--) {
+            for (var_t c = strnlen(path, FILE_DIALOG_BUF); c >= strlen("X:"); c--) {
                 if (path[c] == '/') {
                     slash++;
                     
@@ -377,7 +377,7 @@ static void FileDialog_FilePanel_ScrollUpdate(FileDialog* this, Rect r) {
     
     if (Rect_PointIntersect(&r, UnfoldVec2(input->cursor.pos)))
         this->scroll -= Input_GetScroll(input);
-    this->scrollMax = ClampMin(this->slot - visibleSlots, 0);
+    this->scrollMax = clamp_min(this->slot - visibleSlots, 0);
     
     if (this->holdSlider) {
         if (click->release)
@@ -389,7 +389,7 @@ static void FileDialog_FilePanel_ScrollUpdate(FileDialog* this, Rect r) {
         }
     }
     
-    this->scroll = Clamp(this->scroll, 0, this->scrollMax);
+    this->scroll = clamp(this->scroll, 0, this->scrollMax);
     
     Math_SmoothStepToF(&this->vscroll, this->scroll, 0.25f, 500.0f, 0.001f);
 }
@@ -405,8 +405,8 @@ static s32 FileDialog_FilePanel_ScrollDraw(FileDialog* this, Rect r) {
         12,
         Lerp((this->vscroll + visibleSlots) / this->slot, r.y, r.y + r.h));
     
-    slider.y = Clamp(slider.y, r.y, r.y + r.h - 8);
-    slider.h = Clamp(slider.h - slider.y, 16, r.h);
+    slider.y = clamp(slider.y, r.y, r.y + r.h - 8);
+    slider.h = clamp(slider.h - slider.y, 16, r.h);
     
     if (Rect_PointIntersect(&slider, UnfoldVec2(input->cursor.pos))) {
         if (click->press) {
@@ -429,7 +429,7 @@ static s32 FileDialog_FilePanel_ScrollDraw(FileDialog* this, Rect r) {
         f32 remap = Remap(visibleSlots / this->slot, 1.0f, 1.0f + (2.0f / this->slot), 0.0f, 1.0f);
         
         al.a = 0;
-        remap = Clamp(remap, 0.0f, 1.0f);
+        remap = clamp(remap, 0.0f, 1.0f);
         
         slcol = Theme_Mix(remap, slcol, al);
     }
@@ -440,7 +440,7 @@ static s32 FileDialog_FilePanel_ScrollDraw(FileDialog* this, Rect r) {
 }
 
 static const char* FileDialog_GetSelectedItem(FileDialog* this) {
-    const ItemList* list[] = {
+    const list_t* list[] = {
         &this->folders,
         &this->files
     };
@@ -464,7 +464,7 @@ static const char* FileDialog_GetSelectedItem(FileDialog* this) {
 static void FileDialog_FilePanel(FileDialog* this, Rect r) {
     void* vg = this->window.app.vg;
     Input* input = &this->window.input;
-    const ItemList* list[] = {
+    const list_t* list[] = {
         &this->folders,
         &this->files
     };
@@ -492,14 +492,14 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
                 Rect txr = r;
                 
                 if (this->search.txt[0])
-                    if (!StrStrCase(item, this->search.txt))
+                    if (!stristr(item, this->search.txt))
                         continue;
                 
                 if (cursorInPanel) {
                     if (Rect_PointIntersect(&r, UnfoldVec2(input->cursor.pos))) {
                         if (click->press) {
                             pressSlot = (this->slot + 1) * (i == 0 ? -1 : 1);
-                            printf_info("Click Slot: %d", pressSlot);
+                            print_info("Click Slot: %d", pressSlot);
                         }
                     }
                 }
@@ -548,13 +548,13 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
                 const char* output = x_fmt("%s%s", this->path, this->rename.txt);
                 
                 if (strcspn(this->rename.txt, "\\/:*?\"<>|") == strlen(this->rename.txt)) {
-                    Sys_Rename(input, output);
+                    sys_mv(input, output);
                     FileDialog_PathRead(this, NULL);
                 } else
                     Sys_Sound("error");
             }
             
-            printf_info("%d", ret);
+            print_info("%d", ret);
         }
     } else {
         if (this->selected >= 0) {
@@ -575,7 +575,7 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
             if (pressSlot < 0 && click->dual) {
                 FileDialog_PathAppend(this, this->folders.item[slot]);
                 
-                printf_info("Path: [%s]", this->path);
+                print_info("Path: [%s]", this->path);
             } else if (click->press) {
                 
                 this->selected = slot;
@@ -596,7 +596,7 @@ static void FileDialog_HeaderPanel(FileDialog* this, Rect r) {
     
     this->travel.element.rect.x = r.x + r.h;
     this->travel.element.rect.w = (r.w - SPLIT_ELEM_X_PADDING * 2) - (240);
-    this->travel.element.rect.w = ClampMin(this->travel.element.rect.w, 120);
+    this->travel.element.rect.w = clamp_min(this->travel.element.rect.w, 120);
     
     this->search.element.rect.x = this->travel.element.rect.x + this->travel.element.rect.w + SPLIT_ELEM_X_PADDING;
     this->search.element.rect.w = (r.w - SPLIT_ELEM_X_PADDING * 2) - (this->travel.element.rect.w + SPLIT_ELEM_X_PADDING * 5);
@@ -608,7 +608,7 @@ static void FileDialog_HeaderPanel(FileDialog* this, Rect r) {
         FileDialog_PathAppend(this, "..");
     
     if (Element_Textbox(&this->travel)) {
-        if (!Sys_IsDir(this->travel.txt))
+        if (!sys_isdir(this->travel.txt))
             strcpy(this->travel.txt, this->path);
         
         else {
@@ -623,8 +623,8 @@ static void FileDialog_HeaderPanel(FileDialog* this, Rect r) {
 
 void FileDialog_Init(FileDialog* this) {
     this->selected = -1;
-    this->files = ItemList_Initialize();
-    this->folders = ItemList_Initialize();
+    this->files = list_new();
+    this->folders = list_new();
     
     GeoGrid_Init(&this->geo, &this->window.app, NULL);
     FileDialog_PathRead(this, NULL);
@@ -636,7 +636,7 @@ void FileDialog_Init(FileDialog* this) {
 void FileDialog_Update(void* arg) {
     FileDialog* this = arg;
     
-    this->split = Clamp(this->split, 0, 256);
+    this->split = clamp(this->split, 0, 256);
 }
 
 void FileDialog_Draw(void* arg) {
@@ -664,7 +664,7 @@ void FileDialog_Draw(void* arg) {
         FileDialog_HeaderPanel(this, hdr);
         GeoGrid_Splitless_End(&this->geo);
         
-        Log("OK");
+        _log("OK");
     } nvgEndFrame(vg);
 }
 
@@ -676,7 +676,7 @@ const char sFileDialogKey[64] = "8ACwdYwKKKpV1A3qFIOgFQFJnVPgKh3l1d0ywNNsnKrbZ4y
 
 void Interface_CreateSubWindow(SubWindow* window, AppInfo* app, s32 x, s32 y, const char* title) {
     if (!(window->app.window = glfwCreateWindow(x, y, title, NULL, NULL)))
-        printf_error("Failed to create window [%s], [%d, %d]", title, x, y);
+        print_error("Failed to create window [%s], [%d, %d]", title, x, y);
     
     glfwMakeContextCurrent(window->app.window);
     glfwSetWindowUserPointer(window->app.window, &window->app);
@@ -702,11 +702,11 @@ void FileDialog_New(FileDialog* this, AppInfo* app, const char* title) {
     FileDialogConfig cfg = FileDialog_LoadConfig(title);
     
     Assert (memcmp(this->private.key, sFileDialogKey, sizeof(sFileDialogKey)));
-    PtrZero(this);
+    typezero(this);
     memcpy((void*)this->private.key, sFileDialogKey, sizeof(sFileDialogKey));
     
-    cfg.scale.x = Clamp(cfg.scale.x, minX, maxX);
-    cfg.scale.y = Clamp(cfg.scale.y, minY, maxY);
+    cfg.scale.x = clamp(cfg.scale.x, minX, maxX);
+    cfg.scale.y = clamp(cfg.scale.y, minY, maxY);
     
     Interface_CreateSubWindow(&this->window, app, cfg.scale.x, cfg.scale.y, title);
     glfwMakeContextCurrent(this->window.app.window);
@@ -724,7 +724,7 @@ void FileDialog_New(FileDialog* this, AppInfo* app, const char* title) {
     
     FileDialog_Init(this);
     
-    Log("Done");
+    _log("Done");
     
     glfwMakeContextCurrent(app->window);
 }
@@ -736,8 +736,8 @@ s32 FileDialog_Closed(FileDialog* this) {
 void FileDialog_Free(FileDialog* this) {
     FileDialog_SaveConfig(this);
     
-    ItemList_Free(&this->files);
-    ItemList_Free(&this->folders);
+    list_free(&this->files);
+    list_free(&this->folders);
     memset((void*)this->private.key, 0, 64);
 }
 
@@ -759,7 +759,7 @@ void Interface_SetParam(AppInfo* app, u32 num, ...) {
     
     Assert(num % 2 == 0);
     num /= 2;
-    for (var i = 0; i < num; i++) {
+    for (var_t i = 0; i < num; i++) {
         WinParam flag = va_arg(va, s32);
         s32 value = va_arg(va, s32);
         

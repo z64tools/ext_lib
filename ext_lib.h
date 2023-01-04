@@ -10,8 +10,6 @@
  * I just use clang IDE, that's all.
  */
 
-#define FUN_DEPRECATED __attribute__ ((deprecated))
-
 #ifdef __clang__
 #ifdef _WIN32
 #undef _WIN32
@@ -33,6 +31,10 @@
 #define __CRT__NO_INLINE
 #endif
 
+#ifdef __clang__
+#define free __hidden_free
+#endif
+
 #include "ext_type.h"
 #include "ext_macros.h"
 #include "ext_math.h"
@@ -43,365 +45,335 @@
 #include <stdarg.h>
 #include <string.h>
 
-extern PrintfSuppressLevel gPrintfSuppress;
-extern u8 gPrintfProgressing;
+#undef free
 
-void profilog(const char* msg);
-void profilogdiv(const char* msg, f32 div);
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-void* qFree(const void* ptr);
-void* PostFree_Queue(void* ptr);
-void* PostFree_QueueCallback(void* callback, void* ptr);
-void PostFree_Free(void);
+void* dfree(const void* ptr);
+void* freelist_que(void* ptr);
+void* freelist_quecall(void* callback, void* ptr);
+void freelist_free(void);
 
-void Sys_SetDestFunc(void* func, void* arg);
+void bswap(void* src, int size);
+void* alloc(int size);
 
-extern const char* gThdPool_ProgressMessage;
-void ThdPool_Add(void* function, void* arg, u32 n, ...);
-void ThdPool_Exec(u32 max, bool mutex);
-#define ThdPool_Add(function, arg, ...) ThdPool_Add(function, arg, NARGS(__VA_ARGS__), __VA_ARGS__)
+hash_t hash_get(const void* data, size_t size);
+bool hash_cmp(hash_t* a, hash_t* b);
 
-void SetSegment(const u8 id, void* segment);
-void* SegmentedToVirtual(const u8 id, void32 ptr);
-void32 VirtualToSegmented(const u8 id, void* ptr);
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-// Temporary variable alloc, won't last forever
-void* x_alloc(Size size);
-char* x_strdup(const char* str);
-char* x_strndup(const char* s, size_t n);
-char* x_memdup(const char* data, Size size);
-char* x_fmt(const char* fmt, ...);
-char* x_rep(const char* str, const char* a, const char* b);
-char* x_line(const char* str, s32 line);
-char* x_word(const char* str, s32 word);
-char* x_path(const char* src);
-char* x_pathslot(const char* src, s32 num);
-char* x_basename(const char* src);
-char* x_filename(const char* src);
-char* x_randstr(Size size, const char* charset);
-char* x_strunq(const char* str);
-char* x_enumify(const char* str);
-char* x_canitize(const char* str);
+void Log_Print();
 
-char* basename(const char* src);
-char* filename(const char* src);
-
-void Time_Start(u32 slot);
-f32 Time_Get(u32 slot);
-void Profiler_I(u8 s);
-void Profiler_O(u8 s);
-f32 Profiler_Time(u8 s);
-
-void FileSys_MakePath(bool flag);
-void FileSys_Path(const char* fmt, ...);
-char* FileSys_File(const char* str, ...);
-char* FileSys_FindFile(const char* str);
-
-bool Sys_IsDir(const char* path);
-void Sys_MakeDir(const char* dir, ...);
-Time Sys_Stat(const char* item);
-Time Sys_StatF(const char* item, StatFlag flag);
-const char* Sys_ThisApp(void);
-const char* Sys_ThisAppData(void);
-Time Sys_Time(void);
-s32 Sys_Rename(const char* input, const char* output);
-s32 Sys_Delete(const char* item);
-s32 Sys_Delete_Recursive(const char* item);
-const char* Sys_WorkDir(void);
-const char* Sys_AppDir(void);
-void Sys_SetWorkDir(const char* txt);
-#define cliprintf(dest, tool, args, ...) sprintf(dest, "%s " args, tool, __VA_ARGS__)
-void Sys_TerminalSize(s32* r);
-void Sys_TerminalCursorPos(s32* r);
-s32 Sys_Touch(const char* file);
-s32 Sys_Copy(const char* src, const char* dest);
-void Sys_Sleep(f64 sec);
-Date Sys_Date(Time time);
-s32 Sys_GetCoreCount(void);
-Size Sys_GetFileSize(const char* file);
-const char* Sys_GetEnv(SysEnv env);
-const char* Sys_TmpFile(const char* path);
-
-#ifdef EXT_LIB_SYS_AUDIO
-void Sys_Beep(s32 freq, s32 time);
-void Sys_Sound(const char* type);
-void Sys_FatalJingle(void);
-#endif
-
-Checksum Checksum_Get(const void* data, u64 size);
-bool Checksum_IsMatch(Checksum* a, Checksum* b);
-
-void SysExe_IgnoreError();
-s32 SysExe_GetError();
-s32 SysExe(const char* cmd);
-// Detached
-void SysExeD(const char* cmd);
-// Redirected Output
-char* SysExeO(const char* cmd);
-// Callback Output
-s32 SysExeC(const char* cmd, s32 (*callback)(void*, const char*), void* arg);
-
-bool Terminal_YesOrNo(void);
-void Terminal_ClearScreen(void);
-void Terminal_ClearLines(u32 i);
-void Terminal_Move_PrevLine(void);
-const char* Terminal_GetStr(void);
-char Terminal_GetChar();
-void Terminal_Hide(void);
-void Terminal_Show(void);
-
-extern ItemList gList_SortError;
-
-void ItemList_Validate(ItemList* itemList);
-ItemList ItemList_Initialize(void);
-void ItemList_SetFilter(ItemList* list, u32 filterNum, ...);
-void ItemList_FreeFilters(ItemList* list);
-void ItemList_List(ItemList* target, const char* path, s32 depth, ListFlag flags);
-char* ItemList_Concat(ItemList* this, const char* separator);
-char* ItemList_GetWildItem(ItemList* list, const char* end, const char* error, ...);
-void ItemList_Separated(ItemList* list, const char* str, const char separator);
-void ItemList_Print(ItemList* target);
-Time ItemList_StatMax(ItemList* list);
-Time ItemList_StatMin(ItemList* list);
-s32 ItemList_SaveList(ItemList* target, const char* output);
-s32 ItemList_NumericalSlotSort(ItemList* list, bool checkOverlaps);
-void ItemList_FreeItems(ItemList* this);
-void ItemList_Free(ItemList* itemList);
-void ItemList_Alloc(ItemList* list, u32 num);
-void ItemList_AddItem(ItemList* list, const char* item);
-void ItemList_Combine(ItemList* out, ItemList* a, ItemList* b);
-void ItemList_Tokenize(ItemList* this, const char* s, char r);
-void ItemList_SortNatural(ItemList* this);
-
-#define ItemList_GetWildItem(list, ...) ItemList_GetWildItem(list, __VA_ARGS__, NULL)
-#define ItemList_SetFilter(list, ...)   ItemList_SetFilter(list, NARGS(__VA_ARGS__), __VA_ARGS__)
-
-#define Assert(expression) do {                                        \
-        if (!(expression)) {                                           \
-            printf_error(                                              \
-                "ASSERT: " PRNT_GRAY "[" PRNT_REDD "%s" PRNT_GRAY "]:" \
-                "[" PRNT_YELW "%s" PRNT_GRAY "]:"                      \
-                "[" PRNT_BLUE "%d" PRNT_GRAY "]\n",                    \
-                #expression, __FUNCTION__, __LINE__                    \
-            ); }                                                       \
-} while (0)
-
-f32 RandF();
-void* MemMem(const void* haystack, Size haystacklen, const void* needle, Size needlelen);
-char* StrStr(const char* haystack, const char* needle);
-char* StrStrWhole(const char* haystack, const char* needle);
-char* StrStrCase(const char* haystack, const char* needle);
-void* MemStrCase(const char* haystack, u32 haystacklen, const char* needle);
-void* MemMemAlign(u32 val, const void* haystack, Size haystacklen, const void* needle, Size needlelen);
-char* StrEnd(const char* src, const char* ext);
-char* StrEndCase(const char* src, const char* ext);
-char* StrStart(const char* src, const char* ext);
-char* StrStartCase(const char* src, const char* ext);
-void ByteSwap(void* src, s32 size);
-__attribute__ ((warn_unused_result))
-void* Alloc(s32 size);
-__attribute__ ((warn_unused_result))
-void* Calloc(s32 size);
-__attribute__ ((warn_unused_result))
-void* Realloc(const void* data, s32 size);
-
-#ifndef __clang__
-void* Free(const void* data);
-#define __EXT_FREE_METHOD(a) a = Free(a);
-#define Free(...)            ({                      \
-        VA_ARG_MANIP(__EXT_FREE_METHOD, __VA_ARGS__) \
-        NULL;                                        \
-    })
+#ifdef __clang__
+void Assert(bool);
+void _log(const char* fmt, ...);
 #else
-void* Free(const void*, ...);
-#endif
+void __log__(const char* func, u32 line, const char* txt, ...);
+#define _log(...) __log__(__FUNCTION__, __LINE__, __VA_ARGS__)
 
-void* memdup(const void* src, Size size);
-char* Fmt(const char* fmt, ...);
-s32 ArgStr(const char* argv[], const char* arg);
-char* StrChrAcpt(const char* str, char* c);
-char* LineHead(const char* str, const char* head);
-char* Line(const char* str, s32 line);
-char* Word(const char* str, s32 word);
-Size LineLen(const char* str);
-Size WordLen(const char* str);
-char* FileExtension(const char* str);
-void CaseToLow(char* s, s32 i);
-void CaseToUp(char* s, s32 i);
-s32 LineNum(const char* str);
-s32 PathNum(const char* src);
-char* CopyLine(const char* str, s32 line);
-char* CopyWord(const char* str, s32 word);
-char* PathRel_From(const char* from, const char* item);
-char* PathAbs_From(const char* from, const char* item);
-char* PathRel(const char* item);
-char* PathAbs(const char* item);
-s32 PathIsAbs(const char* item);
-s32 PathIsRel(const char* item);
-
-HSL8 Color_GetHSL(f32 r, f32 g, f32 b);
-RGBA8 Color_GetRGBA8(f32 h, f32 s, f32 l);
-RGB8 Color_GetRGB8(f32 h, f32 s, f32 l);
-void Color_ToHSL(HSL8* hsl, RGB8* rgb);
-void Color_ToRGB(RGB8* rgb, HSL8* hsl);
-
-void MemFile_Validate(MemFile* mem);
-MemFile MemFile_Initialize();
-void MemFile_Params(MemFile* memFile, ...);
-void MemFile_Alloc(MemFile* memFile, u32 size);
-void MemFile_Realloc(MemFile* memFile, u32 size);
-void MemFile_Rewind(MemFile* memFile);
-s32 MemFile_Write(MemFile* dest, const void* src, u32 size);
-s32 MemFile_WriteFile(MemFile* this, const char* source);
-s32 MemFile_Insert(MemFile* mem, const void* src, u32 size);
-s32 MemFile_Append(MemFile* dest, MemFile* src);
-void MemFile_Align(MemFile* src, u32 align);
-s32 MemFile_Printf(MemFile* dest, const char* fmt, ...);
-s32 MemFile_Read(MemFile* src, void* dest, Size size);
-void* MemFile_Seek(MemFile* src, u32 seek);
-void MemFile_LoadMem(MemFile* mem, void* data, Size size);
-s32 MemFile_LoadFile(MemFile* memFile, const char* filepath);
-s32 MemFile_LoadFile_String(MemFile* memFile, const char* filepath);
-s32 MemFile_SaveFile(MemFile* memFile, const char* filepath);
-s32 MemFile_SaveFile_String(MemFile* memFile, const char* filepath);
-void MemFile_Free(MemFile* memFile);
-void MemFile_Reset(MemFile* memFile);
-void MemFile_Clear(MemFile* memFile);
-
-#define MemFile_Alloc(this, size) do {               \
-        Log("MemFile_Alloc(%s, %s);", #this, #size); \
-        MemFile_Alloc(this, size);                   \
+#define Assert(v) do {       \
+        if (!(v)) {          \
+            _log("%s", # v); \
+        }                    \
 } while (0)
 
-#define MEMFILE_SEEK_END 0xFFFFFFFF
+#endif
 
-u32 Value_Hex(const char* string);
-s32 Value_Int(const char* string);
-f32 Value_Float(const char* string);
-s32 Value_Bool(const char* string);
-s32 Value_ValidateHex(const char* str);
-s32 Value_ValidateInt(const char* str);
-s32 Value_ValidateFloat(const char* str);
-ValueType Value_Type(const char* variable);
-s32 Digits_Int(s32 i);
-s32 Digits_Hex(s32 i);
-
-s32 Music_NoteIndex(const char* note);
-const char* Music_NoteWord(s32 note);
-
-void StrIns(char* point, const char* insert);
-void StrIns2(char* origin, const char* insert, s32 pos, s32 size);
-void StrRem(char* point, s32 amount);
-s32 StrRep(char* src, const char* word, const char* replacement);
-s32 StrRepWhole(char* src, const char* word, const char* replacement);
-s32 StrComLen(const char* a, const char* b);
-char* StrSlash(char* str);
-char* StrStripIllegalChar(char* str);
-void String_SwapExtension(char* dest, const char* src, const char* ext);
-char* String_GetSpacedArg(const char** argv, s32 cur);
-char* StrUpper(char* str);
-char* StrLower(char* str);
-bool ChrPool(const char c, const char* pool);
-bool StrPool(const char* s, const char* pool);
-char* StrCatArg(const char** list, char separator);
-
-char* StrU8(char* dst, const wchar* src);
-wchar* StrU16(wchar* dst, const char* src);
-Size strwlen(const wchar* s);
-
+// __attribute__((deprecated))
 char* Config_Variable(const char* str, const char* name);
+// __attribute__((deprecated))
 char* Config_GetVariable(const char* str, const char* name);
-void Config_ProcessIncludes(MemFile* mem);
-
+// __attribute__((deprecated))
+void Config_ProcessIncludes(memfile_t* mem);
+// __attribute__((deprecated))
 s32 Config_GetErrorState(void);
-void Config_GetArray(MemFile* mem, const char* name, ItemList* list);
-s32 Config_GetBool(MemFile* mem, const char* boolName);
-s32 Config_GetOption(MemFile* mem, const char* stringName, char* strList[]);
-s32 Config_GetInt(MemFile* mem, const char* intName);
-char* Config_GetStr(MemFile* mem, const char* stringName);
-f32 Config_GetFloat(MemFile* mem, const char* floatName);
+// __attribute__((deprecated))
+void Config_GetArray(memfile_t* mem, const char* variable, list_t* list);
+// __attribute__((deprecated))
+s32 Config_GetBool(memfile_t* mem, const char* variable);
+// __attribute__((deprecated))
+s32 Config_GetOption(memfile_t* mem, const char* variable, char* strList[]);
+// __attribute__((deprecated))
+s32 Config_GetInt(memfile_t* mem, const char* variable);
+// __attribute__((deprecated))
+char* Config_GetStr(memfile_t* mem, const char* variable);
+// __attribute__((deprecated))
+f32 Config_GetFloat(memfile_t* mem, const char* variable);
+// __attribute__((deprecated))
 void Config_GotoSection(const char* section);
-void Config_ListVariables(MemFile* mem, ItemList* list, const char* section);
-void Config_ListSections(MemFile* cfg, ItemList* list);
-
-s32 Config_ReplaceVariable(MemFile* mem, const char* variable, const char* fmt, ...);
-void Config_WriteComment(MemFile* mem, const char* comment);
-void Config_WriteArray(MemFile* mem, const char* variable, ItemList* list, bool quote, const char* comment);
-void Config_WriteInt(MemFile* mem, const char* variable, const s64 integer, const char* comment);
-void Config_WriteHex(MemFile* mem, const char* variable, const s64 integer, const char* comment);
-void Config_WriteStr(MemFile* mem, const char* variable, const char* str, bool quote, const char* comment);
-void Config_WriteFloat(MemFile* mem, const char* variable, const f64 flo, const char* comment);
-void Config_WriteBool(MemFile* mem, const char* variable, const s32 val, const char* comment);
-void Config_WriteSection(MemFile* mem, const char* variable, const char* comment);
-#define Config_Print(mem, ...) MemFile_Printf(mem, __VA_ARGS__)
+// __attribute__((deprecated))
+void Config_ListVariables(memfile_t* mem, list_t* list, const char* section);
+// __attribute__((deprecated))
+void Config_ListSections(memfile_t* cfg, list_t* list);
+// __attribute__((deprecated))
+s32 Config_ReplaceVariable(memfile_t* mem, const char* variable, const char* fmt, ...);
+// __attribute__((deprecated))
+void Config_WriteComment(memfile_t* mem, const char* comment);
+// __attribute__((deprecated))
+void Config_WriteArray(memfile_t* mem, const char* variable, list_t* list, bool quote, const char* comment);
+// __attribute__((deprecated))
+void Config_WriteInt(memfile_t* mem, const char* variable, const s64 integer, const char* comment);
+// __attribute__((deprecated))
+void Config_WriteHex(memfile_t* mem, const char* variable, const s64 integer, const char* comment);
+// __attribute__((deprecated))
+void Config_WriteStr(memfile_t* mem, const char* variable, const char* str, bool quote, const char* comment);
+// __attribute__((deprecated))
+void Config_WriteFloat(memfile_t* mem, const char* variable, const f64 flo, const char* comment);
+// __attribute__((deprecated))
+void Config_WriteBool(memfile_t* mem, const char* variable, const s32 val, const char* comment);
+// __attribute__((deprecated))
+void Config_WriteSection(memfile_t* mem, const char* variable, const char* comment);
+#define Config_Print(mem, ...) memfile_fmt(mem, __VA_ARGS__)
 #define NO_COMMENT NULL
 #define QUOTES     1
 #define NO_QUOTES  0
 
-Toml Toml_New();
-void Toml_Free(Toml* this);
-void Toml_LoadFile(Toml* this, const char* file);
-void Toml_Print(Toml* this, void* d, void (*print)(void*, const char*, ...));
-void Toml_ToMem(Toml* this, MemFile* mem);
-void Toml_SaveFile(Toml* this, const char* file);
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-void Toml_SetValue(Toml* this, const char* item, const char* fmt, ...);
-void Toml_AddTable(Toml* this, const char* item, ...);
+char* regex(const char* str, const char* pattern, regx_flag_t flag);
 
-bool Toml_RemVar(Toml* this, const char* fmt, ...);
-bool Toml_RemArr(Toml* this, const char* fmt, ...);
-bool Toml_RemTbl(Toml* this, const char* fmt, ...);
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-s32 Toml_GetInt(Toml* this, const char* item, ...);
-f32 Toml_GetFloat(Toml* this, const char* item, ...);
-bool Toml_GetBool(Toml* this, const char* item, ...);
-char* Toml_GetString(Toml* this, const char* item, ...);
-char* Toml_GetVar(Toml* this, const char* item, ...);
-s32 Toml_ArrItemNum(Toml* this, const char* arr, ...);
-s32 Toml_TblItemNum(Toml* this, const char* item, ...);
+void print_lvl(PrintfSuppressLevel lvl);
+void print_title(const char* toolname, const char* fmt, ...);
+void print_warn(const char* fmt, ...);
+void print_warn_align(const char* info, const char* fmt, ...);
+void print_kill(FILE* output);
+void print_error(const char* fmt, ...);
+void print_error_align(const char* info, const char* fmt, ...);
+void print_info(const char* fmt, ...);
+void print_info_align(const char* info, const char* fmt, ...);
+void print_prog_align(const char* info, const char* fmt, const char* color);
+void print_prog_fast(const char* info, u32 a, u32 b);
+void print_prog(const char* info, u32 a, u32 b);
+void print_getc(const char* txt);
+void print_volatile(const char* fmt, ...);
+void print_win32_fix(void);
+void print_hex(const char* txt, const void* data, u32 size, u32 dispOffset);
+void print_bit(const char* txt, const void* data, u32 size, u32 dispOffset);
+void print_nl(void);
 
-char* String_Tsv(char* str, s32 rowNum, s32 lineNum);
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-void Log_NoOutput(void);
-void Log_Init();
-void Log_Free();
-void Log_Print();
-void __Log(const char* func, u32 line, const char* txt, ...);
-#define Log(...) __Log(__FUNCTION__, __LINE__, __VA_ARGS__)
+list_t list_new(void);
+void list_set_filters(list_t* list, u32 filterNum, ...);
+void list_free_filters(list_t* this);
+void list_walk(list_t* this, const char* path, s32 depth, ListFlag flags);
+char* list_concat(list_t* this, const char* separator);
+void list_tokenize2(list_t* list, const char* str, const char separator);
+void list_print(list_t* target);
+time_t list_stat_max(list_t* list);
+time_t list_stat_min(list_t* list);
+s32 list_sort_slot(list_t* this, bool checkOverlaps);
+void list_free_items(list_t* this);
+void list_free(list_t* this);
+void list_alloc(list_t* this, u32 num);
+void list_add(list_t* this, const char* item);
+void list_combine(list_t* out, list_t* a, list_t* b);
+void list_tokenize(list_t* this, const char* s, char r);
+void list_sort(list_t* this);
 
-void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
-void printf_MuteOutput(FILE* output);
-void FUN_DEPRECATED printf_SetPrefix(char* fmt);
-void printf_toolinfo(const char* toolname, const char* fmt, ...);
-void printf_warning(const char* fmt, ...);
-void printf_warning_align(const char* info, const char* fmt, ...);
-void printf_error(const char* fmt, ...);
-void printf_error_align(const char* info, const char* fmt, ...);
-void printf_info(const char* fmt, ...);
-void printf_info_align(const char* info, const char* fmt, ...);
-void printf_prog_align(const char* info, const char* fmt, const char* color);
-void printf_progressFst(const char* info, u32 a, u32 b);
-void printf_progress(const char* info, u32 a, u32 b);
-void printf_getchar(const char* txt);
-void printf_lock(const char* fmt, ...);
-void printf_WinFix(void);
-void printf_hex(const char* txt, const void* data, u32 size, u32 dispOffset);
-void printf_bit(const char* txt, const void* data, u32 size, u32 dispOffset);
-void printf_nl(void);
+#ifndef __clang__
+#define list_set_filters(list, ...) list_set_filters(list, NARGS(__VA_ARGS__), __VA_ARGS__)
+#endif
 
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+toml_t toml_new();
+void toml_set_var(toml_t* this, const char* item, const char* fmt, ...);
+void toml_set_tbl(toml_t* this, const char* item, ...);
+bool toml_rm_var(toml_t* this, const char* fmt, ...);
+bool toml_rm_arr(toml_t* this, const char* fmt, ...);
+bool toml_rm_tbl(toml_t* this, const char* fmt, ...);
+void toml_load(toml_t* this, const char* file);
+void toml_free(toml_t* this);
+void toml_print(toml_t* this, void* d, void (*PRINT)(void*, const char*, ...));
+void toml_write_mem(toml_t* this, memfile_t* mem);
+void toml_save(toml_t* this, const char* file);
+int toml_get_int(toml_t* this, const char* item, ...);
+f32 toml_get_float(toml_t* this, const char* item, ...);
+bool toml_get_bool(toml_t* this, const char* item, ...);
+char* toml_get_str(toml_t* this, const char* item, ...);
+char* toml_get_var(toml_t* this, const char* item, ...);
+int toml_arr_item_num(toml_t* this, const char* arr, ...);
+int toml_tbl_item_num(toml_t* this, const char* item, ...);
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+memfile_t memfile_new();
+void memfile_set(memfile_t* this, ...);
+void memfile_alloc(memfile_t* this, size_t size);
+void memfile_realloc(memfile_t* this, size_t size);
+void memfile_rewind(memfile_t* this);
+int memfile_write(memfile_t* this, const void* src, size_t size);
+int memfile_append_file(memfile_t* this, const char* source);
+int memfile_insert(memfile_t* this, const void* src, size_t size);
+int memfile_append(memfile_t* this, memfile_t* src);
+void memfile_align(memfile_t* this, size_t align);
+int memfile_fmt(memfile_t* this, const char* fmt, ...);
+int memfile_read(memfile_t* this, void* dest, size_t size);
+void* memfile_seek(memfile_t* this, size_t seek);
+void memfile_load_mem(memfile_t* this, void* data, size_t size);
+int memfile_load_bin(memfile_t* this, const char* filepath);
+int memfile_load_str(memfile_t* this, const char* filepath);
+int memfile_save_bin(memfile_t* this, const char* filepath);
+int memfile_save_str(memfile_t* this, const char* filepath);
+void memfile_free(memfile_t* this);
+void memfile_null(memfile_t* this);
+void memfile_clear(memfile_t* this);
+
+#define MEMFILE_SEEK_END 0xDEFEBABE
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+extern vbool gThreadMode;
+extern mutex_t gThreadMutex;
+extern const char* gThdPool_ProgressMessage;
+void ThdPool_Add(void* function, void* arg, u32 n, ...);
+void ThdPool_Exec(u32 max, bool mutex);
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+void SegmentSet(const u8 id, void* segment);
+void* SegmentedToVirtual(const u8 id, void32 ptr);
+void32 VirtualToSegmented(const u8 id, void* ptr);
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+void* x_alloc(size_t size);
+
+char* x_strdup(const char* s);
+char* x_strndup(const char* s, size_t n);
+void* x_memdup(const void* d, size_t n);
+char* x_fmt(const char* fmt, ...);
+char* x_rep(const char* s, const char* a, const char* b);
+char* x_cpyline(const char* s, size_t i);
+char* x_cpyword(const char* s, size_t i);
+char* x_path(const char* s);
+char* x_pathslot(const char* s, int i);
+char* x_basename(const char* s);
+char* x_filename(const char* s);
+char* x_randstr(size_t size, const char* charset);
+char* x_strunq(const char* s);
+char* x_enumify(const char* s);
+char* x_canitize(const char* s);
+char* x_dirrel_f(const char* from, const char* item);
+char* x_dirabs_f(const char* from, const char* item);
+char* x_dirrel( const char* item);
+char* x_dirabs(const char* item);
+
+char* strdup(const char* s);
+char* strndup(const char* s, size_t n);
+void* memdup(const void* d, size_t n);
+char* fmt(const char* fmt, ...);
+char* rep(const char* s, const char* a, const char* b);
+char* cpyline(const char* s, size_t i);
+char* cpyword(const char* s, size_t i);
+char* path(const char* s);
+char* pathslot(const char* s, int i);
+char* basename(const char* s);
+char* filename(const char* s);
+char* randstr(size_t size, const char* charset);
+char* strunq(const char* s);
+char* enumify(const char* s);
+char* canitize(const char* s);
+char* dirrel_f(const char* from, const char* item);
+char* dirabs_f(const char* from, const char* item);
+char* dirrel( const char* item);
+char* dirabs(const char* item);
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+#ifdef __clang__
+void* free(const void*, ...);
+
+#else
+
+void* __free(const void* data);
+#define __impl_for_each_free(a) a = __free(a);
+#define free(...)               ({                      \
+        VA_ARG_MANIP(__impl_for_each_free, __VA_ARGS__) \
+        NULL;                                           \
+    })
+
+#endif
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+int shex(const char* string);
+int sint(const char* string);
+f32 sfloat(const char* string);
+int sbool(const char* string);
+int vldt_hex(const char* str);
+int vldt_int(const char* str);
+int vldt_float(const char* str);
+int digint(int i);
+int dighex(int i);
+
+hsl_t color_hsl(u8 r, u8 g, u8 b);
+rgb8_t color_rgb8(f32 h, f32 s, f32 l);
+rgba8_t color_rgba8(f32 h, f32 s, f32 l);
+void color_cnvtohsl(hsl_t* dest, rgb8_t* src);
+void color_cnvtorgb(rgb8_t* dest, hsl_t* src);
+
+int Music_NoteIndex(const char* note);
+const char* Music_NoteWord(int note);
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+f32 randf();
 f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep);
 f32 Math_Spline(f32 k, f32 xm1, f32 x0, f32 x1, f32 x2);
 void Math_ApproachF(f32* pValue, f32 target, f32 fraction, f32 step);
 void Math_ApproachS(s16* pValue, s16 target, s16 scale, s16 step);
 
-void* Sound_Init(SoundFormat fmt, u32 sampleRate, u32 channelNum, SoundCallback callback, void* uCtx);
-void Sound_Free(void* sound);
-void Sound_Xm_Play(const void* data, u32 size);
-void Sound_Xm_Stop();
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-char* Regex(const char* str, const char* pattern, RegexFlag flag);
-
-int QSortCallback_Str_NumHex(const void* ptrA, const void* ptrB);
+void* memmem(const void* hay, size_t haylen, const void* nee, size_t neelen);
+void* memmem_align(u32 val, const void* haystack, size_t haystacklen, const void* needle, size_t needlelen);
+char* stristr(const char* haystack, const char* needle);
+char* strwstr(const char* hay, const char* nee);
+char* strnstr(const char* hay, const char* nee, size_t n);
+char* strend(const char* src, const char* ext);
+char* striend(const char* src, const char* ext);
+char* strstart(const char* src, const char* ext);
+char* stristart(const char* src, const char* ext);
+int strarg(const char* args[], const char* arg);
+char* strracpt(const char* str, const char* c);
+char* strlnhead(const char* str, const char* head);
+char* strline(const char* str, int line);
+char* strword(const char* str, int word);
+size_t linelen(const char* str);
+size_t wordlen(const char* str);
+bool chrspn(int c, const char* accept);
+int strnocc(const char* s, size_t n, const char* accept);
+int strocc(const char* s, const char* accept);
+int strnins(char* dst, const char* src, size_t pos, int n);
+int strins(char* dst, const char* src, size_t pos);
+int strinsat(char* str, const char* ins);
+int strrep(char* src, const char* mtch, const char* rep);
+int strnrep(char* src, int len, const char* mtch, const char* rep);
+int strwrep(char* src, const char* mtch, const char* rep);
+int strwnrep(char* src, int len, const char* mtch, const char* rep);
+char* strfext(const char* str);
+char* strtoup(char* str);
+char* strtolo(char* str);
+void strntolo(char* s, int i);
+void strntoup(char* s, int i);
+void strrem(char* point, int amount);
+char* strflipslash(char* t);
+char* strfssani(char* t);
+int strstrlen(const char* a, const char* b);
+char* String_GetSpacedArg(const char** args, int cur);
+void strswapext(char* dest, const char* src, const char* ext);
+char* strarrcat(const char** list, const char* separator);
+size_t strwlen(const wchar* s);
+char* strto8(char* dst, const wchar* src);
+wchar* strto16(wchar* dst, const char* src);
+int linenum(const char* str);
+int dirnum(const char* src);
+int dir_isabs(const char* item);
+int dir_isrel(const char* item);
 
 #ifndef _WIN32
 #ifndef __clang__
@@ -411,32 +383,59 @@ int QSortCallback_Str_NumHex(const void* ptrA, const void* ptrB);
 #endif
 
 int stricmp(const char* a, const char* b);
-int strnicmp(const char* a, const char* b, Size size);
+int strnicmp(const char* a, const char* b, size_t size);
+
+bool sys_isdir(const char* path);
+time_t sys_stat(const char* item);
+const char* sys_app(void);
+const char* sys_appdata(void);
+time_t sys_time(void);
+void sys_sleep(f64 sec);
+void sys_mkdir(const char* dir, ...);
+const char* sys_workdir(void);
+const char* sys_appdir(void);
+int sys_mv(const char* input, const char* output);
+int sys_rm(const char* item);
+int sys_rmdir(const char* item);
+void sys_setworkpath(const char* txt);
+int sys_touch(const char* file);
+int sys_cp(const char* src, const char* dest);
+date_t sys_timedate(time_t time);
+int sys_getcorenum(void);
+size_t sys_statsize(const char* file);
+const char* sys_env(env_index_t env);
+
+int sys_exe(const char* cmd);
+void sys_exed(const char* cmd);
+int sys_exel(const char* cmd, int (*callback)(void*, const char*), void* arg);
+void sys_exes_noerr();
+int sys_exes_return();
+char* sys_exes(const char* cmd);
+
+void fs_mkflag(bool flag);
+void fs_set(const char* fmt, ...);
+char* fs_item(const char* str, ...);
+char* fs_find(const char* str);
+
+bool cli_yesno(void);
+void cli_clear(void);
+void cli_clearln(int i);
+void cli_gotoprevln(void);
+const char* cli_gets(void);
+char cli_getc();
+void cli_hide(void);
+void cli_show(void);
+void cli_getSize(int* r);
+void cli_getPos(int* r);
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+int qsort_method_numhex(const void* ptrA, const void* ptrB);
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
-
-#ifdef __clang__
-
-char* strndup(const char*, size_t);
-
-#else
-
-#define strndup(s, n) __ext_strndup(s, n)
-static char* __ext_strndup(const char* s, size_t n) {
-    if (!s || !n) return NULL;
-    Size csz = strnlen(s, n);
-    char* new = malloc(n + 1);
-    Assert(new != NULL);
-    new[csz] = '\0';
-    
-    return memcpy (new, s, csz);
-}
-
-#endif
-
-extern vbool gThreadMode;
-extern Mutex gThreadMutex;
 
 static inline void Mutex_Enable(void) {
     if (!gThreadMode)
@@ -462,26 +461,26 @@ static inline void Mutex_Unlock(void) {
         pthread_mutex_unlock(&gThreadMutex);
 }
 
-static inline s32 Thread_Create(Thread* thread, void* func, void* arg) {
+static inline int Thread_Create(thread_t* thread, void* func, void* arg) {
     return pthread_create(thread, NULL, (void*)func, (void*)(arg));
 }
 
-static inline s32 Thread_Join(Thread* thread) {
+static inline int Thread_Join(thread_t* thread) {
     return pthread_join(*thread, NULL);
 }
 
-static inline s32 Thread_TryJoin(Thread* thread) {
+static inline int Thread_TryJoin(thread_t* thread) {
 #ifdef _WIN32
     
     return _pthread_tryjoin(*thread, NULL);
 #else
-    int pthread_tryjoin_np(Thread, void**);
+    int pthread_tryjoin_np(thread_t, void**);
     
     return pthread_tryjoin_np(*thread, NULL);
 #endif
 }
 
-static inline s32 Thread_Detach(Thread* thread) {
+static inline int Thread_Detach(thread_t* thread) {
     return pthread_detach(*thread);
 }
 

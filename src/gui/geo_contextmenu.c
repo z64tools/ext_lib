@@ -21,9 +21,9 @@ static void ContextProp_List_Init(GeoGrid* geo, ContextMenu* this) {
         this->rect.w += SPLIT_ELEM_X_PADDING * 2;
     }
     
-    printf_info("" PRNT_YELW "%s", __FUNCTION__);
-    printf_info("prop->key = %d", prop->key);
-    printf_info("prop->num = %d", prop->num);
+    print_info("" PRNT_YELW "%s", __FUNCTION__);
+    print_info("prop->key = %d", prop->key);
+    print_info("prop->num = %d", prop->num);
     
     this->state.setCondition = false;
 };
@@ -87,7 +87,7 @@ static void ContextProp_Init_Draw(GeoGrid* geo, ContextMenu* this) {
 
 static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     typedef struct {
-        RGBA8* c;
+        rgba8_t* c;
         s32    id;
     } ImgMap;
     
@@ -106,7 +106,7 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     
     Rect rectLumSat = r;
     Rect rectHue;
-    HSL8 color;
+    hsl_t color;
     
     rectLumSat.h -= SPLIT_ELEM_Y_PADDING + SPLIT_ELEM_X_PADDING;
     rectHue = rectLumSat;
@@ -114,7 +114,7 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     rectHue.h = SPLIT_ELEM_Y_PADDING;
     
     if (this->state.init) {
-        color = Color_GetHSL(UnfoldRGB(*prop->rgb8));
+        color = color_hsl(unfold_rgb(*prop->rgb8));
         
         prop->hue = color.h;
         prop->pos.x = color.s;
@@ -126,8 +126,8 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
             ) || ( prop->holdLumSat )) {
             Vec2s relPos = Math_Vec2s_Sub(cursor->pos, (Vec2s) { rectLumSat.x, rectLumSat.y });
             
-            prop->pos.x = Clamp((f32)relPos.x / rectLumSat.w, 0, 1);
-            prop->pos.y = Clamp((f32)relPos.y / rectLumSat.h, 0, 1);
+            prop->pos.x = clamp((f32)relPos.x / rectLumSat.w, 0, 1);
+            prop->pos.y = clamp((f32)relPos.y / rectLumSat.h, 0, 1);
             prop->holdLumSat = Input_GetMouse(input, CLICK_L)->hold;
         }
         if ((
@@ -136,18 +136,18 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
             ) || ( prop->holdHue )) {
             Vec2s relPos = Math_Vec2s_Sub(cursor->pos, (Vec2s) { rectHue.x, rectHue.y });
             
-            prop->hue = Clamp((f32)relPos.x / rectHue.w, 0, 1);
+            prop->hue = clamp((f32)relPos.x / rectHue.w, 0, 1);
             prop->holdHue = Input_GetMouse(input, CLICK_L)->hold;
         }
     }
     
-    color = (HSL8) { prop->hue, prop->pos.x, InvF(prop->pos.y) };
-    *prop->rgb8 = Color_GetRGB8(UnfoldHSL(color));
+    color = (hsl_t) { prop->hue, prop->pos.x, InvF(prop->pos.y) };
+    *prop->rgb8 = color_rgb8(unfold_hsl(color));
     
-    Block(void, UpdateImg, ()) {
+    nested(void, UpdateImg, ()) {
         for (s32 y = 0; y < rectLumSat.h; y++) {
             for (s32 x = 0; x < rectLumSat.w; x++) {
-                imgLumSat.c[(y * rectLumSat.w) + x] = Color_GetRGBA8(
+                imgLumSat.c[(y * rectLumSat.w) + x] = color_rgba8(
                     color.h,
                     (f32)x / rectLumSat.w,
                     (f32)y / rectLumSat.h
@@ -159,7 +159,7 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     };
     
     if (!imgLumSat.c) {
-        imgLumSat.c = qFree(New(RGBA8[rectLumSat.w * rectLumSat.h]));
+        imgLumSat.c = dfree(new(rgba8_t[rectLumSat.w * rectLumSat.h]));
         UpdateImg();
         imgLumSat.id = nvgCreateImageRGBA(vg, rectLumSat.w, rectLumSat.h, NVG_IMAGE_NEAREST | NVG_IMAGE_FLIPY, (void*)imgLumSat.c);
     }
@@ -184,11 +184,11 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     }
     
     if (!imgHue.c) {
-        imgHue.c = qFree(New(RGBA8[rectHue.w * rectHue.h]));
+        imgHue.c = dfree(new(rgba8_t[rectHue.w * rectHue.h]));
         
         for (s32 y = 0; y < rectHue.h; y++) {
             for (s32 x = 0; x < rectHue.w; x++) {
-                imgHue.c[(y * rectHue.w) + x] = Color_GetRGBA8(
+                imgHue.c[(y * rectHue.w) + x] = color_rgba8(
                     (f32)x / rectHue.w,
                     1.0f,
                     0.5f
@@ -230,7 +230,7 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, R
     ContextMenu* this = &geo->dropMenu;
     
     Assert(uprop != NULL);
-    Assert(type < ArrayCount(sContextMenuFuncs));
+    Assert(type < arrcount(sContextMenuFuncs));
     
     this->element = element;
     this->prop = uprop;

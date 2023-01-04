@@ -71,7 +71,7 @@ thread_local ElementState* gElemState = NULL;
 void* ElementState_New(void) {
     ElementState* elemState;
     
-    Assert((elemState = New(ElementState)) != NULL);
+    Assert((elemState = new(ElementState)) != NULL);
     
     return elemState;
 }
@@ -209,7 +209,7 @@ void Gfx_DrawStripes(void* vg, Rect rect) {
     
     nvgBeginPath(vg);
     for (s32 i = -8; i < rect.w; i += 8)
-        Gfx_Shape(vg, Math_Vec2f_New(rect.x + i, rect.y), 20.0f, 0, shape, ArrayCount(shape));
+        Gfx_Shape(vg, Math_Vec2f_New(rect.x + i, rect.y), 20.0f, 0, shape, arrcount(shape));
     
     nvgFill(vg);
     nvgResetScissor(vg);
@@ -244,7 +244,7 @@ f32 Gfx_TextWidth(void* vg, const char* txt) {
 static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, void* arg, const char* elemFunc) {
     ElementCallInfo* node;
     
-    node = Calloc(sizeof(ElementCallInfo));
+    node = calloc(sizeof(ElementCallInfo));
     Node_Add(gElemState->head, node);
     node->geo = geo;
     node->split = split;
@@ -369,7 +369,7 @@ static void Element_ButtonDraw(ElementCallInfo* info) {
                 pos.x = (r.x + r.w) - width - SPLIT_ELEM_X_PADDING;
                 break;
             case ALIGN_CENTER:
-                pos.x = r.x + ClampMin((r.w - width) * 0.5, SPLIT_ELEM_X_PADDING);
+                pos.x = r.x + clamp_min((r.w - width) * 0.5, SPLIT_ELEM_X_PADDING);
                 break;
         }
         
@@ -420,15 +420,15 @@ s32 Element_Button(ElButton* this) {
 static void Element_ColorBoxDraw(ElementCallInfo* info) {
     void* vg = info->geo->vg;
     ElColor* this = info->arg;
-    RGB8 color = {
+    rgb8_t color = {
         0x20, 0x20, 0x20,
     };
     
     if (this->prop.rgb8) {
         color = *this->prop.rgb8;
-        Gfx_DrawRounderRect(vg, this->element.rect, Theme_Mix(0.10, nvgRGBA(UnfoldRGB(color), 0xFF), this->element.light));
+        Gfx_DrawRounderRect(vg, this->element.rect, Theme_Mix(0.10, nvgRGBA(unfold_rgb(color), 0xFF), this->element.light));
     } else {
-        Gfx_DrawRounderRect(vg, this->element.rect, Theme_Mix(0.10, nvgRGBA(UnfoldRGB(color), 0xFF), this->element.light));
+        Gfx_DrawRounderRect(vg, this->element.rect, Theme_Mix(0.10, nvgRGBA(unfold_rgb(color), 0xFF), this->element.light));
         Gfx_DrawStripes(vg, this->element.rect);
     }
     
@@ -465,13 +465,13 @@ static void Textbox_SetValue(ElTextbox* this) {
             if (this->val.update) {
                 switch (this->type) {
                     case TEXTBOX_INT:
-                        this->val.value = Value_Int(this->txt);
+                        this->val.value = sint(this->txt);
                         break;
                     case TEXTBOX_HEX:
-                        this->val.value = Value_Hex(this->txt);
+                        this->val.value = shex(this->txt);
                         break;
                     case TEXTBOX_F32:
-                        this->val.value = Value_Float(this->txt);
+                        this->val.value = sfloat(this->txt);
                         break;
                         
                     case TEXTBOX_STR:
@@ -479,7 +479,7 @@ static void Textbox_SetValue(ElTextbox* this) {
                 }
                 
                 if (this->val.min != 0 || this->val.max != 0)
-                    this->val.value = Clamp(this->val.value, this->val.min, this->val.max);
+                    this->val.value = clamp(this->val.value, this->val.min, this->val.max);
                 
                 s32 size = this->size ? this->size : sizeof(this->txt);
                 
@@ -523,7 +523,7 @@ static void Textbox_Clear(GeoGrid* geo) {
         this->ret = true;
     }
     
-    printf_info("Textbox: Clear");
+    print_info("Textbox: Clear");
 }
 
 static void Textbox_Set(ElTextbox* this, Split* split) {
@@ -536,7 +536,7 @@ static void Textbox_Set(ElTextbox* this, Split* split) {
     gElemState->textbox = this;
     gElemState->textbox->split = split;
     
-    printf_info("Textbox: Set [%s]", this->txt);
+    print_info("Textbox: Set [%s]", this->txt);
 }
 
 static InputType* Textbox_GetKey(GeoGrid* geo, KeyMap key) {
@@ -568,7 +568,7 @@ void Element_UpdateTextbox(GeoGrid* geo) {
         if (this->clearIcon) {
             if (Textbox_GetMouse(geo, CLICK_L)->press) {
                 if (Split_CursorInRect(split, &this->clearRect)) {
-                    ArrZero(this->txt);
+                    arrzero(this->txt);
                     this->modified = true;
                     Textbox_Clear(geo);
                     return;
@@ -577,7 +577,7 @@ void Element_UpdateTextbox(GeoGrid* geo) {
         }
         
         if (Textbox_GetKey(geo, KEY_ESCAPE)->press) {
-            ArrZero(this->txt);
+            arrzero(this->txt);
             this->modified = true;
             Textbox_Clear(geo);
             this->ret = -1;
@@ -661,7 +661,7 @@ void Element_UpdateTextbox(GeoGrid* geo) {
                 }
                 this->selPos = this->selPivot = this->selA = this->selB = id;
                 this->isClicked = true;
-                printf_info("Textbox: Select %d", id);
+                print_info("Textbox: Select %d", id);
             } else if (cHold && this->isClicked && split->cursorPos.x >= r.x && split->cursorPos.x < r.x + r.w) {
                 this->selA = Min (this->selPivot, id );
                 this->selPos = this->selB = Max (this->selPivot, id );
@@ -669,16 +669,16 @@ void Element_UpdateTextbox(GeoGrid* geo) {
         } else {
             this->isClicked = false;
             
-            Block(void, Remove, ()) {
+            nested(void, Remove, ()) {
                 s32 min = this->selA;
                 s32 max = this->selB - min;
                 
                 if (this->selA == this->selB) {
-                    min = ClampMin(min - 1, 0);
+                    min = clamp_min(min - 1, 0);
                     max = 1;
                 }
                 
-                StrRem(&this->txt[min], max);
+                strrem(&this->txt[min], max);
                 this->selA = this->selB = min;
                 this->modified = true;
             };
@@ -687,9 +687,9 @@ void Element_UpdateTextbox(GeoGrid* geo) {
                 Remove();
             
             if (dir || kEnd || kHome) {
-                Block(s32, Shift, (s32 cur, s32 dir)) {
+                nested(s32, Shift, (s32 cur, s32 dir)) {
                     if (ctrl && dir) {
-                        for (var i = cur + dir; i > 0 && i < LEN; i += dir) {
+                        for (var_t i = cur + dir; i > 0 && i < LEN; i += dir) {
                             if (ispunct(this->txt[i]) != ispunct(this->txt[i + dir]))
                                 return i + Max(0, dir);
                         }
@@ -706,9 +706,9 @@ void Element_UpdateTextbox(GeoGrid* geo) {
                 if (kHome)        val = 0;
                 else if (kEnd)    val = LEN;
                 else if (kShift)  val = Shift(this->selPos, dir);
-                else              val = Shift(dirPoint[ClampMin(dir, 0)], dir * shiftMul);
+                else              val = Shift(dirPoint[clamp_min(dir, 0)], dir * shiftMul);
                 //uncrustify
-                val = Clamp(val, 0, LEN);
+                val = clamp(val, 0, LEN);
                 
                 if (kShift) {
                     this->selPos = val;
@@ -724,9 +724,9 @@ void Element_UpdateTextbox(GeoGrid* geo) {
                 if (paste) origin = Input_GetClipboardStr(geo->input);
                 if (this->selA != this->selB) Remove();
                 
-                StrIns2(this->txt, origin, this->selA, maxSize);
+                strnins(this->txt, origin, this->selA, maxSize);
                 
-                this->selPos = this->selPivot = this->selB = this->selA = ClampMax(this->selA + 1, maxSize);
+                this->selPos = this->selPivot = this->selB = this->selA = clamp_max(this->selA + 1, maxSize);
                 this->modified = true;
             }
             
@@ -768,7 +768,7 @@ static void Element_TextboxDraw(ElementCallInfo* info) {
         if (this->selA == this->selB) {
             memset(str, 0, sizeof(str));
             strncpy(str, this->txt, gElemState->textbox->selA);
-            StrRep(str, " ", "-");
+            strrep(str, " ", "-");
             r.x += Gfx_TextWidth(vg, str) + SPLIT_ELEM_X_PADDING;
             
             r.x -= 2;
@@ -792,13 +792,13 @@ static void Element_TextboxDraw(ElementCallInfo* info) {
             
             memset(str, 0, sizeof(str));
             strncpy(str, this->txt, min);
-            StrRep(str, " ", "-");
-            r.x += Clamp((start = Gfx_TextWidth(vg, str)) + SPLIT_ELEM_X_PADDING, 0, this->boxRect.w);
+            strrep(str, " ", "-");
+            r.x += clamp((start = Gfx_TextWidth(vg, str)) + SPLIT_ELEM_X_PADDING, 0, this->boxRect.w);
             
             memset(str, 0, sizeof(str));
             strncpy(str, this->txt, max);
-            StrRep(str, " ", "-");
-            r.w = Clamp(Gfx_TextWidth(vg, str) - start, 0, this->boxRect.w);
+            strrep(str, " ", "-");
+            r.w = clamp(Gfx_TextWidth(vg, str) - start, 0, this->boxRect.w);
             
             nvgScissor(vg, UnfoldRect(r));
             Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_TEXT, 255, 1.0f));
@@ -843,7 +843,7 @@ s32 Element_Textbox(ElTextbox* this) {
         if (Input_GetMouse(gElemState->geo->input, CLICK_L)->press) {
             if (this->clearIcon) {
                 if (Split_CursorInRect(SPLIT, &this->clearRect)) {
-                    ArrZero(this->txt);
+                    arrzero(this->txt);
                     this->modified = true;
                     
                     if (this == gElemState->textbox)
@@ -898,7 +898,7 @@ static void Element_TextDraw(ElementCallInfo* info) {
 }
 
 ElText* Element_Text(const char* txt) {
-    ElText* this = Calloc(sizeof(ElText));
+    ElText* this = calloc(sizeof(ElText));
     
     Assert(GEO && SPLIT);
     this->element.name = txt;
@@ -948,7 +948,7 @@ static void Element_CheckboxDraw(ElementCallInfo* info) {
     center.y = r.y + r.h * 0.5;
     
     col.a = flipLerp * 1.67;
-    col.a = ClampMin(col.a, 0.80);
+    col.a = clamp_min(col.a, 0.80);
     
     if (this->element.disabled)
         col = this->element.light;
@@ -956,8 +956,8 @@ static void Element_CheckboxDraw(ElementCallInfo* info) {
     nvgBeginPath(vg);
     nvgFillColor(vg, col);
     
-    for (s32 i = 0; i < ArrayCount(sVector_Cross); i++) {
-        s32 wi = WrapS(i, 0, ArrayCount(sVector_Cross) - 1);
+    for (s32 i = 0; i < arrcount(sVector_Cross); i++) {
+        s32 wi = WrapS(i, 0, arrcount(sVector_Cross) - 1);
         Vec2f zero = { 0 };
         Vec2f pos = {
             sVector_Cross[wi].x * 0.75,
@@ -1018,11 +1018,11 @@ static void Element_SliderDraw(ElementCallInfo* info) {
     rect.y = this->element.rect.y;
     rect.w = this->element.rect.w;
     rect.h = this->element.rect.h;
-    rect.w = ClampMin(rect.w * this->vValue, 0);
+    rect.w = clamp_min(rect.w * this->vValue, 0);
     
     rect.x = rect.x + 2;
     rect.y = rect.y + 2;
-    rect.w = ClampMin(rect.w - 4, 0);
+    rect.w = clamp_min(rect.w - 4, 0);
     rect.h = rect.h - 4;
     
     Gfx_DrawRounderOutline(vg, this->element.rect, this->element.light);
@@ -1081,12 +1081,12 @@ f32 Element_Slider(ElSlider* this) {
     
     ELEMENT_QUEUE_CHECK();
     
-    Block(void, SetHold, ()) {
+    nested(void, SetHold, ()) {
         this->holdState = true;
         gElemState->split->elemBlockMouse++;
     };
     
-    Block(void, UnsetHold, ()) {
+    nested(void, UnsetHold, ()) {
         if (this->holdState)
             gElemState->split->elemBlockMouse--;
         this->holdState = false;
@@ -1111,7 +1111,7 @@ f32 Element_Slider(ElSlider* this) {
                 UnsetHold();
                 this->isSliding = false;
                 this->isTextbox = false;
-                Element_Slider_SetValue(this, this->isInt ? Value_Int(this->textBox.txt) : Value_Float(this->textBox.txt));
+                Element_Slider_SetValue(this, this->isInt ? sint(this->textBox.txt) : sfloat(this->textBox.txt));
                 
                 goto queue_element;
             }
@@ -1130,7 +1130,7 @@ f32 Element_Slider(ElSlider* this) {
                     else
                         this->value += (f32)gElemState->geo->input->cursor.vel.x * 0.001f;
                     if (this->min || this->max)
-                        this->value = Clamp(this->value, 0.0f, 1.0f);
+                        this->value = clamp(this->value, 0.0f, 1.0f);
                     
                     pos = true;
                 }
@@ -1147,7 +1147,7 @@ f32 Element_Slider(ElSlider* this) {
         
         if (Input_GetScroll(gElemState->geo->input)) {
             if (this->isInt) {
-                f32 scrollDir = Clamp(Input_GetScroll(gElemState->geo->input), -1, 1);
+                f32 scrollDir = clamp(Input_GetScroll(gElemState->geo->input), -1, 1);
                 f32 valueIncrement = 1.0f / (this->max - this->min);
                 s32 value = rint(Remap(this->value, 0.0f, 1.0f, this->min, this->max));
                 
@@ -1172,7 +1172,7 @@ f32 Element_Slider(ElSlider* this) {
     }
     
     ELEMENT_QUEUE(Element_SliderDraw);
-    this->value = Clamp(this->value, 0.0f, 1.0f);
+    this->value = clamp(this->value, 0.0f, 1.0f);
     
     if (this->isSliding)
         Cursor_SetCursor(CURSOR_EMPTY);
@@ -1233,7 +1233,7 @@ static void Element_ComboDraw(ElementCallInfo* info) {
     
     nvgBeginPath(vg);
     nvgFillColor(vg, this->element.light);
-    Gfx_Shape(vg, center, 0.95, 0, arrow, ArrayCount(arrow));
+    Gfx_Shape(vg, center, 0.95, 0, arrow, arrcount(arrow));
     nvgFill(vg);
 }
 
@@ -1242,12 +1242,12 @@ s32 Element_Combo(ElCombo* this) {
     
     ELEMENT_QUEUE_CHECK();
     
-    Log("PROP %X", this->prop);
+    _log("PROP %X", this->prop);
     
     if (this->prop && this->prop->num) {
         if (ELEM_PRESS_CONDITION(this)) {
             SPLIT->splitBlockScroll++;
-            s32 scrollY = Clamp(Input_GetScroll(gElemState->geo->input), -1, 1);
+            s32 scrollY = clamp(Input_GetScroll(gElemState->geo->input), -1, 1);
             
             if (Input_GetMouse(gElemState->geo->input, CLICK_L)->press) {
                 Rect* rect[] = {
@@ -1417,7 +1417,7 @@ s32 Element_Container(ElContainer* this) {
         PropList* prop = this->prop;
         Input* input = gElemState->geo->input;
         Cursor* cursor = &gElemState->geo->input->cursor;
-        s32 val = Clamp(cursor->scrollY, -1, 1);
+        s32 val = clamp(cursor->scrollY, -1, 1);
         DragItem* drag = &gElemState->dragItem;
         
         if (this->text) {
@@ -1428,12 +1428,12 @@ s32 Element_Container(ElContainer* this) {
         }
         
         scroll->max = SPLIT_TEXT_H * this->prop->num - this->element.rect.h;
-        scroll->max = ClampMin(scroll->max, 0);
+        scroll->max = clamp_min(scroll->max, 0);
         
         ELEMENT_QUEUE_CHECK();
         
         if (this->heldKey > 0 && Math_Vec2s_DistXZ(cursor->pos, cursor->pressPos) > 8) {
-            Log("Drag Item Init");
+            _log("Drag Item Init");
             DragItem_Init(gElemState->geo, this, this->grabRect, PropList_Get(prop, this->heldKey - 1), this->prop);
             this->detachID = this->heldKey - 1;
             this->detachMul = 1.0f;
@@ -1457,11 +1457,11 @@ s32 Element_Container(ElContainer* this) {
         
         if (ELEM_PRESS_CONDITION(this)) {
             if (Input_GetMouse(input, CLICK_L)->dual && prop->num) {
-                Log("Rename");
+                _log("Rename");
                 this->text = true;
                 this->textBox.size = 32;
                 strcpy(this->textBox.txt, PropList_Get(prop, prop->key));
-                prop->list[prop->key] = Realloc(prop->list[prop->key], 32);
+                prop->list[prop->key] = realloc(prop->list[prop->key], 32);
                 
                 goto queue_element;
             }
@@ -1523,7 +1523,7 @@ s32 Element_Container(ElContainer* this) {
     }
     
     ELEMENT_QUEUE(Element_ContainerDraw);
-    scroll->offset = Clamp(scroll->offset, 0, scroll->max);
+    scroll->offset = clamp(scroll->offset, 0, scroll->max);
     
     if (this->text) {
         (void)0;
@@ -1552,7 +1552,7 @@ static void Element_SeparatorDraw(ElementCallInfo* info) {
     Gfx_DrawRounderOutline(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 255, 1.0f));
     Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 175, 1.0f));
     
-    Free(this);
+    free(this);
 }
 
 void Element_Separator(bool drawLine) {
@@ -1561,7 +1561,7 @@ void Element_Separator(bool drawLine) {
     Assert(GEO && SPLIT);
     
     if (drawLine) {
-        this = Calloc(sizeof(*this));
+        this = calloc(sizeof(*this));
         
         gElemState->rowY += SPLIT_ELEM_X_PADDING;
         
@@ -1588,7 +1588,7 @@ static void Element_BoxDraw(ElementCallInfo* info) {
     Gfx_DrawRounderOutline(info->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 45, 1.0f));
     Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 45, 1.0f));
     
-    Free(this);
+    free(this);
 }
 
 s32 Element_Box(BoxInit io) {
@@ -1605,12 +1605,12 @@ s32 Element_Box(BoxInit io) {
     #define ROW_Y boxRowY[r]
     
     Assert(GEO && SPLIT);
-    Assert(r < ArrayCount(boxElemList));
+    Assert(r < arrcount(boxElemList));
     
     if (io == BOX_START) {
         ROW_Y = gElemState->rowY;
         
-        THIS = Calloc(sizeof(*THIS));
+        THIS = calloc(sizeof(*THIS));
         Element_Row(1, THIS, 1.0);
         gElemState->rowY = ROW_Y + SPLIT_ELEM_X_PADDING;
         
@@ -1659,7 +1659,7 @@ void Element_DisplayName(Element* this, f32 lerp) {
     
     this->dispText = true;
     
-    node = Calloc(sizeof(ElementCallInfo));
+    node = calloc(sizeof(ElementCallInfo));
     Node_Add(gElemState->head, node);
     node->geo = gElemState->geo;
     node->split = gElemState->split;
@@ -1676,14 +1676,14 @@ void Element_DisplayName(Element* this, f32 lerp) {
 void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type) {
     this->min = min;
     this->max = max;
-    if (!stricmp(type, "int") || StrStart(type, "s") || StrStart(type, "u"))
+    if (!stricmp(type, "int") || strstart(type, "s") || strstart(type, "u"))
         this->isInt = true;
-    else if (!stricmp(type, "float") || StrStart(type, "f"))
+    else if (!stricmp(type, "float") || strstart(type, "f"))
         this->isInt = false;
 }
 
 void Element_Slider_SetValue(ElSlider* this, f64 val) {
-    val = Clamp(val, this->min, this->max);
+    val = clamp(val, this->min, this->max);
     this->vValue = this->value = Normalize(val, this->min, this->max);
 }
 
@@ -1702,7 +1702,7 @@ void Element_Color_SetColor(ElColor* this, void* color) {
 
 void Element_Container_SetPropList(ElContainer* this, PropList* prop, u32 num) {
     this->prop = prop;
-    this->element.heightAdd = SPLIT_TEXT_H * ClampMin(num - 1, 0);
+    this->element.heightAdd = SPLIT_TEXT_H * clamp_min(num - 1, 0);
 }
 
 void Element_Name(Element* this, const char* name) {
@@ -1746,7 +1746,7 @@ void Element_Row(s32 rectNum, ...) {
     
     va_start(va, rectNum);
     
-    Log("Setting [%d] Elements for Split ID %d", rectNum, gElemState->split->id);
+    _log("Setting [%d] Elements for Split ID %d", rectNum, gElemState->split->id);
     
     for (s32 i = 0; i < rectNum; i++) {
         Element* this = va_arg(va, void*);
@@ -1756,7 +1756,7 @@ void Element_Row(s32 rectNum, ...) {
         
         if (this) {
             Rect* rect = &this->rect;
-            Log("[%d]: %s", i, this->name);
+            _log("[%d]: %s", i, this->name);
             
             if (this->heightAdd && yadd == 0)
                 yadd = this->heightAdd;
@@ -1790,7 +1790,7 @@ void Element_Header(s32 num, ...) {
     
     va_start(va, num);
     
-    Log("Setting [%d] Header Elements", num);
+    _log("Setting [%d] Header Elements", num);
     
     for (s32 i = 0; i < num; i++) {
         Element* this = va_arg(va, Element*);
@@ -1897,7 +1897,7 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
         this = elem->arg;
         
         if (this->header == header && elem->split == split) {
-            Log("[%d][Split ID %d] ElemFunc: " PRNT_PRPL "%sDraw", header, split->id, elem->elemFunc);
+            _log("[%d][Split ID %d] ElemFunc: " PRNT_PRPL "%sDraw", header, split->id, elem->elemFunc);
             
             if (elem->update)
                 Element_UpdateElement(elem);
@@ -1906,10 +1906,10 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
                 elem->func(elem);
             
             if (this->doFree)
-                Free(this);
+                free(this);
             
             Node_Remove(gElemState->head, elem);
-            Free(elem);
+            free(elem);
         }
         
         elem = next;
@@ -1948,7 +1948,7 @@ void DragItem_Draw(GeoGrid* geo) {
     
     this->swing += (this->pos.x - prevPos.x) * 0.01f;
     
-    this->swing = Clamp(this->swing, -1.25f, 1.25f);
+    this->swing = clamp(this->swing, -1.25f, 1.25f);
     Math_SmoothStepToF(&this->swing, 0.0f, 0.25f, 0.2f, 0.001f);
     Math_SmoothStepToF(&this->alpha, this->hold ? 200.0f : 0.0f, 0.25f, 80.0f, 0.01f);
     
@@ -1978,6 +1978,6 @@ void DragItem_Draw(GeoGrid* geo) {
     
     if (this->alpha <= EPSILON && this->item) {
         this->alpha = 0.0f;
-        Free(this->item);
+        free(this->item);
     }
 }

@@ -113,7 +113,7 @@ typedef struct {
 
 static inline f32 Math_Vec2s_DistXZ(Vec2s a, Vec2s b);
 
-extern f32 EPSILON;
+extern const f32 EPSILON;
 extern f32 gDeltaTime;
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -129,14 +129,14 @@ static inline s16 Atan2S(f32 x, f32 y) {
 // # # # # # # # # # # # # # # # # # # # #
 
 static inline void Math_VecSphToVec3f(Vec3f* dest, VecSph* sph) {
-    sph->pitch = Clamp(sph->pitch, DegToBin(-89.995f), DegToBin(89.995f));
+    sph->pitch = clamp(sph->pitch, DegToBin(-89.995f), DegToBin(89.995f));
     dest->x = sph->r * SinS(sph->pitch - DegToBin(90)) * SinS(sph->yaw);
     dest->y = sph->r * CosS(sph->pitch - DegToBin(90));
     dest->z = sph->r * SinS(sph->pitch - DegToBin(90)) * CosS(sph->yaw);
 }
 
 static inline void Math_AddVecSphToVec3f(Vec3f* dest, VecSph* sph) {
-    sph->pitch = Clamp(sph->pitch, DegToBin(-89.995f), DegToBin(89.995f));
+    sph->pitch = clamp(sph->pitch, DegToBin(-89.995f), DegToBin(89.995f));
     dest->x += sph->r * SinS(sph->pitch - DegToBin(90)) * SinS(sph->yaw);
     dest->y += sph->r * CosS(sph->pitch - DegToBin(90));
     dest->z += sph->r * SinS(sph->pitch - DegToBin(90)) * CosS(sph->yaw);
@@ -296,7 +296,7 @@ static inline f64 Math_DelSmoothStepToD(f64* pValue, f64 target, f64 fraction, f
         f64 stepSize = (target - *pValue) * fraction;
         
         if ((stepSize >= minStep) || (stepSize <= -minStep))
-            *pValue += Clamp(stepSize, -step, step);
+            *pValue += clamp(stepSize, -step, step);
         
         else {
             if (stepSize < minStep) {
@@ -326,7 +326,7 @@ static inline s16 Math_SmoothStepToS(s16* pValue, s16 target, s16 scale, s16 ste
         stepSize = diff / scale;
         
         if ((stepSize > minStep) || (stepSize < -minStep))
-            *pValue += Clamp(stepSize, -step, step);
+            *pValue += clamp(stepSize, -step, step);
         
         else {
             if (diff >= 0) {
@@ -1114,7 +1114,7 @@ static inline Vec4s Math_Vec4s_Invert(Vec4s a) {
 static inline Vec2f Math_Vec2f_InvMod(Vec2f a) {
     Vec2f r;
     
-    for (s32 i = 0; i < ArrayCount(a.axis); i++)
+    for (s32 i = 0; i < arrcount(a.axis); i++)
         r.axis[i] = 1.0f - fabsf(a.axis[i]);
     
     return r;
@@ -1123,7 +1123,7 @@ static inline Vec2f Math_Vec2f_InvMod(Vec2f a) {
 static inline Vec3f Math_Vec3f_InvMod(Vec3f a) {
     Vec3f r;
     
-    for (s32 i = 0; i < ArrayCount(a.axis); i++)
+    for (s32 i = 0; i < arrcount(a.axis); i++)
         r.axis[i] = 1.0f - fabsf(a.axis[i]);
     
     return r;
@@ -1132,28 +1132,28 @@ static inline Vec3f Math_Vec3f_InvMod(Vec3f a) {
 static inline Vec4f Math_Vec4f_InvMod(Vec4f a) {
     Vec4f r;
     
-    for (s32 i = 0; i < ArrayCount(a.axis); i++)
+    for (s32 i = 0; i < arrcount(a.axis); i++)
         r.axis[i] = 1.0f - fabsf(a.axis[i]);
     
     return r;
 }
 
 static inline bool Math_Vec2f_IsNaN(Vec2f a) {
-    for (s32 i = 0; i < ArrayCount(a.axis); i++)
+    for (s32 i = 0; i < arrcount(a.axis); i++)
         if (isnan(a.axis[i])) true;
     
     return false;
 }
 
 static inline bool Math_Vec3f_IsNaN(Vec3f a) {
-    for (s32 i = 0; i < ArrayCount(a.axis); i++)
+    for (s32 i = 0; i < arrcount(a.axis); i++)
         if (isnan(a.axis[i])) true;
     
     return false;
 }
 
 static inline bool Math_Vec4f_IsNaN(Vec4f a) {
-    for (s32 i = 0; i < ArrayCount(a.axis); i++)
+    for (s32 i = 0; i < arrcount(a.axis); i++)
         if (isnan(a.axis[i])) true;
     
     return false;

@@ -56,17 +56,17 @@ void VectorGfx_InitCommon() {
         { 1 + 2,  6   }, { 1 + 2,  5   },
     };
     
-    gAssets.folder = New(VectorGfx);
-    gAssets.folder->num = ArrayCount(folder);
-    gAssets.folder->pos = qFree(memdup(folder, sizeof(folder)));
+    gAssets.folder = new(VectorGfx);
+    gAssets.folder->num = arrcount(folder);
+    gAssets.folder->pos = dfree(memdup(folder, sizeof(folder)));
     
-    gAssets.cross = New(VectorGfx);
-    gAssets.cross->num = ArrayCount(cross);
-    gAssets.cross->pos = qFree(memdup(cross, sizeof(cross)));
+    gAssets.cross = new(VectorGfx);
+    gAssets.cross->num = arrcount(cross);
+    gAssets.cross->pos = dfree(memdup(cross, sizeof(cross)));
     
-    gAssets.arrowParent = New(VectorGfx);
-    gAssets.arrowParent->num = ArrayCount(arrowParent);
-    gAssets.arrowParent->pos = qFree(memdup(arrowParent, sizeof(arrowParent)));
+    gAssets.arrowParent = new(VectorGfx);
+    gAssets.arrowParent->num = arrcount(arrowParent);
+    gAssets.arrowParent->pos = dfree(memdup(arrowParent, sizeof(arrowParent)));
 }
 
 VectorGfx VectorGfx_New(VectorGfx* this, const void* data, f32 fidelity) {
@@ -77,17 +77,17 @@ VectorGfx VectorGfx_New(VectorGfx* this, const void* data, f32 fidelity) {
     
     if (!this) this = &vgfx;
     
-    Free(new);
+    free(new);
     
-    if (!img) printf_error("Failed to parse data:\n%s", data);
+    if (!img) print_error("Failed to parse data:\n%s", data);
     
-    Block(void, AddPoint, (f32 x, f32 y)) {
-        this->pos = Realloc(this->pos, sizeof(Vec2f) * ++this->num);
+    nested(void, AddPoint, (f32 x, f32 y)) {
+        this->pos = realloc(this->pos, sizeof(Vec2f) * ++this->num);
         this->pos[this->num - 1].x = x;
         this->pos[this->num - 1].y = y;
     };
     
-    Block(void, Bezier, (float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, float tol, int level)) {
+    nested(void, Bezier, (float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, float tol, int level)) {
         float x12, y12, x23, y23, x34, y34, x123, y123, x234, y234, x1234, y1234;
         float d;
         
@@ -139,6 +139,6 @@ VectorGfx VectorGfx_New(VectorGfx* this, const void* data, f32 fidelity) {
 }
 
 void VectorGfx_Free(VectorGfx* this) {
-    Free(this->pos);
+    free(this->pos);
     this->num = 0;
 }
