@@ -79,11 +79,11 @@ static SplitEdge* GeoGrid_AddEdge(GeoGrid* geo, SplitVtx* v1, SplitVtx* v2) {
     
     if (v1->pos.y == v2->pos.y) {
         if (v1->pos.x > v2->pos.x) {
-            Swap(v1, v2);
+            swapvar(v1, v2);
         }
     } else {
         if (v1->pos.y > v2->pos.y) {
-            Swap(v1, v2);
+            swapvar(v1, v2);
         }
     }
     
@@ -861,7 +861,7 @@ static inline void Split_UpdateSplit(GeoGrid* geo, Split* split) {
     }
     
     if (Element_Box(BOX_GET_NUM) != 0)
-        print_error("Element_Box Overflow in Split: "PRNT_YELW "[%d] [%s]", split->id, table[split->id]->taskName);
+        errr("Element_Box Overflow in Split: "PRNT_YELW "[%d] [%s]", split->id, table[split->id]->taskName);
     
 }
 

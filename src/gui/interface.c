@@ -81,7 +81,7 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     
-    print_info(glfwGetVersionString());
+    info(glfwGetVersionString());
     
     if (samples)
         glfwWindowHint(GLFW_SAMPLES, samples);
@@ -91,7 +91,7 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
     strncpy(app->title, title, 64);
     
     if (app->window == NULL)
-        print_error("Failed to create GLFW window.");
+        errr("Failed to create GLFW window.");
     
     glfwSetWindowUserPointer(app->window, app);
     _log("Set Callbacks");
@@ -109,7 +109,7 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
         glfwSetDropCallback(app->window, (void*)dropCallback);
     
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-        print_error("Failed to initialize GLAD.");
+        errr("Failed to initialize GLAD.");
     
     _log("Init Matrix, Input and set Framerate");
     Matrix_Init();
@@ -125,7 +125,7 @@ static void Interface_Update(AppInfo* app) {
     if (app->updateCall == NULL || app->drawCall == NULL) {
         const char* TRUE = PRNT_BLUE "true" PRNT_RSET;
         const char* FALSE = PRNT_REDD "false" PRNT_RSET;
-        print_error("Window " PRNT_GRAY "[" PRNT_YELW "%s" PRNT_GRAY "]" PRNT_RSET "\nUpdate: %s\nDraw: %s", app->title, app->updateCall != NULL ? TRUE : FALSE, app->drawCall != NULL ? TRUE : FALSE);
+        errr("Window " PRNT_GRAY "[" PRNT_YELW "%s" PRNT_GRAY "]" PRNT_RSET "\nUpdate: %s\nDraw: %s", app->title, app->updateCall != NULL ? TRUE : FALSE, app->drawCall != NULL ? TRUE : FALSE);
     }
     
     if (!glfwGetWindowAttrib(app->window, GLFW_ICONIFIED)) {
@@ -298,7 +298,7 @@ static s32 FileDialog_PathRead(FileDialog* this, const char* travel) {
     char buf[sizeof(this->path)];
     s32 ret = 1;
     
-    print_warn("Travel [%s]", travel);
+    warn("Travel [%s]", travel);
     
     if (travel) {
         strcpy(buf, travel);
@@ -499,7 +499,7 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
                     if (Rect_PointIntersect(&r, UnfoldVec2(input->cursor.pos))) {
                         if (click->press) {
                             pressSlot = (this->slot + 1) * (i == 0 ? -1 : 1);
-                            print_info("Click Slot: %d", pressSlot);
+                            info("Click Slot: %d", pressSlot);
                         }
                     }
                 }
@@ -554,7 +554,7 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
                     Sys_Sound("error");
             }
             
-            print_info("%d", ret);
+            info("%d", ret);
         }
     } else {
         if (this->selected >= 0) {
@@ -575,7 +575,7 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
             if (pressSlot < 0 && click->dual) {
                 FileDialog_PathAppend(this, this->folders.item[slot]);
                 
-                print_info("Path: [%s]", this->path);
+                info("Path: [%s]", this->path);
             } else if (click->press) {
                 
                 this->selected = slot;
@@ -676,7 +676,7 @@ const char sFileDialogKey[64] = "8ACwdYwKKKpV1A3qFIOgFQFJnVPgKh3l1d0ywNNsnKrbZ4y
 
 void Interface_CreateSubWindow(SubWindow* window, AppInfo* app, s32 x, s32 y, const char* title) {
     if (!(window->app.window = glfwCreateWindow(x, y, title, NULL, NULL)))
-        print_error("Failed to create window [%s], [%d, %d]", title, x, y);
+        errr("Failed to create window [%s], [%d, %d]", title, x, y);
     
     glfwMakeContextCurrent(window->app.window);
     glfwSetWindowUserPointer(window->app.window, &window->app);

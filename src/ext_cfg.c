@@ -111,7 +111,7 @@ static void Config_RecurseIncludes(memfile_t* dst, const char* file, str_node_t*
         
         for (; strNode != NULL; strNode = strNode->next) {
             if (!strcmp(file, strNode->txt))
-                print_error("onfigInclude: Recursive Include! [%s] -> [%s]", dst->info.name, file);
+                errr("onfigInclude: Recursive Include! [%s] -> [%s]", dst->info.name, file);
         }
     }
     
@@ -172,7 +172,7 @@ s32 Config_GetErrorState(void) {
 }
 
 static inline void Config_Warning(memfile_t* mem, const char* variable, const char* function) {
-    print_warn(
+    warn(
         "[%s]: Variable "PRNT_BLUE "\"%s\""PRNT_RSET " not found from " PRNT_BLUE "[%s]" PRNT_RSET " %s",
         function + strlen("Config_"),
         variable, mem->info.name,
@@ -369,7 +369,7 @@ void Config_ListSections(memfile_t* cfg, list_t* list) {
         sz = strcspn(p, "]\n");
         
         if (p[sz] == '\n' || p[sz] == '\0')
-            print_error("Missing ']' from section name at line %d for [%s]", line, cfg->info.name);
+            errr("Missing ']' from section name at line %d for [%s]", line, cfg->info.name);
     }
     
     if (sctCount == 0) {

@@ -39,14 +39,14 @@
         free(killNode);               \
 } while (0)
 
-#define Swap(a, b) do { \
+#define swapvar(a, b) do { \
         var_t y = a;    \
         a = b;          \
         b = y;          \
 } while (0)
 
 // Checks endianess with tst & tstP
-#define ReadBE(in) ({                        \
+#define readBE(in) ({                        \
         typeof(in) out;                      \
         s32 tst = 1;                         \
         u8* tstP = (u8*)&tst;                \
@@ -68,12 +68,12 @@
     }                                        \
 )
 
-#define WriteBE(dest, set) {    \
+#define writeBE(dest, set) {    \
         typeof(dest) get = set; \
-        dest = ReadBE(get);     \
+        dest = readBE(get);     \
 }
 
-#define swapBE(in) WriteBE(in, in)
+#define swapBE(in) writeBE(in, in)
 
 #define Decr(x) (x -= (x > 0) ? 1 : 0)
 #define Incr(x) (x += (x < 0) ? 1 : 0)
@@ -88,13 +88,8 @@
 #define clamp_min(val, min)  ((val) < (min) ? (min) : (val))
 #define clamp_max(val, max)  ((val) > (max) ? (max) : (val))
 
-#ifndef __clang__
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
-#else
-int max(int, int);
-int min(int, int);
-#endif
 
 #define clamp_int8(val)  (s8)clamp(((f32)val), (-__INT8_MAX__ - 1), __INT8_MAX__)
 #define clamp_int16(val) (s16)clamp(((f32)val), (-__INT16_MAX__ - 1), __INT16_MAX__)
@@ -210,8 +205,8 @@ int min(int, int);
         (arr)[(count) + (start) - 1] = v;                     \
 } while (0)
 
-#define arrzero(arr)  memset(arr, 0, sizeof(arr))
-#define typezero(ptr) memset(ptr, 0, sizeof(*ptr));
+#define arrzero(arr)  memset((arr), 0, sizeof((arr)))
+#define typezero(ptr) memset((ptr), 0, sizeof(*(ptr)))
 
 /**
  * These are only to satisfy clang IDE. These won't work
@@ -234,8 +229,8 @@ int min(int, int);
 #define FOPEN(file, mode) ({                                             \
         FILE* f = fopen(file, mode);                                     \
         if (f == NULL) {                                                 \
-            print_warn("" PRNT_YELW "%s" PRNT_GRAY "();", __FUNCTION__); \
-            print_error("fopen error: [%s]", file);                      \
+            warn("" PRNT_YELW "%s" PRNT_GRAY "();", __FUNCTION__); \
+            errr("fopen error: [%s]", file);                      \
         }                                                                \
         f;                                                               \
     })

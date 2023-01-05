@@ -18,8 +18,8 @@ char* regex(const char* str, const char* pattern, regx_flag_t flag) {
     match = malloc(sizeof(regmatch_t) * (matchNum + 1));
     
     if (regcomp(&reg, pattern, REG_EXTENDED)) {
-        print_warn("regex: compilation error");
-        print_warn("pattern: \"%s\"", pattern);
+        warn("regex: compilation error");
+        warn("pattern: \"%s\"", pattern);
         goto done;
     }
     

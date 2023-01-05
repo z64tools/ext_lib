@@ -20,7 +20,7 @@ void* zip_load(zip_file_t* zip, const char* file, zip_param_t mode) {
             return zip->pkg = zip_open(file, 0, mode);
     }
     
-    print_error("Unknown zip_file_t Load Mode: [%c] [%s]", mode, file);
+    errr("Unknown zip_file_t Load Mode: [%c] [%s]", mode, file);
     return NULL;
 }
 
@@ -36,7 +36,7 @@ int zip_read_name(zip_file_t* zip, const char* entry, memfile_t* mem) {
         return ZIP_ERROR_OPEN_ENTRY;
     if (zip_entry_read(zip->pkg, &data, &sz) < 0) {
         if (zip_entry_close(zip->pkg))
-            print_error("Fatal Error: Entry Read & Entry Close failed for zip_file_t \"%s\"", zip->filename);
+            errr("Fatal Error: Entry Read & Entry Close failed for zip_file_t \"%s\"", zip->filename);
         
         return ZIP_ERROR_RW_ENTRY;
     }
@@ -68,7 +68,7 @@ int zip_read_index(zip_file_t* zip, size_t index, memfile_t* mem) {
     
     if (zip_entry_read(zip->pkg, &data, &sz) < 0) {
         if (zip_entry_close(zip->pkg))
-            print_error("Fatal Error: Entry Read & Entry Close failed for zip_file_t \"%s\"", zip->filename);
+            errr("Fatal Error: Entry Read & Entry Close failed for zip_file_t \"%s\"", zip->filename);
         
         return ZIP_ERROR_RW_ENTRY;
     }
@@ -86,7 +86,7 @@ int zip_read_path(zip_file_t* zip, const char* path, int (*callback)(const char*
     u32 ent = zip_entries_total(zip->pkg);
     
     if (callback == NULL)
-        print_error("[zip_read_path]: Please provide a callback function!");
+        errr("[zip_read_path]: Please provide a callback function!");
     
     for (u32 i = 0; i < ent; i++) {
         const char* name;

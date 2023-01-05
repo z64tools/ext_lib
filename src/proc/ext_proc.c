@@ -171,21 +171,21 @@ static void proc_err(proc_t* this) {
             break;
     }
     
-    print_warn("proc_t Error: %s", msg);
+    warn("proc_t Error: %s", msg);
     
     for (s32 i = 0; i < this->numArg; i++)
         fprintf(stderr, "" PRNT_GRAY "%-6d" PRNT_RSET "%s\n", i, this->arg[i]);
     
     if (this->env) {
-        print_warn("proc_t Env:");
+        warn("proc_t Env:");
         for (s32 i = 0; this->env[i] != NULL; i++)
             fprintf(stderr, "" PRNT_GRAY "%-6d" PRNT_RSET "%s\n", i, this->env[i]);
     }
     
-    print_warn("proc_t Path:\n      %s", this->path ? this->path : sys_workdir());
+    warn("proc_t Path:\n      %s", this->path ? this->path : sys_workdir());
     
     #define fprint_proc_enum(enum) fprintf(stderr, "" PRNT_GRAY "%-20s" PRNT_RSET "%s\n", #enum, this->state & enum ? "" PRNT_BLUE "true" : "" PRNT_REDD "false");
-    print_warn("proc_t State:");
+    warn("proc_t State:");
     fprint_proc_enum(PROC_MUTE_STDOUT);
     fprint_proc_enum(PROC_MUTE_STDERR);
     fprint_proc_enum(PROC_MUTE_STDIN);
@@ -193,12 +193,12 @@ static void proc_err(proc_t* this) {
     fprint_proc_enum(PROC_THROW_ERROR);
     fprint_proc_enum(PROC_SYSTEM_EXE);
     
-    print_warn("proc_t Signal: %d\n\n", this->signal);
+    warn("proc_t Signal: %d\n\n", this->signal);
     if (this->msg)
-        print_error("%s", this->msg);
+        errr("%s", this->msg);
     
     else
-        print_error("Closing!");
+        errr("Closing!");
     
     thd_unlock();
 }
@@ -239,7 +239,7 @@ char* proc_read(proc_t* this, proc_read_target_t target) {
     else if (target == READ_STDERR && this->state & PROC_MUTE_STDERR)
         s = REPROC_STREAM_ERR;
     else if (this->state & PROC_THROW_ERROR) {
-        print_warn("Could not read [%s] because it hasn't been muted!", target == READ_STDOUT ? "stdout" : "stderr");
+        warn("Could not read [%s] because it hasn't been muted!", target == READ_STDOUT ? "stdout" : "stderr");
         proc_err(this);
     } else
         return NULL;
@@ -256,7 +256,7 @@ char* proc_read(proc_t* this, proc_read_target_t target) {
             memfile_alloc(&mem, 4096);
         
         if (!memfile_write(&mem, buffer, readSize)) {
-            print_warn("Failed to write buffer!");
+            warn("Failed to write buffer!");
             proc_err(this);
         }
     }

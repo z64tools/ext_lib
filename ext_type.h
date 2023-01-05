@@ -11,7 +11,7 @@
 #define FLT_MIN __FLT_MIN__
 
 #pragma GCC diagnostic ignored "-Wscalar-storage-order"
-#define StructBE     __attribute__((scalar_storage_order("big-endian")))
+#define structBE     __attribute__((scalar_storage_order("big-endian")))
 #define StructPacked __attribute__ ((packed))
 #define thread_local _Thread_local
 #define StructAligned(x) __attribute__((aligned(x)))
@@ -112,7 +112,7 @@ typedef enum {
     PSL_NO_INFO,
     PSL_NO_WARNING,
     PSL_NO_ERROR,
-} PrintfSuppressLevel;
+} io_level_t;
 
 typedef enum {
     SWAP_U8  = 1,

@@ -79,7 +79,7 @@ VectorGfx VectorGfx_New(VectorGfx* this, const void* data, f32 fidelity) {
     
     free(new);
     
-    if (!img) print_error("Failed to parse data:\n%s", data);
+    if (!img) errr("Failed to parse data:\n%s", data);
     
     nested(void, AddPoint, (f32 x, f32 y)) {
         this->pos = realloc(this->pos, sizeof(Vec2f) * ++this->num);

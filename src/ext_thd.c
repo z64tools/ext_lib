@@ -128,7 +128,7 @@ void threadpool_exec(u32 max) {
     
     while (sThdPool->num) {
         if (msg && prev != prog)
-            print_prog(gThdPool_ProgressMessage, prog + 1, amount);
+            info_prog(gThdPool_ProgressMessage, prog + 1, amount);
         
         max = min(max, sThdPool->num);
         
@@ -149,7 +149,7 @@ void threadpool_exec(u32 max) {
                 
                 if (max > 1) {
                     if (thd_create(&t->thd, threadpool_exec_thread, t))
-                        print_error("thd_pool_t: Could not create thread");
+                        errr("thd_pool_t: Could not create thread");
                 } else
                     threadpool_exec_thread(t);
                 

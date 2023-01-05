@@ -382,7 +382,7 @@ void SegmentSet(const u8 id, void* segment) {
 
 void* SegmentedToVirtual(const u8 id, void32 ptr) {
     if (sSegment[id] == NULL)
-        print_error("Segment 0x%X == NULL", id);
+        errr("Segment 0x%X == NULL", id);
     
     return &sSegment[id][ptr];
 }
@@ -426,7 +426,7 @@ void* x_alloc(size_t size) {
         return NULL;
     
     // if (size >= gBufX.f)
-    //     print_error("Biggest Failure");
+    //     errr("Biggest Failure");
     
     pthread_mutex_lock(&xmutex);
     if (gBufX.offset + size + 10 >= gBufX.max)
@@ -563,10 +563,17 @@ static char* __impl_pathslot(char* (*fstrndup)(const char*, size_t), const char*
     return r;
 }
 
+static int __impl_xname(const char* s) {
+    int la = strrchr(s, '/') - s;
+    int lb = strrchr(s, '\\') - s;
+    
+    return max(la, lb);
+}
+
 static char* __impl_basename(void* (*falloc)(size_t), const char* s) {
     char* la = strrchr(s, '/');
     char* lb = strrchr(s, '\\');
-    char* ls = (char*)min((uaddr_t)la, (uaddr_t)lb);
+    char* ls = (char*)max((uaddr_t)la, (uaddr_t)lb);
     
     if (!ls++)
         ls = (char*)s;
@@ -577,7 +584,7 @@ static char* __impl_basename(void* (*falloc)(size_t), const char* s) {
 static char* __impl_filename(void* (*falloc)(size_t), const char* s) {
     char* la = strrchr(s, '/');
     char* lb = strrchr(s, '\\');
-    char* ls = (char*)min((uaddr_t)la, (uaddr_t)lb);
+    char* ls = (char*)max((uaddr_t)la, (uaddr_t)lb);
     
     if (!ls++)
         ls = (char*)s;
@@ -948,9 +955,17 @@ int digint(int i) {
     int d = 0;
     
     for (; i; d++)
-        i *= 0.1f;
+        i /= 10;
     
     return clamp_min(d, 1);
+}
+
+int valdig(int val, int digid) {
+    
+    for (; digid > 1; digid--)
+        val /= 10;
+    
+    return val % 10;
 }
 
 int dighex(int i) {
@@ -960,6 +975,14 @@ int dighex(int i) {
         d--;
     
     return clamp_min(d + 1, 1);
+}
+
+int valhex(int val, int digid) {
+    
+    for (; digid > 1; digid--)
+        val >>= 4;
+    
+    return val & 0xF;
 }
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -1393,7 +1416,7 @@ char* strword(const char* str, int word) {
 }
 
 size_t linelen(const char* str) {
-    return strcspn(str, "\n");
+    return strcspn(str, "\n\r");
 }
 
 size_t wordlen(const char* str) {
@@ -2065,7 +2088,7 @@ void sys_mkdir(const char* dir, ...) {
             case '<':
             case '>':
             case '|':
-                print_error("MakeDir: Can't make folder with illegal character! '%s'", buffer);
+                errr("MakeDir: Can't make folder with illegal character! '%s'", buffer);
                 break;
             default:
                 break;
@@ -2088,7 +2111,7 @@ const char* sys_workdir(void) {
     static char buf[512];
     
     if (getcwd(buf, sizeof(buf)) == NULL)
-        print_error("Could not get sys_workdir");
+        errr("Could not get sys_workdir");
     
     const u32 m = strlen(buf);
     for (int i = 0; i < m; i++) {
@@ -2124,7 +2147,7 @@ int sys_mv(const char* input, const char* output) {
 
 static int __impl_rmdir(const char* item, const struct stat* bug, int type, struct FTW* ftw) {
     if (sys_rm(item))
-        print_error_align("Delete", "%s", item);
+        errr_align("rm failed:", "%s", item);
     
     return 0;
 }
@@ -2142,7 +2165,7 @@ int sys_rmdir(const char* item) {
     if (!sys_stat(item))
         return 0;
     if (nftw(item, __impl_rmdir, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS))
-        print_error("nftw error: %s %s", item, __FUNCTION__);
+        errr("sys_rmdir: %s", item);
     
     return 0;
 }
@@ -2408,7 +2431,7 @@ char* sys_exes(const char* cmd) {
         if (sSysIgnore == 0) {
             printf("%s\n", sExeBuffer);
             _log(PRNT_REDD "[%d] " PRNT_GRAY "sys_exes(" PRNT_REDD "%s" PRNT_GRAY ");", sSysReturn, cmd);
-            print_error("sys_exes [%s]", sys_exe_s(cmd));
+            errr("sys_exes [%s]", sys_exe_s(cmd));
         }
     }
     

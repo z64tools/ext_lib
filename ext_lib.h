@@ -47,6 +47,9 @@
 
 #undef free
 
+void profilog(const char* msg);
+void profilogdiv(const char* msg, f32 div);
+
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 void* dfree(const void* ptr);
@@ -136,24 +139,23 @@ char* regex(const char* str, const char* pattern, regx_flag_t flag);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-void print_lvl(PrintfSuppressLevel lvl);
-void print_title(const char* toolname, const char* fmt, ...);
-void print_warn(const char* fmt, ...);
-void print_warn_align(const char* info, const char* fmt, ...);
-void print_kill(FILE* output);
-void print_error(const char* fmt, ...);
-void print_error_align(const char* info, const char* fmt, ...);
-void print_info(const char* fmt, ...);
-void print_info_align(const char* info, const char* fmt, ...);
-void print_prog_align(const char* info, const char* fmt, const char* color);
-void print_prog_fast(const char* info, u32 a, u32 b);
-void print_prog(const char* info, u32 a, u32 b);
-void print_getc(const char* txt);
-void print_volatile(const char* fmt, ...);
+void print_lvl(io_level_t lvl);
+void info_title(const char* toolname, const char* fmt, ...);
+void warn(const char* fmt, ...);
+void warn_align(const char* info, const char* fmt, ...);
+void io_kill(FILE* output);
+void errr(const char* fmt, ...);
+void errr_align(const char* info, const char* fmt, ...);
+void info(const char* fmt, ...);
+void info_align(const char* info, const char* fmt, ...);
+void infof_prog(const char* info, u32 a, u32 b);
+void info_prog(const char* info, u32 a, u32 b);
+void info_getc(const char* txt);
+void info_volatile(const char* fmt, ...);
 void print_win32_fix(void);
-void print_hex(const char* txt, const void* data, u32 size, u32 dispOffset);
-void print_bit(const char* txt, const void* data, u32 size, u32 dispOffset);
-void print_nl(void);
+void info_hex(const char* txt, const void* data, u32 size, u32 dispOffset);
+void info_bit(const char* txt, const void* data, u32 size, u32 dispOffset);
+void info_nl(void);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -318,7 +320,9 @@ int vldt_hex(const char* str);
 int vldt_int(const char* str);
 int vldt_float(const char* str);
 int digint(int i);
+int valdig(int val, int digid);
 int dighex(int i);
+int valhex(int val, int digid);
 
 hsl_t color_hsl(u8 r, u8 g, u8 b);
 rgb8_t color_rgb8(f32 h, f32 s, f32 l);

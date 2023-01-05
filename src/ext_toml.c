@@ -89,8 +89,8 @@ static travel_t Toml_Travel(toml_t* this, const char* field, toml_table_t* tbl, 
         travel_t null = {};
         
         if (!this->silence) {
-            print_warn("" PRNT_REDD "%s" PRNT_RSET " does not exist!", msg);
-            print_error("%s", Toml_GetPathStr(path, elem, next));
+            warn("" PRNT_REDD "%s" PRNT_RSET " does not exist!", msg);
+            errr("%s", Toml_GetPathStr(path, elem, next));
         }
         this->success = false;
         
@@ -107,7 +107,7 @@ static travel_t Toml_Travel(toml_t* this, const char* field, toml_table_t* tbl, 
                 arv++;
                 sidx = sint(arv);
                 
-                Swap(idx, sidx);
+                swapvar(idx, sidx);
             }
             
             strstr(elem, "[")[0] = '\0';
@@ -440,9 +440,9 @@ void toml_load(toml_t* this, const char* file) {
     _log("Parse File: [%s]", file);
     memfile_load_str(&mem, file);
     if (!(this->root = toml_parse(mem.str, errbuf, 200))) {
-        print_warn("[toml_t Praser Error!]");
-        print_warn("File: %s", file);
-        print_error("%s", errbuf);
+        warn("[toml_t Praser Error!]");
+        warn("File: %s", file);
+        errr("%s", errbuf);
     }
     memfile_free(&mem);
 }

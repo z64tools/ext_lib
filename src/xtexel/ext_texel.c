@@ -27,7 +27,7 @@ void texel_load(texel_t* this, const char* file) {
     if (!texel_validate(this)) *this = texel_new();
     
     data = stbi_load(file, &this->x, &this->y, &channels, 4);
-    if (!data && this->throwError) print_error("Failed to load texel [%s]", file);
+    if (!data && this->throwError) errr("Failed to load texel [%s]", file);
     
     if (!this->data) this->data = data;
     else {
@@ -40,9 +40,9 @@ void texel_load(texel_t* this, const char* file) {
 
 void texel_save(texel_t* this, const char* file) {
     if (!texel_validate(this))
-        print_error("uninitialized texel save to [%s]", file);
+        errr("uninitialized texel save to [%s]", file);
     if (!striend(file, ".png"))
-        print_error("can't save image to [%s] format", x_filename(file) + strlen(x_basename(file)));
+        errr("can't save image to [%s] format", x_filename(file) + strlen(x_basename(file)));
     stbi_write_png(file, this->x, this->y, 4, this->data, 0);
 }
 
@@ -52,7 +52,7 @@ void texel_loadmem(texel_t* this, const void* data, size_t size) {
     if (!texel_validate(this)) *this = texel_new();
     
     this->data = stbi_load_from_memory(data, size, &this->x, &this->y, &channels, 4);
-    if (!this->data && this->throwError) print_error("Failed to load texel from memory");
+    if (!this->data && this->throwError) errr("Failed to load texel from memory");
 }
 
 void texel_alloc(texel_t* this, int x, int y, int channels) {

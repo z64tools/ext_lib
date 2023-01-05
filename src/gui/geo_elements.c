@@ -523,7 +523,7 @@ static void Textbox_Clear(GeoGrid* geo) {
         this->ret = true;
     }
     
-    print_info("Textbox: Clear");
+    info("Textbox: Clear");
 }
 
 static void Textbox_Set(ElTextbox* this, Split* split) {
@@ -536,7 +536,7 @@ static void Textbox_Set(ElTextbox* this, Split* split) {
     gElemState->textbox = this;
     gElemState->textbox->split = split;
     
-    print_info("Textbox: Set [%s]", this->txt);
+    info("Textbox: Set [%s]", this->txt);
 }
 
 static InputType* Textbox_GetKey(GeoGrid* geo, KeyMap key) {
@@ -661,7 +661,7 @@ void Element_UpdateTextbox(GeoGrid* geo) {
                 }
                 this->selPos = this->selPivot = this->selA = this->selB = id;
                 this->isClicked = true;
-                print_info("Textbox: Select %d", id);
+                info("Textbox: Select %d", id);
             } else if (cHold && this->isClicked && split->cursorPos.x >= r.x && split->cursorPos.x < r.x + r.w) {
                 this->selA = min (this->selPivot, id );
                 this->selPos = this->selB = max (this->selPivot, id );

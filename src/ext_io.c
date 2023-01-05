@@ -5,17 +5,17 @@ static void Log_Signal(int arg);
 
 static vbool sAbort;
 static u8 sProgress;
-static PrintfSuppressLevel sSuppress = 0;
+static io_level_t sSuppress = 0;
 
 // # # # # # # # # # # # # # # # # # # # #
 // # PRINTF                              #
 // # # # # # # # # # # # # # # # # # # # #
 
-void print_lvl(PrintfSuppressLevel lvl) {
+void print_lvl(io_level_t lvl) {
     sSuppress = lvl;
 }
 
-void print_title(const char* toolname, const char* fmt, ...) {
+void info_title(const char* toolname, const char* fmt, ...) {
     static u32 printed = 0;
     
     if (sSuppress >= PSL_NO_INFO)
@@ -76,77 +76,89 @@ void print_title(const char* toolname, const char* fmt, ...) {
     
 }
 
-static void __print_call(u32 type, FILE* file) {
-    const char* color[4] = {
-        PRNT_PRPL,
-        PRNT_REDD,
-        PRNT_REDD,
-        PRNT_BLUE
+static void __impl_print(int color_id, int is_progress, int is_error, FILE* stream, const char* msg, const char* fmt, va_list va) {
+    const char* num_map[] = {
+        "0", "1", "2", "3", "4",
+        "5", "6", "7", "8", "9",
+    };
+    const char* color[] = {
+        "" PRNT_GRAY "  " PRNT_RSET,
+        "" PRNT_RSET ">" PRNT_GRAY " " PRNT_RSET,
+        "" PRNT_REDD ">" PRNT_GRAY " " PRNT_RSET,
+        "" PRNT_GREN ">" PRNT_GRAY " " PRNT_RSET,
+        "" PRNT_YELW ">" PRNT_GRAY " " PRNT_RSET,
+        "" PRNT_BLUE ">" PRNT_GRAY " " PRNT_RSET,
+        "" PRNT_PRPL ">" PRNT_GRAY " " PRNT_RSET,
+        "" PRNT_CYAN ">" PRNT_GRAY " " PRNT_RSET,
     };
     
-    fprintf(
-        file,
-        "" PRNT_GRAY "%s>" PRNT_GRAY ": " PRNT_RSET,
-        color[type]
-    );
-}
-
-void print_warn(const char* fmt, ...) {
-    if (sSuppress >= PSL_NO_WARNING)
+    if (sAbort && !is_error)
         return;
-    
-    if (sAbort)
-        return;
-    
-    if (sProgress) {
+    if (sProgress && !is_progress) {
         printf("\n");
         sProgress = false;
     }
     
-    va_list args;
+    size_t bufsize = 128 + strlen(fmt) * 4;
+    char* buffer = malloc(bufsize);
     
-    va_start(args, fmt);
-    __print_call(1, stderr);
-    vfprintf(
-        stderr,
-        fmt,
-        args
-    );
-    fputs("\n", stderr);
-    va_end(args);
+    vsnprintf(buffer, bufsize, fmt, va);
+    
+    if (is_progress)
+        fputs("\r", stream);
+    
+    forline(line, buffer) {
+        char fmt[64] = { "%." };
+        int llen = linelen(line);
+        int dlen = digint(llen);
+        
+        for (int i = dlen; i > 0; i--)
+            strcat(fmt, num_map[valdig(llen, i)]);
+        strcat(fmt, "s");
+        
+        fputs(color[color_id], stream);
+        if (msg) fprintf(stream, "%-16s " PRNT_RSET, msg);
+        fprintf(stream, fmt, line);
+        if (!is_progress)
+            fputs("\n", stream);
+        
+        color_id = 0;
+    }
+    
+    fflush(stream);
+    free(buffer);
 }
 
-void print_warn_align(const char* info, const char* fmt, ...) {
+static void __impl_print_call(int color_id, int is_progress, FILE* stream, const char* msg, const char* fmt, ...) {
+    va_list va;
+    
+    va_start(va, fmt);
+    __impl_print(color_id, is_progress, false, stream, msg, fmt, va);
+    va_end(va);
+}
+
+void warn(const char* fmt, ...) {
     if (sSuppress >= PSL_NO_WARNING)
         return;
     
-    if (sAbort)
+    va_list args;
+    va_start(args, fmt);
+    __impl_print(2, false, false, stderr, NULL, fmt, args);
+    va_end(args);
+}
+
+void warn_align(const char* info, const char* fmt, ...) {
+    if (sSuppress >= PSL_NO_WARNING)
         return;
-    
-    if (sProgress) {
-        printf("\n");
-        sProgress = false;
-    }
     
     va_list args;
     
     va_start(args, fmt);
-    __print_call(1, stdout);
-    fprintf(
-        stdout,
-        "%-16s " PRNT_RSET,
-        info
-    );
-    vfprintf(
-        stdout,
-        fmt,
-        args
-    );
-    fputs("\n", stdout);
+    __impl_print(2, false, false, stderr, info, fmt, args);
     va_end(args);
 }
 
-void print_kill(FILE* output) {
+void io_kill(FILE* output) {
 #ifdef _WIN32
     if (freopen ("NUL", "w", output))
         (void)0;
@@ -156,29 +168,15 @@ void print_kill(FILE* output) {
 #endif
 }
 
-void print_error(const char* fmt, ...) {
+void errr(const char* fmt, ...) {
+    va_list args;
+    
+    io_kill(stdout);
     sAbort = 1;
     
-    print_kill(stdout);
-    // Log_Signal(0xDEADBEEF);
-    
-    if (sSuppress < PSL_NO_ERROR) {
-        if (sProgress) {
-            fputs("\n", stderr);
-            sProgress = false;
-        }
-        
-        va_list args;
-        
-        va_start(args, fmt);
-        
-        __print_call(2, stderr);
-        vfprintf(stderr, fmt, args);
-        fputs("\n\a", stderr);
-        fflush(stderr);
-        
-        va_end(args);
-    }
+    va_start(args, fmt);
+    __impl_print(2, false, true, stderr, NULL, fmt, args);
+    va_end(args);
     
 #ifdef _WIN32
     cli_getc();
@@ -187,36 +185,15 @@ void print_error(const char* fmt, ...) {
     exit(EXIT_FAILURE);
 }
 
-void print_error_align(const char* info, const char* fmt, ...) {
+void errr_align(const char* info, const char* fmt, ...) {
+    va_list args;
+    
+    io_kill(stdout);
     sAbort = 1;
     
-    print_kill(stdout);
-    // Log_Signal(0xDEADBEEF);
-    
-    if (sSuppress < PSL_NO_ERROR) {
-        if (sProgress) {
-            fputs("\n", stderr);
-            sProgress = false;
-        }
-        
-        va_list args;
-        
-        va_start(args, fmt);
-        __print_call(2, stderr);
-        fprintf(
-            stderr,
-            "%-16s " PRNT_RSET,
-            info
-        );
-        vfprintf(
-            stderr,
-            fmt,
-            args
-        );
-        fputs("\n\a", stderr);
-        
-        va_end(args);
-    }
+    va_start(args, fmt);
+    __impl_print(2, false, true, stderr, info, fmt, args);
+    va_end(args);
     
 #ifdef _WIN32
     cli_getc();
@@ -225,93 +202,34 @@ void print_error_align(const char* info, const char* fmt, ...) {
     exit(EXIT_FAILURE);
 }
 
-void print_info(const char* fmt, ...) {
-    
-    if (sAbort)
-        return;
-    
+void info(const char* fmt, ...) {
     if (sSuppress >= PSL_NO_INFO)
         return;
     
-    if (sProgress) {
-        fputs("\n", stdout);
-        sProgress = false;
-    }
     va_list args;
     
     va_start(args, fmt);
-    __print_call(3, stdout);
-    vfprintf(
-        stdout,
-        fmt,
-        args
-    );
-    fputs("\n", stdout);
+    __impl_print(1, false, false, stdout, NULL, fmt, args);
     va_end(args);
 }
 
-void print_info_align(const char* info, const char* fmt, ...) {
-    if (sAbort)
-        return;
-    
+void info_align(const char* info, const char* fmt, ...) {
     if (sSuppress >= PSL_NO_INFO)
         return;
     
-    if (sProgress) {
-        fputs("\n", stdout);
-        sProgress = false;
-    }
     va_list args;
     
     va_start(args, fmt);
-    __print_call(3, stdout);
-    fprintf(
-        stdout,
-        "%-16s " PRNT_RSET,
-        info
-    );
-    vfprintf(
-        stdout,
-        fmt,
-        args
-    );
-    fputs("\n", stdout);
+    __impl_print(1, false, false, stdout, info, fmt, args);
     va_end(args);
 }
 
-void print_prog_align(const char* info, const char* fmt, const char* color) {
-    if (sAbort)
-        return;
-    
+void infof_prog(const char* info, u32 a, u32 b) {
     if (sSuppress >= PSL_NO_INFO)
         return;
     
-    if (sProgress) {
-        printf("\n");
-        sProgress = false;
-    }
-    
-    printf("\n");
-    cli_clearln(2);
-    __print_call(3, stdout);
-    printf("%-16s%s%s", info, color ? color : "", fmt);
-}
-
-void print_prog_fast(const char* info, u32 a, u32 b) {
-    if (sSuppress >= PSL_NO_INFO) {
-        return;
-    }
-    
-    if (sAbort)
-        return;
-    
-    printf(
-        // "%-16s" PRNT_RSET "[%4d / %-4d]",
-        x_fmt("\r" PRNT_BLUE ">" PRNT_GRAY ": " PRNT_RSET "%c-16s" PRNT_RSET " [ %c%dd / %c-%dd ]", '%', '%', digint(b), '%', digint(b)),
-        info,
-        a,
-        b
-    );
+    __impl_print_call(1, true, stdout, info,
+        x_fmt("[ %c%dd / %c-%dd ]", '%', digint(b), '%', digint(b)), a, b);
     sProgress = true;
     
     if (a == b) {
@@ -320,14 +238,11 @@ void print_prog_fast(const char* info, u32 a, u32 b) {
     }
 }
 
-void print_prog(const char* info, u32 a, u32 b) {
+void info_prog(const char* info, u32 a, u32 b) {
     if (sSuppress >= PSL_NO_INFO)
         return;
     
-    if (sAbort)
-        return;
-    
-    if (a != b) {
+    if (a != b && sProgress) {
         static struct timeval p;
         
         if (a <= 1)
@@ -345,29 +260,15 @@ void print_prog(const char* info, u32 a, u32 b) {
         }
     }
     
-    printf("\r");
-    __print_call(3, stdout);
-    printf(
-        // "%-16s" PRNT_RSET "[%4d / %-4d]",
-        x_fmt("%c-16s" PRNT_RSET " [ %c%dd / %c-%dd ]", '%', '%', digint(b), '%', digint(b)),
-        info,
-        a,
-        b
-    );
-    sProgress = true;
-    
-    if (a == b) {
-        sProgress = false;
-        printf("\n");
-    }
+    infof_prog(info, a, b);
 }
 
-void print_getc(const char* txt) {
-    print_info("%s", txt);
+void info_getc(const char* txt) {
+    info("%s", txt);
     cli_getc();
 }
 
-void print_volatile(const char* fmt, ...) {
+void info_volatile(const char* fmt, ...) {
     va_list va;
     
     if (sAbort)
@@ -388,7 +289,7 @@ void print_win32_fix(void) {
 #endif
 }
 
-void print_hex(const char* txt, const void* data, u32 size, u32 dispOffset) {
+void info_hex(const char* txt, const void* data, u32 size, u32 dispOffset) {
     const u8* d = data;
     u32 num = 8;
     char* digit;
@@ -407,7 +308,7 @@ void print_hex(const char* txt, const void* data, u32 size, u32 dispOffset) {
     digit = x_fmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
     
     if (txt)
-        print_info("%s", txt);
+        info("%s", txt);
     for (; i < size; i++) {
         if (i % 16 == 0)
             printf(digit, i + dispOffset);
@@ -423,7 +324,7 @@ void print_hex(const char* txt, const void* data, u32 size, u32 dispOffset) {
         printf("\n");
 }
 
-void print_bit(const char* txt, const void* data, u32 size, u32 dispOffset) {
+void info_bit(const char* txt, const void* data, u32 size, u32 dispOffset) {
     const u8* d = data;
     int s = 0;
     u32 num = 8;
@@ -442,7 +343,7 @@ void print_bit(const char* txt, const void* data, u32 size, u32 dispOffset) {
     digit = x_fmt("" PRNT_GRAY "%c0%dX: " PRNT_RSET, '%', num + 1);
     
     if (txt)
-        print_info("%s", txt);
+        info("%s", txt);
     for (int i = 0; i < size; i++) {
         if (s % 4 == 0)
             printf(digit, s + dispOffset);
@@ -462,7 +363,7 @@ void print_bit(const char* txt, const void* data, u32 size, u32 dispOffset) {
         printf("\n");
 }
 
-void print_nl(void) {
+void info_nl(void) {
     if (sAbort)
         return;
     
@@ -557,7 +458,7 @@ static void Log_Signal(int arg) {
     }
     
 #ifdef _WIN32
-    print_getc("Press enter to exit");
+    info_getc("Press enter to exit");
 #endif
     exit(arg);
 }

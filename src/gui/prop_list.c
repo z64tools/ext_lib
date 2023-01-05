@@ -31,7 +31,7 @@ const char* PropList_Get(PropList* this, s32 i) {
 void PropList_Set(PropList* this, s32 i) {
     i = clamp(i, 0, this->num - 1);
     
-    print_info("Set: %d", i);
+    info("Set: %d", i);
     
     if (PROP_ONCHANGE(PROP_SET, i))
         return;
@@ -115,7 +115,7 @@ void PropList_Detach(PropList* this, s32 slot, bool copy) {
 
 void PropList_Retach(PropList* this, s32 slot) {
     if (!this->detach) {
-        print_warn("Retach on PropList that is not Detached!\a");
+        warn("Retach on PropList that is not Detached!\a");
         return;
     }
     
@@ -148,10 +148,10 @@ void PropList_Retach(PropList* this, s32 slot) {
     u8* f = stalloc(u8[this->num]);
     f[this->key] = true;
     
-    print_hex("Pre", f, sizeof(u8[this->num]), 0);
+    info_hex("Pre", f, sizeof(u8[this->num]), 0);
     arrmve_l(f, this->detachKey, this->num - this->detachKey);
     arrmve_r(f, slot, this->num - slot);
-    print_hex("Post", f, sizeof(u8[this->num]), 0);
+    info_hex("Post", f, sizeof(u8[this->num]), 0);
     
     arrmve_l(this->list, this->detachKey, this->num - this->detachKey);
     arrmve_r(this->list, slot, this->num - slot);

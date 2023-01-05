@@ -21,9 +21,9 @@ static void ContextProp_List_Init(GeoGrid* geo, ContextMenu* this) {
         this->rect.w += SPLIT_ELEM_X_PADDING * 2;
     }
     
-    print_info("" PRNT_YELW "%s", __FUNCTION__);
-    print_info("prop->key = %d", prop->key);
-    print_info("prop->num = %d", prop->num);
+    info("" PRNT_YELW "%s", __FUNCTION__);
+    info("prop->key = %d", prop->key);
+    info("prop->num = %d", prop->num);
     
     this->state.setCondition = false;
 };

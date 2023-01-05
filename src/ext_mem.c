@@ -9,15 +9,15 @@
 static void memfile_throw_error(memfile_t* this, const char* msg, const char* info) {
     _log_print();
     
-    print_warn_align("" PRNT_REDD "Work Directory" PRNT_RSET ":", PRNT_YELW "%s", sys_workdir());
-    print_warn_align("" PRNT_REDD "File" PRNT_RSET ":", PRNT_YELW "%s", this->info.name);
-    print_warn_align("" PRNT_REDD "Error" PRNT_RSET ":", "%s", msg);
+    warn_align("" PRNT_REDD "Work Directory" PRNT_RSET ":", PRNT_YELW "%s", sys_workdir());
+    warn_align("" PRNT_REDD "File" PRNT_RSET ":", PRNT_YELW "%s", this->info.name);
+    warn_align("" PRNT_REDD "Error" PRNT_RSET ":", "%s", msg);
     if (info) {
-        print_warn_align("" PRNT_REDD "Info" PRNT_RSET ":", "%s", info);
-        print_warn_align("" PRNT_REDD "size_t" PRNT_RSET ":", "%f kB", kb_to_bin(this->size));
-        print_warn_align("" PRNT_REDD "MemSize" PRNT_RSET ":", "%f kB", kb_to_bin(this->memSize));
+        warn_align("" PRNT_REDD "Info" PRNT_RSET ":", "%s", info);
+        warn_align("" PRNT_REDD "size_t" PRNT_RSET ":", "%f kB", kb_to_bin(this->size));
+        warn_align("" PRNT_REDD "MemSize" PRNT_RSET ":", "%f kB", kb_to_bin(this->memSize));
     }
-    print_error("Stopping Process");
+    errr("Stopping Process");
 }
 
 static FILE* memfile_fopen(const char* name, const char* mode) {
@@ -167,7 +167,7 @@ int memfile_append_file(memfile_t* this, const char* source) {
     
     while ((size = fread(buffer, 1, sizeof(buffer), f))) {
         if (memfile_write(this, buffer, size) != size)
-            print_error("memfile_t: Could not successfully write from fread [%s]", source);
+            errr("memfile_t: Could not successfully write from fread [%s]", source);
         amount += size;
     }
     

@@ -34,7 +34,7 @@ void list_set_filters(list_t* list, u32 filterNum, ...) {
     list_free_filters(list);
     
     if (filterNum % 2 == 1)
-        print_warn("Odd filterNum! [%d]", --filterNum);
+        warn("Odd filterNum! [%d]", --filterNum);
     
     va_start(va, filterNum);
     
@@ -172,7 +172,7 @@ static void __list_walk(const list_t* list, const char* base, const char* parent
         
         closedir(dir);
     } else
-        print_error("Could not open dir [%s]", dir);
+        errr("Could not open dir [%s]", dir);
 }
 
 void list_walk(list_t* this, const char* path, s32 depth, ListFlag flags) {
@@ -184,7 +184,7 @@ void list_walk(list_t* this, const char* path, s32 depth, ListFlag flags) {
     if (strlen(path) > 0 ) {
         
         if (!sys_isdir(path))
-            print_error("Can't walk path that does not exist! [%s]", path);
+            errr("Can't walk path that does not exist! [%s]", path);
         
         strcpy(buf, path);
         if (!strend(buf, "/")) strcat(buf, "/");
@@ -348,7 +348,7 @@ s32 list_sort_slot(list_t* this, bool checkOverlaps) {
         break;
     }
     if (max <= 0) {
-        print_error("List with [%s] item didn't contain max!", this->item[0]);
+        errr("List with [%s] item didn't contain max!", this->item[0]);
     }
     _log("max Num: %d", max);
     
@@ -397,9 +397,9 @@ s32 list_sort_slot(list_t* this, bool checkOverlaps) {
     _log("OK");
     
     if (checkOverlaps && gList_SortError.num) {
-        print_warn("Index overlap");
+        warn("Index overlap");
         for (var_t i = 0; i < gList_SortError.num; i += 2)
-            print_warn("[" PRNT_YELW "%s" PRNT_RSET "] vs "
+            warn("[" PRNT_YELW "%s" PRNT_RSET "] vs "
                 "[" PRNT_YELW "%s" PRNT_RSET "]",
                 gList_SortError.item[i], gList_SortError.item[i + 1]);
         
