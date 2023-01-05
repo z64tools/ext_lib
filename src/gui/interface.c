@@ -570,7 +570,7 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
     
     if (FileDialog_FilePanel_ScrollDraw(this, mainr)) {
         if (pressSlot) {
-            u32 slot = Abs(pressSlot) - 1;
+            u32 slot = abs(pressSlot) - 1;
             
             if (pressSlot < 0 && click->dual) {
                 FileDialog_PathAppend(this, this->folders.item[slot]);
@@ -701,7 +701,7 @@ void FileDialog_New(FileDialog* this, AppInfo* app, const char* title) {
     const s32 minY = 1080 / 4, maxY = 1080 / 1.5;
     FileDialogConfig cfg = FileDialog_LoadConfig(title);
     
-    Assert (memcmp(this->private.key, sFileDialogKey, sizeof(sFileDialogKey)));
+    _assert (memcmp(this->private.key, sFileDialogKey, sizeof(sFileDialogKey)));
     typezero(this);
     memcpy((void*)this->private.key, sFileDialogKey, sizeof(sFileDialogKey));
     
@@ -757,7 +757,7 @@ void Interface_SetParam(AppInfo* app, u32 num, ...) {
     
     va_start(va, num);
     
-    Assert(num % 2 == 0);
+    _assert(num % 2 == 0);
     num /= 2;
     for (var_t i = 0; i < num; i++) {
         WinParam flag = va_arg(va, s32);

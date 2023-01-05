@@ -371,7 +371,7 @@ static bool Toml_Remove(toml_t* this, enum Remove rem, const char* item, va_list
     if (!tbl) return false;
     
     #define TOML_REMOVE(TYPE)                                 \
-        for (var_t i = 0; i < tbl->n ## TYPE; i++) {            \
+        for (var_t i = 0; i < tbl->n ## TYPE; i++) {          \
             if (!strcmp(tbl->TYPE[i]->key, t.item)) {         \
                 xfree_ ## TYPE(tbl->TYPE[i]);                 \
                 arrmve_l(tbl->TYPE, i, (tbl->n ## TYPE) - i); \

@@ -62,18 +62,19 @@ bool hash_cmp(hash_t* a, hash_t* b);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-void Log_Print();
+void _log_print();
 
 #ifdef __clang__
-void Assert(bool);
+void _assert(bool);
 void _log(const char* fmt, ...);
 #else
 void __log__(const char* func, u32 line, const char* txt, ...);
 #define _log(...) __log__(__FUNCTION__, __LINE__, __VA_ARGS__)
 
-#define Assert(v) do {       \
+#define _assert(v) do {      \
         if (!(v)) {          \
             _log("%s", # v); \
+            SEG_FAULT;       \
         }                    \
 } while (0)
 
@@ -222,6 +223,10 @@ void memfile_free(memfile_t* this);
 void memfile_null(memfile_t* this);
 void memfile_clear(memfile_t* this);
 
+#ifndef __clang__
+#define memfile_set(this, ...) memfile_set(this, __VA_ARGS__, MEM_END)
+#endif
+
 #define MEMFILE_SEEK_END 0xDEFEBABE
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -230,7 +235,9 @@ extern vbool gThreadMode;
 extern mutex_t gThreadMutex;
 extern const char* gThdPool_ProgressMessage;
 void ThdPool_Add(void* function, void* arg, u32 n, ...);
-void ThdPool_Exec(u32 max, bool mutex);
+void ThdPool_Exec(u32 max);
+
+#define ThdPool_Add(func, arg, ...) ThdPool_Add(func, arg, NARGS(__VA_ARGS__), __VA_ARGS__)
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -283,6 +290,8 @@ char* dirrel( const char* item);
 char* dirabs(const char* item);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+#define calloc(size) calloc(1, size)
 
 #ifdef __clang__
 void* free(const void*, ...);
@@ -437,51 +446,21 @@ int qsort_method_numhex(const void* ptrA, const void* ptrB);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 
-static inline void Mutex_Enable(void) {
-    if (!gThreadMode)
-        pthread_mutex_init(&gThreadMutex, NULL);
-    gThreadMode = true;
+static inline void thd_lock(void) {
+    pthread_mutex_lock(&gThreadMutex);
+}
+
+static inline void thd_unlock(void) {
     
+    pthread_mutex_unlock(&gThreadMutex);
 }
 
-static inline void Mutex_Disable(void) {
-    if (gThreadMode)
-        pthread_mutex_destroy(&gThreadMutex);
-    gThreadMode = false;
-    
-}
-
-static inline void Mutex_Lock(void) {
-    if (gThreadMode)
-        pthread_mutex_lock(&gThreadMutex);
-}
-
-static inline void Mutex_Unlock(void) {
-    if (gThreadMode)
-        pthread_mutex_unlock(&gThreadMutex);
-}
-
-static inline int Thread_Create(thread_t* thread, void* func, void* arg) {
+static inline int thd_create(thread_t* thread, void* func, void* arg) {
     return pthread_create(thread, NULL, (void*)func, (void*)(arg));
 }
 
-static inline int Thread_Join(thread_t* thread) {
+static inline int thd_join(thread_t* thread) {
     return pthread_join(*thread, NULL);
-}
-
-static inline int Thread_TryJoin(thread_t* thread) {
-#ifdef _WIN32
-    
-    return _pthread_tryjoin(*thread, NULL);
-#else
-    int pthread_tryjoin_np(thread_t, void**);
-    
-    return pthread_tryjoin_np(*thread, NULL);
-#endif
-}
-
-static inline int Thread_Detach(thread_t* thread) {
-    return pthread_detach(*thread);
 }
 
 #pragma GCC diagnostic pop

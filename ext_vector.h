@@ -491,19 +491,19 @@ static inline BoundBox BoundBox_New2F(Vec2f point) {
 }
 
 static inline void BoundBox_Adjust3F(BoundBox* this, Vec3f point) {
-    this->xMax = Max(this->xMax, point.x);
-    this->xMin = Min(this->xMin, point.x);
-    this->yMax = Max(this->yMax, point.y);
-    this->yMin = Min(this->yMin, point.y);
-    this->zMax = Max(this->zMax, point.z);
-    this->zMin = Min(this->zMin, point.z);
+    this->xMax = max(this->xMax, point.x);
+    this->xMin = min(this->xMin, point.x);
+    this->yMax = max(this->yMax, point.y);
+    this->yMin = min(this->yMin, point.y);
+    this->zMax = max(this->zMax, point.z);
+    this->zMin = min(this->zMin, point.z);
 }
 
 static inline void BoundBox_Adjust2F(BoundBox* this, Vec2f point) {
-    this->xMax = Max(this->xMax, point.x);
-    this->xMin = Min(this->xMin, point.x);
-    this->yMax = Max(this->yMax, point.y);
-    this->yMin = Min(this->yMin, point.y);
+    this->xMax = max(this->xMax, point.x);
+    this->xMin = min(this->xMin, point.x);
+    this->yMax = max(this->yMax, point.y);
+    this->yMin = min(this->yMin, point.y);
 }
 
 static inline bool Math_Vec2f_PointInShape(Vec2f p, Vec2f* poly, u32 numPoly) {

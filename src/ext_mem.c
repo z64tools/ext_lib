@@ -1,13 +1,13 @@
 #include <ext_lib.h>
 
-#undef memfile_alloc
+#undef memfile_set
 
 // # # # # # # # # # # # # # # # # # # # #
 // # MEMFILE                             #
 // # # # # # # # # # # # # # # # # # # # #
 
 static void memfile_throw_error(memfile_t* this, const char* msg, const char* info) {
-    Log_Print();
+    _log_print();
     
     print_warn_align("" PRNT_REDD "Work Directory" PRNT_RSET ":", PRNT_YELW "%s", sys_workdir());
     print_warn_align("" PRNT_REDD "File" PRNT_RSET ":", PRNT_YELW "%s", this->info.name);
@@ -66,7 +66,7 @@ void memfile_set(memfile_t* this, ...) {
     
     va_start(args, this);
     for (;;) {
-        cmd = va_arg(args, uaddr_t);
+        cmd = va_arg(args, int);
         
         if (cmd == MEM_END)
             break;
@@ -109,7 +109,7 @@ void memfile_alloc(memfile_t* this, size_t size) {
         memfile_free(this);
     }
     
-    Assert ((this->data = calloc(size)) != NULL);
+    _assert ((this->data = calloc(size)) != NULL);
     this->memSize = size;
 }
 
@@ -119,7 +119,7 @@ void memfile_realloc(memfile_t* this, size_t size) {
     if (this->memSize > size)
         return;
     
-    Assert((this->data = realloc(this->data, size)) != NULL);
+    _assert((this->data = realloc(this->data, size)) != NULL);
     this->memSize = size;
 }
 
@@ -148,7 +148,7 @@ int memfile_write(memfile_t* this, const void* src, size_t size) {
     
     memcpy(&this->cast.u8[this->seekPoint], src, size);
     this->seekPoint += size;
-    this->size = Max(this->size, this->seekPoint);
+    this->size = max(this->size, this->seekPoint);
     
     if (this->param.align)
         memfile_align(this, this->param.align);

@@ -26,7 +26,7 @@
  */
 #define _POSIX_C_SOURCE 200809L
 #include "x0.h"
-#include <assert.h>
+// #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -1153,7 +1153,7 @@ static int parse_keyval(context_t* ctx, toml_table_t* tab) {
                 return -1;
             token_t val = ctx->tok;
             
-            assert(keyval->val == 0);
+            // assert(keyval->val == 0);
             if (!(keyval->val = STRNDUP(val.ptr, val.len)))
                 return e_outofmemory(ctx, FLINE);
             
@@ -1309,7 +1309,7 @@ static int walk_tabpath(context_t* ctx) {
 
 /* handle lines like [x.y.z] or [[x.y.z]] */
 static int parse_select(context_t* ctx) {
-    assert(ctx->tok.tok == LBRACKET);
+    // assert(ctx->tok.tok == LBRACKET);
     
     /* true if [[ */
     int llb = (ctx->tok.ptr + 1 < ctx->stop && ctx->tok.ptr[1] == '[');
@@ -1320,7 +1320,7 @@ static int parse_select(context_t* ctx) {
     if (eat_token(ctx, LBRACKET, 1, FLINE))
         return -1;
     if (llb) {
-        assert(ctx->tok.tok == LBRACKET);
+        // assert(ctx->tok.tok == LBRACKET);
         if (eat_token(ctx, LBRACKET, 1, FLINE))
             return -1;
     }

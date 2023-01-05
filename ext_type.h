@@ -36,8 +36,8 @@ typedef size_t                 size_t;
 typedef wchar_t                wchar;
 #define var_t __auto_type
 
-#define const_func __attribute__ ((constructor, used)) void
-#define dest_func  __attribute__ ((destructor, used)) void
+#define const_func __attribute__ ((constructor)) void
+#define dest_func  __attribute__ ((destructor)) void
 
 typedef volatile signed char            vs8;
 typedef volatile unsigned char          vu8;

@@ -1,4 +1,5 @@
 #include <ext_lib.h>
+#undef ThdPool_Add
 
 // # # # # # # # # # # # # # # # # # # # #
 // # ThreadPool                          #
@@ -37,7 +38,17 @@ typedef struct {
 
 static thd_pool_t* gTPool;
 
-static void ThdPool_AddToHead(thd_item_t* t) {
+static mutex_t sMutex;
+
+const_func __thdpool_init() {
+    pthread_mutex_init(&sMutex, 0);
+}
+
+dest_func __thdpool_dest() {
+    pthread_mutex_destroy(&sMutex);
+}
+
+void __impl_addToHead(thd_item_t* t) {
     if (t->nid)
         gTPool->dep[t->nid]++;
     
@@ -51,10 +62,10 @@ void ThdPool_Add(void* function, void* arg, u32 n, ...) {
     
     if (!gTPool) {
         gTPool = dfree(new(thd_pool_t));
-        Assert(gTPool);
+        _assert(gTPool);
     }
     
-    Assert(gTPool->on == false);
+    _assert(gTPool->on == false);
     
     t->function = function;
     t->arg = arg;
@@ -71,17 +82,17 @@ void ThdPool_Add(void* function, void* arg, u32 n, ...) {
     }
     va_end(va);
     
-    Mutex_Lock();
-    ThdPool_AddToHead(t);
-    Mutex_Unlock();
+    pthread_mutex_lock(&sMutex);
+    __impl_addToHead(t);
+    pthread_mutex_unlock(&sMutex);
 }
 
-static void ThdPool_RunThd(thd_item_t* thd) {
-    thd->function(thd->arg);
-    thd->state = T_DONE;
+static void thdpool_exec_thread(thd_item_t* this) {
+    this->function(this->arg);
+    this->state = T_DONE;
 }
 
-static bool ThdPool_CheckDep(thd_item_t* t) {
+static bool thdpool_deps(thd_item_t* t) {
     if (!t->numDep)
         return true;
     
@@ -92,7 +103,7 @@ static bool ThdPool_CheckDep(thd_item_t* t) {
     return true;
 }
 
-void ThdPool_Exec(u32 max, bool mutex) {
+void ThdPool_Exec(u32 max) {
     u32 amount = gTPool->num;
     u32 prev = 1;
     u32 prog = 0;
@@ -102,27 +113,23 @@ void ThdPool_Exec(u32 max, bool mutex) {
     
     max = clamp_min(max, 1);
     
-    if (mutex)
-        Mutex_Enable();
-    
     gTPool->on = true;
     
     _log("Num: %d", gTPool->num);
-    _log("Max: %d", max);
+    _log("max: %d", max);
     
     while (gTPool->num) {
-        
         if (msg && prev != prog)
             print_prog(gThdPool_ProgressMessage, prog + 1, amount);
         
-        max = Min(max, gTPool->num);
+        max = min(max, gTPool->num);
         
         if (cur < max) { /* Assign */
             t = gTPool->head;
             
             while (t) {
                 if (t->state == T_IDLE)
-                    if (ThdPool_CheckDep(t))
+                    if (thdpool_deps(t))
                         break;
                 
                 t = t->next;
@@ -133,11 +140,10 @@ void ThdPool_Exec(u32 max, bool mutex) {
                     t->state = T_RUN;
                 
                 if (max > 1) {
-                    _log("Create thread_t");
-                    if (Thread_Create(&t->thd, ThdPool_RunThd, t))
+                    if (thd_create(&t->thd, thdpool_exec_thread, t))
                         print_error("thd_pool_t: Could not create thread");
                 } else
-                    ThdPool_RunThd(t);
+                    thdpool_exec_thread(t);
                 
                 cur++;
             }
@@ -145,33 +151,28 @@ void ThdPool_Exec(u32 max, bool mutex) {
         }
         
         prev = prog;
-        if (true) { /* Clean */
-            t = gTPool->head;
-            while (t) {
-                if (t->state == T_DONE) {
-                    if (max > 1)
-                        Thread_Join(&t->thd);
-                    break;
-                }
-                
-                t = t->next;
+        t = gTPool->head;
+        while (t) {
+            if (t->state == T_DONE) {
+                if (max > 1)
+                    thd_join(&t->thd);
+                break;
             }
             
-            if (t) {
-                if (t->nid)
-                    gTPool->dep[t->nid]--;
-                
-                Node_Kill(gTPool->head, t);
-                
-                cur--;
-                gTPool->num--;
-                prog++;
-            }
+            t = t->next;
+        }
+        
+        if (t) {
+            if (t->nid)
+                gTPool->dep[t->nid]--;
+            
+            Node_Kill(gTPool->head, t);
+            
+            cur--;
+            gTPool->num--;
+            prog++;
         }
     }
-    
-    if (mutex)
-        Mutex_Disable();
     
     gThdPool_ProgressMessage = NULL;
     gTPool->on = false;

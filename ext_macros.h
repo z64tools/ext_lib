@@ -19,8 +19,6 @@
 #define PRNT_RNL  PRNT_RSET PRNT_NL
 #define PRNT_TODO "\e[91;2m" "TODO"
 
-#define calloc(size) calloc(1, size)
-
 #define catprintf(dest, ...) sprintf(dest + strlen(dest), __VA_ARGS__)
 
 #define Node_Add(head, node) do {               \
@@ -80,19 +78,23 @@
 #define Decr(x) (x -= (x > 0) ? 1 : 0)
 #define Incr(x) (x += (x < 0) ? 1 : 0)
 
-#define Intersect(a, aend, b, bend) ((Max(a, b) < Min(aend, bend)))
+#define Intersect(a, aend, b, bend) ((max(a, b) < min(aend, bend)))
 #define IsBetween(a, x, y)          ((a) >= (x) && (a) <= (y))
 
-#define Max(a, b)            ((a) > (b) ? (a) : (b))
-#define Min(a, b)            ((a) < (b) ? (a) : (b))
-#define MaxAbs(a, b)         (Abs(a) > Abs(b) ? (a) : (b))
-#define MinAbs(a, b)         (Abs(a) <= Abs(b) ? (a) : (b))
-#define Abs(val)             ((val) < 0 ? -(val) : (val))
+#define abs_max(a, b)        (abs(a) > abs(b) ? (a) : (b))
+#define abs_min(a, b)        (abs(a) <= abs(b) ? (a) : (b))
+#define abs(val)             ((val) < 0 ? -(val) : (val))
 #define clamp(val, min, max) ((val) < (min) ? (min) : (val) > (max) ? (max) : (val))
 #define clamp_min(val, min)  ((val) < (min) ? (min) : (val))
 #define clamp_max(val, max)  ((val) > (max) ? (max) : (val))
-#define min(a, b)            ((a) < (b) ? (a) : (b))
-#define max(a, b)            ((a) > (b) ? (a) : (b))
+
+#ifndef __clang__
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#else
+int max(int, int);
+int min(int, int);
+#endif
 
 #define clamp_int8(val)  (s8)clamp(((f32)val), (-__INT8_MAX__ - 1), __INT8_MAX__)
 #define clamp_int16(val) (s16)clamp(((f32)val), (-__INT16_MAX__ - 1), __INT16_MAX__)

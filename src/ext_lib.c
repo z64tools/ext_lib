@@ -59,9 +59,9 @@ void* dfree(const void* ptr) {
 void* freelist_que(void* ptr) {
     freelist_node_t* n = new(freelist_node_t);
     
-    Mutex_Lock();
+    thd_lock();
     Node_Add(s_freelist_temp, n);
-    Mutex_Unlock();
+    thd_unlock();
     n->ptr = ptr;
     
     return ptr;
@@ -70,9 +70,9 @@ void* freelist_que(void* ptr) {
 void* freelist_quecall(void* callback, void* ptr) {
     freelist_node_t* n = new(freelist_node_t);
     
-    Mutex_Lock();
+    thd_lock();
     Node_Add(s_freelist_temp, n);
-    Mutex_Unlock();
+    thd_unlock();
     n->ptr = ptr;
     n->dest = callback;
     
@@ -92,10 +92,13 @@ void freelist_free(void) {
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
+extern void _log_init();
+extern void _log_dest();
+
 const_func extlib_init(void) {
-    Log_Init();
-    
+    _log_init();
     srand((u32)(clock() + time(0)));
+    pthread_mutex_init(&gThreadMutex, NULL);
     
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
@@ -104,12 +107,14 @@ const_func extlib_init(void) {
 }
 
 dest_func extlib_dest(void) {
+    pthread_mutex_destroy(&gThreadMutex);
+    
     while (s_freelist_dest) {
         free(s_freelist_dest->ptr);
         Node_Kill(s_freelist_dest, s_freelist_dest);
     }
     
-    Log_Free();
+    _log_dest();
 }
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -369,7 +374,7 @@ void SegmentSet(const u8 id, void* segment) {
     _log("%-4d%08X", id, segment);
     if (!sSegment) {
         sSegment = dfree(new(char*[255]));
-        Assert(sSegment);
+        _assert(sSegment);
     }
     
     sSegment[id] = segment;
@@ -443,7 +448,7 @@ void* x_alloc(size_t size) {
 static void* m_alloc(size_t s) {
     void* addr = calloc(s);
     
-    Assert(addr != NULL);
+    _assert(addr != NULL);
     
     return addr;
 }
@@ -1219,7 +1224,7 @@ char* stristr(const char* haystack, const char* needle) {
         else if (b == NULL)
             p = a;
         else
-            p = Min(a, b);
+            p = min(a, b);
         
         if (p) {
             if (0 == strnicmp(p, needle, needlelen))
@@ -1485,17 +1490,15 @@ static int __impl_strnrep(char* str, int len, char* (*__strstr)(const char*, con
             ins_len = clamp(ins_len + point, 0, max_len) - point;
         }
         
-        if (oins_len == ins_len && mve_len > 0) {
+        if (oins_len == ins_len && mve_len > 0)
             memmove(str + rep_len, str + mtch_len, mve_len );
-        }
         
-        if (ins_len > 0) {
+        if (ins_len > 0)
             memcpy(str, rep, ins_len);
-            
-            nlen += (ins_len - mtch_len);
-            if (max_len) nlen = clamp_max(nlen, max_len);
-            o[nlen] = '\0';
-        }
+        
+        nlen += (ins_len - mtch_len);
+        if (max_len) nlen = clamp_max(nlen, max_len);
+        o[nlen] = '\0';
         
         if (max_len) {
             if (oins_len != ins_len)
@@ -1946,9 +1949,9 @@ time_t sys_stat(const char* item) {
     }
     
     // No access time
-    // t = Max(st.st_atime, t);
-    t = Max(st.st_mtime, t);
-    t = Max(st.st_ctime, t);
+    // t = max(st.st_atime, t);
+    t = max(st.st_mtime, t);
+    t = max(st.st_ctime, t);
     
     if (f) free(item);
     
@@ -2154,7 +2157,7 @@ void sys_setworkpath(const char* txt) {
 int sys_touch(const char* file) {
     if (!sys_stat(file)) {
         FILE* f = fopen(file, "w");
-        Assert(f != NULL);
+        _assert(f != NULL);
         fclose(f);
         
         return 0;
@@ -2321,7 +2324,7 @@ static const char* sys_exe_s(const char* str) {
     char* n = x_strdup(str);
     char* e = strstr(n, ".exe");
     
-    Assert(e != NULL);
+    _assert(e != NULL);
     for (; (uaddr_t)e >= (uaddr_t)n; e--)
         if (*e == '/') *e = '\\';
     
@@ -2392,12 +2395,12 @@ char* sys_exes(const char* cmd) {
     }
     
     sExeBuffer = alloc(mb_to_bin(4));
-    Assert(sExeBuffer != NULL);
+    _assert(sExeBuffer != NULL);
     sExeBuffer[0] = '\0';
     
     while (fgets(result, 1024, file)) {
         size += strlen(result);
-        Assert (size < mb_to_bin(4));
+        _assert (size < mb_to_bin(4));
         strcat(sExeBuffer, result);
     }
     
@@ -2607,7 +2610,7 @@ void cli_getPos(int* r) {
 #ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO cbsi;
     
-    Assert (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cbsi));
+    _assert (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cbsi));
     
     x = cbsi.dwCursorPosition.X;
     y = cbsi.dwCursorPosition.Y;

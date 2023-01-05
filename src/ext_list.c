@@ -44,7 +44,7 @@ void list_set_filters(list_t* list, u32 filterNum, ...) {
         node = calloc(sizeof(FilterNode));
         node->type = va_arg(va, ListFilter);
         node->txt = strdup(va_arg(va, char*));
-        Assert(node->txt != NULL);
+        _assert(node->txt != NULL);
         
         Node_Add(list->filterNode, node);
     }
@@ -180,7 +180,7 @@ void list_walk(list_t* this, const char* path, s32 depth, ListFlag flags) {
     
     list_validate(this);
     
-    Assert(path != NULL);
+    _assert(path != NULL);
     if (strlen(path) > 0 ) {
         
         if (!sys_isdir(path))
@@ -316,7 +316,7 @@ time_t list_stat_max(list_t* list) {
     time_t val = 0;
     
     for (s32 i = 0; i < list->num; i++)
-        val = Max(val, sys_stat(list->item[i]));
+        val = max(val, sys_stat(list->item[i]));
     
     return val;
 }
@@ -325,7 +325,7 @@ time_t list_stat_min(list_t* list) {
     time_t val = list_stat_max(list);
     
     for (s32 i = 0; i < list->num; i++)
-        val = Min(val, sys_stat(list->item[i]));
+        val = min(val, sys_stat(list->item[i]));
     
     return val;
 }
@@ -350,7 +350,7 @@ s32 list_sort_slot(list_t* this, bool checkOverlaps) {
     if (max <= 0) {
         print_error("List with [%s] item didn't contain max!", this->item[0]);
     }
-    _log("Max Num: %d", max);
+    _log("max Num: %d", max);
     
     new.item = new(char*[max]);
     new.num = max;
@@ -422,7 +422,7 @@ void list_free_items(list_t* this) {
 }
 
 void list_free(list_t* this) {
-    Assert(this != NULL);
+    _assert(this != NULL);
     
     list_free_items(this);
     list_free_filters(this);

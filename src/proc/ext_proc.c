@@ -67,9 +67,9 @@ proc_t* proc_new(char* fmt, ...) {
     
     tok = buffer;
     
-    Assert(this != NULL);
-    Assert(tok != NULL);
-    Assert((this->proc = reproc_new()) != NULL);
+    _assert(this != NULL);
+    _assert(tok != NULL);
+    _assert((this->proc = reproc_new()) != NULL);
     
     this->localStatus = PROC_NEW;
     
@@ -149,8 +149,7 @@ static void proc_err(proc_t* this) {
     
     _log("ProcError");
     
-    Mutex_Enable();
-    Mutex_Lock();
+    thd_lock();
     
     sys_sleep(0.5);
     
@@ -201,7 +200,7 @@ static void proc_err(proc_t* this) {
     else
         print_error("Closing!");
     
-    Mutex_Unlock();
+    thd_unlock();
 }
 
 int proc_exec(proc_t* this) {
@@ -218,7 +217,7 @@ int proc_exec(proc_t* this) {
     this->localStatus = PROC_EXEC;
     
     if (this->state & PROC_SYSTEM_EXE) {
-        Thread_Create(&this->thd, proc_sys_thread, this);
+        thd_create(&this->thd, proc_sys_thread, this);
         
         return 0;
     }
@@ -260,9 +259,10 @@ char* proc_read(proc_t* this, proc_read_target_t target) {
             print_warn("Failed to write buffer!");
             proc_err(this);
         }
-        
-        mem.cast.u8[mem.seekPoint] = '\0';
     }
+    
+    if (mem.data)
+        memfile_write(&mem, "\0", 1);
     
     this->msg = mem.data;
     
@@ -308,7 +308,7 @@ int proc_kill(proc_t* this) {
     
     if (this->state & PROC_SYSTEM_EXE) {
         this->signal = 1;
-        
+        int pthread_kill(pthread_t t, int sig);
         if (!pthread_kill(this->thd, 1))
             return proc_free(this);
         

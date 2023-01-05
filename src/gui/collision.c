@@ -6,7 +6,7 @@ void TriBuffer_Alloc(TriBuffer* this, u32 num) {
     this->max = num;
     this->num = 0;
     
-    Assert(this->head != NULL);
+    _assert(this->head != NULL);
 }
 
 void TriBuffer_Realloc(TriBuffer* this) {

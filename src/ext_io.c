@@ -160,7 +160,7 @@ void print_error(const char* fmt, ...) {
     sAbort = 1;
     
     print_kill(stdout);
-    Log_Signal(0xDEADBEEF);
+    // Log_Signal(0xDEADBEEF);
     
     if (sSuppress < PSL_NO_ERROR) {
         if (sProgress) {
@@ -191,7 +191,7 @@ void print_error_align(const char* info, const char* fmt, ...) {
     sAbort = 1;
     
     print_kill(stdout);
-    Log_Signal(0xDEADBEEF);
+    // Log_Signal(0xDEADBEEF);
     
     if (sSuppress < PSL_NO_ERROR) {
         if (sProgress) {
@@ -374,11 +374,11 @@ void print_volatile(const char* fmt, ...) {
         return;
     
     va_start(va, fmt);
-    Mutex_Lock();
+    thd_lock();
     print_win32_fix();
     vprintf(fmt, va);
     fflush(NULL);
-    Mutex_Unlock();
+    thd_unlock();
     va_end(va);
 }
 
@@ -479,7 +479,7 @@ void print_nl(void) {
 #include <signal.h>
 
 #define FAULT_BUFFER_SIZE (1024)
-#define FAULT_LOG_NUM     28
+#define FAULT_LOG_NUM     16
 
 static char* sLogMsg[FAULT_LOG_NUM];
 static char* sLogFunc[FAULT_LOG_NUM];
@@ -561,7 +561,7 @@ static void Log_Signal(int arg) {
     exit(arg);
 }
 
-const_func Log_Init() {
+void _log_init() {
     for (int i = 1; i < 16; i++)
         signal(i, Log_Signal);
     for (int i = 0; i < FAULT_LOG_NUM; i++) {
@@ -572,17 +572,12 @@ const_func Log_Init() {
     sLogInit = true;
 }
 
-dest_func Log_Free() {
-    if (!sLogInit)
-        return;
-    sLogInit = false;
-    for (int i = 0; i < FAULT_LOG_NUM; i++) {
-        free(sLogMsg[i]);
-        free(sLogFunc[i]);
-    }
+void _log_dest() {
+    for (int i = 0; i < FAULT_LOG_NUM; i++)
+        free(sLogMsg[i], sLogFunc[i]);
 }
 
-void Log_Print() {
+void _log_print() {
     if (!sLogInit)
         return;
     if (sLogMsg[0] == NULL)
@@ -611,7 +606,7 @@ void __log__(const char* func, u32 line, const char* txt, ...) {
     if (sLogMsg[0] == NULL)
         return;
     
-    Mutex_Lock();
+    thd_lock();
     {
         arrmve_r(sLogMsg, 0, FAULT_LOG_NUM);
         arrmve_r(sLogFunc, 0, FAULT_LOG_NUM);
@@ -631,5 +626,5 @@ void __log__(const char* func, u32 line, const char* txt, ...) {
         fprintf(stderr, "" PRNT_GRAY "%-8d" PRNT_RSET "%s\n", sLogLine[0], sLogMsg[0]);
 #endif
     }
-    Mutex_Unlock();
+    thd_unlock();
 }

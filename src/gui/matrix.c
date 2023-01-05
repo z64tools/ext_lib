@@ -48,12 +48,12 @@ void Matrix_Pop(void) {
 }
 
 void Matrix_Get(MtxF* dest) {
-    Assert(dest != NULL);
+    _assert(dest != NULL);
     Matrix_MtxFCopy(dest, gCurrentMatrix);
 }
 
 void Matrix_Put(MtxF* src) {
-    Assert(src != NULL);
+    _assert(src != NULL);
     Matrix_MtxFCopy(gCurrentMatrix, src);
 }
 

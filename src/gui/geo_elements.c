@@ -71,7 +71,7 @@ thread_local ElementState* gElemState = NULL;
 void* ElementState_New(void) {
     ElementState* elemState;
     
-    Assert((elemState = new(ElementState)) != NULL);
+    _assert((elemState = new(ElementState)) != NULL);
     
     return elemState;
 }
@@ -382,7 +382,7 @@ static void Element_ButtonDraw(ElementCallInfo* info) {
 s32 Element_Button(ElButton* this) {
     void* vg = gElemState->geo->vg;
     
-    Assert(GEO && SPLIT);
+    _assert(GEO && SPLIT);
     
     if (!this->element.toggle)
         this->state = 0;
@@ -663,8 +663,8 @@ void Element_UpdateTextbox(GeoGrid* geo) {
                 this->isClicked = true;
                 print_info("Textbox: Select %d", id);
             } else if (cHold && this->isClicked && split->cursorPos.x >= r.x && split->cursorPos.x < r.x + r.w) {
-                this->selA = Min (this->selPivot, id );
-                this->selPos = this->selB = Max (this->selPivot, id );
+                this->selA = min (this->selPivot, id );
+                this->selPos = this->selB = max (this->selPivot, id );
             }
         } else {
             this->isClicked = false;
@@ -691,7 +691,7 @@ void Element_UpdateTextbox(GeoGrid* geo) {
                     if (ctrl && dir) {
                         for (var_t i = cur + dir; i > 0 && i < LEN; i += dir) {
                             if (ispunct(this->txt[i]) != ispunct(this->txt[i + dir]))
-                                return i + Max(0, dir);
+                                return i + max(0, dir);
                         }
                     }
                     
@@ -712,8 +712,8 @@ void Element_UpdateTextbox(GeoGrid* geo) {
                 
                 if (kShift) {
                     this->selPos = val;
-                    this->selA = Min(this->selPos, this->selPivot);
-                    this->selB = Max(this->selPos, this->selPivot);
+                    this->selA = min(this->selPos, this->selPivot);
+                    this->selB = max(this->selPos, this->selPivot);
                 } else
                     this->selPos = this->selPivot = this->selA = this->selB = val;
             }
@@ -821,7 +821,7 @@ static void Element_TextboxDraw(ElementCallInfo* info) {
 }
 
 s32 Element_Textbox(ElTextbox* this) {
-    Assert(GEO && SPLIT);
+    _assert(GEO && SPLIT);
     
     ELEMENT_QUEUE_CHECK();
     
@@ -900,7 +900,7 @@ static void Element_TextDraw(ElementCallInfo* info) {
 ElText* Element_Text(const char* txt) {
     ElText* this = calloc(sizeof(ElText));
     
-    Assert(GEO && SPLIT);
+    _assert(GEO && SPLIT);
     this->element.name = txt;
     this->element.doFree = true;
     
@@ -981,7 +981,7 @@ static void Element_CheckboxDraw(ElementCallInfo* info) {
 }
 
 s32 Element_Checkbox(ElCheckbox* this) {
-    Assert(GEO && SPLIT);
+    _assert(GEO && SPLIT);
     
     ELEMENT_QUEUE_CHECK();
     
@@ -1074,7 +1074,7 @@ static void Element_SliderDraw(ElementCallInfo* info) {
 }
 
 f32 Element_Slider(ElSlider* this) {
-    Assert(GEO && SPLIT);
+    _assert(GEO && SPLIT);
     
     if (this->min == 0.0f && this->max == 0.0f)
         this->max = 1.0f;
@@ -1238,7 +1238,7 @@ static void Element_ComboDraw(ElementCallInfo* info) {
 }
 
 s32 Element_Combo(ElCombo* this) {
-    Assert(GEO && SPLIT);
+    _assert(GEO && SPLIT);
     
     ELEMENT_QUEUE_CHECK();
     
@@ -1411,7 +1411,7 @@ static void Element_ContainerDraw(ElementCallInfo* info) {
 s32 Element_Container(ElContainer* this) {
     SplitScroll* scroll = &this->scroll;
     
-    Assert(GEO && SPLIT);
+    _assert(GEO && SPLIT);
     
     if (this->prop) {
         PropList* prop = this->prop;
@@ -1558,7 +1558,7 @@ static void Element_SeparatorDraw(ElementCallInfo* info) {
 void Element_Separator(bool drawLine) {
     Element* this;
     
-    Assert(GEO && SPLIT);
+    _assert(GEO && SPLIT);
     
     if (drawLine) {
         this = calloc(sizeof(*this));
@@ -1604,8 +1604,8 @@ s32 Element_Box(BoxInit io) {
     #define THIS  boxElemList[r]
     #define ROW_Y boxRowY[r]
     
-    Assert(GEO && SPLIT);
-    Assert(r < arrcount(boxElemList));
+    _assert(GEO && SPLIT);
+    _assert(r < arrcount(boxElemList));
     
     if (io == BOX_START) {
         ROW_Y = gElemState->rowY;
@@ -1649,7 +1649,7 @@ void Element_DisplayName(Element* this, f32 lerp) {
     ElementCallInfo* node;
     s32 w = this->rect.w * lerp;
     
-    Assert(GEO && SPLIT);
+    _assert(GEO && SPLIT);
     
     this->posTxt.x = this->rect.x;
     this->posTxt.y = this->rect.y + SPLIT_TEXT_PADDING - 1;

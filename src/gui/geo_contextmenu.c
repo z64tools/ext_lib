@@ -17,7 +17,7 @@ static void ContextProp_List_Init(GeoGrid* geo, ContextMenu* this) {
     prop->visualKey = prop->key;
     
     for (s32 i = 0; i < prop->num; i++) {
-        this->rect.w = Max(this->rect.w, Gfx_TextWidth(geo->vg, PropList_Get(prop, i)));
+        this->rect.w = max(this->rect.w, Gfx_TextWidth(geo->vg, PropList_Get(prop, i)));
         this->rect.w += SPLIT_ELEM_X_PADDING * 2;
     }
     
@@ -229,8 +229,8 @@ void (*sContextMenuFuncs[][2])(GeoGrid*, ContextMenu*) = {
 void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, Rect rect) {
     ContextMenu* this = &geo->dropMenu;
     
-    Assert(uprop != NULL);
-    Assert(type < arrcount(sContextMenuFuncs));
+    _assert(uprop != NULL);
+    _assert(type < arrcount(sContextMenuFuncs));
     
     this->element = element;
     this->prop = uprop;
@@ -250,7 +250,7 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, R
     this->rect.y = this->rectOrigin.y + this->rectOrigin.h;
     this->rect.x = this->rectOrigin.x;
     if (!this->state.blockWidthAdjustment)
-        this->rect.w = Max(this->rect.w, this->rectOrigin.w);
+        this->rect.w = max(this->rect.w, this->rectOrigin.w);
     
     if (this->pos.y > geo->wdim->y * 0.5) {
         this->rect.y -= this->rect.h + this->rectOrigin.h;

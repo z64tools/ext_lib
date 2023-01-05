@@ -37,7 +37,7 @@ static SplitDir GeoGrid_GetDir_Opposite(SplitDir dir) {
 static SplitDir GeoGrid_GetDir_MouseToPressPos(Split* split) {
     Vec2s pos = Math_Vec2s_Sub(split->cursorPos, split->mousePressPos);
     
-    if (Abs(pos.x) > Abs(pos.y)) {
+    if (abs(pos.x) > abs(pos.y)) {
         if (pos.x < 0) {
             return DIR_L;
         }
@@ -75,7 +75,7 @@ static SplitEdge* GeoGrid_AddEdge(GeoGrid* geo, SplitVtx* v1, SplitVtx* v2) {
     SplitEdge* head = geo->edgeHead;
     SplitEdge* edge = NULL;
     
-    Assert(v1 != NULL && v2 != NULL);
+    _assert(v1 != NULL && v2 != NULL);
     
     if (v1->pos.y == v2->pos.y) {
         if (v1->pos.x > v2->pos.x) {
@@ -198,8 +198,8 @@ static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
     *this->taskList = PropList_Init(this->id);
     this->taskCombo = calloc(sizeof(*this->taskCombo));
     
-    Assert(this->taskList != NULL);
-    Assert(this->taskCombo != NULL);
+    _assert(this->taskList != NULL);
+    _assert(this->taskCombo != NULL);
     
     for (s32 i = 0; i < geo->numTaskTable; i++)
         PropList_Add(this->taskList, geo->taskTable[i]->taskName);
@@ -230,7 +230,7 @@ static void Edge_SetSlideClamp(GeoGrid* geo) {
     
     // Get edge with vtx closest to TOPLEFT
     while (tempEdge) {
-        Assert(!(tempEdge->state & EDGE_VERTICAL && tempEdge->state & EDGE_HORIZONTAL));
+        _assert(!(tempEdge->state & EDGE_VERTICAL && tempEdge->state & EDGE_HORIZONTAL));
         
         if ((tempEdge->state & EDGE_ALIGN) == (setEdge->state & EDGE_ALIGN)) {
             if (tempEdge->vtx[1] == setEdge->vtx[0]) {
@@ -285,7 +285,7 @@ static void Edge_SetSlideClamp(GeoGrid* geo) {
 }
 
 static void Split_ClearActionSplit(GeoGrid* geo) {
-    Assert(geo->actionSplit);
+    _assert(geo->actionSplit);
     geo->actionSplit->state &= ~(SPLIT_POINTS | SPLIT_SIDES);
     
     geo->actionSplit = NULL;
@@ -551,7 +551,7 @@ static void Edge_SetSlide(GeoGrid* geo) {
         bool isCornerEdge = ((edge->state & EDGE_STICK) != 0);
         bool isHor = ((edge->state & EDGE_VERTICAL) == 0);
         
-        Assert(!(edge->state & EDGE_HORIZONTAL && edge->state & EDGE_VERTICAL));
+        _assert(!(edge->state & EDGE_HORIZONTAL && edge->state & EDGE_VERTICAL));
         
         if (isCornerEdge) {
             if (edge->state & EDGE_STICK_L)
@@ -686,7 +686,7 @@ static void Split_UpdateActionSplit(GeoGrid* geo) {
                 if (split->state & (1 << (4 + i)))
                     break;
             
-            Assert(split->edge[i] != NULL);
+            _assert(split->edge[i] != NULL);
             
             geo->actionEdge = split->edge[i];
             Edge_SetSlideClamp(geo);
@@ -852,7 +852,7 @@ static inline void Split_UpdateSplit(GeoGrid* geo, Split* split) {
         table[split->id]->update(geo->passArg, split->instance, split);
         
         for (s32 i = 0; i < 4; i++) {
-            Assert(split->edge[i] != NULL);
+            _assert(split->edge[i] != NULL);
             split->edge[i]->killFlag = false;
         }
     } else {
@@ -1207,7 +1207,7 @@ void GeoGrid_Debug(bool b) {
 }
 
 void GeoGrid_TaskTable(GeoGrid* geo, SplitTask** taskTable, u32 num) {
-    Assert(num != 0);
+    _assert(num != 0);
     geo->taskTable = taskTable;
     geo->numTaskTable = num;
 }

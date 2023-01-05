@@ -127,7 +127,7 @@ static void Config_RecurseIncludes(memfile_t* dst, const char* file, str_node_t*
         if (strstart(line, "include ")) {
             const char* include;
             
-            Assert((include = Config_GetIncludeName(line)) != NULL);
+            _assert((include = Config_GetIncludeName(line)) != NULL);
             
             _log("ConfigInclude: From [%s] open [%s]", file, include);
             

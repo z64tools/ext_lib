@@ -19,8 +19,7 @@ texel_t texel_new(void);
 void texel_load(texel_t* this, const char* file);
 void texel_save(texel_t* this, const char* file);
 void texel_loadmem(texel_t* this, const void* data, size_t size);
-void texel_set(texel_t* this, int x, int y);
-void texel_alloc(texel_t* this, size_t sz);
+void texel_alloc(texel_t* this, int x, int y, int channels);
 void texel_free(texel_t* this);
 
 #endif

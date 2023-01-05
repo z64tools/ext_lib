@@ -17,7 +17,7 @@ void Cursor_CreateCursor(CursorIndex id,  const u8* data, s32 size, s32 xcent, s
     dest->img.height = dest->img.width = size;
     dest->img.pixels = (void*)dest->bitmap;
     dest->glfwCur = glfwCreateCursor((void*)&dest->img, xcent, ycent);
-    Assert(dest->glfwCur != NULL);
+    _assert(dest->glfwCur != NULL);
 }
 
 void Cursor_Init(CursorIcon* cursor, AppInfo* app) {
