@@ -1,5 +1,5 @@
 #include <ext_lib.h>
-#undef ThdPool_Add
+#undef threadpool_setdep
 
 // # # # # # # # # # # # # # # # # # # # #
 // # ThreadPool                          #
@@ -21,8 +21,8 @@ typedef struct thd_item_t {
     thread_t thd;
     void (*function)(void*);
     void* arg;
-    vu8   nid;
-    vu8   numDep;
+    vu8   dep_num;
+    vs16  nid;
     vs32  dep[16];
 } thd_item_t;
 
@@ -36,75 +36,83 @@ typedef struct {
     };
 } thd_pool_t;
 
-static thd_pool_t* gTPool;
+static thd_pool_t* sThdPool;
 
 static mutex_t sMutex;
 
-const_func __thdpool_init() {
+const_func __threadpool_init() {
     pthread_mutex_init(&sMutex, 0);
+    
+    sThdPool = new(thd_pool_t);
 }
 
-dest_func __thdpool_dest() {
+dest_func __threadpool_dest() {
     pthread_mutex_destroy(&sMutex);
-}
-
-void __impl_addToHead(thd_item_t* t) {
-    if (t->nid)
-        gTPool->dep[t->nid]++;
     
-    Node_Add(gTPool->head, t);
-    gTPool->num++;
+    free(sThdPool);
 }
 
-void ThdPool_Add(void* function, void* arg, u32 n, ...) {
+static void threadpool_add_to_head(thd_item_t* t) {
+    Node_Add(sThdPool->head, t);
+    sThdPool->num++;
+}
+
+static void threadpool_add_to_dep_list(thd_item_t* t) {
+    sThdPool->dep[t->nid]++;
+}
+
+void* threadpool_add(void* function, void* arg) {
     thd_item_t* t = new(thd_item_t);
-    va_list va;
     
-    if (!gTPool) {
-        gTPool = dfree(new(thd_pool_t));
-        _assert(gTPool);
-    }
+    _assert(sThdPool->on == false);
     
-    _assert(gTPool->on == false);
-    
+    t->nid = -1;
     t->function = function;
     t->arg = arg;
     
-    va_start(va, n);
-    for (int i = 0; i < n; i++) {
-        int val = va_arg(va, int);
-        
-        if (val > 0)
-            t->nid = val;
-        
-        if (val < 0)
-            t->dep[t->numDep++] = -val;
-    }
-    va_end(va);
+    pthread_mutex_lock(&sMutex);
+    threadpool_add_to_head(t);
+    pthread_mutex_unlock(&sMutex);
+    
+    return t;
+}
+
+void threadpool_set_id(void* __this, int id) {
+    thd_item_t* t = __this;
+    
+    _assert(id >= 0);
+    t->nid = id;
     
     pthread_mutex_lock(&sMutex);
-    __impl_addToHead(t);
+    threadpool_add_to_dep_list(t);
     pthread_mutex_unlock(&sMutex);
 }
 
-static void thdpool_exec_thread(thd_item_t* this) {
+void threadpool_set_dep(void* __this, int id) {
+    thd_item_t* t = __this;
+    
+    _assert(t->nid >= 0);
+    t->dep[t->dep_num++];
+}
+
+static void threadpool_exec_thread(thd_item_t* this) {
     this->function(this->arg);
     this->state = T_DONE;
 }
 
-static bool thdpool_deps(thd_item_t* t) {
-    if (!t->numDep)
+static bool threadpool_deps(thd_item_t* t) {
+    if (!t->dep_num)
         return true;
     
-    for (int i = 0; i < t->numDep; i++)
-        if (gTPool->dep[t->dep[i]] != 0)
+    for (int i = 0; i < t->dep_num; i++)
+        if (sThdPool->dep[t->dep[i]] != 0)
             return false;
     
     return true;
 }
 
-void ThdPool_Exec(u32 max) {
-    u32 amount = gTPool->num;
+void threadpool_exec(u32 max) {
+    u32 amount = sThdPool->num;
     u32 prev = 1;
     u32 prog = 0;
     u32 cur = 0;
@@ -113,23 +121,23 @@ void ThdPool_Exec(u32 max) {
     
     max = clamp_min(max, 1);
     
-    gTPool->on = true;
+    sThdPool->on = true;
     
-    _log("Num: %d", gTPool->num);
+    _log("Num: %d", sThdPool->num);
     _log("max: %d", max);
     
-    while (gTPool->num) {
+    while (sThdPool->num) {
         if (msg && prev != prog)
             print_prog(gThdPool_ProgressMessage, prog + 1, amount);
         
-        max = min(max, gTPool->num);
+        max = min(max, sThdPool->num);
         
         if (cur < max) { /* Assign */
-            t = gTPool->head;
+            t = sThdPool->head;
             
             while (t) {
                 if (t->state == T_IDLE)
-                    if (thdpool_deps(t))
+                    if (threadpool_deps(t))
                         break;
                 
                 t = t->next;
@@ -140,10 +148,10 @@ void ThdPool_Exec(u32 max) {
                     t->state = T_RUN;
                 
                 if (max > 1) {
-                    if (thd_create(&t->thd, thdpool_exec_thread, t))
+                    if (thd_create(&t->thd, threadpool_exec_thread, t))
                         print_error("thd_pool_t: Could not create thread");
                 } else
-                    thdpool_exec_thread(t);
+                    threadpool_exec_thread(t);
                 
                 cur++;
             }
@@ -151,7 +159,7 @@ void ThdPool_Exec(u32 max) {
         }
         
         prev = prog;
-        t = gTPool->head;
+        t = sThdPool->head;
         while (t) {
             if (t->state == T_DONE) {
                 if (max > 1)
@@ -163,17 +171,17 @@ void ThdPool_Exec(u32 max) {
         }
         
         if (t) {
-            if (t->nid)
-                gTPool->dep[t->nid]--;
+            if (t->nid >= 0)
+                sThdPool->dep[t->nid]--;
             
-            Node_Kill(gTPool->head, t);
+            Node_Kill(sThdPool->head, t);
             
             cur--;
-            gTPool->num--;
+            sThdPool->num--;
             prog++;
         }
     }
     
     gThdPool_ProgressMessage = NULL;
-    gTPool->on = false;
+    sThdPool->on = false;
 }

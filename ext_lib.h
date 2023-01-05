@@ -71,11 +71,12 @@ void _log(const char* fmt, ...);
 void __log__(const char* func, u32 line, const char* txt, ...);
 #define _log(...) __log__(__FUNCTION__, __LINE__, __VA_ARGS__)
 
-#define _assert(v) do {      \
-        if (!(v)) {          \
-            _log("%s", # v); \
-            SEG_FAULT;       \
-        }                    \
+#define _assert(v) do {                                         \
+        if (!(v)) {                                             \
+            _log("_assert( "PRNT_YELW "%s"PRNT_GRAY " )", # v); \
+            _log_print();                                       \
+            exit(1);                                            \
+        }                                                       \
 } while (0)
 
 #endif
@@ -234,10 +235,10 @@ void memfile_clear(memfile_t* this);
 extern vbool gThreadMode;
 extern mutex_t gThreadMutex;
 extern const char* gThdPool_ProgressMessage;
-void ThdPool_Add(void* function, void* arg, u32 n, ...);
-void ThdPool_Exec(u32 max);
-
-#define ThdPool_Add(func, arg, ...) ThdPool_Add(func, arg, NARGS(__VA_ARGS__), __VA_ARGS__)
+void* threadpool_add(void* function, void* arg);
+void threadpool_exec(u32 max);
+void threadpool_set_id(void* __this, int id);
+void threadpool_set_dep(void* __this, int id);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 

@@ -485,6 +485,7 @@ static char* sLogMsg[FAULT_LOG_NUM];
 static char* sLogFunc[FAULT_LOG_NUM];
 static u32 sLogLine[FAULT_LOG_NUM];
 static vs32 sLogInit;
+static mutex_t sLogMutex;
 
 static void Log_Signal_PrintTitle(int arg, FILE* file) {
     const char* errorMsg[] = {
@@ -535,12 +536,11 @@ static void Log_Printinf(int arg, FILE* file) {
 }
 
 static void Log_Signal(int arg) {
-    static volatile bool ran = 0;
-    
     if (!sLogInit)
         return;
-    if (ran) return;
-    ran = true;
+    
+    pthread_mutex_lock(&sLogMutex);
+    
     sLogInit = false;
     sAbort = true;
     
@@ -548,9 +548,10 @@ static void Log_Signal(int arg) {
     Log_Printinf(arg, stderr);
     
     if (arg == 0xDEADBEEF) {
-        ran = false;
         sLogInit = true;
         sAbort = false;
+        
+        pthread_mutex_unlock(&sLogMutex);
         
         return;
     }
@@ -570,11 +571,14 @@ void _log_init() {
     }
     
     sLogInit = true;
+    
+    pthread_mutex_init(&sLogMutex, 0);
 }
 
 void _log_dest() {
     for (int i = 0; i < FAULT_LOG_NUM; i++)
         free(sLogMsg[i], sLogFunc[i]);
+    pthread_mutex_destroy(&sLogMutex);
 }
 
 void _log_print() {
@@ -587,26 +591,13 @@ void _log_print() {
 }
 
 void __log__(const char* func, u32 line, const char* txt, ...) {
-    
-#if 0
-    va_list va;
-    char buf[512];
-    
-    va_start(va, txt);
-    vsnprintf(buf, 512, txt, va);
-    print_info("" PRNT_GRAY "[%s::%d]" PRNT_RSET " %s", func, line, buf);
-    va_end(va);
-    
-    return;
-#endif
-    
     if (!sLogInit)
         return;
     
     if (sLogMsg[0] == NULL)
         return;
     
-    thd_lock();
+    pthread_mutex_lock(&sLogMutex);
     {
         arrmve_r(sLogMsg, 0, FAULT_LOG_NUM);
         arrmve_r(sLogFunc, 0, FAULT_LOG_NUM);
@@ -626,5 +617,5 @@ void __log__(const char* func, u32 line, const char* txt, ...) {
         fprintf(stderr, "" PRNT_GRAY "%-8d" PRNT_RSET "%s\n", sLogLine[0], sLogMsg[0]);
 #endif
     }
-    thd_unlock();
+    pthread_mutex_unlock(&sLogMutex);
 }
