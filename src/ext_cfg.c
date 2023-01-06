@@ -5,8 +5,9 @@
 // # # # # # # # # # # # # # # # # # # # #
 
 static thread_local char* sCfgSection;
+static thread_local bool sCfgError;
 
-static const char* __Config_GotoSection(const char* str) {
+static const char* Ini_GotoImpl(const char* str) {
     if (sCfgSection == NULL)
         return str;
     
@@ -27,10 +28,10 @@ static const char* __Config_GotoSection(const char* str) {
     return NULL;
 }
 
-char* Config_Variable(const char* str, const char* name) {
+char* Ini_Var(const char* str, const char* name) {
     char* s;
     
-    str = __Config_GotoSection(str);
+    str = Ini_GotoImpl(str);
     if (str == NULL) return NULL;
     s = (char*)str;
     
@@ -61,8 +62,8 @@ char* Config_Variable(const char* str, const char* name) {
     return s;
 }
 
-char* Config_GetVariable(const char* str, const char* name) {
-    char* s = Config_Variable(str, name);
+char* Ini_GetVar(const char* str, const char* name) {
+    char* s = Ini_Var(str, name);
     char* r;
     
     if (!s) return NULL;
@@ -88,9 +89,7 @@ char* Config_GetVariable(const char* str, const char* name) {
     return r;
 }
 
-static thread_local bool sCfgError;
-
-static char* Config_GetIncludeName(const char* line) {
+static char* Ini_GetIncludeName(const char* line) {
     u32 size;
     
     line += strcspn(line, "<\n\r");
@@ -102,9 +101,9 @@ static char* Config_GetIncludeName(const char* line) {
     return x_strndup(line, size);
 }
 
-static void Config_RecurseIncludes(memfile_t* dst, const char* file, str_node_t** nodeHead) {
-    memfile_t cfg = memfile_new();
-    str_node_t* strNode;
+static void Ini_RecurseInclude(Memfile* dst, const char* file, strnode_t** nodeHead) {
+    Memfile cfg = Memfile_New();
+    strnode_t* strNode;
     
     if (*nodeHead) {
         strNode = *nodeHead;
@@ -120,35 +119,35 @@ static void Config_RecurseIncludes(memfile_t* dst, const char* file, str_node_t*
     Node_Add(*nodeHead, strNode);
     
     _log("Load File [%s]", file);
-    memfile_load_str(&cfg, file);
-    memfile_realloc(dst, dst->memSize + cfg.memSize * 2);
+    Memfile_LoadStr(&cfg, file);
+    Memfile_Realloc(dst, dst->memSize + cfg.memSize * 2);
     
     forline(line, cfg.str) {
         if (strstart(line, "include ")) {
             const char* include;
             
-            _assert((include = Config_GetIncludeName(line)) != NULL);
+            _assert((include = Ini_GetIncludeName(line)) != NULL);
             
             _log("ConfigInclude: From [%s] open [%s]", file, include);
             
-            Config_RecurseIncludes(dst, x_fmt("%s%s", x_path(file), include), nodeHead);
+            Ini_RecurseInclude(dst, x_fmt("%s%s", x_path(file), include), nodeHead);
         } else {
             u32 size = strcspn(line, "\n\r");
             
-            if (size) memfile_write(dst, line, size);
-            memfile_fmt(dst, "\n");
+            if (size) Memfile_Write(dst, line, size);
+            Memfile_Fmt(dst, "\n");
         }
     }
     
-    memfile_free(&cfg);
+    Memfile_Free(&cfg);
 };
 
-void Config_ProcessIncludes(memfile_t* mem) {
-    str_node_t* strNodeHead = NULL;
-    memfile_t dst = memfile_new();
+void Ini_ParseIncludes(Memfile* mem) {
+    strnode_t* strNodeHead = NULL;
+    Memfile dst = Memfile_New();
     
     dst.info.name = mem->info.name;
-    Config_RecurseIncludes(&dst, mem->info.name, &strNodeHead);
+    Ini_RecurseInclude(&dst, mem->info.name, &strNodeHead);
     dst.str[dst.size] = '\0';
     
     free(mem->data);
@@ -161,7 +160,7 @@ void Config_ProcessIncludes(memfile_t* mem) {
     _log("Done");
 }
 
-s32 Config_GetErrorState(void) {
+s32 Ini_GetError(void) {
     s32 ret = 0;
     
     if (sCfgError)
@@ -171,7 +170,7 @@ s32 Config_GetErrorState(void) {
     return ret;
 }
 
-static inline void Config_Warning(memfile_t* mem, const char* variable, const char* function) {
+static void Ini_WarnImpl(Memfile* mem, const char* variable, const char* function) {
     warn(
         "[%s]: Variable "PRNT_BLUE "\"%s\""PRNT_RSET " not found from " PRNT_BLUE "[%s]" PRNT_RSET " %s",
         function + strlen("Config_"),
@@ -180,28 +179,28 @@ static inline void Config_Warning(memfile_t* mem, const char* variable, const ch
     );
 }
 
-void Config_GetArray(memfile_t* mem, const char* variable, list_t* list) {
+void Ini_GetArr(Memfile* mem, const char* variable, List* list) {
     char* array;
     char* tmp;
     u32 size = 0;
     
     _log("Build List from [%s]", variable);
-    array = Config_Variable(mem->str, variable);
+    array = Ini_Var(mem->str, variable);
     
     if (array == NULL) {
-        *list = list_new();
+        *list = List_New();
         
         sCfgError = true;
-        Config_Warning(mem, variable, __FUNCTION__);
+        Ini_WarnImpl(mem, variable, __FUNCTION__);
         
         return;
     }
     
     if ((array[0] != '[' && array[0] != '{')) {
-        char* str = Config_GetVariable(mem->str, variable);
+        char* str = Ini_GetVar(mem->str, variable);
         
-        list_alloc(list, 1);
-        list_add(list, str);
+        List_Alloc(list, 1);
+        List_Add(list, str);
         
         return;
     }
@@ -213,19 +212,19 @@ void Config_GetArray(memfile_t* mem, const char* variable, list_t* list) {
         array = calloc(size);
         memcpy(array, tmp + 1, size - 1);
         
-        list_tokenize2(list, array, ',');
+        List_Tokenize2(list, array, ',');
         free(array);
     } else
-        *list = list_new();
+        *list = List_New();
     
     for (s32 i = 0; i < list->num; i++)
         strrep(list->item[i], "\"", "");
 }
 
-s32 Config_GetBool(memfile_t* mem, const char* variable) {
+s32 Ini_GetBool(Memfile* mem, const char* variable) {
     char* ptr;
     
-    ptr = Config_GetVariable(mem->str, variable);
+    ptr = Ini_GetVar(mem->str, variable);
     if (ptr) {
         char* word = ptr;
         if (!strcmp(word, "true")) {
@@ -237,17 +236,17 @@ s32 Config_GetBool(memfile_t* mem, const char* variable) {
     }
     
     sCfgError = true;
-    Config_Warning(mem, variable, __FUNCTION__);
+    Ini_WarnImpl(mem, variable, __FUNCTION__);
     
     return 0;
 }
 
-s32 Config_GetOption(memfile_t* mem, const char* variable, char* strList[]) {
+s32 Ini_GetOpt(Memfile* mem, const char* variable, char* strList[]) {
     char* ptr;
     char* word;
     s32 i = 0;
     
-    ptr = Config_GetVariable(mem->str, variable);
+    ptr = Ini_GetVar(mem->str, variable);
     if (ptr) {
         word = ptr;
         while (strList[i] != NULL && !strstr(word, strList[i]))
@@ -258,53 +257,53 @@ s32 Config_GetOption(memfile_t* mem, const char* variable, char* strList[]) {
     }
     
     sCfgError = true;
-    Config_Warning(mem, variable, __FUNCTION__);
+    Ini_WarnImpl(mem, variable, __FUNCTION__);
     
     return 0;
 }
 
-s32 Config_GetInt(memfile_t* mem, const char* variable) {
+s32 Ini_GetInt(Memfile* mem, const char* variable) {
     char* ptr;
     
-    ptr = Config_GetVariable(mem->str, variable);
+    ptr = Ini_GetVar(mem->str, variable);
     if (ptr) {
         return sint(ptr);
     }
     
     sCfgError = true;
-    Config_Warning(mem, variable, __FUNCTION__);
+    Ini_WarnImpl(mem, variable, __FUNCTION__);
     
     return 0;
 }
 
-char* Config_GetStr(memfile_t* mem, const char* variable) {
+char* Ini_GetStr(Memfile* mem, const char* variable) {
     char* ptr;
     
-    ptr = Config_GetVariable(mem->str, variable);
+    ptr = Ini_GetVar(mem->str, variable);
     if (ptr)
         return ptr;
     
     sCfgError = true;
-    Config_Warning(mem, variable, __FUNCTION__);
+    Ini_WarnImpl(mem, variable, __FUNCTION__);
     
     return NULL;
 }
 
-f32 Config_GetFloat(memfile_t* mem, const char* variable) {
+f32 Ini_GetFloat(Memfile* mem, const char* variable) {
     char* ptr;
     
-    ptr = Config_GetVariable(mem->str, variable);
+    ptr = Ini_GetVar(mem->str, variable);
     if (ptr) {
         return sfloat(ptr);
     }
     
     sCfgError = true;
-    Config_Warning(mem, variable, __FUNCTION__);
+    Ini_WarnImpl(mem, variable, __FUNCTION__);
     
     return 0.0f;
 }
 
-void Config_GotoSection(const char* section) {
+void Ini_GotoTab(const char* section) {
     int ignore_result = 0;
     
     free(sCfgSection);
@@ -320,14 +319,14 @@ void Config_GotoSection(const char* section) {
     ignore_result = ignore_result * 2;
 }
 
-void Config_ListVariables(memfile_t* mem, list_t* list, const char* section) {
+void Ini_ListVars(Memfile* mem, List* list, const char* section) {
     char* line = mem->str;
     char* wordA = x_alloc(64);
     
-    list_alloc(list, 256);
+    List_Alloc(list, 256);
     
     if (section)
-        line = (void*)__Config_GotoSection(line);
+        line = (void*)Ini_GotoImpl(line);
     if (line == NULL) return;
     
     for (; line != NULL; line = strline(line, 1)) {
@@ -348,13 +347,13 @@ void Config_ListVariables(memfile_t* mem, list_t* list, const char* section) {
                 memcpy(wordA, line, strlen);
                 wordA[strlen] = '\0';
                 
-                list_add(list, wordA);
+                List_Add(list, wordA);
             }
         }
     }
 }
 
-void Config_ListSections(memfile_t* cfg, list_t* list) {
+void Ini_ListTabs(Memfile* cfg, List* list) {
     s32 sctCount = 0;
     s32 line = -1;
     
@@ -373,18 +372,18 @@ void Config_ListSections(memfile_t* cfg, list_t* list) {
     }
     
     if (sctCount == 0) {
-        *list = list_new();
+        *list = List_New();
         return;
     }
     
-    list_alloc(list, sctCount);
+    List_Alloc(list, sctCount);
     
     forline(p, cfg->str) {
         p += strspn(p, " \t");
         if (*p != '[') continue;
         sctCount++;
         
-        list_add(list, x_strndup(p + 1, strcspn(p, "]\n")));
+        List_Add(list, x_strndup(p + 1, strcspn(p, "]\n")));
     }
 }
 
@@ -392,13 +391,13 @@ void Config_ListSections(memfile_t* cfg, list_t* list) {
 // # .                                   #
 // # # # # # # # # # # # # # # # # # # # #
 
-static void Config_FollowUpComment(memfile_t* mem, const char* comment) {
+static void Config_FollowUpComment(Memfile* mem, const char* comment) {
     if (comment)
-        memfile_fmt(mem, x_fmt(" # %s", comment));
-    memfile_fmt(mem, "\n");
+        Memfile_Fmt(mem, x_fmt(" # %s", comment));
+    Memfile_Fmt(mem, "\n");
 }
 
-s32 Config_ReplaceVariable(memfile_t* mem, const char* variable, const char* fmt, ...) {
+s32 Ini_RepVar(Memfile* mem, const char* variable, const char* fmt, ...) {
     char replacement[4096];
     va_list va;
     char* p;
@@ -407,12 +406,12 @@ s32 Config_ReplaceVariable(memfile_t* mem, const char* variable, const char* fmt
     vsnprintf(replacement, 4096, fmt, va);
     va_end(va);
     
-    p = Config_Variable(mem->str, variable);
+    p = Ini_Var(mem->str, variable);
     
     if (p) {
         if (p[0] == '"')
             p++;
-        strrem(p, strlen(Config_GetVariable(mem->str, variable)));
+        strrem(p, strlen(Ini_GetVar(mem->str, variable)));
         strinsat(p, replacement);
         
         mem->size = strlen(mem->str);
@@ -423,61 +422,61 @@ s32 Config_ReplaceVariable(memfile_t* mem, const char* variable, const char* fmt
     return 1;
 }
 
-void Config_WriteComment(memfile_t* mem, const char* comment) {
+void Ini_WriteComment(Memfile* mem, const char* comment) {
     if (comment)
-        memfile_fmt(mem, x_fmt("# %s", comment));
-    memfile_fmt(mem, "\n");
+        Memfile_Fmt(mem, x_fmt("# %s", comment));
+    Memfile_Fmt(mem, "\n");
 }
 
-void Config_WriteArray(memfile_t* mem, const char* variable, list_t* list, bool quote, const char* comment) {
+void Ini_WriteArr(Memfile* mem, const char* variable, List* list, bool quote, const char* comment) {
     const char* q[2] = {
         "",
         "\"",
     };
     
-    memfile_fmt(mem, "%-15s = [ ", variable);
+    Memfile_Fmt(mem, "%-15s = [ ", variable);
     for (s32 i = 0; i < list->num; i++) {
-        memfile_fmt(mem, "%s%s%s, ", q[quote], list->item[i], q[quote]);
+        Memfile_Fmt(mem, "%s%s%s, ", q[quote], list->item[i], q[quote]);
     }
     if (list->num)
         mem->seekPoint -= 2;
-    memfile_fmt(mem, " ]");
+    Memfile_Fmt(mem, " ]");
     Config_FollowUpComment(mem, comment);
 }
 
-void Config_WriteInt(memfile_t* mem, const char* variable, const s64 integer, const char* comment) {
-    memfile_fmt(mem, "%-15s = %ld", variable, integer);
+void Ini_WriteInt(Memfile* mem, const char* variable, s64 integer, const char* comment) {
+    Memfile_Fmt(mem, "%-15s = %ld", variable, integer);
     Config_FollowUpComment(mem, comment);
 }
 
-void Config_WriteHex(memfile_t* mem, const char* variable, const s64 integer, const char* comment) {
-    memfile_fmt(mem, "%-15s = 0x%lX", variable, integer);
+void Ini_WriteHex(Memfile* mem, const char* variable, s64 integer, const char* comment) {
+    Memfile_Fmt(mem, "%-15s = 0x%lX", variable, integer);
     Config_FollowUpComment(mem, comment);
 }
 
-void Config_WriteStr(memfile_t* mem, const char* variable, const char* str, bool quote, const char* comment) {
+void Ini_WriteStr(Memfile* mem, const char* variable, const char* str, bool quote, const char* comment) {
     const char* q[2] = {
         "",
         "\"",
     };
     
-    memfile_fmt(mem, "%-15s = %s%s%s", variable, q[quote], str, q[quote]);
+    Memfile_Fmt(mem, "%-15s = %s%s%s", variable, q[quote], str, q[quote]);
     Config_FollowUpComment(mem, comment);
 }
 
-void Config_WriteFloat(memfile_t* mem, const char* variable, const f64 flo, const char* comment) {
-    memfile_fmt(mem, "%-15s = %lf", variable, flo);
+void Ini_WriteFloat(Memfile* mem, const char* variable, f64 flo, const char* comment) {
+    Memfile_Fmt(mem, "%-15s = %lf", variable, flo);
     Config_FollowUpComment(mem, comment);
 }
 
-void Config_WriteBool(memfile_t* mem, const char* variable, const s32 val, const char* comment) {
-    memfile_fmt(mem, "%-15s = %s", variable, val ? "true" : "false");
+void Ini_WriteBool(Memfile* mem, const char* variable, s32 val, const char* comment) {
+    Memfile_Fmt(mem, "%-15s = %s", variable, val ? "true" : "false");
     Config_FollowUpComment(mem, comment);
 }
 
-void Config_WriteSection(memfile_t* mem, const char* variable, const char* comment) {
-    memfile_fmt(mem, "[%s]", variable);
+void Ini_WriteTab(Memfile* mem, const char* variable, const char* comment) {
+    Memfile_Fmt(mem, "[%s]", variable);
     if (comment)
-        memfile_fmt(mem, " # %s", comment);
-    memfile_fmt(mem, "\n");
+        Memfile_Fmt(mem, " # %s", comment);
+    Memfile_Fmt(mem, "\n");
 }

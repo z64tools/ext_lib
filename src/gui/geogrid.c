@@ -79,11 +79,11 @@ static SplitEdge* GeoGrid_AddEdge(GeoGrid* geo, SplitVtx* v1, SplitVtx* v2) {
     
     if (v1->pos.y == v2->pos.y) {
         if (v1->pos.x > v2->pos.x) {
-            swapvar(v1, v2);
+            Swap(v1, v2);
         }
     } else {
         if (v1->pos.y > v2->pos.y) {
-            swapvar(v1, v2);
+            Swap(v1, v2);
         }
     }
     
@@ -996,7 +996,7 @@ static void Split_Draw_KillArrow(Split* this, void* vg) {
             10.0f,
             DegToBin(dir),
             arrow,
-            arrcount(arrow)
+            ArrCount(arrow)
         );
         nvgPathWinding(vg, NVG_HOLE);
         
@@ -1223,7 +1223,7 @@ void GeoGrid_Init(GeoGrid* this, struct AppInfo* app, void* passArg) {
     this->passArg = passArg;
     
     _log("Prepare Headers");
-    for (var_t i = 0; i < 2; i++)
+    for (var i = 0; i < 2; i++)
         write = (u8*)&this->bar[i],
         write[offsetof(Split, isHeader)] = true;
     

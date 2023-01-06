@@ -39,14 +39,14 @@
         free(killNode);               \
 } while (0)
 
-#define swapvar(a, b) do { \
-        var_t y = a;    \
+#define Swap(a, b) do { \
+        var y = a;    \
         a = b;          \
         b = y;          \
 } while (0)
 
 // Checks endianess with tst & tstP
-#define readBE(in) ({                        \
+#define ReadBE(in) ({                        \
         typeof(in) out;                      \
         s32 tst = 1;                         \
         u8* tstP = (u8*)&tst;                \
@@ -68,45 +68,45 @@
     }                                        \
 )
 
-#define writeBE(dest, set) {    \
+#define WriteBE(dest, set) {    \
         typeof(dest) get = set; \
-        dest = readBE(get);     \
+        dest = ReadBE(get);     \
 }
 
-#define swapBE(in) writeBE(in, in)
+#define SwapBE(in) WriteBE(in, in)
 
 #define Decr(x) (x -= (x > 0) ? 1 : 0)
 #define Incr(x) (x += (x < 0) ? 1 : 0)
 
-#define Intersect(a, aend, b, bend) ((max(a, b) < min(aend, bend)))
+#define Intersect(a, aend, b, bend) ((Max(a, b) < Min(aend, bend)))
 #define IsBetween(a, x, y)          ((a) >= (x) && (a) <= (y))
 
-#define abs_max(a, b)        (abs(a) > abs(b) ? (a) : (b))
-#define abs_min(a, b)        (abs(a) <= abs(b) ? (a) : (b))
+#define absmax(a, b)         (abs(a) > abs(b) ? (a) : (b))
+#define absmin(a, b)         (abs(a) <= abs(b) ? (a) : (b))
 #define abs(val)             ((val) < 0 ? -(val) : (val))
 #define clamp(val, min, max) ((val) < (min) ? (min) : (val) > (max) ? (max) : (val))
 #define clamp_min(val, min)  ((val) < (min) ? (min) : (val))
 #define clamp_max(val, max)  ((val) > (max) ? (max) : (val))
 
-#define max(a, b) ((a) > (b) ? (a) : (b))
-#define min(a, b) ((a) < (b) ? (a) : (b))
+#define Max(a, b) ((a) > (b) ? (a) : (b))
+#define Min(a, b) ((a) < (b) ? (a) : (b))
 
-#define clamp_int8(val)  (s8)clamp(((f32)val), (-__INT8_MAX__ - 1), __INT8_MAX__)
-#define clamp_int16(val) (s16)clamp(((f32)val), (-__INT16_MAX__ - 1), __INT16_MAX__)
-#define clamp_int32(val) (s32)clamp(((f32)val), (-__INT32_MAX__ - 1), (f32)__INT32_MAX__)
+#define clamp_s8(val)  (s8)clamp(((f32)val), (-__INT8_MAX__ - 1), __INT8_MAX__)
+#define clamp_s16(val) (s16)clamp(((f32)val), (-__INT16_MAX__ - 1), __INT16_MAX__)
+#define clamp_s32(val) (s32)clamp(((f32)val), (-__INT32_MAX__ - 1), (f32)__INT32_MAX__)
 
-#define arrcount(arr) (u32)(sizeof(arr) / sizeof(arr[0]))
+#define ArrCount(arr) (u32)(sizeof(arr) / sizeof(arr[0]))
 
 #define bit_nummask(bitNum)              ((1 << (bitNum)) - 1)
 #define bit_sizemask(size)               bit_nummask(size * 8)
 #define bit_field(data, bitCount, shift) (((data) >> (shift))&bit_nummask(bitCount))
 #define bit_first(u32)                   __builtin_ctz(u32)
 
-#define bin_to_mb(x)         ((f32)(x) / (f32)0x100000)
-#define bin_to_kb(x)         ((f32)(x) / (f32)0x400)
-#define mb_to_bin(x)         (u32)(0x100000 * (x))
-#define kb_to_bin(x)         (u32)(0x400 * (x))
-#define intalign(val, align) ((((val) % (align)) != 0) ? (val) + (align) - ((val) % (align)) : (val))
+#define BinToMb(x)           ((f32)(x) / (f32)0x100000)
+#define BinToKb(x)           ((f32)(x) / (f32)0x400)
+#define MbToBin(x)           (int)(0x100000 * (x))
+#define KbToBin(x)           (int)(0x400 * (x))
+#define alignvar(val, align) ((((val) % (align)) != 0) ? (val) + (align) - ((val) % (align)) : (val))
 
 #define VA1(NAME, ...)                                 NAME
 #define VA2(_1, NAME, ...)                             NAME
@@ -162,9 +162,9 @@
 #define uni_main(count, args)                                      \
     __x_main(int count, const char** args);                        \
     int wmain(int count, const wchar * *args) {                    \
-        char** nargv = dfree(calloc(sizeof(char*) * (count + 1))); \
+        char** nargv = qxf(calloc(sizeof(char*) * (count + 1))); \
         for (s32 i = 0; i < count; i++) {                          \
-            nargv[i] = dfree(calloc(strwlen(args[i])));            \
+            nargv[i] = qxf(calloc(strwlen(args[i])));            \
             strto8(nargv[i], args[i]);                             \
         }                                                          \
         _log("run " PRNT_YELW "main");                             \
@@ -185,21 +185,21 @@
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>]: " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
 
-#define foreach(val, arr)  for (int val = 0; val < arrcount(arr); val++)
+#define foreach(val, arr)  for (int val = 0; val < ArrCount(arr); val++)
 #define forlist(val, list) for (int val = 0; val < (list).num; val++)
 #define fornode(val, head) for (typeof(head) val = head; val != NULL; val = val->next)
 #define forstr(val, str)   for (int val = 0; val < strlen(str); val++)
 #define forline(val, str)  for (const char* val = str; val; val = strline(val, 1))
 
-#define arrmve_r(arr, start, count) do {                      \
-        var_t v = (arr)[(start) + (count) - 1];               \
+#define arrmove_r(arr, start, count) do {                     \
+        var v = (arr)[(start) + (count) - 1];               \
         for (int I = (count) + (start) - 1; I > (start); I--) \
         (arr)[I] = (arr)[I - 1];                              \
         (arr)[(start)] = v;                                   \
 } while (0)
 
-#define arrmve_l(arr, start, count) do {                      \
-        var_t v = (arr)[(start)];                             \
+#define arrmove_l(arr, start, count) do {                     \
+        var v = (arr)[(start)];                             \
         for (int I = (start); I < (count) + (start) - 1; I++) \
         (arr)[I] = (arr)[I + 1];                              \
         (arr)[(count) + (start) - 1] = v;                     \
@@ -226,13 +226,13 @@
 #define nested_stru(v) (void)0
 #endif
 
-#define FOPEN(file, mode) ({                                             \
-        FILE* f = fopen(file, mode);                                     \
-        if (f == NULL) {                                                 \
+#define FOPEN(file, mode) ({                                       \
+        FILE* f = fopen(file, mode);                               \
+        if (f == NULL) {                                           \
             warn("" PRNT_YELW "%s" PRNT_GRAY "();", __FUNCTION__); \
-            errr("fopen error: [%s]", file);                      \
-        }                                                                \
-        f;                                                               \
+            errr("fopen error: [%s]", file);                       \
+        }                                                          \
+        f;                                                         \
     })
 
 #define PPASSERT(predicate) _impl_CASSERT_LINE(predicate, __LINE__)

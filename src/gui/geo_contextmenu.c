@@ -17,7 +17,7 @@ static void ContextProp_List_Init(GeoGrid* geo, ContextMenu* this) {
     prop->visualKey = prop->key;
     
     for (s32 i = 0; i < prop->num; i++) {
-        this->rect.w = max(this->rect.w, Gfx_TextWidth(geo->vg, PropList_Get(prop, i)));
+        this->rect.w = Max(this->rect.w, Gfx_TextWidth(geo->vg, PropList_Get(prop, i)));
         this->rect.w += SPLIT_ELEM_X_PADDING * 2;
     }
     
@@ -114,7 +114,7 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     rectHue.h = SPLIT_ELEM_Y_PADDING;
     
     if (this->state.init) {
-        color = color_hsl(unfold_rgb(*prop->rgb8));
+        color = Color_hsl(unfold_rgb(*prop->rgb8));
         
         prop->hue = color.h;
         prop->pos.x = color.s;
@@ -142,12 +142,12 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     }
     
     color = (hsl_t) { prop->hue, prop->pos.x, InvF(prop->pos.y) };
-    *prop->rgb8 = color_rgb8(unfold_hsl(color));
+    *prop->rgb8 = Color_rgb8(unfold_hsl(color));
     
     nested(void, UpdateImg, ()) {
         for (s32 y = 0; y < rectLumSat.h; y++) {
             for (s32 x = 0; x < rectLumSat.w; x++) {
-                imgLumSat.c[(y * rectLumSat.w) + x] = color_rgba8(
+                imgLumSat.c[(y * rectLumSat.w) + x] = Color_rgba8(
                     color.h,
                     (f32)x / rectLumSat.w,
                     (f32)y / rectLumSat.h
@@ -159,7 +159,7 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     };
     
     if (!imgLumSat.c) {
-        imgLumSat.c = dfree(new(rgba8_t[rectLumSat.w * rectLumSat.h]));
+        imgLumSat.c = qxf(new(rgba8_t[rectLumSat.w * rectLumSat.h]));
         UpdateImg();
         imgLumSat.id = nvgCreateImageRGBA(vg, rectLumSat.w, rectLumSat.h, NVG_IMAGE_NEAREST | NVG_IMAGE_FLIPY, (void*)imgLumSat.c);
     }
@@ -184,11 +184,11 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     }
     
     if (!imgHue.c) {
-        imgHue.c = dfree(new(rgba8_t[rectHue.w * rectHue.h]));
+        imgHue.c = qxf(new(rgba8_t[rectHue.w * rectHue.h]));
         
         for (s32 y = 0; y < rectHue.h; y++) {
             for (s32 x = 0; x < rectHue.w; x++) {
-                imgHue.c[(y * rectHue.w) + x] = color_rgba8(
+                imgHue.c[(y * rectHue.w) + x] = Color_rgba8(
                     (f32)x / rectHue.w,
                     1.0f,
                     0.5f
@@ -230,7 +230,7 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, R
     ContextMenu* this = &geo->dropMenu;
     
     _assert(uprop != NULL);
-    _assert(type < arrcount(sContextMenuFuncs));
+    _assert(type < ArrCount(sContextMenuFuncs));
     
     this->element = element;
     this->prop = uprop;
@@ -250,7 +250,7 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, R
     this->rect.y = this->rectOrigin.y + this->rectOrigin.h;
     this->rect.x = this->rectOrigin.x;
     if (!this->state.blockWidthAdjustment)
-        this->rect.w = max(this->rect.w, this->rectOrigin.w);
+        this->rect.w = Max(this->rect.w, this->rectOrigin.w);
     
     if (this->pos.y > geo->wdim->y * 0.5) {
         this->rect.y -= this->rect.h + this->rectOrigin.h;

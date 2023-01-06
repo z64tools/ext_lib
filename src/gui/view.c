@@ -244,7 +244,7 @@ static void Camera_Update_RotTo(View3D* this, Input* input) {
             { 90, 0,   0   },
         };
         
-        for (s32 i = 0; i < arrcount(key); i++) {
+        for (s32 i = 0; i < ArrCount(key); i++) {
             if (Input_GetKey(input, key[i])->press) {
                 pass = i;
                 break;
@@ -367,7 +367,7 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
         Matrix_Projection(
             &this->projMtx, this->fovy, (f32)this->split->rect.w / (f32)this->split->rect.h, this->near, this->far, this->scale);
     
-    for (s32 i = 0; i < arrcount(camMode); i++)
+    for (s32 i = 0; i < ArrCount(camMode); i++)
         camMode[i](this, inputCtx, (this->mode & (1 << i) && !this->interrupt));
     
     if (this->cameraControl && !this->interrupt) {
@@ -375,7 +375,7 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
             KEY_W, KEY_A, KEY_S, KEY_D
         };
         
-        for (s32 i = 0; i < arrcount(keyList); i++) {
+        for (s32 i = 0; i < ArrCount(keyList); i++) {
             if (Input_GetKey(inputCtx, keyList[i])->hold)
                 this->isControlled = true;
         }

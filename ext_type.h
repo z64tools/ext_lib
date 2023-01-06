@@ -11,7 +11,7 @@
 #define FLT_MIN __FLT_MIN__
 
 #pragma GCC diagnostic ignored "-Wscalar-storage-order"
-#define structBE     __attribute__((scalar_storage_order("big-endian")))
+#define StructBE     __attribute__((scalar_storage_order("big-endian")))
 #define StructPacked __attribute__ ((packed))
 #define thread_local _Thread_local
 #define StructAligned(x) __attribute__((aligned(x)))
@@ -28,13 +28,12 @@ typedef float                  f32;
 typedef double                 f64;
 typedef uintptr_t              uaddr_t;
 typedef intptr_t               addr_t;
-typedef u32                    void32;
 typedef time_t                 time_t;
 typedef pthread_t              thread_t;
 typedef pthread_mutex_t        mutex_t;
 typedef size_t                 size_t;
 typedef wchar_t                wchar;
-#define var_t __auto_type
+#define var __auto_type
 
 #define const_func __attribute__ ((constructor)) void
 #define dest_func  __attribute__ ((destructor)) void
@@ -53,7 +52,7 @@ typedef struct {
     u8 hash[32];
     const void* data;
     u32 size;
-} hash_t;
+} Hash;
 
 typedef struct {
     f32 h;
@@ -107,12 +106,12 @@ typedef struct {
     f32 a;
 } RGBA32;
 
-typedef enum {
+enum IOLevel {
     PSL_NONE,
     PSL_NO_INFO,
     PSL_NO_WARNING,
     PSL_NO_ERROR,
-} io_level_t;
+};
 
 typedef enum {
     SWAP_U8  = 1,
@@ -152,7 +151,7 @@ typedef enum {
     MEM_END         = 1 << 31,
 } MemInit;
 
-typedef struct memfile_t {
+typedef struct Memfile {
     union {
         void*       data;
         PointerCast cast;
@@ -173,7 +172,7 @@ typedef struct memfile_t {
         bool throwError : 1;
         u64  initKey;
     } param;
-} memfile_t;
+} Memfile;
 
 typedef enum {
     LIST_FILES    = 0x0,
@@ -204,7 +203,7 @@ typedef struct FilterNode {
     char*      txt;
 } FilterNode;
 
-typedef struct list_t {
+typedef struct List {
     char**      item;
     u32         num;
     FilterNode* filterNode;
@@ -212,7 +211,7 @@ typedef struct list_t {
     struct {
         s32 alnum;
     } p;
-} list_t;
+} List;
 
 typedef struct {
     u32 size;
@@ -246,17 +245,17 @@ enum {
     ABSOLUTE       = 1
 };
 
-typedef struct str_node_t {
-    struct str_node_t* next;
+typedef struct strnode_t {
+    struct strnode_t* next;
     char* txt;
-} str_node_t;
+} strnode_t;
 
 typedef struct ptr_node_t {
     struct ptr_node_t* next;
     void* ptr;
 } ptr_node_t;
 
-typedef enum regx_flag_t {
+enum RegexFlag {
     REGFLAG_START     = 1 << 24,
     REGFLAG_END       = 1 << 25,
     REGFLAG_COPY      = 1 << 26,
@@ -264,7 +263,7 @@ typedef enum regx_flag_t {
     
     REGFLAG_FLAGMASK  = 0xFF000000,
     REGFLAG_NUMMASK   = 0x00FFFFFF,
-} regx_flag_t;
+};
 
 typedef enum {
     ENV_USERNAME,
@@ -273,7 +272,7 @@ typedef enum {
     ENV_TEMP,
 } env_index_t;
 
-typedef struct {
+typedef struct Toml {
     bool changed;
     union {
 #ifdef EXT_TOML_C
@@ -291,6 +290,6 @@ typedef struct {
             u32   _[4];
         };
     };
-} toml_t;
+} Toml;
 
 #endif

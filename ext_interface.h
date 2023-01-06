@@ -83,8 +83,8 @@ typedef struct {
     GeoGrid   geo;
     
     char     path[FILE_DIALOG_BUF];
-    list_t files;
-    list_t folders;
+    List files;
+    List folders;
     
     s32 split;
     s32 selected;

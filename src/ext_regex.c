@@ -6,7 +6,7 @@
     #include <regex.h>
 #endif
 
-char* regex(const char* str, const char* pattern, regx_flag_t flag) {
+char* regex(const char* str, const char* pattern, enum RegexFlag flag) {
     regex_t reg;
     regmatch_t* match;
     u32 matchNum = 0;

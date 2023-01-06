@@ -491,19 +491,19 @@ static inline BoundBox BoundBox_New2F(Vec2f point) {
 }
 
 static inline void BoundBox_Adjust3F(BoundBox* this, Vec3f point) {
-    this->xMax = max(this->xMax, point.x);
-    this->xMin = min(this->xMin, point.x);
-    this->yMax = max(this->yMax, point.y);
-    this->yMin = min(this->yMin, point.y);
-    this->zMax = max(this->zMax, point.z);
-    this->zMin = min(this->zMin, point.z);
+    this->xMax = Max(this->xMax, point.x);
+    this->xMin = Min(this->xMin, point.x);
+    this->yMax = Max(this->yMax, point.y);
+    this->yMin = Min(this->yMin, point.y);
+    this->zMax = Max(this->zMax, point.z);
+    this->zMin = Min(this->zMin, point.z);
 }
 
 static inline void BoundBox_Adjust2F(BoundBox* this, Vec2f point) {
-    this->xMax = max(this->xMax, point.x);
-    this->xMin = min(this->xMin, point.x);
-    this->yMax = max(this->yMax, point.y);
-    this->yMin = min(this->yMin, point.y);
+    this->xMax = Max(this->xMax, point.x);
+    this->xMin = Min(this->xMin, point.x);
+    this->yMax = Max(this->yMax, point.y);
+    this->yMin = Min(this->yMin, point.y);
 }
 
 static inline bool Math_Vec2f_PointInShape(Vec2f p, Vec2f* poly, u32 numPoly) {
@@ -1114,7 +1114,7 @@ static inline Vec4s Math_Vec4s_Invert(Vec4s a) {
 static inline Vec2f Math_Vec2f_InvMod(Vec2f a) {
     Vec2f r;
     
-    for (s32 i = 0; i < arrcount(a.axis); i++)
+    for (s32 i = 0; i < ArrCount(a.axis); i++)
         r.axis[i] = 1.0f - fabsf(a.axis[i]);
     
     return r;
@@ -1123,7 +1123,7 @@ static inline Vec2f Math_Vec2f_InvMod(Vec2f a) {
 static inline Vec3f Math_Vec3f_InvMod(Vec3f a) {
     Vec3f r;
     
-    for (s32 i = 0; i < arrcount(a.axis); i++)
+    for (s32 i = 0; i < ArrCount(a.axis); i++)
         r.axis[i] = 1.0f - fabsf(a.axis[i]);
     
     return r;
@@ -1132,28 +1132,28 @@ static inline Vec3f Math_Vec3f_InvMod(Vec3f a) {
 static inline Vec4f Math_Vec4f_InvMod(Vec4f a) {
     Vec4f r;
     
-    for (s32 i = 0; i < arrcount(a.axis); i++)
+    for (s32 i = 0; i < ArrCount(a.axis); i++)
         r.axis[i] = 1.0f - fabsf(a.axis[i]);
     
     return r;
 }
 
 static inline bool Math_Vec2f_IsNaN(Vec2f a) {
-    for (s32 i = 0; i < arrcount(a.axis); i++)
+    for (s32 i = 0; i < ArrCount(a.axis); i++)
         if (isnan(a.axis[i])) true;
     
     return false;
 }
 
 static inline bool Math_Vec3f_IsNaN(Vec3f a) {
-    for (s32 i = 0; i < arrcount(a.axis); i++)
+    for (s32 i = 0; i < ArrCount(a.axis); i++)
         if (isnan(a.axis[i])) true;
     
     return false;
 }
 
 static inline bool Math_Vec4f_IsNaN(Vec4f a) {
-    for (s32 i = 0; i < arrcount(a.axis); i++)
+    for (s32 i = 0; i < ArrCount(a.axis); i++)
         if (isnan(a.axis[i])) true;
     
     return false;

@@ -1,7 +1,7 @@
 #include <ext_proc.h>
 #include <reproc/reproc.h>
 
-enum ProcState {
+enum e_ProcState {
     PROC_NEW,
     PROC_EXEC,
     PROC_KILL,
@@ -54,9 +54,9 @@ static char* argtok_cpy(const char* s) {
     return strndup(s, sz);
 }
 
-proc_t* proc_new(char* fmt, ...) {
+Proc* Proc_New(char* fmt, ...) {
     char buffer[8192];
-    proc_t* this = new(proc_t);
+    Proc* this = new(Proc);
     char* tok;
     char* args[512];
     va_list va;
@@ -86,7 +86,7 @@ proc_t* proc_new(char* fmt, ...) {
     return this;
 }
 
-void proc_add_arg(proc_t* this, char* fmt, ...) {
+void Proc_AddArg(Proc* this, char* fmt, ...) {
     char buffer[8192];
     char* tok;
     char* args[512] = {};
@@ -112,18 +112,18 @@ void proc_add_arg(proc_t* this, char* fmt, ...) {
     this->numArg += numArg;
 }
 
-void proc_set_state(proc_t* this, proc_state_t state) {
+void Proc_SetState(Proc* this, e_ProcState state) {
     this->state |= state;
 }
 
-int proc_set_path(proc_t* this, const char* path) {
+int Proc_SetPath(Proc* this, const char* path) {
     if (sys_isdir(path))
         return (this->path = strdup(path)) ? 0 : 1;
     
     return 1;
 }
 
-void proc_set_env(proc_t* this, const char* env) {
+void Proc_SetEnv(Proc* this, const char* env) {
     if (!this->env) this->env = calloc(sizeof(char*) * 32);
     
     for (s32 i = 0; i < 32; i++) {
@@ -135,7 +135,7 @@ void proc_set_env(proc_t* this, const char* env) {
     }
 }
 
-static s32 proc_sys_thread(proc_t* this) {
+static s32 Proc_SysThd(Proc* this) {
     char* args = strarrcat(this->arg, " ");
     s32 sys = system(args);
     
@@ -144,7 +144,7 @@ static s32 proc_sys_thread(proc_t* this) {
     return sys;
 }
 
-static void proc_err(proc_t* this) {
+static void Proc_Err(Proc* this) {
     char* msg = "Unknown";
     
     _log("ProcError");
@@ -171,21 +171,21 @@ static void proc_err(proc_t* this) {
             break;
     }
     
-    warn("proc_t Error: %s", msg);
+    warn("Proc Error: %s", msg);
     
     for (s32 i = 0; i < this->numArg; i++)
         fprintf(stderr, "" PRNT_GRAY "%-6d" PRNT_RSET "%s\n", i, this->arg[i]);
     
     if (this->env) {
-        warn("proc_t Env:");
+        warn("Proc Env:");
         for (s32 i = 0; this->env[i] != NULL; i++)
             fprintf(stderr, "" PRNT_GRAY "%-6d" PRNT_RSET "%s\n", i, this->env[i]);
     }
     
-    warn("proc_t Path:\n      %s", this->path ? this->path : sys_workdir());
+    warn("Proc Path:\n      %s", this->path ? this->path : sys_workdir());
     
     #define fprint_proc_enum(enum) fprintf(stderr, "" PRNT_GRAY "%-20s" PRNT_RSET "%s\n", #enum, this->state & enum ? "" PRNT_BLUE "true" : "" PRNT_REDD "false");
-    warn("proc_t State:");
+    warn("Proc State:");
     fprint_proc_enum(PROC_MUTE_STDOUT);
     fprint_proc_enum(PROC_MUTE_STDERR);
     fprint_proc_enum(PROC_MUTE_STDIN);
@@ -193,7 +193,7 @@ static void proc_err(proc_t* this) {
     fprint_proc_enum(PROC_THROW_ERROR);
     fprint_proc_enum(PROC_SYSTEM_EXE);
     
-    warn("proc_t Signal: %d\n\n", this->signal);
+    warn("Proc Signal: %d\n\n", this->signal);
     if (this->msg)
         errr("%s", this->msg);
     
@@ -203,7 +203,7 @@ static void proc_err(proc_t* this) {
     thd_unlock();
 }
 
-int proc_exec(proc_t* this) {
+int Proc_Exec(Proc* this) {
     bool exec;
     reproc_options opt = {
         .redirect.out.type = this->state & PROC_MUTE_STDOUT ? REPROC_REDIRECT_PIPE : REPROC_REDIRECT_PARENT,
@@ -217,7 +217,7 @@ int proc_exec(proc_t* this) {
     this->localStatus = PROC_EXEC;
     
     if (this->state & PROC_SYSTEM_EXE) {
-        thd_create(&this->thd, proc_sys_thread, this);
+        thd_create(&this->thd, Proc_SysThd, this);
         
         return 0;
     }
@@ -225,13 +225,13 @@ int proc_exec(proc_t* this) {
     exec = reproc_start(this->proc, this->arg, opt) < 0;
     
     if (exec && this->state & PROC_THROW_ERROR)
-        proc_err(this);
+        Proc_Err(this);
     
     return exec;
 }
 
-char* proc_read(proc_t* this, proc_read_target_t target) {
-    memfile_t mem = memfile_new();
+char* Proc_Read(Proc* this, e_ProcRead target) {
+    Memfile mem = Memfile_New();
     REPROC_STREAM s = -1;
     
     if (target == READ_STDOUT && this->state & PROC_MUTE_STDOUT)
@@ -240,7 +240,7 @@ char* proc_read(proc_t* this, proc_read_target_t target) {
         s = REPROC_STREAM_ERR;
     else if (this->state & PROC_THROW_ERROR) {
         warn("Could not read [%s] because it hasn't been muted!", target == READ_STDOUT ? "stdout" : "stderr");
-        proc_err(this);
+        Proc_Err(this);
     } else
         return NULL;
     
@@ -253,23 +253,23 @@ char* proc_read(proc_t* this, proc_read_target_t target) {
         if (readSize == 0)
             continue;
         if (mem.data == NULL)
-            memfile_alloc(&mem, 4096);
+            Memfile_Alloc(&mem, 4096);
         
-        if (!memfile_write(&mem, buffer, readSize)) {
+        if (!Memfile_Write(&mem, buffer, readSize)) {
             warn("Failed to write buffer!");
-            proc_err(this);
+            Proc_Err(this);
         }
     }
     
     if (mem.data)
-        memfile_write(&mem, "\0", 1);
+        Memfile_Write(&mem, "\0", 1);
     
     this->msg = mem.data;
     
     return mem.data;
 }
 
-static int proc_free(proc_t* this) {
+static int Proc_Free(Proc* this) {
     int signal = 0;
     
     if (this->state & PROC_SYSTEM_EXE)
@@ -281,7 +281,7 @@ static int proc_free(proc_t* this) {
     }
     
     if (signal && this->state & PROC_THROW_ERROR)
-        proc_err(this);
+        Proc_Err(this);
     
     this->localStatus = PROC_FREE;
     _log("free");
@@ -303,33 +303,33 @@ static int proc_free(proc_t* this) {
     return signal;
 }
 
-int proc_kill(proc_t* this) {
+int Proc_Kill(Proc* this) {
     this->localStatus = PROC_KILL;
     
     if (this->state & PROC_SYSTEM_EXE) {
         this->signal = 1;
         int pthread_kill(pthread_t t, int sig);
         if (!pthread_kill(this->thd, 1))
-            return proc_free(this);
+            return Proc_Free(this);
         
         return 1;
     }
     reproc_terminate(this->proc);
     reproc_kill(this->proc);
     
-    return proc_free(this);
+    return Proc_Free(this);
     
 }
 
-int proc_join(proc_t* this) {
+int Proc_Join(Proc* this) {
     if (!this) return 0;
     this->localStatus = PROC_JOIN;
     
     if (this->state & PROC_SYSTEM_EXE) {
         pthread_join(this->thd, (void*)&this->signal);
         
-        return proc_free(this);
+        return Proc_Free(this);
     }
     
-    return proc_free(this);
+    return Proc_Free(this);
 }

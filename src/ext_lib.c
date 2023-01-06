@@ -43,7 +43,7 @@ static freelist_node_t* s_freelist_dest;
 static freelist_node_t* s_freelist_temp;
 static mutex_t s_freelist_mutex;
 
-void* dfree(const void* ptr) {
+void* qxf(const void* ptr) {
     pthread_mutex_lock(&s_freelist_mutex); {
         freelist_node_t* node;
         
@@ -56,7 +56,7 @@ void* dfree(const void* ptr) {
     return (void*)ptr;
 }
 
-void* freelist_que(void* ptr) {
+void* FreeList_Que(void* ptr) {
     freelist_node_t* n = new(freelist_node_t);
     
     thd_lock();
@@ -67,7 +67,7 @@ void* freelist_que(void* ptr) {
     return ptr;
 }
 
-void* freelist_quecall(void* callback, void* ptr) {
+void* FreeList_QueCall(void* callback, void* ptr) {
     freelist_node_t* n = new(freelist_node_t);
     
     thd_lock();
@@ -79,7 +79,7 @@ void* freelist_quecall(void* callback, void* ptr) {
     return ptr;
 }
 
-void freelist_free(void) {
+void FreeList_Free(void) {
     while (s_freelist_temp) {
         if (s_freelist_temp->dest)
             s_freelist_temp->dest(s_freelist_temp->ptr);
@@ -102,7 +102,7 @@ const_func extlib_init(void) {
     
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
-    print_win32_fix();
+    IO_FixWin32();
 #endif
 }
 
@@ -325,44 +325,44 @@ static void Sha_Compression(u32* Hash, u32* W) {
     Hash[7] += TmpHash[h];
 }
 
-static hash_t Sha_ExtractDigest(u32* Hash) {
-    hash_t Digest;
+static Hash Sha_ExtractDigest(u32* hash) {
+    Hash Digest;
     
     for (u32 i = 0; i < 32; i += 4) {
-        Digest.hash[i] = (u8)((Hash[i / 4] >> 24) & 0x000000FF);
-        Digest.hash[i + 1] = (u8)((Hash[i / 4] >> 16) & 0x000000FF);
-        Digest.hash[i + 2] = (u8)((Hash[i / 4] >> 8) & 0x000000FF);
-        Digest.hash[i + 3] = (u8)(Hash[i / 4] & 0x000000FF);
+        Digest.hash[i] = (u8)((hash[i / 4] >> 24) & 0x000000FF);
+        Digest.hash[i + 1] = (u8)((hash[i / 4] >> 16) & 0x000000FF);
+        Digest.hash[i + 2] = (u8)((hash[i / 4] >> 8) & 0x000000FF);
+        Digest.hash[i + 3] = (u8)(hash[i / 4] & 0x000000FF);
     }
     
     return Digest;
 }
 
-hash_t hash_get(const void* data, size_t size) {
+Hash HashMem(const void* data, size_t size) {
     u32 W[64];
-    u32 Hash[8] = {
+    u32 hash[8] = {
         0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
         0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
     };
     u64 RemainingDataSizeByte = size;
-    hash_t dst;
+    Hash dst;
     u8* d = (u8*)data;
     
     while (Sha_CreateCompleteScheduleArray(d, size, &RemainingDataSizeByte, W) == 1) {
         Sha_CompleteScheduleArray(W);
-        Sha_Compression(Hash, W);
+        Sha_Compression(hash, W);
     }
     Sha_CompleteScheduleArray(W);
-    Sha_Compression(Hash, W);
+    Sha_Compression(hash, W);
     
-    dst = Sha_ExtractDigest(Hash);
+    dst = Sha_ExtractDigest(hash);
     dst.data = d;
     dst.size = size;
     
     return dst;
 }
 
-bool hash_cmp(hash_t* a, hash_t* b) {
+bool HashCmp(Hash* a, Hash* b) {
     return !memcmp(a->hash, b->hash, sizeof(a->hash));
 }
 
@@ -370,24 +370,24 @@ bool hash_cmp(hash_t* a, hash_t* b) {
 
 static u8** sSegment;
 
-void SegmentSet(const u8 id, void* segment) {
+void SegmentSet(u8 id, void* segment) {
     _log("%-4d%08X", id, segment);
     if (!sSegment) {
-        sSegment = dfree(new(char*[255]));
+        sSegment = qxf(new(char*[255]));
         _assert(sSegment);
     }
     
     sSegment[id] = segment;
 }
 
-void* SegmentedToVirtual(const u8 id, void32 ptr) {
+void* SegmentToVirtual(u8 id, u32 ptr) {
     if (sSegment[id] == NULL)
         errr("Segment 0x%X == NULL", id);
     
     return &sSegment[id][ptr];
 }
 
-void32 VirtualToSegmented(const u8 id, void* ptr) {
+u32 VirtualToSegment(u8 id, void* ptr) {
     return (uaddr_t)ptr - (uaddr_t)sSegment[id];
 }
 
@@ -563,31 +563,25 @@ static char* __impl_pathslot(char* (*fstrndup)(const char*, size_t), const char*
     return r;
 }
 
-static int __impl_xname(const char* s) {
-    int la = strrchr(s, '/') - s;
-    int lb = strrchr(s, '\\') - s;
-    
-    return max(la, lb);
-}
-
-static char* __impl_basename(void* (*falloc)(size_t), const char* s) {
+static inline const char* __impl_basename_last_slash(const char* s) {
     char* la = strrchr(s, '/');
     char* lb = strrchr(s, '\\');
     char* ls = (char*)max((uaddr_t)la, (uaddr_t)lb);
     
     if (!ls++)
         ls = (char*)s;
+    
+    return ls;
+}
+
+static char* __impl_basename(void* (*falloc)(size_t), const char* s) {
+    const char* ls = __impl_basename_last_slash(s);
     
     return __impl_strndup(falloc, ls, strcspn(ls, "."));
 }
 
 static char* __impl_filename(void* (*falloc)(size_t), const char* s) {
-    char* la = strrchr(s, '/');
-    char* lb = strrchr(s, '\\');
-    char* ls = (char*)max((uaddr_t)la, (uaddr_t)lb);
-    
-    if (!ls++)
-        ls = (char*)s;
+    const char* ls = __impl_basename_last_slash(s);
     
     return __impl_strdup(falloc, ls);
 }
@@ -997,7 +991,7 @@ static f32 hue2rgb(f32 p, f32 q, f32 t) {
     return p;
 }
 
-hsl_t color_hsl(u8 r, u8 g, u8 b) {
+hsl_t Color_hsl(u8 r, u8 g, u8 b) {
     hsl_t hsl;
     hsl_t* dest = &hsl;
     f32 cmax, cmin, d;
@@ -1029,7 +1023,7 @@ hsl_t color_hsl(u8 r, u8 g, u8 b) {
     return hsl;
 }
 
-rgb8_t color_rgb8(f32 h, f32 s, f32 l) {
+rgb8_t Color_rgb8(f32 h, f32 s, f32 l) {
     rgb8_t rgb = { };
     
     if (s == 0) {
@@ -1045,21 +1039,21 @@ rgb8_t color_rgb8(f32 h, f32 s, f32 l) {
     return rgb;
 }
 
-rgba8_t color_rgba8(f32 h, f32 s, f32 l) {
+rgba8_t Color_rgba8(f32 h, f32 s, f32 l) {
     rgba8_t rgb = { .a = 0xFF };
     rgb8_t* d = (void*)&rgb;
     
-    *d = color_rgb8(h, s, l);
+    *d = Color_rgb8(h, s, l);
     
     return rgb;
 }
 
-void color_cnvtohsl(hsl_t* dest, rgb8_t* src) {
-    *dest = color_hsl(unfold_rgb(*src));
+void Color_Convert2hsl(hsl_t* dest, rgb8_t* src) {
+    *dest = Color_hsl(unfold_rgb(*src));
 }
 
-void color_cnvtorgb(rgb8_t* dest, hsl_t* src) {
-    rgba8_t c = color_rgba8(src->h, src->s, src->l);
+void Color_Convert2rgb(rgb8_t* dest, hsl_t* src) {
+    rgba8_t c = Color_rgba8(src->h, src->s, src->l);
     
     dest->r = c.r;
     dest->g = c.g;
@@ -1078,7 +1072,7 @@ static const char* sNoteName[12] = {
     "B",
 };
 
-int Music_NoteIndex(const char* note) {
+int Note_Index(const char* note) {
     int id = 0;
     u32 octave;
     
@@ -1102,7 +1096,7 @@ int Music_NoteIndex(const char* note) {
     return id + octave;
 }
 
-const char* Music_NoteWord(int note) {
+const char* Note_Name(int note) {
     f32 octave = (f32)note / 12;
     
     note %= 12;
@@ -1247,7 +1241,7 @@ char* stristr(const char* haystack, const char* needle) {
         else if (b == NULL)
             p = a;
         else
-            p = min(a, b);
+            p = Min(a, b);
         
         if (p) {
             if (0 == strnicmp(p, needle, needlelen))
@@ -1440,7 +1434,7 @@ static int __impl_strnocc(const char* s, int n, const char* accept) {
 }
 
 int strnocc(const char* s, size_t n, const char* accept) {
-    return __impl_strnocc(s, max(n, 0), accept);
+    return __impl_strnocc(s, Max(n, 0), accept);
 }
 
 int strocc(const char* s, const char* accept) {
@@ -1972,9 +1966,9 @@ time_t sys_stat(const char* item) {
     }
     
     // No access time
-    // t = max(st.st_atime, t);
-    t = max(st.st_mtime, t);
-    t = max(st.st_ctime, t);
+    // t = Max(st.st_atime, t);
+    t = Max(st.st_mtime, t);
+    t = Max(st.st_ctime, t);
     
     if (f) free(item);
     
@@ -2128,7 +2122,7 @@ const char* sys_appdir(void) {
     static char* appdir;
     
     if (!appdir) {
-        appdir = dfree(strndup(x_path(sys_app()), 512));
+        appdir = qxf(strndup(x_path(sys_app()), 512));
         strrep(appdir, "\\", "/");
         
         if (!strend(appdir, "/"))
@@ -2200,9 +2194,9 @@ int sys_touch(const char* file) {
 
 int sys_cp(const char* src, const char* dest) {
     if (sys_isdir(src)) {
-        list_t list = list_new();
+        List list = List_New();
         
-        list_walk(&list, src, -1, LIST_FILES);
+        List_Walk(&list, src, -1, LIST_FILES);
         
         forlist(i, list) {
             char* dfile = x_fmt(
@@ -2219,17 +2213,17 @@ int sys_cp(const char* src, const char* dest) {
                 return 1;
         }
         
-        list_free(&list);
+        List_Free(&list);
     } else {
-        memfile_t a = memfile_new();
+        Memfile a = Memfile_New();
         
         a.param.throwError = false;
         
-        if (memfile_load_bin(&a, src))
+        if (Memfile_LoadBin(&a, src))
             return -1;
-        if (memfile_save_bin(&a, dest))
+        if (Memfile_SaveBin(&a, dest))
             return 1;
-        memfile_free(&a);
+        Memfile_Free(&a);
     }
     
     return 0;
@@ -2417,13 +2411,13 @@ char* sys_exes(const char* cmd) {
         return NULL;
     }
     
-    sExeBuffer = alloc(mb_to_bin(4));
+    sExeBuffer = alloc(MbToBin(4));
     _assert(sExeBuffer != NULL);
     sExeBuffer[0] = '\0';
     
     while (fgets(result, 1024, file)) {
         size += strlen(result);
-        _assert (size < mb_to_bin(4));
+        _assert (size < MbToBin(4));
         strcat(sExeBuffer, result);
     }
     
@@ -2484,13 +2478,13 @@ char* fs_item(const char* str, ...) {
 char* fs_find(const char* str) {
     char* file = NULL;
     time_t stat = 0;
-    list_t list = list_new();
+    List list = List_New();
     
     if (*str == '*') str++;
     
     _log("Find: [%s] in [%s]", str, sFileSys.path);
     
-    list_walk(&list, sFileSys.path, 0, LIST_FILES | LIST_NO_DOT);
+    List_Walk(&list, sFileSys.path, 0, LIST_FILES | LIST_NO_DOT);
     
     for (int i = 0; i < list.num; i++) {
         if (striend(list.item[i], str)) {
@@ -2508,7 +2502,7 @@ char* fs_find(const char* str) {
         _log("Found: %s", file);
     }
     
-    list_free(&list);
+    List_Free(&list);
     
     return file;
 }
@@ -2646,7 +2640,7 @@ void cli_getPos(int* r) {
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-int qsort_method_numhex(const void* ptrA, const void* ptrB) {
+int qsort_numhex(const void* ptrA, const void* ptrB) {
     const char* a = *((char**)ptrA);
     const char* b = *((char**)ptrB);
     
@@ -2664,7 +2658,7 @@ int qsort_method_numhex(const void* ptrA, const void* ptrB) {
         else if (remainderB - b != remainderA - a)
             return (remainderB - b) - (remainderA - a);
         else
-            return qsort_method_numhex(&remainderA, &remainderB);
+            return qsort_numhex(&remainderA, &remainderB);
     }
     if (!memcmp(a, "0x", 2) || !memcmp(b, "0x", 2)) {
         return *a - *b;
@@ -2680,14 +2674,14 @@ int qsort_method_numhex(const void* ptrA, const void* ptrB) {
         else if (remainderB - b != remainderA - a)
             return (remainderB - b) - (remainderA - a);
         else
-            return qsort_method_numhex(&remainderA, &remainderB);
+            return qsort_numhex(&remainderA, &remainderB);
     }
     if (isdigit(*a) || isdigit(*b)) {
         return *a - *b;
     }
     while (*a && *b) {
         if (isdigit(*a) || isdigit(*b))
-            return qsort_method_numhex(&a, &b);
+            return qsort_numhex(&a, &b);
         if (tolower(*a) != tolower(*b))
             return tolower(*a) - tolower(*b);
         a++;

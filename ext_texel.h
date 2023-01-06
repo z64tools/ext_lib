@@ -13,13 +13,13 @@ typedef struct {
     struct {
         bool throwError : 1;
     };
-} texel_t;
+} Image;
 
-texel_t texel_new(void);
-void texel_load(texel_t* this, const char* file);
-void texel_save(texel_t* this, const char* file);
-void texel_loadmem(texel_t* this, const void* data, size_t size);
-void texel_alloc(texel_t* this, int x, int y, int channels);
-void texel_free(texel_t* this);
+Image Image_New(void);
+void Image_Load(Image* this, const char* file);
+void Image_Save(Image* this, const char* file);
+void Image_LoadMem(Image* this, const void* data, size_t size);
+void Image_Alloc(Image* this, int x, int y, int channels);
+void Image_Free(Image* this);
 
 #endif

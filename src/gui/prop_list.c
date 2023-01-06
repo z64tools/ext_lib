@@ -56,7 +56,7 @@ PropList PropList_InitList(s32 def, s32 num, ...) {
     
     va_start(va, num);
     
-    for (var_t i = 0; i < num; i++)
+    for (var i = 0; i < num; i++)
         PropList_Add(&prop, va_arg(va, char*));
     
     va_end(va);
@@ -87,7 +87,7 @@ void PropList_Insert(PropList* this, const char* item, s32 slot) {
     
     this->list = realloc(this->list, sizeof(char*) * (this->num + 1));
     this->list[this->num++] = strdup(item);
-    arrmve_r(this->list, slot, this->num - slot);
+    arrmove_r(this->list, slot, this->num - slot);
 }
 
 void PropList_Remove(PropList* this, s32 slot) {
@@ -95,7 +95,7 @@ void PropList_Remove(PropList* this, s32 slot) {
         return;
     
     free(this->list[slot]);
-    arrmve_l(this->list, slot, this->num - slot);
+    arrmove_l(this->list, slot, this->num - slot);
     this->num--;
 }
 
@@ -120,14 +120,14 @@ void PropList_Retach(PropList* this, s32 slot) {
     }
     
     if (this->copy) {
-        var_t in = 0;
+        var in = 0;
         const char* name;
         
         while (true) {
-            var_t found = false;
+            var found = false;
             name = x_fmt("%s.%03d", this->detach, in++);
             
-            for (var_t i = 0; i < this->num; i++) {
+            for (var i = 0; i < this->num; i++) {
                 if (!strcmp(this->list[i], name))
                     found = true;
             }
@@ -149,15 +149,15 @@ void PropList_Retach(PropList* this, s32 slot) {
     f[this->key] = true;
     
     info_hex("Pre", f, sizeof(u8[this->num]), 0);
-    arrmve_l(f, this->detachKey, this->num - this->detachKey);
-    arrmve_r(f, slot, this->num - slot);
+    arrmove_l(f, this->detachKey, this->num - this->detachKey);
+    arrmove_r(f, slot, this->num - slot);
     info_hex("Post", f, sizeof(u8[this->num]), 0);
     
-    arrmve_l(this->list, this->detachKey, this->num - this->detachKey);
-    arrmve_r(this->list, slot, this->num - slot);
+    arrmove_l(this->list, this->detachKey, this->num - this->detachKey);
+    arrmove_r(this->list, slot, this->num - slot);
     this->detach = NULL;
     
-    for (var_t i = 0; i < this->num; i++) {
+    for (var i = 0; i < this->num; i++) {
         if (f[i] == true) {
             PropList_Set(this, i);
             break;
@@ -177,7 +177,7 @@ void PropList_DestroyDetach(PropList* this) {
             return;
         
         this->list[this->detachKey] = NULL;
-        arrmve_l(this->list, this->detachKey, this->num - this->detachKey);
+        arrmove_l(this->list, this->detachKey, this->num - this->detachKey);
         this->num--;
         free(this->detach);
         
@@ -187,7 +187,7 @@ void PropList_DestroyDetach(PropList* this) {
 }
 
 void PropList_Free(PropList* this) {
-    for (var_t i = 0; i < this->num; i++)
+    for (var i = 0; i < this->num; i++)
         free(this->list[i]);
     free(this->list);
     free(this->detach);

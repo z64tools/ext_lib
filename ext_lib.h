@@ -1,6 +1,10 @@
 #ifndef EXT_LIB_H
 #define EXT_LIB_H
 
+#ifndef NDEBUG
+#define NDEBUG
+#endif
+
 #define THIS_EXTLIB_VERSION 220
 
 /**
@@ -52,16 +56,16 @@ void profilogdiv(const char* msg, f32 div);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-void* dfree(const void* ptr);
-void* freelist_que(void* ptr);
-void* freelist_quecall(void* callback, void* ptr);
-void freelist_free(void);
+void* qxf(const void* ptr);
+void* FreeList_Que(void* ptr);
+void* FreeList_QueCall(void* callback, void* ptr);
+void FreeList_Free(void);
 
 void bswap(void* src, int size);
 void* alloc(int size);
 
-hash_t hash_get(const void* data, size_t size);
-bool hash_cmp(hash_t* a, hash_t* b);
+Hash HashMem(const void* data, size_t size);
+bool HashCmp(Hash* a, Hash* b);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -84,150 +88,130 @@ void __log__(const char* func, u32 line, const char* txt, ...);
 
 #endif
 
-// __attribute__((deprecated))
-char* Config_Variable(const char* str, const char* name);
-// __attribute__((deprecated))
-char* Config_GetVariable(const char* str, const char* name);
-// __attribute__((deprecated))
-void Config_ProcessIncludes(memfile_t* mem);
-// __attribute__((deprecated))
-s32 Config_GetErrorState(void);
-// __attribute__((deprecated))
-void Config_GetArray(memfile_t* mem, const char* variable, list_t* list);
-// __attribute__((deprecated))
-s32 Config_GetBool(memfile_t* mem, const char* variable);
-// __attribute__((deprecated))
-s32 Config_GetOption(memfile_t* mem, const char* variable, char* strList[]);
-// __attribute__((deprecated))
-s32 Config_GetInt(memfile_t* mem, const char* variable);
-// __attribute__((deprecated))
-char* Config_GetStr(memfile_t* mem, const char* variable);
-// __attribute__((deprecated))
-f32 Config_GetFloat(memfile_t* mem, const char* variable);
-// __attribute__((deprecated))
-void Config_GotoSection(const char* section);
-// __attribute__((deprecated))
-void Config_ListVariables(memfile_t* mem, list_t* list, const char* section);
-// __attribute__((deprecated))
-void Config_ListSections(memfile_t* cfg, list_t* list);
-// __attribute__((deprecated))
-s32 Config_ReplaceVariable(memfile_t* mem, const char* variable, const char* fmt, ...);
-// __attribute__((deprecated))
-void Config_WriteComment(memfile_t* mem, const char* comment);
-// __attribute__((deprecated))
-void Config_WriteArray(memfile_t* mem, const char* variable, list_t* list, bool quote, const char* comment);
-// __attribute__((deprecated))
-void Config_WriteInt(memfile_t* mem, const char* variable, const s64 integer, const char* comment);
-// __attribute__((deprecated))
-void Config_WriteHex(memfile_t* mem, const char* variable, const s64 integer, const char* comment);
-// __attribute__((deprecated))
-void Config_WriteStr(memfile_t* mem, const char* variable, const char* str, bool quote, const char* comment);
-// __attribute__((deprecated))
-void Config_WriteFloat(memfile_t* mem, const char* variable, const f64 flo, const char* comment);
-// __attribute__((deprecated))
-void Config_WriteBool(memfile_t* mem, const char* variable, const s32 val, const char* comment);
-// __attribute__((deprecated))
-void Config_WriteSection(memfile_t* mem, const char* variable, const char* comment);
-#define Config_Print(mem, ...) memfile_fmt(mem, __VA_ARGS__)
+char* Ini_Var(const char* str, const char* name);
+char* Ini_GetVar(const char* str, const char* name);
+void Ini_ParseIncludes(Memfile* mem);
+s32 Ini_GetError(void);
+void Ini_GetArr(Memfile* mem, const char* variable, List* list);
+s32 Ini_GetBool(Memfile* mem, const char* variable);
+s32 Ini_GetOpt(Memfile* mem, const char* variable, char* strList[]);
+s32 Ini_GetInt(Memfile* mem, const char* variable);
+char* Ini_GetStr(Memfile* mem, const char* variable);
+f32 Ini_GetFloat(Memfile* mem, const char* variable);
+void Ini_GotoTab(const char* section);
+void Ini_ListVars(Memfile* mem, List* list, const char* section);
+void Ini_ListTabs(Memfile* cfg, List* list);
+s32 Ini_RepVar(Memfile* mem, const char* variable, const char* fmt, ...);
+void Ini_WriteComment(Memfile* mem, const char* comment);
+void Ini_WriteArr(Memfile* mem, const char* variable, List* list, bool quote, const char* comment);
+void Ini_WriteInt(Memfile* mem, const char* variable, s64 integer, const char* comment);
+void Ini_WriteHex(Memfile* mem, const char* variable, s64 integer, const char* comment);
+void Ini_WriteStr(Memfile* mem, const char* variable, const char* str, bool quote, const char* comment);
+void Ini_WriteFloat(Memfile* mem, const char* variable, f64 flo, const char* comment);
+void Ini_WriteBool(Memfile* mem, const char* variable, s32 val, const char* comment);
+void Ini_WriteTab(Memfile* mem, const char* variable, const char* comment);
+#define Ini_Fmt(mem, ...) Memfile_Fmt(mem, __VA_ARGS__)
 #define NO_COMMENT NULL
 #define QUOTES     1
 #define NO_QUOTES  0
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-char* regex(const char* str, const char* pattern, regx_flag_t flag);
+char* regex(const char* str, const char* pattern, enum RegexFlag flag);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-void print_lvl(io_level_t lvl);
+void IO_SetLevel(enum IOLevel lvl);
+void IO_KillBuf(FILE* output);
+void IO_FixWin32(void);
+
 void info_title(const char* toolname, const char* fmt, ...);
 void warn(const char* fmt, ...);
 void warn_align(const char* info, const char* fmt, ...);
-void io_kill(FILE* output);
 void errr(const char* fmt, ...);
 void errr_align(const char* info, const char* fmt, ...);
 void info(const char* fmt, ...);
 void info_align(const char* info, const char* fmt, ...);
-void infof_prog(const char* info, u32 a, u32 b);
+void info_progff(const char* info, u32 a, u32 b);
 void info_prog(const char* info, u32 a, u32 b);
 void info_getc(const char* txt);
 void info_volatile(const char* fmt, ...);
-void print_win32_fix(void);
 void info_hex(const char* txt, const void* data, u32 size, u32 dispOffset);
 void info_bit(const char* txt, const void* data, u32 size, u32 dispOffset);
 void info_nl(void);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-list_t list_new(void);
-void list_set_filters(list_t* list, u32 filterNum, ...);
-void list_free_filters(list_t* this);
-void list_walk(list_t* this, const char* path, s32 depth, ListFlag flags);
-char* list_concat(list_t* this, const char* separator);
-void list_tokenize2(list_t* list, const char* str, const char separator);
-void list_print(list_t* target);
-time_t list_stat_max(list_t* list);
-time_t list_stat_min(list_t* list);
-s32 list_sort_slot(list_t* this, bool checkOverlaps);
-void list_free_items(list_t* this);
-void list_free(list_t* this);
-void list_alloc(list_t* this, u32 num);
-void list_add(list_t* this, const char* item);
-void list_combine(list_t* out, list_t* a, list_t* b);
-void list_tokenize(list_t* this, const char* s, char r);
-void list_sort(list_t* this);
+List List_New(void);
+void List_SetFilters(List* list, u32 filterNum, ...);
+void List_FreeFilters(List* this);
+void List_Walk(List* this, const char* path, s32 depth, ListFlag flags);
+char* List_Concat(List* this, const char* separator);
+void List_Tokenize2(List* list, const char* str, const char separator);
+void List_Print(List* target);
+time_t List_StatMax(List* list);
+time_t List_StatMin(List* list);
+s32 List_SortSlot(List* this, bool checkOverlaps);
+void List_FreeItems(List* this);
+void List_Free(List* this);
+void List_Alloc(List* this, u32 num);
+void List_Add(List* this, const char* item);
+void List_Combine(List* out, List* a, List* b);
+void List_Tokenize(List* this, const char* s, char r);
+void List_Sort(List* this);
 
 #ifndef __clang__
-#define list_set_filters(list, ...) list_set_filters(list, NARGS(__VA_ARGS__), __VA_ARGS__)
+#define List_SetFilters(list, ...) List_SetFilters(list, NARGS(__VA_ARGS__), __VA_ARGS__)
 #endif
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-toml_t toml_new();
-void toml_set_var(toml_t* this, const char* item, const char* fmt, ...);
-void toml_set_tbl(toml_t* this, const char* item, ...);
-bool toml_rm_var(toml_t* this, const char* fmt, ...);
-bool toml_rm_arr(toml_t* this, const char* fmt, ...);
-bool toml_rm_tbl(toml_t* this, const char* fmt, ...);
-void toml_load(toml_t* this, const char* file);
-void toml_free(toml_t* this);
-void toml_print(toml_t* this, void* d, void (*PRINT)(void*, const char*, ...));
-void toml_write_mem(toml_t* this, memfile_t* mem);
-void toml_save(toml_t* this, const char* file);
-int toml_get_int(toml_t* this, const char* item, ...);
-f32 toml_get_float(toml_t* this, const char* item, ...);
-bool toml_get_bool(toml_t* this, const char* item, ...);
-char* toml_get_str(toml_t* this, const char* item, ...);
-char* toml_get_var(toml_t* this, const char* item, ...);
-int toml_arr_item_num(toml_t* this, const char* arr, ...);
-int toml_tbl_item_num(toml_t* this, const char* item, ...);
+Toml Toml_New();
+void Toml_SetVar(Toml* this, const char* item, const char* fmt, ...);
+void Toml_SetTab(Toml* this, const char* item, ...);
+bool Toml_RmVar(Toml* this, const char* fmt, ...);
+bool Toml_RmArr(Toml* this, const char* fmt, ...);
+bool Toml_RmTab(Toml* this, const char* fmt, ...);
+void Toml_Load(Toml* this, const char* file);
+void Toml_Free(Toml* this);
+void Toml_Print(Toml* this, void* d, void (*PRINT)(void*, const char*, ...));
+void Toml_SaveMem(Toml* this, Memfile* mem);
+void Toml_Save(Toml* this, const char* file);
+int Toml_GetInt(Toml* this, const char* item, ...);
+f32 Toml_GetFloat(Toml* this, const char* item, ...);
+bool Toml_GetBool(Toml* this, const char* item, ...);
+char* Toml_GetStr(Toml* this, const char* item, ...);
+
+char* Toml_Var(Toml* this, const char* item, ...);
+int Toml_ArrItemNum(Toml* this, const char* arr, ...);
+int Toml_TabItemNum(Toml* this, const char* item, ...);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-memfile_t memfile_new();
-void memfile_set(memfile_t* this, ...);
-void memfile_alloc(memfile_t* this, size_t size);
-void memfile_realloc(memfile_t* this, size_t size);
-void memfile_rewind(memfile_t* this);
-int memfile_write(memfile_t* this, const void* src, size_t size);
-int memfile_append_file(memfile_t* this, const char* source);
-int memfile_insert(memfile_t* this, const void* src, size_t size);
-int memfile_append(memfile_t* this, memfile_t* src);
-void memfile_align(memfile_t* this, size_t align);
-int memfile_fmt(memfile_t* this, const char* fmt, ...);
-int memfile_read(memfile_t* this, void* dest, size_t size);
-void* memfile_seek(memfile_t* this, size_t seek);
-void memfile_load_mem(memfile_t* this, void* data, size_t size);
-int memfile_load_bin(memfile_t* this, const char* filepath);
-int memfile_load_str(memfile_t* this, const char* filepath);
-int memfile_save_bin(memfile_t* this, const char* filepath);
-int memfile_save_str(memfile_t* this, const char* filepath);
-void memfile_free(memfile_t* this);
-void memfile_null(memfile_t* this);
-void memfile_clear(memfile_t* this);
+Memfile Memfile_New();
+void Memfile_Set(Memfile* this, ...);
+void Memfile_Alloc(Memfile* this, size_t size);
+void Memfile_Realloc(Memfile* this, size_t size);
+void Memfile_Rewind(Memfile* this);
+int Memfile_Write(Memfile* this, const void* src, size_t size);
+int Memfile_WriteFile(Memfile* this, const char* source);
+int Memfile_Insert(Memfile* this, const void* src, size_t size);
+int Memfile_Append(Memfile* this, Memfile* src);
+void Memfile_Align(Memfile* this, size_t align);
+int Memfile_Fmt(Memfile* this, const char* fmt, ...);
+int Memfile_Read(Memfile* this, void* dest, size_t size);
+void* Memfile_Seek(Memfile* this, size_t seek);
+void Memfile_LoadMem(Memfile* this, void* data, size_t size);
+int Memfile_LoadBin(Memfile* this, const char* filepath);
+int Memfile_LoadStr(Memfile* this, const char* filepath);
+int Memfile_SaveBin(Memfile* this, const char* filepath);
+int Memfile_SaveStr(Memfile* this, const char* filepath);
+void Memfile_Free(Memfile* this);
+void Memfile_Null(Memfile* this);
+void Memfile_Clear(Memfile* this);
 
 #ifndef __clang__
-#define memfile_set(this, ...) memfile_set(this, __VA_ARGS__, MEM_END)
+#define Memfile_Set(this, ...) Memfile_Set(this, __VA_ARGS__, MEM_END)
 #endif
 
 #define MEMFILE_SEEK_END 0xDEFEBABE
@@ -236,17 +220,17 @@ void memfile_clear(memfile_t* this);
 
 extern vbool gThreadMode;
 extern mutex_t gThreadMutex;
-extern const char* gThdPool_ProgressMessage;
-void* threadpool_add(void* function, void* arg);
-void threadpool_exec(u32 max);
-void threadpool_set_id(void* __this, int id);
-void threadpool_set_dep(void* __this, int id);
+extern const char* gParallel_ProgMsg;
+void* Parallel_Add(void* function, void* arg);
+void Parallel_Exec(u32 max);
+void Parallel_SetID(void* __this, int id);
+void Parallel_SetDepID(void* __this, int id);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 void SegmentSet(const u8 id, void* segment);
-void* SegmentedToVirtual(const u8 id, void32 ptr);
-void32 VirtualToSegmented(const u8 id, void* ptr);
+void* SegmentToVirtual(const u8 id, u32 ptr);
+u32 VirtualToSegment(const u8 id, void* ptr);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -324,14 +308,14 @@ int valdig(int val, int digid);
 int dighex(int i);
 int valhex(int val, int digid);
 
-hsl_t color_hsl(u8 r, u8 g, u8 b);
-rgb8_t color_rgb8(f32 h, f32 s, f32 l);
-rgba8_t color_rgba8(f32 h, f32 s, f32 l);
-void color_cnvtohsl(hsl_t* dest, rgb8_t* src);
-void color_cnvtorgb(rgb8_t* dest, hsl_t* src);
+hsl_t Color_hsl(u8 r, u8 g, u8 b);
+rgb8_t Color_rgb8(f32 h, f32 s, f32 l);
+rgba8_t Color_rgba8(f32 h, f32 s, f32 l);
+void Color_Convert2hsl(hsl_t* dest, rgb8_t* src);
+void Color_Convert2rgb(rgb8_t* dest, hsl_t* src);
 
-int Music_NoteIndex(const char* note);
-const char* Music_NoteWord(int note);
+int Note_Index(const char* note);
+const char* Note_Name(int note);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -444,7 +428,7 @@ void cli_getPos(int* r);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-int qsort_method_numhex(const void* ptrA, const void* ptrB);
+int qsort_numhex(const void* ptrA, const void* ptrB);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 

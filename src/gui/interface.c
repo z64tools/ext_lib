@@ -250,21 +250,21 @@ static FileDialogConfig FileDialog_LoadConfig(const char* title) {
     config.disp_split = true;
     
     if (sys_stat(fs_item("file_dialog.toml"))) {
-        toml_t toml = {};
+        Toml toml = {};
         
-        toml_load(&toml, fs_item("file_dialog.toml"));
+        Toml_Load(&toml, fs_item("file_dialog.toml"));
         
-        config.scale.x = toml_get_int(&toml, "scale[0]");
-        config.scale.y = toml_get_int(&toml, "scale[1]");
-        config.split = toml_get_int(&toml, "split");
+        config.scale.x = Toml_GetInt(&toml, "scale[0]");
+        config.scale.y = Toml_GetInt(&toml, "scale[1]");
+        config.split = Toml_GetInt(&toml, "split");
         
-        if (toml_get_var(&toml, "%s.disp_split", x_canitize(title)))
-            config.disp_split = toml_get_bool(&toml, "%s.disp_split", x_canitize(title));
+        if (Toml_Var(&toml, "%s.disp_split", x_canitize(title)))
+            config.disp_split = Toml_GetBool(&toml, "%s.disp_split", x_canitize(title));
         
-        if (toml_get_var(&toml, "%s.path", x_canitize(title)))
-            strncpy(config.path, toml_get_str(&toml, "%s.path", x_canitize(title)), FILE_DIALOG_BUF);
+        if (Toml_Var(&toml, "%s.path", x_canitize(title)))
+            strncpy(config.path, Toml_GetStr(&toml, "%s.path", x_canitize(title)), FILE_DIALOG_BUF);
         
-        toml_free(&toml);
+        Toml_Free(&toml);
     } else {
         config.scale.x = 1920 / 2.0f;
         config.scale.y = 1080 / 2.0f;
@@ -275,23 +275,23 @@ static FileDialogConfig FileDialog_LoadConfig(const char* title) {
 }
 
 static void FileDialog_SaveConfig(FileDialog* this) {
-    toml_t toml = {};
+    Toml toml = {};
     
     fs_set("%s", sys_appdata());
     
     if (!sys_stat(fs_item("file_dialog.toml")))
-        toml = toml_new();
+        toml = Toml_New();
     else
-        toml_load(&toml, fs_item("file_dialog.toml"));
+        Toml_Load(&toml, fs_item("file_dialog.toml"));
     
-    toml_set_var(&toml, "scale[0]", "%d", this->window.app.wdim.x);
-    toml_set_var(&toml, "scale[1]", "%d", this->window.app.wdim.y);
-    toml_set_var(&toml, "split", "%d", this->split);
-    toml_set_var(&toml, x_fmt("%s.disp_split", x_canitize(this->window.app.title)), "%s", this->settings.dispSplit ? "true" : "false");
-    toml_set_var(&toml, x_fmt("%s.path", x_canitize(this->window.app.title)), "\"%s\"", this->path);
+    Toml_SetVar(&toml, "scale[0]", "%d", this->window.app.wdim.x);
+    Toml_SetVar(&toml, "scale[1]", "%d", this->window.app.wdim.y);
+    Toml_SetVar(&toml, "split", "%d", this->split);
+    Toml_SetVar(&toml, x_fmt("%s.disp_split", x_canitize(this->window.app.title)), "%s", this->settings.dispSplit ? "true" : "false");
+    Toml_SetVar(&toml, x_fmt("%s.path", x_canitize(this->window.app.title)), "\"%s\"", this->path);
     
-    toml_save(&toml, fs_item("file_dialog.toml"));
-    toml_free(&toml);
+    Toml_Save(&toml, fs_item("file_dialog.toml"));
+    Toml_Free(&toml);
 }
 
 static s32 FileDialog_PathRead(FileDialog* this, const char* travel) {
@@ -315,16 +315,16 @@ static s32 FileDialog_PathRead(FileDialog* this, const char* travel) {
             strcat(this->path, "/");
     }
     
-    list_free_items(&this->files);
-    list_free_items(&this->folders);
+    List_FreeItems(&this->files);
+    List_FreeItems(&this->folders);
     
     this->scroll = 0;
     this->selected = -1;
     
-    list_walk(&this->folders, this->path, 0, LIST_FOLDERS | LIST_RELATIVE);
-    list_walk(&this->files, this->path, 0, LIST_FILES | LIST_RELATIVE);
-    list_sort(&this->folders);
-    list_sort(&this->files);
+    List_Walk(&this->folders, this->path, 0, LIST_FOLDERS | LIST_RELATIVE);
+    List_Walk(&this->files, this->path, 0, LIST_FILES | LIST_RELATIVE);
+    List_Sort(&this->folders);
+    List_Sort(&this->files);
     
     forlist(i, this->folders) {
         strrep(this->folders.item[i], "\\", "");
@@ -350,9 +350,9 @@ static void FileDialog_PathAppend(FileDialog* this, const char* dst) {
         strcpy(path, this->path);
         
         if (!strcmp(dst, "..")) {
-            var_t slash = 0;
+            var slash = 0;
             
-            for (var_t c = strnlen(path, FILE_DIALOG_BUF); c >= strlen("X:"); c--) {
+            for (var c = strnlen(path, FILE_DIALOG_BUF); c >= strlen("X:"); c--) {
                 if (path[c] == '/') {
                     slash++;
                     
@@ -440,7 +440,7 @@ static s32 FileDialog_FilePanel_ScrollDraw(FileDialog* this, Rect r) {
 }
 
 static const char* FileDialog_GetSelectedItem(FileDialog* this) {
-    const list_t* list[] = {
+    const List* list[] = {
         &this->folders,
         &this->files
     };
@@ -464,7 +464,7 @@ static const char* FileDialog_GetSelectedItem(FileDialog* this) {
 static void FileDialog_FilePanel(FileDialog* this, Rect r) {
     void* vg = this->window.app.vg;
     Input* input = &this->window.input;
-    const list_t* list[] = {
+    const List* list[] = {
         &this->folders,
         &this->files
     };
@@ -623,8 +623,8 @@ static void FileDialog_HeaderPanel(FileDialog* this, Rect r) {
 
 void FileDialog_Init(FileDialog* this) {
     this->selected = -1;
-    this->files = list_new();
-    this->folders = list_new();
+    this->files = List_New();
+    this->folders = List_New();
     
     GeoGrid_Init(&this->geo, &this->window.app, NULL);
     FileDialog_PathRead(this, NULL);
@@ -736,8 +736,8 @@ s32 FileDialog_Closed(FileDialog* this) {
 void FileDialog_Free(FileDialog* this) {
     FileDialog_SaveConfig(this);
     
-    list_free(&this->files);
-    list_free(&this->folders);
+    List_Free(&this->files);
+    List_Free(&this->folders);
     memset((void*)this->private.key, 0, 64);
 }
 
@@ -759,7 +759,7 @@ void Interface_SetParam(AppInfo* app, u32 num, ...) {
     
     _assert(num % 2 == 0);
     num /= 2;
-    for (var_t i = 0; i < num; i++) {
+    for (var i = 0; i < num; i++) {
         WinParam flag = va_arg(va, s32);
         s32 value = va_arg(va, s32);
         

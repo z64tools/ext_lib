@@ -10,32 +10,32 @@ typedef enum {
     
     PROC_THROW_ERROR = 1 << 30,
     PROC_SYSTEM_EXE  = 1 << 31,
-} proc_state_t;
+} e_ProcState;
 
 typedef struct {
     const char** arg;
     const char** env;
-    u32   numArg;
-    char* msg;
-    char* path;
-    void* proc;
-    proc_state_t state;
-    int      localStatus;
-    int      signal;
-    thread_t thd;
-} proc_t;
+    u32         numArg;
+    char*       msg;
+    char*       path;
+    void*       proc;
+    e_ProcState state;
+    int         localStatus;
+    int         signal;
+    thread_t    thd;
+} Proc;
 
 typedef enum {
     READ_STDOUT,
     READ_STDERR,
-} proc_read_target_t;
+} e_ProcRead;
 
-proc_t* proc_new(char* fmt, ...);
-void proc_add_arg(proc_t* this, char* fmt, ...);
-void proc_set_state(proc_t* this, proc_state_t state);
-int proc_set_path(proc_t* this, const char* path);
-void proc_set_env(proc_t* this, const char* env);
-int proc_exec(proc_t* this);
-char* proc_read(proc_t* this, proc_read_target_t);
-int proc_kill(proc_t* this);
-int proc_join(proc_t* this);
+Proc* Proc_New(char* fmt, ...);
+void Proc_AddArg(Proc* this, char* fmt, ...);
+void Proc_SetState(Proc* this, e_ProcState state);
+int Proc_SetPath(Proc* this, const char* path);
+void Proc_SetEnv(Proc* this, const char* env);
+int Proc_Exec(Proc* this);
+char* Proc_Read(Proc* this, e_ProcRead);
+int Proc_Kill(Proc* this);
+int Proc_Join(Proc* this);

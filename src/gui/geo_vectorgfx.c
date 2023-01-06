@@ -57,16 +57,16 @@ void VectorGfx_InitCommon() {
     };
     
     gAssets.folder = new(VectorGfx);
-    gAssets.folder->num = arrcount(folder);
-    gAssets.folder->pos = dfree(memdup(folder, sizeof(folder)));
+    gAssets.folder->num = ArrCount(folder);
+    gAssets.folder->pos = qxf(memdup(folder, sizeof(folder)));
     
     gAssets.cross = new(VectorGfx);
-    gAssets.cross->num = arrcount(cross);
-    gAssets.cross->pos = dfree(memdup(cross, sizeof(cross)));
+    gAssets.cross->num = ArrCount(cross);
+    gAssets.cross->pos = qxf(memdup(cross, sizeof(cross)));
     
     gAssets.arrowParent = new(VectorGfx);
-    gAssets.arrowParent->num = arrcount(arrowParent);
-    gAssets.arrowParent->pos = dfree(memdup(arrowParent, sizeof(arrowParent)));
+    gAssets.arrowParent->num = ArrCount(arrowParent);
+    gAssets.arrowParent->pos = qxf(memdup(arrowParent, sizeof(arrowParent)));
 }
 
 VectorGfx VectorGfx_New(VectorGfx* this, const void* data, f32 fidelity) {

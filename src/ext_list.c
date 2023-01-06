@@ -2,36 +2,36 @@
 #include <dirent.h>
 
 #undef ItemList_GetWildItem
-#undef list_set_filters
+#undef List_SetFilters
 
-#undef list_walk
-#undef list_tokenize2
-#undef list_free
-#undef list_alloc
-#undef list_add
+#undef List_Walk
+#undef List_Tokenize2
+#undef List_Free
+#undef List_Alloc
+#undef List_Add
 
 // # # # # # # # # # # # # # # # # # # # #
 // # ITEM LIST                           #
 // # # # # # # # # # # # # # # # # # # # #
 
-list_t gList_SortError;
+List gList_SortError;
 
-static void list_validate(list_t* itemList) {
+static void List_Validate(List* itemList) {
     if (itemList->initKey == 0xDEFABEBACECAFAFF)
         return;
     
-    *itemList = list_new();
+    *itemList = List_New();
 }
 
-list_t list_new(void) {
-    return (list_t) { .initKey = 0xDEFABEBACECAFAFF, .p.alnum = 0 };
+List List_New(void) {
+    return (List) { .initKey = 0xDEFABEBACECAFAFF, .p.alnum = 0 };
 }
 
-void list_set_filters(list_t* list, u32 filterNum, ...) {
+void List_SetFilters(List* list, u32 filterNum, ...) {
     va_list va;
     
-    list_validate(list);
-    list_free_filters(list);
+    List_Validate(list);
+    List_FreeFilters(list);
     
     if (filterNum % 2 == 1)
         warn("Odd filterNum! [%d]", --filterNum);
@@ -52,7 +52,7 @@ void list_set_filters(list_t* list, u32 filterNum, ...) {
     va_end(va);
 }
 
-void list_free_filters(list_t* this) {
+void List_FreeFilters(List* this) {
     if (this->initKey == 0xDEFABEBACECAFAFF) {
         while (this->filterNode) {
             free(this->filterNode->txt);
@@ -60,16 +60,16 @@ void list_free_filters(list_t* this) {
             Node_Kill(this->filterNode, this->filterNode);
         }
     } else
-        *this = list_new();
+        *this = List_New();
 }
 
 typedef struct {
-    str_node_t*       node;
-    u32            num;
+    strnode_t* node;
+    u32 num;
     const ListFlag flags;
 } WalkInfo;
 
-static void __list_walk(const list_t* list, const char* base, const char* parent, const s32 level, const s32 max, WalkInfo* info) {
+static void List_WalkPath(const List* list, const char* base, const char* parent, const s32 level, const s32 max, WalkInfo* info) {
     const char* entryPath = parent;
     
     if (info->flags & LIST_RELATIVE)
@@ -83,7 +83,7 @@ static void __list_walk(const list_t* list, const char* base, const char* parent
         const struct dirent* entry;
         
         while ((entry = readdir(dir))) {
-            str_node_t* node;
+            strnode_t* node;
             char path[261];
             bool skip = 0;
             bool filterContainUse = false;
@@ -148,10 +148,10 @@ static void __list_walk(const list_t* list, const char* base, const char* parent
                 strncat(path, "/", 261);
                 
                 if (max == -1 || level < max)
-                    __list_walk(list, base, path, level + 1, max, info);
+                    List_WalkPath(list, base, path, level + 1, max, info);
                 
                 if ((info->flags & 0xF) == LIST_FOLDERS) {
-                    node = new(str_node_t);
+                    node = new(strnode_t);
                     node->txt = fmt("%s%s/", entryPath, entry->d_name);
                     info->num++;
                     
@@ -160,7 +160,7 @@ static void __list_walk(const list_t* list, const char* base, const char* parent
             } else {
                 if (!filterContainUse || (filterContainUse && filterContainMatch)) {
                     if ((info->flags & 0xF) == LIST_FILES) {
-                        node = new(str_node_t);
+                        node = new(strnode_t);
                         node->txt = fmt("%s%s", entryPath, entry->d_name);
                         info->num++;
                         
@@ -175,10 +175,10 @@ static void __list_walk(const list_t* list, const char* base, const char* parent
         errr("Could not open dir [%s]", dir);
 }
 
-void list_walk(list_t* this, const char* path, s32 depth, ListFlag flags) {
+void List_Walk(List* this, const char* path, s32 depth, ListFlag flags) {
     char buf[261] = "";
     
-    list_validate(this);
+    List_Validate(this);
     
     _assert(path != NULL);
     if (strlen(path) > 0 ) {
@@ -193,24 +193,24 @@ void list_walk(list_t* this, const char* path, s32 depth, ListFlag flags) {
     WalkInfo info = { .flags = flags };
     
     _log("Walk: %s", buf);
-    __list_walk(this, buf, buf, 0, depth, &info);
+    List_WalkPath(this, buf, buf, 0, depth, &info);
     
     if (info.num) {
         this->num = info.num;
         this->item = new(char*[info.num]);
         
-        for (var_t i = 0; i < info.num; i++) {
+        for (var i = 0; i < info.num; i++) {
             this->item[i] = info.node->txt;
             Node_Kill(info.node, info.node);
         }
     }
 }
 
-char* list_concat(list_t* this, const char* separator) {
+char* List_Concat(List* this, const char* separator) {
     u32 len = 0;
     u32 seplen = separator ? strlen(separator) : 0;
     
-    for (var_t i = 0; i < this->num; i++) {
+    for (var i = 0; i < this->num; i++) {
         if (!this->item[i]) continue;
         len += strlen(this->item[i]) + seplen;
     }
@@ -219,7 +219,7 @@ char* list_concat(list_t* this, const char* separator) {
     
     char* r = new(char[len + 1]);
     
-    for (var_t i = 0; i < this->num; i++) {
+    for (var i = 0; i < this->num; i++) {
         if (!this->item[i]) continue;
         
         strcat(r, this->item[i]);
@@ -232,17 +232,17 @@ char* list_concat(list_t* this, const char* separator) {
     return r;
 }
 
-void list_tokenize2(list_t* list, const char* str, const char separator) {
+void List_Tokenize2(List* list, const char* str, const char separator) {
     s32 a = 0;
     s32 b = 0;
-    str_node_t* nodeHead = NULL;
+    strnode_t* nodeHead = NULL;
     
-    list_free(list);
+    List_Free(list);
     
     while (str[a] == ' ' || str[a] == '\t' || str[a] == '\n' || str[a] == '\r') a++;
     
     while (true) {
-        str_node_t* node = NULL;
+        strnode_t* node = NULL;
         s32 isString = 0;
         s32 strcompns = 0;
         s32 brk = true;
@@ -255,7 +255,7 @@ void list_tokenize2(list_t* list, const char* str, const char separator) {
         b = a;
         
         if (isString && (str[b] == '\"' || str[b] == '\'')) {
-            node = calloc(sizeof(str_node_t));
+            node = calloc(sizeof(strnode_t));
             node->txt = calloc(2);
             Node_Add(nodeHead, node);
             
@@ -284,7 +284,7 @@ void list_tokenize2(list_t* list, const char* str, const char separator) {
         if (brk)
             break;
         
-        node = calloc(sizeof(str_node_t));
+        node = calloc(sizeof(strnode_t));
         node->txt = calloc(b - a + strcompns + 1);
         memcpy(node->txt, &str[a], b - a + strcompns);
         Node_Add(nodeHead, node);
@@ -307,38 +307,38 @@ write:
     }
 }
 
-void list_print(list_t* target) {
+void List_Print(List* target) {
     for (s32 i = 0; i < target->num; i++)
         printf("[#]: %4d: \"%s\"\n", i, target->item[i]);
 }
 
-time_t list_stat_max(list_t* list) {
+time_t List_StatMax(List* list) {
     time_t val = 0;
     
     for (s32 i = 0; i < list->num; i++)
-        val = max(val, sys_stat(list->item[i]));
+        val = Max(val, sys_stat(list->item[i]));
     
     return val;
 }
 
-time_t list_stat_min(list_t* list) {
-    time_t val = list_stat_max(list);
+time_t List_StatMin(List* list) {
+    time_t val = List_StatMax(list);
     
     for (s32 i = 0; i < list->num; i++)
-        val = min(val, sys_stat(list->item[i]));
+        val = Min(val, sys_stat(list->item[i]));
     
     return val;
 }
 
-s32 list_sort_slot(list_t* this, bool checkOverlaps) {
+s32 List_SortSlot(List* this, bool checkOverlaps) {
     bool error = false;
     s32 max = -1;
-    list_t new = list_new();
+    List new = List_New();
     
     if (this->num == 0)
         return 0;
     
-    list_sort(this);
+    List_Sort(this);
     
     for (s32 i = this->num - 1; i >= 0; i--) {
         if (!this->item[i]) continue;
@@ -366,19 +366,19 @@ s32 list_sort_slot(list_t* this, bool checkOverlaps) {
     
     if (checkOverlaps) {
         _log("Check Overlap");
-        for (var_t i = 0; i < this->num - 1; i++) {
+        for (var i = 0; i < this->num - 1; i++) {
             if (isdigit(this->item[i][0]) && isdigit(this->item[i + 1][0])) {
                 if (sint(this->item[i]) == sint(this->item[i + 1])) {
                     _log("" PRNT_REDD "![%s]!", this->item[i]);
-                    list_add(&gList_SortError, this->item[i]);
-                    list_add(&gList_SortError, this->item[i + 1]);
+                    List_Add(&gList_SortError, this->item[i]);
+                    List_Add(&gList_SortError, this->item[i + 1]);
                     error = true;
                 }
             }
         }
     }
     
-    for (var_t i = 0; i < max; i++) {
+    for (var i = 0; i < max; i++) {
         while (j < this->num && (!this->item[j] || !isdigit(this->item[j][0])))
             j++;
         
@@ -391,25 +391,25 @@ s32 list_sort_slot(list_t* this, bool checkOverlaps) {
     }
     
     _log("Swap Tables");
-    list_free(this);
+    List_Free(this);
     *this = new;
     
     _log("OK");
     
     if (checkOverlaps && gList_SortError.num) {
         warn("Index overlap");
-        for (var_t i = 0; i < gList_SortError.num; i += 2)
+        for (var i = 0; i < gList_SortError.num; i += 2)
             warn("[" PRNT_YELW "%s" PRNT_RSET "] vs "
                 "[" PRNT_YELW "%s" PRNT_RSET "]",
                 gList_SortError.item[i], gList_SortError.item[i + 1]);
         
-        list_free(&gList_SortError);
+        List_Free(&gList_SortError);
     }
     
     return error;
 }
 
-void list_free_items(list_t* this) {
+void List_FreeItems(List* this) {
     if (this->initKey == 0xDEFABEBACECAFAFF) {
         if (this->item) {
             for (; this->num > 0; this->num--)
@@ -418,31 +418,31 @@ void list_free_items(list_t* this) {
         }
         this->p.alnum = 0;
     } else
-        *this = list_new();
+        *this = List_New();
 }
 
-void list_free(list_t* this) {
+void List_Free(List* this) {
     _assert(this != NULL);
     
-    list_free_items(this);
-    list_free_filters(this);
+    List_FreeItems(this);
+    List_FreeFilters(this);
     
-    *this = list_new();
+    *this = List_New();
 }
 
-void list_alloc(list_t* this, u32 num) {
-    list_free(this);
+void List_Alloc(List* this, u32 num) {
+    List_Free(this);
     
     this->p.alnum = num;
     this->item = new(char*[num]);
 }
 
-static void list_realloc(list_t* this, u32 num) {
+static void list_realloc(List* this, u32 num) {
     this->p.alnum = num;
     this->item = realloc(this->item, sizeof(char*[num]));
 }
 
-void list_add(list_t* this, const char* item) {
+void List_Add(List* this, const char* item) {
     if (this->p.alnum && this->p.alnum < this->num + 1)
         list_realloc(this, this->p.alnum * 2 + 10);
     else
@@ -450,24 +450,24 @@ void list_add(list_t* this, const char* item) {
     this->item[this->num++] = item ? strdup(item) : NULL;
 }
 
-void list_combine(list_t* out, list_t* a, list_t* b) {
-    list_free(out);
+void List_Combine(List* out, List* a, List* b) {
+    List_Free(out);
     
-    list_alloc(out, a->num + b->num);
+    List_Alloc(out, a->num + b->num);
     
-    for (var_t i = 0; i < a->num; i++)
-        list_add(out, a->item[i]);
+    for (var i = 0; i < a->num; i++)
+        List_Add(out, a->item[i]);
     
-    for (var_t i = 0; i < b->num; i++)
-        list_add(out, b->item[i]);
+    for (var i = 0; i < b->num; i++)
+        List_Add(out, b->item[i]);
 }
 
-void list_tokenize(list_t* this, const char* s, char r) {
+void List_Tokenize(List* this, const char* s, char r) {
     char* token;
     char sep[2] = { r };
     char* buf = strdup(s);
     
-    list_free(this);
+    List_Free(this);
     
     _log("Tokenize: [%s]", s);
     _log("Separator: [%c]", r);
@@ -499,6 +499,6 @@ void list_tokenize(list_t* this, const char* s, char r) {
     free(buf);
 }
 
-void list_sort(list_t* this) {
-    qsort(this->item, this->num, sizeof(char*), qsort_method_numhex);
+void List_Sort(List* this) {
+    qsort(this->item, this->num, sizeof(char*), qsort_numhex);
 }

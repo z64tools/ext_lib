@@ -209,7 +209,7 @@ void Gfx_DrawStripes(void* vg, Rect rect) {
     
     nvgBeginPath(vg);
     for (s32 i = -8; i < rect.w; i += 8)
-        Gfx_Shape(vg, Math_Vec2f_New(rect.x + i, rect.y), 20.0f, 0, shape, arrcount(shape));
+        Gfx_Shape(vg, Math_Vec2f_New(rect.x + i, rect.y), 20.0f, 0, shape, ArrCount(shape));
     
     nvgFill(vg);
     nvgResetScissor(vg);
@@ -689,9 +689,9 @@ void Element_UpdateTextbox(GeoGrid* geo) {
             if (dir || kEnd || kHome) {
                 nested(s32, Shift, (s32 cur, s32 dir)) {
                     if (ctrl && dir) {
-                        for (var_t i = cur + dir; i > 0 && i < LEN; i += dir) {
+                        for (var i = cur + dir; i > 0 && i < LEN; i += dir) {
                             if (ispunct(this->txt[i]) != ispunct(this->txt[i + dir]))
-                                return i + max(0, dir);
+                                return i + Max(0, dir);
                         }
                     }
                     
@@ -712,8 +712,8 @@ void Element_UpdateTextbox(GeoGrid* geo) {
                 
                 if (kShift) {
                     this->selPos = val;
-                    this->selA = min(this->selPos, this->selPivot);
-                    this->selB = max(this->selPos, this->selPivot);
+                    this->selA = Min(this->selPos, this->selPivot);
+                    this->selB = Max(this->selPos, this->selPivot);
                 } else
                     this->selPos = this->selPivot = this->selA = this->selB = val;
             }
@@ -956,8 +956,8 @@ static void Element_CheckboxDraw(ElementCallInfo* info) {
     nvgBeginPath(vg);
     nvgFillColor(vg, col);
     
-    for (s32 i = 0; i < arrcount(sVector_Cross); i++) {
-        s32 wi = WrapS(i, 0, arrcount(sVector_Cross) - 1);
+    for (s32 i = 0; i < ArrCount(sVector_Cross); i++) {
+        s32 wi = WrapS(i, 0, ArrCount(sVector_Cross) - 1);
         Vec2f zero = { 0 };
         Vec2f pos = {
             sVector_Cross[wi].x * 0.75,
@@ -1233,7 +1233,7 @@ static void Element_ComboDraw(ElementCallInfo* info) {
     
     nvgBeginPath(vg);
     nvgFillColor(vg, this->element.light);
-    Gfx_Shape(vg, center, 0.95, 0, arrow, arrcount(arrow));
+    Gfx_Shape(vg, center, 0.95, 0, arrow, ArrCount(arrow));
     nvgFill(vg);
 }
 
@@ -1605,7 +1605,7 @@ s32 Element_Box(BoxInit io) {
     #define ROW_Y boxRowY[r]
     
     _assert(GEO && SPLIT);
-    _assert(r < arrcount(boxElemList));
+    _assert(r < ArrCount(boxElemList));
     
     if (io == BOX_START) {
         ROW_Y = gElemState->rowY;

@@ -5,7 +5,7 @@
 // # ThreadPool                          #
 // # # # # # # # # # # # # # # # # # # # #
 
-const char* gThdPool_ProgressMessage;
+const char* gParallel_ProgMsg;
 vbool gThreadMode;
 mutex_t gThreadMutex;
 
@@ -40,28 +40,28 @@ static thd_pool_t* sThdPool;
 
 static mutex_t sMutex;
 
-const_func __threadpool_init() {
+const_func Parallel_Init() {
     pthread_mutex_init(&sMutex, 0);
     
     sThdPool = new(thd_pool_t);
 }
 
-dest_func __threadpool_dest() {
+dest_func Parallel_Dest() {
     pthread_mutex_destroy(&sMutex);
     
     free(sThdPool);
 }
 
-static void threadpool_add_to_head(thd_item_t* t) {
+static void Parallel_AddToHead(thd_item_t* t) {
     Node_Add(sThdPool->head, t);
     sThdPool->num++;
 }
 
-static void threadpool_add_to_dep_list(thd_item_t* t) {
+static void Parallel_AddToDepList(thd_item_t* t) {
     sThdPool->dep[t->nid]++;
 }
 
-void* threadpool_add(void* function, void* arg) {
+void* Parallel_Add(void* function, void* arg) {
     thd_item_t* t = new(thd_item_t);
     
     _assert(sThdPool->on == false);
@@ -71,36 +71,36 @@ void* threadpool_add(void* function, void* arg) {
     t->arg = arg;
     
     pthread_mutex_lock(&sMutex);
-    threadpool_add_to_head(t);
+    Parallel_AddToHead(t);
     pthread_mutex_unlock(&sMutex);
     
     return t;
 }
 
-void threadpool_set_id(void* __this, int id) {
+void Parallel_SetID(void* __this, int id) {
     thd_item_t* t = __this;
     
     _assert(id >= 0);
     t->nid = id;
     
     pthread_mutex_lock(&sMutex);
-    threadpool_add_to_dep_list(t);
+    Parallel_AddToDepList(t);
     pthread_mutex_unlock(&sMutex);
 }
 
-void threadpool_set_dep(void* __this, int id) {
+void Parallel_SetDepID(void* __this, int id) {
     thd_item_t* t = __this;
     
     _assert(t->nid >= 0);
     t->dep[t->dep_num++];
 }
 
-static void threadpool_exec_thread(thd_item_t* this) {
+static void Parallel_ExeThd(thd_item_t* this) {
     this->function(this->arg);
     this->state = T_DONE;
 }
 
-static bool threadpool_deps(thd_item_t* t) {
+static bool Parallel_ChkDeps(thd_item_t* t) {
     if (!t->dep_num)
         return true;
     
@@ -111,13 +111,13 @@ static bool threadpool_deps(thd_item_t* t) {
     return true;
 }
 
-void threadpool_exec(u32 max) {
+void Parallel_Exec(u32 max) {
     u32 amount = sThdPool->num;
     u32 prev = 1;
     u32 prog = 0;
     u32 cur = 0;
     thd_item_t* t;
-    bool msg = gThdPool_ProgressMessage != NULL;
+    bool msg = gParallel_ProgMsg != NULL;
     
     max = clamp_min(max, 1);
     
@@ -128,16 +128,16 @@ void threadpool_exec(u32 max) {
     
     while (sThdPool->num) {
         if (msg && prev != prog)
-            info_prog(gThdPool_ProgressMessage, prog + 1, amount);
+            info_prog(gParallel_ProgMsg, prog + 1, amount);
         
-        max = min(max, sThdPool->num);
+        max = Min(max, sThdPool->num);
         
         if (cur < max) { /* Assign */
             t = sThdPool->head;
             
             while (t) {
                 if (t->state == T_IDLE)
-                    if (threadpool_deps(t))
+                    if (Parallel_ChkDeps(t))
                         break;
                 
                 t = t->next;
@@ -148,10 +148,10 @@ void threadpool_exec(u32 max) {
                     t->state = T_RUN;
                 
                 if (max > 1) {
-                    if (thd_create(&t->thd, threadpool_exec_thread, t))
+                    if (thd_create(&t->thd, Parallel_ExeThd, t))
                         errr("thd_pool_t: Could not create thread");
                 } else
-                    threadpool_exec_thread(t);
+                    Parallel_ExeThd(t);
                 
                 cur++;
             }
@@ -182,6 +182,6 @@ void threadpool_exec(u32 max) {
         }
     }
     
-    gThdPool_ProgressMessage = NULL;
+    gParallel_ProgMsg = NULL;
     sThdPool->on = false;
 }

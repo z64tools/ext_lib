@@ -7,12 +7,12 @@
 
 static const char sTexKey[20] = TEX_KEY;
 
-static bool texel_validate(texel_t* this) {
+static bool Image_Validate(Image* this) {
     return !memcmp(this->key, sTexKey, sizeof(sTexKey));
 }
 
-texel_t texel_new(void) {
-    static const texel_t n = {
+Image Image_New(void) {
+    static const Image n = {
         .key        = TEX_KEY,
         .throwError = true,
     };
@@ -20,11 +20,11 @@ texel_t texel_new(void) {
     return n;
 }
 
-void texel_load(texel_t* this, const char* file) {
+void Image_Load(Image* this, const char* file) {
     int channels;
     uint8_t* data;
     
-    if (!texel_validate(this)) *this = texel_new();
+    if (!Image_Validate(this)) *this = Image_New();
     
     data = stbi_load(file, &this->x, &this->y, &channels, 4);
     if (!data && this->throwError) errr("Failed to load texel [%s]", file);
@@ -38,30 +38,30 @@ void texel_load(texel_t* this, const char* file) {
     this->size = this->x * this->y * channels;
 }
 
-void texel_save(texel_t* this, const char* file) {
-    if (!texel_validate(this))
+void Image_Save(Image* this, const char* file) {
+    if (!Image_Validate(this))
         errr("uninitialized texel save to [%s]", file);
     if (!striend(file, ".png"))
         errr("can't save image to [%s] format", x_filename(file) + strlen(x_basename(file)));
     stbi_write_png(file, this->x, this->y, 4, this->data, 0);
 }
 
-void texel_loadmem(texel_t* this, const void* data, size_t size) {
+void Image_LoadMem(Image* this, const void* data, size_t size) {
     int channels;
     
-    if (!texel_validate(this)) *this = texel_new();
+    if (!Image_Validate(this)) *this = Image_New();
     
     this->data = stbi_load_from_memory(data, size, &this->x, &this->y, &channels, 4);
     if (!this->data && this->throwError) errr("Failed to load texel from memory");
 }
 
-void texel_alloc(texel_t* this, int x, int y, int channels) {
+void Image_Alloc(Image* this, int x, int y, int channels) {
     this->data = realloc(this->data, x * y * channels * 2);
     this->size = x * y * channels;
     this->x = x; this->y = y;
 }
 
-void texel_free(texel_t* this) {
+void Image_Free(Image* this) {
     free(this->data);
     memset(this, 0, sizeof(*this));
 }

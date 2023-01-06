@@ -1,17 +1,19 @@
 #include <ext_lib.h>
 #include <sys/time.h>
 
-static void Log_Signal(int arg);
+static void _log_signal(int arg);
 
 static vbool sAbort;
 static u8 sProgress;
-static io_level_t sSuppress = 0;
+static enum IOLevel sSuppress = 0;
 
 // # # # # # # # # # # # # # # # # # # # #
 // # PRINTF                              #
 // # # # # # # # # # # # # # # # # # # # #
 
-void print_lvl(io_level_t lvl) {
+static mutex_t sIoMutex;
+
+void IO_SetLevel(enum IOLevel lvl) {
     sSuppress = lvl;
 }
 
@@ -76,7 +78,7 @@ void info_title(const char* toolname, const char* fmt, ...) {
     
 }
 
-static void __impl_print(int color_id, int is_progress, int is_error, FILE* stream, const char* msg, const char* fmt, va_list va) {
+static void IO_printImpl(int color_id, int is_progress, int is_error, FILE* stream, const char* msg, const char* fmt, va_list va) {
     const char* num_map[] = {
         "0", "1", "2", "3", "4",
         "5", "6", "7", "8", "9",
@@ -104,6 +106,7 @@ static void __impl_print(int color_id, int is_progress, int is_error, FILE* stre
     
     vsnprintf(buffer, bufsize, fmt, va);
     
+    pthread_mutex_lock(&sIoMutex);
     if (is_progress)
         fputs("\r", stream);
     
@@ -126,14 +129,16 @@ static void __impl_print(int color_id, int is_progress, int is_error, FILE* stre
     }
     
     fflush(stream);
+    pthread_mutex_unlock(&sIoMutex);
+    
     free(buffer);
 }
 
-static void __impl_print_call(int color_id, int is_progress, FILE* stream, const char* msg, const char* fmt, ...) {
+static void IO_printCall(int color_id, int is_progress, FILE* stream, const char* msg, const char* fmt, ...) {
     va_list va;
     
     va_start(va, fmt);
-    __impl_print(color_id, is_progress, false, stream, msg, fmt, va);
+    IO_printImpl(color_id, is_progress, false, stream, msg, fmt, va);
     va_end(va);
 }
 
@@ -143,7 +148,7 @@ void warn(const char* fmt, ...) {
     
     va_list args;
     va_start(args, fmt);
-    __impl_print(2, false, false, stderr, NULL, fmt, args);
+    IO_printImpl(2, false, false, stderr, NULL, fmt, args);
     va_end(args);
 }
 
@@ -154,11 +159,11 @@ void warn_align(const char* info, const char* fmt, ...) {
     va_list args;
     
     va_start(args, fmt);
-    __impl_print(2, false, false, stderr, info, fmt, args);
+    IO_printImpl(2, false, false, stderr, info, fmt, args);
     va_end(args);
 }
 
-void io_kill(FILE* output) {
+void IO_KillBuf(FILE* output) {
 #ifdef _WIN32
     if (freopen ("NUL", "w", output))
         (void)0;
@@ -171,11 +176,11 @@ void io_kill(FILE* output) {
 void errr(const char* fmt, ...) {
     va_list args;
     
-    io_kill(stdout);
+    IO_KillBuf(stdout);
     sAbort = 1;
     
     va_start(args, fmt);
-    __impl_print(2, false, true, stderr, NULL, fmt, args);
+    IO_printImpl(2, false, true, stderr, NULL, fmt, args);
     va_end(args);
     
 #ifdef _WIN32
@@ -188,11 +193,11 @@ void errr(const char* fmt, ...) {
 void errr_align(const char* info, const char* fmt, ...) {
     va_list args;
     
-    io_kill(stdout);
+    IO_KillBuf(stdout);
     sAbort = 1;
     
     va_start(args, fmt);
-    __impl_print(2, false, true, stderr, info, fmt, args);
+    IO_printImpl(2, false, true, stderr, info, fmt, args);
     va_end(args);
     
 #ifdef _WIN32
@@ -209,7 +214,7 @@ void info(const char* fmt, ...) {
     va_list args;
     
     va_start(args, fmt);
-    __impl_print(1, false, false, stdout, NULL, fmt, args);
+    IO_printImpl(1, false, false, stdout, NULL, fmt, args);
     va_end(args);
 }
 
@@ -220,15 +225,15 @@ void info_align(const char* info, const char* fmt, ...) {
     va_list args;
     
     va_start(args, fmt);
-    __impl_print(1, false, false, stdout, info, fmt, args);
+    IO_printImpl(1, false, false, stdout, info, fmt, args);
     va_end(args);
 }
 
-void infof_prog(const char* info, u32 a, u32 b) {
+void info_progff(const char* info, u32 a, u32 b) {
     if (sSuppress >= PSL_NO_INFO)
         return;
     
-    __impl_print_call(1, true, stdout, info,
+    IO_printCall(1, true, stdout, info,
         x_fmt("[ %c%dd / %c-%dd ]", '%', digint(b), '%', digint(b)), a, b);
     sProgress = true;
     
@@ -260,7 +265,7 @@ void info_prog(const char* info, u32 a, u32 b) {
         }
     }
     
-    infof_prog(info, a, b);
+    info_progff(info, a, b);
 }
 
 void info_getc(const char* txt) {
@@ -276,14 +281,14 @@ void info_volatile(const char* fmt, ...) {
     
     va_start(va, fmt);
     thd_lock();
-    print_win32_fix();
+    IO_FixWin32();
     vprintf(fmt, va);
     fflush(NULL);
     thd_unlock();
     va_end(va);
 }
 
-void print_win32_fix(void) {
+void IO_FixWin32(void) {
 #ifdef _WIN32
     system("");
 #endif
@@ -388,7 +393,7 @@ static u32 sLogLine[FAULT_LOG_NUM];
 static vs32 sLogInit;
 static mutex_t sLogMutex;
 
-static void Log_Signal_PrintTitle(int arg, FILE* file) {
+static void _log_print_title(int arg, FILE* file) {
     const char* errorMsg[] = {
         "\a0",
         "\a1 - Hang Up",
@@ -420,7 +425,7 @@ static void Log_Signal_PrintTitle(int arg, FILE* file) {
     fprintf(file, "\n");
 }
 
-static void Log_Printinf(int arg, FILE* file) {
+static void _log_print_log(int arg, FILE* file) {
     
     for (int i = FAULT_LOG_NUM - 1, j = 0; i >= 0; i--, j++) {
         char* pfunc = j == 0 ? "__log_none__" : sLogFunc[i + 1];
@@ -436,7 +441,7 @@ static void Log_Printinf(int arg, FILE* file) {
         fprintf(file, "\n");
 }
 
-static void Log_Signal(int arg) {
+static void _log_signal(int arg) {
     if (!sLogInit)
         return;
     
@@ -445,8 +450,8 @@ static void Log_Signal(int arg) {
     sLogInit = false;
     sAbort = true;
     
-    Log_Signal_PrintTitle(arg, stderr);
-    Log_Printinf(arg, stderr);
+    _log_print_title(arg, stderr);
+    _log_print_log(arg, stderr);
     
     if (arg == 0xDEADBEEF) {
         sLogInit = true;
@@ -465,7 +470,7 @@ static void Log_Signal(int arg) {
 
 void _log_init() {
     for (int i = 1; i < 16; i++)
-        signal(i, Log_Signal);
+        signal(i, _log_signal);
     for (int i = 0; i < FAULT_LOG_NUM; i++) {
         sLogMsg[i] = calloc(FAULT_BUFFER_SIZE);
         sLogFunc[i] = calloc(128);
@@ -474,12 +479,14 @@ void _log_init() {
     sLogInit = true;
     
     pthread_mutex_init(&sLogMutex, 0);
+    pthread_mutex_init(&sIoMutex, 0);
 }
 
 void _log_dest() {
     for (int i = 0; i < FAULT_LOG_NUM; i++)
         free(sLogMsg[i], sLogFunc[i]);
     pthread_mutex_destroy(&sLogMutex);
+    pthread_mutex_destroy(&sIoMutex);
 }
 
 void _log_print() {
@@ -488,7 +495,7 @@ void _log_print() {
     if (sLogMsg[0] == NULL)
         return;
     if (sLogMsg[0][0] != 0)
-        Log_Signal(0xDEADBEEF);
+        _log_signal(0xDEADBEEF);
 }
 
 void __log__(const char* func, u32 line, const char* txt, ...) {
@@ -500,9 +507,9 @@ void __log__(const char* func, u32 line, const char* txt, ...) {
     
     pthread_mutex_lock(&sLogMutex);
     {
-        arrmve_r(sLogMsg, 0, FAULT_LOG_NUM);
-        arrmve_r(sLogFunc, 0, FAULT_LOG_NUM);
-        arrmve_r(sLogLine, 0, FAULT_LOG_NUM);
+        arrmove_r(sLogMsg, 0, FAULT_LOG_NUM);
+        arrmove_r(sLogFunc, 0, FAULT_LOG_NUM);
+        arrmove_r(sLogLine, 0, FAULT_LOG_NUM);
         
         va_list args;
         va_start(args, txt);
