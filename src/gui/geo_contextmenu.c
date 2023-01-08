@@ -118,7 +118,7 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
         
         prop->hue = color.h;
         prop->pos.x = color.s;
-        prop->pos.y = InvF(color.l);
+        prop->pos.y = invertf(color.l);
     } else {
         if ((
                 Rect_PointIntersect(&rectLumSat, cursor->pos.x, cursor->pos.y) &&
@@ -141,7 +141,7 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
         }
     }
     
-    color = (hsl_t) { prop->hue, prop->pos.x, InvF(prop->pos.y) };
+    color = (hsl_t) { prop->hue, prop->pos.x, invertf(prop->pos.y) };
     *prop->rgb8 = Color_rgb8(unfold_hsl(color));
     
     nested(void, UpdateImg, ()) {

@@ -32,9 +32,9 @@ void FastTracker_Player(void* ctx, void* output, size_t num) {
         if (stopper != 35)
             stopper++;
         
-        xm->volume = Lerp(InvF(powf(stopper / 35.f, 4.0f)), 0.0f, sVolume);
-        xm->rate = Lerp(InvF(powf(stopper / 35.f, 4.0f)), 22050 * 32, 22050);
-        xm->bpm = Lerp(InvF(powf(stopper / 35.f, 4.0f)), tempo * 32, tempo);
+        xm->volume = lerpf(invertf(powf(stopper / 35.f, 4.0f)), 0.0f, sVolume);
+        xm->rate = lerpf(invertf(powf(stopper / 35.f, 4.0f)), 22050 * 32, 22050);
+        xm->bpm = lerpf(invertf(powf(stopper / 35.f, 4.0f)), tempo * 32, tempo);
         
         if (stopper == 35)
             sPlayStop = true;

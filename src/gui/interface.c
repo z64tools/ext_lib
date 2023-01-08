@@ -155,7 +155,7 @@ static void Interface_Update_AppInfo(AppInfo* app) {
     if (!glfwWindowShouldClose(app->window)) {
         app->private.tickMod += gDeltaTime;
         if (app->private.tickMod >= 1.0f) {
-            app->private.tickMod = WrapF(app->private.tickMod, 0.0f, 1.0f);
+            app->private.tickMod = wrapf(app->private.tickMod, 0.0f, 1.0f);
             app->tick = true;
         } else app->tick = false;
         
@@ -401,9 +401,9 @@ static s32 FileDialog_FilePanel_ScrollDraw(FileDialog* this, Rect r) {
     void* vg = this->window.app.vg;
     Rect slider = Rect_New(
         r.x + r.w - 14,
-        Lerp(this->vscroll / this->slot, r.y, r.y + r.h),
+        lerpf(this->vscroll / this->slot, r.y, r.y + r.h),
         12,
-        Lerp((this->vscroll + visibleSlots) / this->slot, r.y, r.y + r.h));
+        lerpf((this->vscroll + visibleSlots) / this->slot, r.y, r.y + r.h));
     
     slider.y = clamp(slider.y, r.y, r.y + r.h - 8);
     slider.h = clamp(slider.h - slider.y, 16, r.h);
@@ -426,7 +426,7 @@ static s32 FileDialog_FilePanel_ScrollDraw(FileDialog* this, Rect r) {
     
     if (visibleSlots > this->slot) {
         NVGcolor al = slcol;
-        f32 remap = Remap(visibleSlots / this->slot, 1.0f, 1.0f + (2.0f / this->slot), 0.0f, 1.0f);
+        f32 remap = remapf(visibleSlots / this->slot, 1.0f, 1.0f + (2.0f / this->slot), 0.0f, 1.0f);
         
         al.a = 0;
         remap = clamp(remap, 0.0f, 1.0f);

@@ -295,7 +295,7 @@ static void Element_Slider_SetTextbox(Split* split, ElSlider* this) {
         this->textBox.size = 32;
         
         this->textBox.type = this->isInt ? TEXTBOX_INT : TEXTBOX_F32;
-        this->textBox.val.value = Lerp(this->value, this->min, this->max);
+        this->textBox.val.value = lerpf(this->value, this->min, this->max);
         this->textBox.val.max = this->max;
         this->textBox.val.min = this->min;
         this->textBox.val.update = true;
@@ -957,7 +957,7 @@ static void Element_CheckboxDraw(ElementCallInfo* info) {
     nvgFillColor(vg, col);
     
     for (s32 i = 0; i < ArrCount(sVector_Cross); i++) {
-        s32 wi = WrapS(i, 0, ArrCount(sVector_Cross) - 1);
+        s32 wi = wrapi(i, 0, ArrCount(sVector_Cross) - 1);
         Vec2f zero = { 0 };
         Vec2f pos = {
             sVector_Cross[wi].x * 0.75,
@@ -966,8 +966,8 @@ static void Element_CheckboxDraw(ElementCallInfo* info) {
         f32 dist = Math_Vec2f_DistXZ(zero, pos);
         s16 yaw = Math_Vec2f_Yaw(zero, pos);
         
-        dist = Lerp(flipLerp, 4, dist);
-        dist = Lerp((this->lerp > 0.5 ? 1.0 - this->lerp : this->lerp), dist, powf((dist * 0.1), 0.15) * 3);
+        dist = lerpf(flipLerp, 4, dist);
+        dist = lerpf((this->lerp > 0.5 ? 1.0 - this->lerp : this->lerp), dist, powf((dist * 0.1), 0.15) * 3);
         
         pos.x = center.x + SinS(yaw) * dist;
         pos.y = center.y + CosS(yaw) * dist;
@@ -1008,9 +1008,9 @@ static void Element_SliderDraw(ElementCallInfo* info) {
     f32 step = (this->max - this->min) * 0.5f;
     
     if (this->isInt) {
-        s32 mul = rint(Remap(this->value, 0, 1, this->min, this->max));
+        s32 mul = rint(remapf(this->value, 0, 1, this->min, this->max));
         
-        Math_DelSmoothStepToF(&this->vValue, Remap(mul, this->min, this->max, 0, 1), 0.5f, step, 0.0f);
+        Math_DelSmoothStepToF(&this->vValue, remapf(mul, this->min, this->max, 0, 1), 0.5f, step, 0.0f);
     } else
         Math_DelSmoothStepToF(&this->vValue, this->value, 0.5f, step, 0.0f);
     
@@ -1047,14 +1047,14 @@ static void Element_SliderDraw(ElementCallInfo* info) {
             this->textBox.txt,
             31,
             sFmt[this->isInt],
-            (s32)rint(Lerp(this->value, this->min, this->max))
+            (s32)rint(lerpf(this->value, this->min, this->max))
         );
     } else {
         snprintf(
             this->textBox.txt,
             31,
             sFmt[this->isInt],
-            Lerp(this->value, this->min, this->max)
+            lerpf(this->value, this->min, this->max)
         );
     }
     
@@ -1106,7 +1106,7 @@ f32 Element_Slider(ElSlider* this) {
                 
                 Element_Textbox(&this->textBox);
                 
-                return Lerp(this->value, this->min, this->max);
+                return lerpf(this->value, this->min, this->max);
             } else {
                 UnsetHold();
                 this->isSliding = false;
@@ -1149,7 +1149,7 @@ f32 Element_Slider(ElSlider* this) {
             if (this->isInt) {
                 f32 scrollDir = clamp(Input_GetScroll(gElemState->geo->input), -1, 1);
                 f32 valueIncrement = 1.0f / (this->max - this->min);
-                s32 value = rint(Remap(this->value, 0.0f, 1.0f, this->min, this->max));
+                s32 value = rint(remapf(this->value, 0.0f, 1.0f, this->min, this->max));
                 
                 if (Input_GetKey(gElemState->geo->input, KEY_LEFT_SHIFT)->hold)
                     this->value = valueIncrement * value + valueIncrement * 5 * scrollDir;
@@ -1178,9 +1178,9 @@ f32 Element_Slider(ElSlider* this) {
         Cursor_SetCursor(CURSOR_EMPTY);
     
     if (this->isInt)
-        return (s32)rint(Lerp(this->value, this->min, this->max));
+        return (s32)rint(lerpf(this->value, this->min, this->max));
     else
-        return Lerp(this->value, this->min, this->max);
+        return lerpf(this->value, this->min, this->max);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -1684,7 +1684,7 @@ void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type) {
 
 void Element_Slider_SetValue(ElSlider* this, f64 val) {
     val = clamp(val, this->min, this->max);
-    this->vValue = this->value = Normalize(val, this->min, this->max);
+    this->vValue = this->value = normf(val, this->min, this->max);
 }
 
 void Element_Button_SetValue(ElButton* this, bool toggle, bool state) {
@@ -1961,7 +1961,7 @@ void DragItem_Draw(GeoGrid* geo) {
             inc = Theme_Mix(this->colorLerp + 0.5f, nvgHSLA(0.33f, 1.0f, 0.5f, this->alpha), inc);
         }
         
-        f32 scale = Lerp(0.5f, this->alpha / 200.0f, 1.0f - (fabsf(this->swing) / 1.85f));
+        f32 scale = lerpf(0.5f, this->alpha / 200.0f, 1.0f - (fabsf(this->swing) / 1.85f));
         nvgTranslate(vg,
             this->pos.x + this->rect.w * 0.5f,
             this->pos.y + this->rect.h * 0.5f);

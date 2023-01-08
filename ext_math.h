@@ -8,15 +8,15 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 
-static inline f32 Lerp(f32 x, f32 min, f32 max) {
+static inline f32 lerpf(f32 x, f32 min, f32 max) {
     return min + (max - min) * x;
 }
 
-static inline f32 Normalize(f32 v, f32 min, f32 max) {
+static inline f32 normf(f32 v, f32 min, f32 max) {
     return (v - min) / (max - min);
 }
 
-static inline s32 WrapS(s32 x, s32 min, s32 max) {
+static inline s32 wrapi(s32 x, s32 min, s32 max) {
     s32 range = max - min;
     
     if (x < min)
@@ -25,7 +25,7 @@ static inline s32 WrapS(s32 x, s32 min, s32 max) {
     return min + (x - min) % range;
 }
 
-static inline f32 WrapF(f32 x, f32 min, f32 max) {
+static inline f32 wrapf(f32 x, f32 min, f32 max) {
     f64 range = max - min;
     
     if (x < min)
@@ -34,16 +34,16 @@ static inline f32 WrapF(f32 x, f32 min, f32 max) {
     return min + fmodf((x - min), range);
 }
 
-static inline s32 PingPongS(s32 v, s32 min, s32 max) {
-    min = WrapS(v, min, max * 2);
+static inline s32 pingpongi(s32 v, s32 min, s32 max) {
+    min = wrapi(v, min, max * 2);
     if (min < max)
         return min;
     else
         return 2 * max - min;
 }
 
-static inline f32 PingPongF(f32 v, f32 min, f32 max) {
-    min = WrapF(v, min, max * 2);
+static inline f32 pingpongf(f32 v, f32 min, f32 max) {
+    min = wrapf(v, min, max * 2);
     if (min < max)
         return min;
     else
@@ -57,20 +57,20 @@ static inline f32 Closest(f32 sample, f32 x, f32 y) {
     return y;
 }
 
-static inline f32 Remap(f32 v, f32 iMin, f32 iMax, f32 oMin, f32 oMax) {
-    return Lerp(Normalize(v, iMin, iMax), oMin, oMax);
+static inline f32 remapf(f32 v, f32 iMin, f32 iMax, f32 oMin, f32 oMax) {
+    return lerpf(normf(v, iMin, iMax), oMin, oMax);
 }
 
 static inline f32 AccuracyF(f32 v, f32 mod) {
     return rint(rint(v * mod) / mod);
 }
 
-static inline f32 RoundStepF(f32 v, f32 step) {
+static inline f32 roundstepf(f32 v, f32 step) {
     return rintf(v * (1.0f / step)) * step;
 }
 
-static inline f32 InvF(f32 v) {
-    return Remap(v, 0.0f, 1.0f, 1.0f, 0.0f);
+static inline f32 invertf(f32 v) {
+    return remapf(v, 0.0f, 1.0f, 1.0f, 0.0f);
 }
 
 #pragma GCC diagnostic pop

@@ -31,7 +31,7 @@ static void ggDebug(const char* fmt, ...) {
 /* ───────────────────────────────────────────────────────────────────────── */
 
 static SplitDir GeoGrid_GetDir_Opposite(SplitDir dir) {
-    return WrapS(dir + 2, DIR_L, DIR_B + 1);
+    return wrapi(dir + 2, DIR_L, DIR_B + 1);
 }
 
 static SplitDir GeoGrid_GetDir_MouseToPressPos(Split* split) {
@@ -578,7 +578,7 @@ static void Edge_SetSlide(GeoGrid* geo) {
         
         if (isEditEdge && isCornerEdge == false) {
             SplitEdge* temp = geo->edgeHead;
-            s32 align = WrapS(edge->state & EDGE_ALIGN, 0, 2);
+            s32 align = wrapi(edge->state & EDGE_ALIGN, 0, 2);
             
             while (temp) {
                 for (s32 i = 0; i < 2; i++) {

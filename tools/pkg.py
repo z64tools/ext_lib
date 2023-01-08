@@ -9,8 +9,7 @@ pkg_info = {
 	"win32/libreproc.a":       "-lws2_32",
 	
 	"src/ext_lib.o":           "-lm -pthread",
-	"linux/src/ext_lib.o":     "-ldl -DEXT_LIB_SYS_AUDIO",
-	"win32/src/ext_lib.o":     "-lwinmm -DEXT_LIB_SYS_AUDIO",
+	"linux/src/ext_lib.o":     "-ldl",
 }
 
 for a in sys.argv:
