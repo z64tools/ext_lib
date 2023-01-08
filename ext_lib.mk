@@ -77,8 +77,8 @@ bin/win32/src/xaudio/__ma__.o: CFLAGS += -Wno-maybe-uninitialized
 bin/linux/src/xaudio/__ma__.o: CFLAGS += -Wno-maybe-uninitialized
 bin/win32/src/proc/%.o: CFLAGS += -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
 bin/linux/src/proc/%.o: CFLAGS += -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
-bin/win32/reproc/reproc/src/%.o: CFLAGS += -Wno-cpp -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
-bin/linux/reproc/reproc/src/%.o: CFLAGS += -Wno-cpp -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
+bin/win32/reproc/reproc/src/%.o: CFLAGS = -Ofast -Wno-cpp -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
+bin/linux/reproc/reproc/src/%.o: CFLAGS = -Ofast -Wno-cpp -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
 
 bin/linux/libreproc.a: $(ReProc_Linux_O)
 	@echo "$(PRNT_RSET)[$(PRNT_PRPL)$(notdir $@)$(PRNT_RSET)]"

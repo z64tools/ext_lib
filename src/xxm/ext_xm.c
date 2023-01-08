@@ -21,6 +21,7 @@ typedef struct {
 
 vbool sPlayFlag;
 vbool sPlayStop;
+static f32 sVolume = 1.0f;
 
 void FastTracker_Player(void* ctx, void* output, size_t num) {
     FastTracker* xm = ctx;
@@ -31,13 +32,16 @@ void FastTracker_Player(void* ctx, void* output, size_t num) {
         if (stopper != 35)
             stopper++;
         
-        xm->volume = Lerp(InvF(powf(stopper / 35.f, 4.0f)), 0.0f, 1.0f);
+        xm->volume = Lerp(InvF(powf(stopper / 35.f, 4.0f)), 0.0f, sVolume);
         xm->rate = Lerp(InvF(powf(stopper / 35.f, 4.0f)), 22050 * 32, 22050);
         xm->bpm = Lerp(InvF(powf(stopper / 35.f, 4.0f)), tempo * 32, tempo);
         
         if (stopper == 35)
             sPlayStop = true;
-    } else tempo = xm->bpm;
+    } else {
+        xm->volume = sVolume;
+        tempo = xm->bpm;
+    }
     
     xm_generate_samples(ctx, output, num);
 }
@@ -52,6 +56,10 @@ void FastTracker_Play(const void* data, u32 size) {
     sXmSound = SoundDevice_Init(SOUND_F32, 22050, 2, FastTracker_Player, xm);
 }
 
+void FastTracker_SetVolume(f32 vol) {
+    sVolume = vol;
+}
+
 void FastTracker_Stop() {
     
     if (sPlayFlag)
@@ -59,8 +67,4 @@ void FastTracker_Stop() {
             sPlayFlag = false;
     
     SoundDevice_Free(sXmSound);
-}
-
-dest_func FastTracker_Dest() {
-    FastTracker_Stop();
 }

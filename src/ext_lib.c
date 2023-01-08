@@ -97,7 +97,6 @@ extern void _log_dest();
 
 const_func extlib_init(void) {
     _log_init();
-    srand((u32)(clock() + time(0)));
     pthread_mutex_init(&gThreadMutex, NULL);
     
     {
@@ -108,6 +107,9 @@ const_func extlib_init(void) {
         bitfield_set(d, 0, 7, 2);
         _assert(bitfield_get(d, 7, 2) == 0);
     }
+    
+    srand(sys_time());
+    rand();
     
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
@@ -1125,9 +1127,9 @@ const char* Note_Name(int note) {
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 f32 randf() {
-    f64 r = rand() / (f32)__INT16_MAX__;
+    f64 r = rand() / (f64)RAND_MAX;
     
-    return fmod(r, 1.0f);
+    return r;
 }
 
 f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep) {
