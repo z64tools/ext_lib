@@ -55,7 +55,7 @@ void List_SetFilters(List* list, u32 filterNum, ...) {
 void List_FreeFilters(List* this) {
     if (this->initKey == 0xDEFABEBACECAFAFF) {
         while (this->filterNode) {
-            free(this->filterNode->txt);
+            vfree(this->filterNode->txt);
             
             Node_Kill(this->filterNode, this->filterNode);
         }
@@ -232,6 +232,33 @@ char* List_Concat(List* this, const char* separator) {
     return r;
 }
 
+char* List_ConcatNumd(List* this, const char* separator) {
+    u32 len = 0;
+    u32 seplen = separator ? strlen(separator) : 0;
+    
+    for (var i = 0; i < this->num; i++) {
+        if (!this->item[i]) continue;
+        len += strlen(this->item[i]) + seplen + digint(this->num) + 8;
+    }
+    
+    if (!len) return NULL;
+    
+    char* r = new(char[len + 1]);
+    
+    for (var i = 0; i < this->num; i++) {
+        if (!this->item[i]) continue;
+        
+        strcat(r, x_fmt("%-*d: ", digint(this->num), i));
+        strcat(r, this->item[i]);
+        if (seplen) strcat(r, separator);
+    }
+    
+    if (separator)
+        strend(r, separator)[0] = '\0';
+    
+    return r;
+}
+
 void List_Tokenize2(List* list, const char* str, const char separator) {
     s32 a = 0;
     s32 b = 0;
@@ -308,8 +335,9 @@ write:
 }
 
 void List_Print(List* target) {
-    for (s32 i = 0; i < target->num; i++)
-        printf("[#]: %4d: \"%s\"\n", i, target->item[i]);
+    const char* cat = List_ConcatNumd(target, "\n");
+    
+    info("" PRNT_BLUE "list content:" PRNT_RSET "\n%s", cat);
 }
 
 time_t List_StatMax(List* list) {
@@ -413,8 +441,8 @@ void List_FreeItems(List* this) {
     if (this->initKey == 0xDEFABEBACECAFAFF) {
         if (this->item) {
             for (; this->num > 0; this->num--)
-                free(this->item[this->num - 1]);
-            free(this->item);
+                vfree(this->item[this->num - 1]);
+            vfree(this->item);
         }
         this->p.alnum = 0;
     } else
@@ -480,7 +508,7 @@ void List_Tokenize(List* this, const char* s, char r) {
     }
     
     if (!this->num) {
-        free(buf);
+        vfree(buf);
         return;
     }
     
@@ -496,7 +524,7 @@ void List_Tokenize(List* this, const char* s, char r) {
             *end = '\0';
     }
     
-    free(buf);
+    vfree(buf);
 }
 
 void List_Sort(List* this) {

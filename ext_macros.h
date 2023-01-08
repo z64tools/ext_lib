@@ -36,11 +36,11 @@
 #define Node_Kill(head, node) do {    \
         typeof(node) killNode = node; \
         Node_Remove(head, node);      \
-        free(killNode);               \
+        vfree(killNode);              \
 } while (0)
 
 #define Swap(a, b) do { \
-        var y = a;    \
+        var y = a;      \
         a = b;          \
         b = y;          \
 } while (0)
@@ -96,11 +96,6 @@
 #define clamp_s32(val) (s32)clamp(((f32)val), (-__INT32_MAX__ - 1), (f32)__INT32_MAX__)
 
 #define ArrCount(arr) (u32)(sizeof(arr) / sizeof(arr[0]))
-
-#define bit_nummask(bitNum)              ((1 << (bitNum)) - 1)
-#define bit_sizemask(size)               bit_nummask(size * 8)
-#define bit_field(data, bitCount, shift) (((data) >> (shift))&bit_nummask(bitCount))
-#define bit_first(u32)                   __builtin_ctz(u32)
 
 #define BinToMb(x)           ((f32)(x) / (f32)0x100000)
 #define BinToKb(x)           ((f32)(x) / (f32)0x400)
@@ -159,17 +154,17 @@
 #define SEG_FAULT ((u32*)0)[0] = 0
 
 #if defined(_WIN32) && defined(UNICODE)
-#define uni_main(count, args)                                      \
-    __x_main(int count, const char** args);                        \
-    int wmain(int count, const wchar * *args) {                    \
+#define uni_main(count, args)                                    \
+    __x_main(int count, const char** args);                      \
+    int wmain(int count, const wchar * *args) {                  \
         char** nargv = qxf(calloc(sizeof(char*) * (count + 1))); \
-        for (s32 i = 0; i < count; i++) {                          \
+        for (s32 i = 0; i < count; i++) {                        \
             nargv[i] = qxf(calloc(strwlen(args[i])));            \
-            strto8(nargv[i], args[i]);                             \
-        }                                                          \
-        _log("run " PRNT_YELW "main");                             \
-        return __x_main(count, (void*)nargv);                      \
-    }                                                              \
+            strto8(nargv[i], args[i]);                           \
+        }                                                        \
+        _log("run " PRNT_YELW "main");                           \
+        return __x_main(count, (void*)nargv);                    \
+    }                                                            \
     int __x_main(int count, const char** args)
 #else
 #define uni_main(count, args) main(int count, const char** args)
@@ -181,6 +176,7 @@
 
 #define stalloc(type)          ({ void* data = alloca(sizeof(type)); memset(data, 0, sizeof(type)); data; })
 #define new(type)              calloc(sizeof(type))
+#define renew(addr, type)      addr = realloc(addr, sizeof(type))
 #define x_new(type)            x_alloc(sizeof(type))
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>]: " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
@@ -192,14 +188,14 @@
 #define forline(val, str)  for (const char* val = str; val; val = strline(val, 1))
 
 #define arrmove_r(arr, start, count) do {                     \
-        var v = (arr)[(start) + (count) - 1];               \
+        var v = (arr)[(start) + (count) - 1];                 \
         for (int I = (count) + (start) - 1; I > (start); I--) \
         (arr)[I] = (arr)[I - 1];                              \
         (arr)[(start)] = v;                                   \
 } while (0)
 
 #define arrmove_l(arr, start, count) do {                     \
-        var v = (arr)[(start)];                             \
+        var v = (arr)[(start)];                               \
         for (int I = (start); I < (count) + (start) - 1; I++) \
         (arr)[I] = (arr)[I + 1];                              \
         (arr)[(count) + (start) - 1] = v;                     \

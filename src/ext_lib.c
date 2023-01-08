@@ -84,7 +84,7 @@ void FreeList_Free(void) {
         if (s_freelist_temp->dest)
             s_freelist_temp->dest(s_freelist_temp->ptr);
         else
-            free(s_freelist_temp->ptr);
+            vfree(s_freelist_temp->ptr);
         
         Node_Kill(s_freelist_temp, s_freelist_temp);
     }
@@ -100,6 +100,15 @@ const_func extlib_init(void) {
     srand((u32)(clock() + time(0)));
     pthread_mutex_init(&gThreadMutex, NULL);
     
+    {
+        _log("bitfield assert:");
+        u8 d[2] = { 0b00000001, 0b10000000 };
+        
+        _assert(bitfield_get(d, 7, 2) == 0b11);
+        bitfield_set(d, 0, 7, 2);
+        _assert(bitfield_get(d, 7, 2) == 0);
+    }
+    
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
     IO_FixWin32();
@@ -110,7 +119,7 @@ dest_func extlib_dest(void) {
     pthread_mutex_destroy(&gThreadMutex);
     
     while (s_freelist_dest) {
-        free(s_freelist_dest->ptr);
+        vfree(s_freelist_dest->ptr);
         Node_Kill(s_freelist_dest, s_freelist_dest);
     }
     
@@ -415,7 +424,7 @@ const_func x_init() {
 }
 
 dest_func x_dest() {
-    free(gBufX.head);
+    vfree(gBufX.head);
 }
 
 void* x_alloc(size_t size) {
@@ -566,7 +575,7 @@ static char* __impl_pathslot(char* (*fstrndup)(const char*, size_t), const char*
 static inline const char* __impl_basename_last_slash(const char* s) {
     char* la = strrchr(s, '/');
     char* lb = strrchr(s, '\\');
-    char* ls = (char*)max((uaddr_t)la, (uaddr_t)lb);
+    char* ls = (char*)Max((uaddr_t)la, (uaddr_t)lb);
     
     if (!ls++)
         ls = (char*)s;
@@ -867,7 +876,7 @@ f32 sfloat(const char* string) {
     }
     
     fl = strtod(string, NULL);
-    free(str);
+    vfree(str);
     
     return fl;
 }
@@ -950,6 +959,15 @@ int digint(int i) {
     
     for (; i; d++)
         i /= 10;
+    
+    return clamp_min(d, 1);
+}
+
+int digbit(int i) {
+    int d = 0;
+    
+    for (; i; d++)
+        i /= 2;
     
     return clamp_min(d, 1);
 }
@@ -1853,6 +1871,58 @@ size_t strwlen(const wchar* s) {
     return len;
 }
 
+size_t str8nlen(const char* str, size_t n) {
+    const char* t = str;
+    size_t length = 0;
+    
+    while ((size_t)(str - t) < n && '\0' != *str) {
+        if (0xf0 == (0xf8 & *str))
+            str += 4;
+        else if (0xe0 == (0xf0 & *str))
+            str += 3;
+        else if (0xc0 == (0xe0 & *str))
+            str += 2;
+        else
+            str += 1;
+        
+        length++;
+    }
+    
+    if ((size_t)(str - t) > n)
+        length--;
+    return length;
+}
+
+size_t str8len(const char* str) {
+    return str8nlen(str, SIZE_MAX);
+}
+
+size_t strvnlen(const char* str, size_t n) {
+    const char* t = str;
+    size_t length = 0;
+    
+    while ((size_t)(str - t) < n && '\0' != *str) {
+        if (0xf0 == (0xf8 & *str))
+            str += 4;
+        else if (0xe0 == (0xf0 & *str))
+            str += 2;
+        else if (0xc0 == (0xe0 & *str))
+            str += 2;
+        else
+            str += 1;
+        
+        length++;
+    }
+    
+    if ((size_t)(str - t) > n)
+        length--;
+    return length;
+}
+
+size_t strvlen(const char* str) {
+    return strvnlen(str, SIZE_MAX);
+}
+
 char* strto8(char* dst, const wchar* src) {
     size_t dstIndex = 0;
     size_t len = strwlen(src) + 1;
@@ -1925,6 +1995,49 @@ int dir_isrel(const char* item) {
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
+#define _bitnummask(bitNum)          ((1 << (bitNum)) - 1)
+#define _bitsizemask(size)           _bitnummask(size * 8)
+#define _bitfield(data, shift, size) (((data) >> (shift))&_bitnummask(size))
+#define _bitfirst(u32)               __builtin_ctz(u32)
+
+u32 bitfield_get(const void* data, int shift, int size) {
+    const u8* b = data;
+    u32 r = 0;
+    int szm = size - 1;
+    
+    for (int i = 0; i < size; i++) {
+        int id = (shift + i);
+        int sf = id % 8;
+        
+        id -= sf;
+        id /= 8;
+        sf = 7 - sf;
+        
+        r |= ((b[id] >> sf) & 1) << (szm - i);
+    }
+    
+    return r;
+}
+
+void bitfield_set(void* data, u32 val, int shift, int size) {
+    u8* b = data;
+    int szm = size - 1;
+    
+    for (int i = 0; i < size; i++) {
+        int id = (shift + i);
+        int sf = id % 8;
+        
+        id -= sf;
+        id /= 8;
+        sf = 7 - sf;
+        
+        b[id] &= ~( 1 << sf );
+        b[id] |= ((val >> (szm - i)) & 1) << sf;
+    }
+}
+
+// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
 bool sys_isdir(const char* path) {
     struct stat st = { 0 };
     
@@ -1960,7 +2073,7 @@ time_t sys_stat(const char* item) {
     }
     
     if (stat(item, &st) == -1) {
-        if (f) free(item);
+        if (f) vfree(item);
         
         return 0;
     }
@@ -1970,7 +2083,7 @@ time_t sys_stat(const char* item) {
     t = Max(st.st_mtime, t);
     t = Max(st.st_ctime, t);
     
-    if (f) free(item);
+    if (f) vfree(item);
     
     return t;
 }
@@ -2385,7 +2498,7 @@ int sys_exel(const char* cmd, int (*callback)(void*, const char*), void* arg) {
         if (callback)
             if (callback(arg, s))
                 break;
-    free(s);
+    vfree(s);
     
     return pclose(file);
 }
@@ -2640,9 +2753,9 @@ void cli_getPos(int* r) {
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-int qsort_numhex(const void* ptrA, const void* ptrB) {
-    const char* a = *((char**)ptrA);
-    const char* b = *((char**)ptrB);
+int qsort_numhex(const void* arg_a, const void* arg_b) {
+    const char* a = *((char**)arg_a);
+    const char* b = *((char**)arg_b);
     
     if (!a || !b)
         return a ? 1 : b ? -1 : 0;
@@ -2690,13 +2803,20 @@ int qsort_numhex(const void* ptrA, const void* ptrB) {
     return *a ? 1 : *b ? -1 : 0;
 }
 
+int qsort_u32(const void* arg_a, const void* arg_b) {
+    const u32* a = arg_a;
+    const u32* b = arg_b;
+    
+    return *a - *b;
+}
+
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 #undef free
-void* __free(const void* data) {
-    if (data != NULL)
-        free((void*)data);
+void* __vfree(const void* data) {
+    if (data) free((void*)data);
     
     return NULL;
 }
+
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #

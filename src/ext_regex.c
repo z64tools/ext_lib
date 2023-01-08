@@ -1,9 +1,8 @@
 #include <ext_lib.h>
-
 #ifdef _WIN32
-    #include "regex/xregex.h"
+#include "regex/xregex.h"
 #else
-    #include <regex.h>
+#include <regex.h>
 #endif
 
 char* regex(const char* str, const char* pattern, enum RegexFlag flag) {
@@ -36,7 +35,7 @@ char* regex(const char* str, const char* pattern, enum RegexFlag flag) {
     
 done:
     regfree(&reg);
-    free(match);
+    vfree(match);
     
     return ret;
 }

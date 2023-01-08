@@ -139,7 +139,7 @@ static s32 Proc_SysThd(Proc* this) {
     char* args = strarrcat(this->arg, " ");
     s32 sys = system(args);
     
-    free(args);
+    vfree(args);
     
     return sys;
 }
@@ -288,17 +288,15 @@ static int Proc_Free(Proc* this) {
     
     if (this->env) {
         for (s32 i = 0; i < 32; i++)
-            free(this->env[i]);
+            vfree(this->env[i]);
         
-        free(this->env);
+        vfree(this->env);
     }
     
     for (s32 i = 0; i < this->numArg; i++)
-        free(this->arg[i]);
+        vfree(this->arg[i]);
     
-    free(this->path);
-    free(this->arg);
-    free(this);
+    vfree(this->path, this->arg, this);
     
     return signal;
 }

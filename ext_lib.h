@@ -35,10 +35,6 @@
 #define __CRT__NO_INLINE
 #endif
 
-#ifdef __clang__
-#define free __hidden_free
-#endif
-
 #include "ext_type.h"
 #include "ext_macros.h"
 #include "ext_math.h"
@@ -49,7 +45,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-#undef free
+#define free(...) INVALID_FREE_USAGE
 
 void profilog(const char* msg);
 void profilogdiv(const char* msg, f32 div);
@@ -140,6 +136,10 @@ void info_hex(const char* txt, const void* data, u32 size, u32 dispOffset);
 void info_bit(const char* txt, const void* data, u32 size, u32 dispOffset);
 void info_nl(void);
 
+size_t xl_vsnprintf(char*, size_t, const char*, va_list);
+size_t xl_snprintf(char*, size_t, const char*, ...);
+size_t xl_fprint(FILE*, const char*, ...);
+
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 List List_New(void);
@@ -183,6 +183,8 @@ bool Toml_GetBool(Toml* this, const char* item, ...);
 char* Toml_GetStr(Toml* this, const char* item, ...);
 
 char* Toml_Var(Toml* this, const char* item, ...);
+void Toml_ListTabs(Toml* this, List* list, const char* item, ...);
+void Toml_ListVars(Toml* this, List* list, const char* item, ...);
 int Toml_ArrItemNum(Toml* this, const char* arr, ...);
 int Toml_TabItemNum(Toml* this, const char* item, ...);
 
@@ -281,13 +283,13 @@ char* dirabs(const char* item);
 #define calloc(size) calloc(1, size)
 
 #ifdef __clang__
-void* free(const void*, ...);
+void* vfree(const void*, ...);
 
 #else
 
-void* __free(const void* data);
-#define __impl_for_each_free(a) a = __free(a);
-#define free(...)               ({                      \
+void* __vfree(const void* data);
+#define __impl_for_each_free(a) a = __vfree(a);
+#define vfree(...)              ({                      \
         VA_ARG_MANIP(__impl_for_each_free, __VA_ARGS__) \
         NULL;                                           \
     })
@@ -304,6 +306,7 @@ int vldt_hex(const char* str);
 int vldt_int(const char* str);
 int vldt_float(const char* str);
 int digint(int i);
+int digbit(int i);
 int valdig(int val, int digid);
 int dighex(int i);
 int valhex(int val, int digid);
@@ -366,6 +369,10 @@ char* String_GetSpacedArg(const char** args, int cur);
 void strswapext(char* dest, const char* src, const char* ext);
 char* strarrcat(const char** list, const char* separator);
 size_t strwlen(const wchar* s);
+size_t str8nlen(const char* str, size_t n);
+size_t str8len(const char* str);
+size_t strvnlen(const char* str, size_t n);
+size_t strvlen(const char* str);
 char* strto8(char* dst, const wchar* src);
 wchar* strto16(wchar* dst, const char* src);
 int linenum(const char* str);
@@ -382,6 +389,9 @@ int dir_isrel(const char* item);
 
 int stricmp(const char* a, const char* b);
 int strnicmp(const char* a, const char* b, size_t size);
+
+u32 bitfield_get(const void* data, int shift, int size);
+void bitfield_set(void* data, u32 val, int shift, int size);
 
 bool sys_isdir(const char* path);
 time_t sys_stat(const char* item);
@@ -428,7 +438,8 @@ void cli_getPos(int* r);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-int qsort_numhex(const void* ptrA, const void* ptrB);
+int qsort_numhex(const void* arg_a, const void* arg_b);
+int qsort_u32(const void* arg_a, const void* arg_b);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 

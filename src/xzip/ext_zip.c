@@ -106,7 +106,7 @@ int Zip_ReadPath(Zip* zip, const char* path, int (*callback)(const char* name, M
         
         if (memcmp(path, name, strlen(path))) {
             zip_entry_close(zip->pkg);
-            free(name);
+            vfree(name);
             continue;
         }
         zip_entry_close(zip->pkg);
@@ -120,7 +120,7 @@ int Zip_ReadPath(Zip* zip, const char* path, int (*callback)(const char* name, M
             brk = true;
         
         Memfile_Free(&mem);
-        free(name);
+        vfree(name);
         
         if (brk)
             break;
@@ -174,16 +174,16 @@ static int Zip_DumpCall(Zip* zip, Memfile* mem, u32 i, f32 prcnt, int (*callback
     if (!callback(name, prcnt)) {
         if (isDir) {
             sys_mkdir(fs_item(name));
-            free(name);
+            vfree(name);
             
             return 0;
         }
         
-        free(name);
+        vfree(name);
         return Zip_DumpNoCall(zip, mem, i);
     }
     
-    free(name);
+    vfree(name);
     
     return 0;
 }
@@ -204,6 +204,6 @@ int Zip_Dump(Zip* zip, const char* path, int (*callback)(const char* name, f32 p
 }
 
 void Zip_Free(Zip* zip) {
-    free(zip->filename);
+    vfree(zip->filename);
     zip_close(zip->pkg);
 }

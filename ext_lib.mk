@@ -67,16 +67,18 @@ $(shell mkdir -p bin/ $(foreach dir, \
 
 CFLAGS += -Wno-missing-braces -Wno-unused-local-typedefs
 
+bin/win32/src/xxm/%.o: CFLAGS += -I$(PATH_EXTLIB)/src/xxm
+bin/linux/src/xxm/%.o: CFLAGS += -I$(PATH_EXTLIB)/src/xxm
 bin/win32/src/gui/%.o: CFLAGS += -Wno-misleading-indentation
-bin/win32/src/xzip/%.o: CFLAGS += -Wno-stringop-truncation
 bin/linux/src/gui/%.o: CFLAGS += -Wno-misleading-indentation
+bin/win32/src/xzip/%.o: CFLAGS += -Wno-stringop-truncation
 bin/linux/src/xzip/%.o: CFLAGS += -Wno-stringop-truncation
-bin/linux/src/xaudio/__ma__.o: CFLAGS += -Wno-maybe-uninitialized
 bin/win32/src/xaudio/__ma__.o: CFLAGS += -Wno-maybe-uninitialized
-bin/linux/src/proc/%.o: CFLAGS += -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
+bin/linux/src/xaudio/__ma__.o: CFLAGS += -Wno-maybe-uninitialized
 bin/win32/src/proc/%.o: CFLAGS += -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
-bin/linux/reproc/reproc/src/%.o: CFLAGS += -Wno-cpp -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
+bin/linux/src/proc/%.o: CFLAGS += -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
 bin/win32/reproc/reproc/src/%.o: CFLAGS += -Wno-cpp -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
+bin/linux/reproc/reproc/src/%.o: CFLAGS += -Wno-cpp -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
 
 bin/linux/libreproc.a: $(ReProc_Linux_O)
 	@echo "$(PRNT_RSET)[$(PRNT_PRPL)$(notdir $@)$(PRNT_RSET)]"

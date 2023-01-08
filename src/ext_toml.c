@@ -1,9 +1,5 @@
 #define EXT_TOML_C
 
-#ifdef __clang__
-#define free __hidden_free
-#endif
-
 #include "xtoml/x0.h"
 #include "xtoml/x0impl.h"
 #include <ext_lib.h>
@@ -279,7 +275,7 @@ void Toml_SetVar(Toml* this, const char* item, const char* fmt, ...) {
         for (var i = 0; i < tbl->nkval; i++) {
             if (!strcmp(tbl->kval[i]->key, t.item)) {
                 if (!tbl->kval[i]->val || strcmp(tbl->kval[i]->val, value)) {
-                    free(tbl->kval[i]->val);
+                    vfree(tbl->kval[i]->val);
                     tbl->kval[i]->val = strdup(value);
                     this->changed = true;
                 }
@@ -303,7 +299,7 @@ void Toml_SetVar(Toml* this, const char* item, const char* fmt, ...) {
         }
         
         if (!arr->item[t.idx].val || strcmp(arr->item[t.idx].val, value)) {
-            free(arr->item[t.idx].val);
+            vfree(arr->item[t.idx].val);
             arr->item[t.idx].val = strdup(value);
             arr->item[t.idx].valtype = valtype(value);
             arr->item[t.idx].tab = 0;
@@ -370,16 +366,16 @@ static bool Toml_Remove(Toml* this, enum Remove rem, const char* item, va_list v
     
     if (!tbl) return false;
     
-    #define TOML_REMOVE(TYPE)                                 \
-        for (var i = 0; i < tbl->n ## TYPE; i++) {          \
-            if (!strcmp(tbl->TYPE[i]->key, t.item)) {         \
-                xfree_ ## TYPE(tbl->TYPE[i]);                 \
+    #define TOML_REMOVE(TYPE)                                  \
+        for (var i = 0; i < tbl->n ## TYPE; i++) {             \
+            if (!strcmp(tbl->TYPE[i]->key, t.item)) {          \
+                xfree_ ## TYPE(tbl->TYPE[i]);                  \
                 arrmove_l(tbl->TYPE, i, (tbl->n ## TYPE) - i); \
-                tbl->n ## TYPE--;                             \
-                if (!tbl->n ## TYPE) { free(tbl->TYPE); }     \
-                this->changed = true;                         \
-                return true;                                  \
-            }                                                 \
+                tbl->n ## TYPE--;                              \
+                if (!tbl->n ## TYPE) { vfree(tbl->TYPE); }     \
+                this->changed = true;                          \
+                return true;                                   \
+            }                                                  \
         }
     
     switch (rem) {
@@ -650,20 +646,60 @@ char* Toml_Var(Toml* this, const char* item, ...) {
 // # NumArray                            #
 // # # # # # # # # # # # # # # # # # # # #
 
-int Toml_ArrItemNum(Toml* this, const char* arr, ...) {
+static travel_t Toml_GetTravelImpl(Toml* this, const char* item, const char* cat, va_list va) {
     char buf[BUFFER_SIZE];
     char path[BUFFER_SIZE] = {};
-    va_list va;
     
-    va_start(va, arr);
-    vsnprintf(buf, BUFFER_SIZE, arr, va);
-    va_end(va);
-    
-    if (!strend(buf, "]")) strcat(buf, "[]");
+    vsnprintf(buf, BUFFER_SIZE, item, va);
+    if (!*buf)
+        return (travel_t) { .tbl = this->root };
+    strcat(buf, cat);
     
     this->silence = true;
     travel_t t = Toml_Travel(this, buf, this->root, path);
     this->silence = false;
+    
+    return t;
+}
+
+void Toml_ListTabs(Toml* this, List* list, const char* item, ...) {
+    va_list va;
+    
+    va_start(va, item);
+    travel_t t = Toml_GetTravelImpl(this, item, ".__get_tbl", va);
+    va_end(va);
+    
+    List_Free(list);
+    if (t.tbl) {
+        List_Alloc(list, t.tbl->ntab);
+        
+        for (var i = 0; i < t.tbl->ntab; i++)
+            List_Add(list, t.tbl->tab[i]->key);
+    }
+}
+
+void Toml_ListVars(Toml* this, List* list, const char* item, ...) {
+    va_list va;
+    
+    va_start(va, item);
+    travel_t t = Toml_GetTravelImpl(this, item, ".__get_tbl", va);
+    va_end(va);
+    
+    List_Free(list);
+    if (t.tbl) {
+        List_Alloc(list, t.tbl->nkval);
+        
+        for (var i = 0; i < t.tbl->nkval; i++)
+            List_Add(list, t.tbl->kval[i]->key);
+    }
+}
+
+int Toml_ArrItemNum(Toml* this, const char* arr, ...) {
+    va_list va;
+    
+    va_start(va, arr);
+    travel_t t = Toml_GetTravelImpl(this, arr, "[]", va);
+    va_end(va);
     
     if (t.arr) return t.arr->nitem;
     
@@ -671,25 +707,14 @@ int Toml_ArrItemNum(Toml* this, const char* arr, ...) {
 }
 
 int Toml_TabItemNum(Toml* this, const char* item, ...) {
-    char buf[BUFFER_SIZE];
-    char path[BUFFER_SIZE] = {};
     va_list va;
     
     va_start(va, item);
-    vsnprintf(buf, BUFFER_SIZE, item, va);
-    strcat(buf, ".temp");
+    travel_t t = Toml_GetTravelImpl(this, item, ".__get_tbl", va);
     va_end(va);
-    
-    this->silence = true;
-    travel_t t = Toml_Travel(this, buf, this->root, path);
-    this->silence = false;
     
     if (t.tbl)
         return toml_table_narr(t.tbl) + toml_table_nkval(t.tbl);
     
     return 0;
 }
-
-// # # # # # # # # # # # # # # # # # # # #
-// # Impl                                #
-// # # # # # # # # # # # # # # # # # # # #

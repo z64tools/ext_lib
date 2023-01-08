@@ -31,8 +31,7 @@ static FILE* Memfile_Fopen(const char* name, const char* mode) {
     
     file = _wfopen(name16, mode16);
     
-    free(name16);
-    free(mode16);
+    vfree(name16, mode16);
 #else
     file = fopen(name, mode);
 #endif
@@ -294,7 +293,7 @@ int Memfile_LoadBin(Memfile* this, const char* filepath) {
     fclose(file);
     
     this->info.age = sys_stat(filepath);
-    free(this->info.name);
+    vfree(this->info.name);
     this->info.name = strdup(filepath);
     
     return 0;
@@ -336,7 +335,7 @@ int Memfile_LoadStr(Memfile* this, const char* filepath) {
     this->cast.u8[this->size] = '\0';
     
     this->info.age = sys_stat(filepath);
-    free(this->info.name);
+    vfree(this->info.name);
     this->info.name = strdup(filepath);
     
     return 0;
@@ -388,7 +387,7 @@ int Memfile_SaveStr(Memfile* this, const char* filepath) {
 
 void Memfile_Free(Memfile* this) {
     if (this->param.initKey == 0xD0E0A0D0B0E0E0F0)
-        free(this->data, this->info.name);
+        vfree(this->data, this->info.name);
     
     *this = Memfile_New();
 }

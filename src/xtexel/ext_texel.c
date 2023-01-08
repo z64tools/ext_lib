@@ -32,7 +32,7 @@ void Image_Load(Image* this, const char* file) {
     if (!this->data) this->data = data;
     else {
         memcpy(this->data, data, channels * this->x * this->y);
-        free(data);
+        vfree(data);
     }
     
     this->size = this->x * this->y * channels;
@@ -62,6 +62,6 @@ void Image_Alloc(Image* this, int x, int y, int channels) {
 }
 
 void Image_Free(Image* this) {
-    free(this->data);
+    vfree(this->data);
     memset(this, 0, sizeof(*this));
 }

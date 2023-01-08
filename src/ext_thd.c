@@ -49,7 +49,7 @@ const_func Parallel_Init() {
 dest_func Parallel_Dest() {
     pthread_mutex_destroy(&sMutex);
     
-    free(sThdPool);
+    vfree(sThdPool);
 }
 
 static void Parallel_AddToHead(thd_item_t* t) {

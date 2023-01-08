@@ -150,7 +150,7 @@ void Ini_ParseIncludes(Memfile* mem) {
     Ini_RecurseInclude(&dst, mem->info.name, &strNodeHead);
     dst.str[dst.size] = '\0';
     
-    free(mem->data);
+    vfree(mem->data);
     mem->data = dst.data;
     mem->memSize = dst.memSize;
     mem->size = dst.size;
@@ -213,7 +213,7 @@ void Ini_GetArr(Memfile* mem, const char* variable, List* list) {
         memcpy(array, tmp + 1, size - 1);
         
         List_Tokenize2(list, array, ',');
-        free(array);
+        vfree(array);
     } else
         *list = List_New();
     
@@ -306,7 +306,7 @@ f32 Ini_GetFloat(Memfile* mem, const char* variable) {
 void Ini_GotoTab(const char* section) {
     int ignore_result = 0;
     
-    free(sCfgSection);
+    vfree(sCfgSection);
     if (section) {
         if (section[0] == '[')
             sCfgSection = strdup(section);

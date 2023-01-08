@@ -227,15 +227,6 @@ typedef struct {
     s32 second;
 } date_t;
 
-typedef void (*sound_callback_t)(void*, void*, u32);
-
-typedef enum {
-    SOUND_S16 = 2,
-    SOUND_S24,
-    SOUND_S32,
-    SOUND_F32,
-} sound_fmt_t;
-
 enum {
     SORT_NO        = 0,
     SORT_NUMERICAL = 1,

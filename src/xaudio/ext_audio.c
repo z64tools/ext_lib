@@ -1,4 +1,5 @@
 #include "ext_lib.h"
+#include "ext_sound.h"
 #include <miniaudio/miniaudio.h>
 
 typedef struct {
