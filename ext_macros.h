@@ -182,7 +182,7 @@
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>]: " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
 
 #define foreach(val, arr)  for (int val = 0; val < ArrCount(arr); val++)
-#define forlist(val, list) for (int val = 0; val < (list).num; val++)
+// #define for (int val = 0; val < list.num; val++) for (int val = 0; val < (list).num; val++)
 #define fornode(val, head) for (typeof(head) val = head; val != NULL; val = val->next)
 #define forstr(val, str)   for (int val = 0; val < strlen(str); val++)
 #define forline(val, str)  for (const char* val = str; val; val = strline(val, 1))

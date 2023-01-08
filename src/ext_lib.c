@@ -2313,7 +2313,7 @@ int sys_cp(const char* src, const char* dest) {
         
         List_Walk(&list, src, -1, LIST_FILES);
         
-        forlist(i, list) {
+        for (int i = 0; i < list.num; i++) {
             char* dfile = x_fmt(
                 "%s%s%s",
                 dest,
