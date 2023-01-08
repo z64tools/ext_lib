@@ -123,7 +123,7 @@ VectorGfx VectorGfx_New(VectorGfx* this, const void* data, f32 fidelity) {
             
             AddPoint(pts[0], pts[1]);
             
-            for (s32 i = 0; i < npts - 1; i += 3) {
+            for (int i = 0; i < npts - 1; i += 3) {
                 float* p = &pts[i * 2];
                 Bezier(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], tol, 0);
             }

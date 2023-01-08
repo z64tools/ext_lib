@@ -217,7 +217,7 @@ void Ini_GetArr(Memfile* mem, const char* variable, List* list) {
     } else
         *list = List_New();
     
-    for (s32 i = 0; i < list->num; i++)
+    for (int i = 0; i < list->num; i++)
         strrep(list->item[i], "\"", "");
 }
 
@@ -435,7 +435,7 @@ void Ini_WriteArr(Memfile* mem, const char* variable, List* list, bool quote, co
     };
     
     Memfile_Fmt(mem, "%-15s = [ ", variable);
-    for (s32 i = 0; i < list->num; i++) {
+    for (int i = 0; i < list->num; i++) {
         Memfile_Fmt(mem, "%s%s%s, ", q[quote], list->item[i], q[quote]);
     }
     if (list->num)

@@ -8,13 +8,13 @@
 
 #define veccmp(a, b) ({                                             \
         bool r = false;                                             \
-        for (s32 i = 0; i < sizeof((*(a))) / sizeof((*(a)).x); i++) \
+        for (int i = 0; i < sizeof((*(a))) / sizeof((*(a)).x); i++) \
         if ((*(a)).axis[i] != (*(b)).axis[i]) r = true;             \
         r;                                                          \
     })
 
 #define veccpy(a, b) do {                                       \
-    for (s32 i = 0; i < sizeof((*(a))) / sizeof((*(a)).x); i++) \
+    for (int i = 0; i < sizeof((*(a))) / sizeof((*(a)).x); i++) \
     (*(a)).axis[i] = (*(b)).axis[i];                            \
 } while (0)
 
@@ -820,7 +820,7 @@ static inline Vec4s Math_Vec4s_New(s16 x, s16 y, s16 z, s16 w) {
 static inline f32 Math_Vec2f_Dot(Vec2f a, Vec2f b) {
     f32 dot = 0.0f;
     
-    for (s32 i = 0; i < 2; i++)
+    for (int i = 0; i < 2; i++)
         dot += a.axis[i] * b.axis[i];
     
     return dot;
@@ -829,7 +829,7 @@ static inline f32 Math_Vec2f_Dot(Vec2f a, Vec2f b) {
 static inline f32 Math_Vec3f_Dot(Vec3f a, Vec3f b) {
     f32 dot = 0.0f;
     
-    for (s32 i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
         dot += a.axis[i] * b.axis[i];
     
     return dot;
@@ -838,7 +838,7 @@ static inline f32 Math_Vec3f_Dot(Vec3f a, Vec3f b) {
 static inline f32 Math_Vec4f_Dot(Vec4f a, Vec4f b) {
     f32 dot = 0.0f;
     
-    for (s32 i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++)
         dot += a.axis[i] * b.axis[i];
     
     return dot;
@@ -847,7 +847,7 @@ static inline f32 Math_Vec4f_Dot(Vec4f a, Vec4f b) {
 static inline f32 Math_Vec2s_Dot(Vec2s a, Vec2s b) {
     f32 dot = 0.0f;
     
-    for (s32 i = 0; i < 2; i++)
+    for (int i = 0; i < 2; i++)
         dot += a.axis[i] * b.axis[i];
     
     return dot;
@@ -856,7 +856,7 @@ static inline f32 Math_Vec2s_Dot(Vec2s a, Vec2s b) {
 static inline f32 Math_Vec3s_Dot(Vec3s a, Vec3s b) {
     f32 dot = 0.0f;
     
-    for (s32 i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
         dot += a.axis[i] * b.axis[i];
     
     return dot;
@@ -865,7 +865,7 @@ static inline f32 Math_Vec3s_Dot(Vec3s a, Vec3s b) {
 static inline f32 Math_Vec4s_Dot(Vec4s a, Vec4s b) {
     f32 dot = 0.0f;
     
-    for (s32 i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++)
         dot += a.axis[i] * b.axis[i];
     
     return dot;
@@ -922,7 +922,7 @@ static inline f32 Math_Vec4s_Magnitude(Vec4s a) {
 static inline Vec2f Math_Vec2f_Median(Vec2f a, Vec2f b) {
     Vec2f vec;
     
-    for (s32 i = 0; i < 2; i++)
+    for (int i = 0; i < 2; i++)
         vec.axis[i] = (a.axis[i] + b.axis[i]) * 0.5f;
     
     return vec;
@@ -931,7 +931,7 @@ static inline Vec2f Math_Vec2f_Median(Vec2f a, Vec2f b) {
 static inline Vec3f Math_Vec3f_Median(Vec3f a, Vec3f b) {
     Vec3f vec;
     
-    for (s32 i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
         vec.axis[i] = (a.axis[i] + b.axis[i]) * 0.5f;
     
     return vec;
@@ -940,7 +940,7 @@ static inline Vec3f Math_Vec3f_Median(Vec3f a, Vec3f b) {
 static inline Vec4f Math_Vec4f_Median(Vec4f a, Vec4f b) {
     Vec4f vec;
     
-    for (s32 i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++)
         vec.axis[i] = (a.axis[i] + b.axis[i]) * 0.5f;
     
     return vec;
@@ -949,7 +949,7 @@ static inline Vec4f Math_Vec4f_Median(Vec4f a, Vec4f b) {
 static inline Vec2s Math_Vec2s_Median(Vec2s a, Vec2s b) {
     Vec2s vec;
     
-    for (s32 i = 0; i < 2; i++)
+    for (int i = 0; i < 2; i++)
         vec.axis[i] = (a.axis[i] + b.axis[i]) * 0.5f;
     
     return vec;
@@ -958,7 +958,7 @@ static inline Vec2s Math_Vec2s_Median(Vec2s a, Vec2s b) {
 static inline Vec3s Math_Vec3s_Median(Vec3s a, Vec3s b) {
     Vec3s vec;
     
-    for (s32 i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
         vec.axis[i] = (a.axis[i] + b.axis[i]) * 0.5f;
     
     return vec;
@@ -967,7 +967,7 @@ static inline Vec3s Math_Vec3s_Median(Vec3s a, Vec3s b) {
 static inline Vec4s Math_Vec4s_Median(Vec4s a, Vec4s b) {
     Vec4s vec;
     
-    for (s32 i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++)
         vec.axis[i] = (a.axis[i] + b.axis[i]) * 0.5f;
     
     return vec;
@@ -1114,7 +1114,7 @@ static inline Vec4s Math_Vec4s_Invert(Vec4s a) {
 static inline Vec2f Math_Vec2f_InvMod(Vec2f a) {
     Vec2f r;
     
-    for (s32 i = 0; i < ArrCount(a.axis); i++)
+    for (int i = 0; i < ArrCount(a.axis); i++)
         r.axis[i] = 1.0f - fabsf(a.axis[i]);
     
     return r;
@@ -1123,7 +1123,7 @@ static inline Vec2f Math_Vec2f_InvMod(Vec2f a) {
 static inline Vec3f Math_Vec3f_InvMod(Vec3f a) {
     Vec3f r;
     
-    for (s32 i = 0; i < ArrCount(a.axis); i++)
+    for (int i = 0; i < ArrCount(a.axis); i++)
         r.axis[i] = 1.0f - fabsf(a.axis[i]);
     
     return r;
@@ -1132,28 +1132,28 @@ static inline Vec3f Math_Vec3f_InvMod(Vec3f a) {
 static inline Vec4f Math_Vec4f_InvMod(Vec4f a) {
     Vec4f r;
     
-    for (s32 i = 0; i < ArrCount(a.axis); i++)
+    for (int i = 0; i < ArrCount(a.axis); i++)
         r.axis[i] = 1.0f - fabsf(a.axis[i]);
     
     return r;
 }
 
 static inline bool Math_Vec2f_IsNaN(Vec2f a) {
-    for (s32 i = 0; i < ArrCount(a.axis); i++)
+    for (int i = 0; i < ArrCount(a.axis); i++)
         if (isnan(a.axis[i])) true;
     
     return false;
 }
 
 static inline bool Math_Vec3f_IsNaN(Vec3f a) {
-    for (s32 i = 0; i < ArrCount(a.axis); i++)
+    for (int i = 0; i < ArrCount(a.axis); i++)
         if (isnan(a.axis[i])) true;
     
     return false;
 }
 
 static inline bool Math_Vec4f_IsNaN(Vec4f a) {
-    for (s32 i = 0; i < ArrCount(a.axis); i++)
+    for (int i = 0; i < ArrCount(a.axis); i++)
         if (isnan(a.axis[i])) true;
     
     return false;

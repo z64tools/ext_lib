@@ -16,7 +16,7 @@ void Input_Update(Input* this) {
     cursor->pos.y = y;
     
     this->keyAction = false;
-    for (s32 i = 0; i < KEY_MAX; i++) {
+    for (int i = 0; i < KEY_MAX; i++) {
         this->key[i].dual = false;
         this->key[i].press = (this->key[i].prev == 0 && this->key[i].hold);
         this->key[i].release = (this->key[i].prev && this->key[i].hold == 0);
@@ -39,13 +39,13 @@ void Input_Update(Input* this) {
         }
     }
     
-    for (s32 i = 0; i < CLICK_ANY; i++) {
+    for (int i = 0; i < CLICK_ANY; i++) {
         cursor->clickList[i].press = (cursor->clickList[i].prev == 0 && cursor->clickList[i].hold);
         cursor->clickList[i].release = (cursor->clickList[i].prev && cursor->clickList[i].hold == 0);
         cursor->clickList[i].prev = cursor->clickList[i].hold;
     }
     
-    for (s32 i = 0; i < CURSOR_ACTION_MAX; i++) {
+    for (int i = 0; i < CURSOR_ACTION_MAX; i++) {
         cursor->clickList[CLICK_ANY].__action[i] = (
             cursor->clickList[CLICK_L].__action[i] ||
             cursor->clickList[CLICK_R].__action[i] ||
@@ -60,7 +60,7 @@ void Input_Update(Input* this) {
     
     cursor->cursorAction = (cursor->clickAny.press || cursor->clickAny.hold || cursor->scrollY) && !this->state.block;
     
-    for (s32 i = 0; i < CLICK_ANY; i++) {
+    for (int i = 0; i < CLICK_ANY; i++) {
         InputType* click = &this->cursor.clickList[i];
         
         click->dual = false;
@@ -143,7 +143,7 @@ void Input_SetMousePos(Input* this, s32 x, s32 y) {
     if (y == MOUSE_KEEP_AXIS)
         y = this->cursor.pos.y;
     
-    for (s32 i = 0; i < 10; i++)
+    for (int i = 0; i < 10; i++)
         glfwSetCursorPos(this->app->window, x, y);
     
     this->cursor.pos.x = x;

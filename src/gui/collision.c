@@ -70,7 +70,7 @@ bool Col3D_LineVsTriBuffer(RayLine* ray, TriBuffer* triBuf, Vec3f* outPos, Vec3f
     Triangle* tri = triBuf->head;
     s32 r = 0;
     
-    for (s32 i = 0; i < triBuf->num; i++, tri++) {
+    for (int i = 0; i < triBuf->num; i++, tri++) {
         if (Col3D_LineVsTriangle(ray, tri, outPos, outNor, tri->cullBackface, tri->cullFrontface))
             r = true;
     }

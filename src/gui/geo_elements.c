@@ -127,7 +127,7 @@ void Gfx_SetDefaultTextParams(void* vg) {
 void Gfx_Shape(void* vg, Vec2f center, f32 scale, s16 rot, const Vec2f* p, u32 num) {
     bool move = true;
     
-    for (s32 i = num - 1; !(i < 0); i--) {
+    for (int i = num - 1; !(i < 0); i--) {
         
         if (p[i].x == FLT_MAX || p[i].y == FLT_MAX) {
             move = true;
@@ -208,7 +208,7 @@ void Gfx_DrawStripes(void* vg, Rect rect) {
     nvgFillColor(vg, Theme_GetColor(THEME_HIGHLIGHT, 5, 1.f));
     
     nvgBeginPath(vg);
-    for (s32 i = -8; i < rect.w; i += 8)
+    for (int i = -8; i < rect.w; i += 8)
         Gfx_Shape(vg, Math_Vec2f_New(rect.x + i, rect.y), 20.0f, 0, shape, ArrCount(shape));
     
     nvgFill(vg);
@@ -956,7 +956,7 @@ static void Element_CheckboxDraw(ElementCallInfo* info) {
     nvgBeginPath(vg);
     nvgFillColor(vg, col);
     
-    for (s32 i = 0; i < ArrCount(sVector_Cross); i++) {
+    for (int i = 0; i < ArrCount(sVector_Cross); i++) {
         s32 wi = wrapi(i, 0, ArrCount(sVector_Cross) - 1);
         Vec2f zero = { 0 };
         Vec2f pos = {
@@ -1338,7 +1338,7 @@ static void Element_ContainerDraw(ElementCallInfo* info) {
     else
         Math_SmoothStepToF(&this->copyLerp, 0.0f, 0.25f, 0.25f, 0.01f);
     
-    for (s32 i = 0; i < prop->num; i++) {
+    for (int i = 0; i < prop->num; i++) {
         Rect tr = Element_Container_GetPropRect(this, i);
         
         if (prop->detach && prop->detachKey == i)
@@ -1386,7 +1386,7 @@ static void Element_ContainerDraw(ElementCallInfo* info) {
         if (Rect_PointIntersect(&r, UnfoldVec2(gElemState->split->cursorPos))) {
             Math_SmoothStepToF(&drag->colorLerp, 0.0f, 0.25f, 0.25f, 0.001f);
             
-            for (s32 i = 0; i < prop->num + 1; i++) {
+            for (int i = 0; i < prop->num + 1; i++) {
                 Rect r = Element_Container_GetDragRect(this, i);
                 
                 if (i == this->prop->detachKey)
@@ -1467,7 +1467,7 @@ s32 Element_Container(ElContainer* this) {
             }
             
             if (!this->pressed) {
-                for (s32 i = 0; i < prop->num; i++) {
+                for (int i = 0; i < prop->num; i++) {
                     Rect r = Element_Container_GetPropRect(this, i);
                     
                     if (Rect_PointIntersect(&r, UnfoldVec2(gElemState->split->cursorPos))) {
@@ -1512,7 +1512,7 @@ s32 Element_Container(ElContainer* this) {
             
             PropList_DestroyDetach(prop);
         } else {
-            for (s32 i = 0; i < prop->num; i++) {
+            for (int i = 0; i < prop->num; i++) {
                 Rect r = Element_Container_GetPropRect(this, i);
                 
                 if (Rect_PointIntersect(&r, UnfoldVec2(gElemState->split->cursorPos)))
@@ -1748,7 +1748,7 @@ void Element_Row(s32 rectNum, ...) {
     
     _log("Setting [%d] Elements for Split ID %d", rectNum, gElemState->split->id);
     
-    for (s32 i = 0; i < rectNum; i++) {
+    for (int i = 0; i < rectNum; i++) {
         Element* this = va_arg(va, void*);
         f64 a = va_arg(va, f64);
         
@@ -1792,7 +1792,7 @@ void Element_Header(s32 num, ...) {
     
     _log("Setting [%d] Header Elements", num);
     
-    for (s32 i = 0; i < num; i++) {
+    for (int i = 0; i < num; i++) {
         Element* this = va_arg(va, Element*);
         Rect* rect = &this->rect;
         s32 w = va_arg(va, s32);

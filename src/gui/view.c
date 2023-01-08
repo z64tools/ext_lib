@@ -244,7 +244,7 @@ static void Camera_Update_RotTo(View3D* this, Input* input) {
             { 90, 0,   0   },
         };
         
-        for (s32 i = 0; i < ArrCount(key); i++) {
+        for (int i = 0; i < ArrCount(key); i++) {
             if (Input_GetKey(input, key[i])->press) {
                 pass = i;
                 break;
@@ -254,7 +254,7 @@ static void Camera_Update_RotTo(View3D* this, Input* input) {
         if (pass > -1) {
             this->rotToAngle = true;
             
-            for (s32 i = 0; i < 3; i++)
+            for (int i = 0; i < 3; i++)
                 this->targetRot.axis[i] = DegToBin(target[pass].axis[i]);
         } else {
             if (Input_GetKey(input, KEY_KP_9)->press) {
@@ -367,7 +367,7 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
         Matrix_Projection(
             &this->projMtx, this->fovy, (f32)this->split->rect.w / (f32)this->split->rect.h, this->near, this->far, this->scale);
     
-    for (s32 i = 0; i < ArrCount(camMode); i++)
+    for (int i = 0; i < ArrCount(camMode); i++)
         camMode[i](this, inputCtx, (this->mode & (1 << i) && !this->interrupt));
     
     if (this->cameraControl && !this->interrupt) {
@@ -375,7 +375,7 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
             KEY_W, KEY_A, KEY_S, KEY_D
         };
         
-        for (s32 i = 0; i < ArrCount(keyList); i++) {
+        for (int i = 0; i < ArrCount(keyList); i++) {
             if (Input_GetKey(inputCtx, keyList[i])->hold)
                 this->isControlled = true;
         }
@@ -414,7 +414,7 @@ bool View_CheckControlKeys(Input* input) {
         return true;
     if (Input_GetKey(input, KEY_E)->hold)
         return true;
-    for (s32 i = KEY_KP_0; i <= KEY_KP_9; i++)
+    for (int i = KEY_KP_0; i <= KEY_KP_9; i++)
         if (Input_GetKey(input, i)->hold)
             return true;
     if (Input_GetScroll(input))

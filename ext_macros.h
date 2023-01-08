@@ -158,7 +158,7 @@
     __x_main(int count, const char** args);                      \
     int wmain(int count, const wchar * *args) {                  \
         char** nargv = qxf(calloc(sizeof(char*) * (count + 1))); \
-        for (s32 i = 0; i < count; i++) {                        \
+        for (int i = 0; i < count; i++) {                        \
             nargv[i] = qxf(calloc(strwlen(args[i])));            \
             strto8(nargv[i], args[i]);                           \
         }                                                        \

@@ -161,7 +161,7 @@ static s32 Split_CursorDistToFlagPos(SplitState flag, Split* split) {
 }
 
 static SplitState Split_GetCursorPosState(Split* split, s32 range) {
-    for (s32 i = 0; (1 << i) <= SPLIT_SIDE_B; i++) {
+    for (int i = 0; (1 << i) <= SPLIT_SIDE_B; i++) {
         if (Split_CursorDistToFlagPos((1 << i), split) <= range) {
             SplitEdge* edge = NULL;
             EdgeState stick = 0;
@@ -201,7 +201,7 @@ static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
     _assert(this->taskList != NULL);
     _assert(this->taskCombo != NULL);
     
-    for (s32 i = 0; i < geo->numTaskTable; i++)
+    for (int i = 0; i < geo->numTaskTable; i++)
         PropList_Add(this->taskList, geo->taskTable[i]->taskName);
     Element_Combo_SetPropList(this->taskCombo, this->taskList);
 }
@@ -445,7 +445,7 @@ static void Vtx_RemoveDuplicates(GeoGrid* geo, SplitVtx* vtx) {
             SplitEdge* e = geo->edgeHead;
             
             while (s) {
-                for (s32 i = 0; i < 4; i++) {
+                for (int i = 0; i < 4; i++) {
                     if (s->vtx[i] == vtx2) {
                         s->vtx[i] = vtx;
                     }
@@ -454,7 +454,7 @@ static void Vtx_RemoveDuplicates(GeoGrid* geo, SplitVtx* vtx) {
             }
             
             while (e) {
-                for (s32 i = 0; i < 2; i++) {
+                for (int i = 0; i < 2; i++) {
                     if (e->vtx[i] == vtx2) {
                         e->vtx[i] = vtx;
                     }
@@ -485,7 +485,7 @@ static void Vtx_Update(GeoGrid* geo) {
             Split* s = geo->splitHead;
             
             while (s) {
-                for (s32 i = 0; i < 4; i++)
+                for (int i = 0; i < 4; i++)
                     if (s->vtx[i] == vtx)
                         vtx->killFlag = false;
                 
@@ -525,7 +525,7 @@ static void Edge_RemoveDuplicates(GeoGrid* geo, SplitEdge* edge) {
                 geo->actionEdge = edge;
             
             while (s) {
-                for (s32 i = 0; i < 4; i++)
+                for (int i = 0; i < 4; i++)
                     if (s->edge[i] == cur)
                         s->edge[i] = edge;
                 s = s->next;
@@ -581,7 +581,7 @@ static void Edge_SetSlide(GeoGrid* geo) {
             s32 align = wrapi(edge->state & EDGE_ALIGN, 0, 2);
             
             while (temp) {
-                for (s32 i = 0; i < 2; i++) {
+                for (int i = 0; i < 2; i++) {
                     if (((temp->state & EDGE_ALIGN) != (edge->state & EDGE_ALIGN)) && temp->vtx[1] == edge->vtx[i]) {
                         if (temp->vtx[0]->pos.axis[align] > geo->slide.clampMin) {
                             geo->slide.clampMin = temp->vtx[0]->pos.axis[align];
@@ -589,7 +589,7 @@ static void Edge_SetSlide(GeoGrid* geo) {
                     }
                 }
                 
-                for (s32 i = 0; i < 2; i++) {
+                for (int i = 0; i < 2; i++) {
                     if (((temp->state & EDGE_ALIGN) != (edge->state & EDGE_ALIGN)) && temp->vtx[0] == edge->vtx[i]) {
                         if (temp->vtx[1]->pos.axis[align] < geo->slide.clampMax) {
                             geo->slide.clampMax = temp->vtx[1]->pos.axis[align];
@@ -851,7 +851,7 @@ static inline void Split_UpdateSplit(GeoGrid* geo, Split* split) {
         _log("Run Split ID %d Update Func", split->id);
         table[split->id]->update(geo->passArg, split->instance, split);
         
-        for (s32 i = 0; i < 4; i++) {
+        for (int i = 0; i < 4; i++) {
             _assert(split->edge[i] != NULL);
             split->edge[i]->killFlag = false;
         }
@@ -1279,7 +1279,7 @@ void GeoGrid_Draw(GeoGrid* geo) {
     Split_Update(geo);
     
     // Draw Bars
-    for (s32 i = 0; i < 2; i++) {
+    for (int i = 0; i < 2; i++) {
         glViewportRect(UnfoldRect(geo->bar[i].rect));
         nvgBeginFrame(geo->vg, geo->bar[i].rect.w, geo->bar[i].rect.h, gPixelRatio); {
             Rect r = geo->bar[i].rect;

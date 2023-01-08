@@ -80,7 +80,7 @@ Proc* Proc_New(char* fmt, ...) {
     
     this->arg = calloc(sizeof(char*) * (this->numArg + 1));
     
-    for (s32 i = 0; i < this->numArg; i++)
+    for (int i = 0; i < this->numArg; i++)
         this->arg[i] = args[i];
     
     return this;
@@ -106,7 +106,7 @@ void Proc_AddArg(Proc* this, char* fmt, ...) {
     
     this->arg = realloc(this->arg, sizeof(char*) * (this->numArg + numArg + 1));
     
-    for (s32 i = 0; i <= numArg; i++)
+    for (int i = 0; i <= numArg; i++)
         this->arg[this->numArg + i] = args[i];
     
     this->numArg += numArg;
@@ -126,7 +126,7 @@ int Proc_SetPath(Proc* this, const char* path) {
 void Proc_SetEnv(Proc* this, const char* env) {
     if (!this->env) this->env = calloc(sizeof(char*) * 32);
     
-    for (s32 i = 0; i < 32; i++) {
+    for (int i = 0; i < 32; i++) {
         if (this->env[i] != NULL)
             continue;
         
@@ -173,12 +173,12 @@ static void Proc_Err(Proc* this) {
     
     warn("Proc Error: %s", msg);
     
-    for (s32 i = 0; i < this->numArg; i++)
+    for (int i = 0; i < this->numArg; i++)
         fprintf(stderr, "" PRNT_GRAY "%-6d" PRNT_RSET "%s\n", i, this->arg[i]);
     
     if (this->env) {
         warn("Proc Env:");
-        for (s32 i = 0; this->env[i] != NULL; i++)
+        for (int i = 0; this->env[i] != NULL; i++)
             fprintf(stderr, "" PRNT_GRAY "%-6d" PRNT_RSET "%s\n", i, this->env[i]);
     }
     
@@ -287,13 +287,13 @@ static int Proc_Free(Proc* this) {
     _log("free");
     
     if (this->env) {
-        for (s32 i = 0; i < 32; i++)
+        for (int i = 0; i < 32; i++)
             vfree(this->env[i]);
         
         vfree(this->env);
     }
     
-    for (s32 i = 0; i < this->numArg; i++)
+    for (int i = 0; i < this->numArg; i++)
         vfree(this->arg[i]);
     
     vfree(this->path, this->arg, this);

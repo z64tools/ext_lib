@@ -16,7 +16,7 @@ static void ContextProp_List_Init(GeoGrid* geo, ContextMenu* this) {
     this->rect.w = 0;
     prop->visualKey = prop->key;
     
-    for (s32 i = 0; i < prop->num; i++) {
+    for (int i = 0; i < prop->num; i++) {
         this->rect.w = Max(this->rect.w, Gfx_TextWidth(geo->vg, PropList_Get(prop, i)));
         this->rect.w += SPLIT_ELEM_X_PADDING * 2;
     }
@@ -36,7 +36,7 @@ static void ContextProp_List_Draw(GeoGrid* geo, ContextMenu* this) {
     void* vg = geo->vg;
     Rect r = this->rect;
     
-    for (s32 i = 0; i < prop->num; i++) {
+    for (int i = 0; i < prop->num; i++) {
         const char* item = PropList_Get(prop, i);
         r = this->rect;
         
@@ -174,7 +174,7 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     nvgRoundedRect(vg, UnfoldRect(rectLumSat), SPLIT_ROUND_R * 2);
     nvgFill(vg);
     
-    for (s32 i = 0; i < 2; i++) {
+    for (int i = 0; i < 2; i++) {
         
         nvgBeginPath(vg);
         if (!i) nvgFillColor(vg, Theme_GetColor(THEME_SHADOW, 255, 1.0f));

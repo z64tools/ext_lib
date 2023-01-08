@@ -38,7 +38,7 @@ void List_SetFilters(List* list, u32 filterNum, ...) {
     
     va_start(va, filterNum);
     
-    for (s32 i = 0; i < filterNum * 0.5; i++) {
+    for (int i = 0; i < filterNum * 0.5; i++) {
         FilterNode* node;
         
         node = calloc(sizeof(FilterNode));
@@ -328,7 +328,7 @@ write:
     
     list->item = new(char*[list->num]);
     
-    for (s32 i = 0; i < list->num; i++) {
+    for (int i = 0; i < list->num; i++) {
         list->item[i] = nodeHead->txt;
         Node_Kill(nodeHead, nodeHead);
     }
@@ -343,7 +343,7 @@ void List_Print(List* target) {
 time_t List_StatMax(List* list) {
     time_t val = 0;
     
-    for (s32 i = 0; i < list->num; i++)
+    for (int i = 0; i < list->num; i++)
         val = Max(val, sys_stat(list->item[i]));
     
     return val;
@@ -352,7 +352,7 @@ time_t List_StatMax(List* list) {
 time_t List_StatMin(List* list) {
     time_t val = List_StatMax(list);
     
-    for (s32 i = 0; i < list->num; i++)
+    for (int i = 0; i < list->num; i++)
         val = Min(val, sys_stat(list->item[i]));
     
     return val;
@@ -368,7 +368,7 @@ s32 List_SortSlot(List* this, bool checkOverlaps) {
     
     List_Sort(this);
     
-    for (s32 i = this->num - 1; i >= 0; i--) {
+    for (int i = this->num - 1; i >= 0; i--) {
         if (!this->item[i]) continue;
         if (!isdigit(this->item[i][0])) continue;
         
@@ -515,7 +515,7 @@ void List_Tokenize(List* this, const char* s, char r) {
     this->item = calloc(sizeof(char*) * this->num);
     
     token = buf;
-    for (s32 i = 0; i < this->num; i++) {
+    for (int i = 0; i < this->num; i++) {
         char* end;
         
         this->item[i] = strdup(token + strspn(token, " "));
