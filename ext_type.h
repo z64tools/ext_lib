@@ -68,43 +68,39 @@ typedef struct {
         u8 alpha;
         u8 a;
     };
-} HSLA8;
+} hsla_t;
 
-typedef struct {
-    union {
-        struct {
-            u8 r;
-            u8 g;
-            u8 b;
-        };
-        u8 c[3];
+typedef union {
+    struct {
+        u8 r;
+        u8 g;
+        u8 b;
     };
+    u8 c[3];
 } rgb8_t;
 
-typedef struct {
-    union {
-        struct {
-            u8 r;
-            u8 g;
-            u8 b;
-            u8 a;
-        };
-        u8 c[4];
+typedef union {
+    struct {
+        u8 r;
+        u8 g;
+        u8 b;
+        u8 a;
     };
+    u8 c[4];
 } rgba8_t;
 
 typedef struct {
     f32 r;
     f32 g;
     f32 b;
-} RGB32;
+} rgbf_t;
 
 typedef struct {
     f32 r;
     f32 g;
     f32 b;
     f32 a;
-} RGBA32;
+} rgbaf_t;
 
 enum IOLevel {
     PSL_NONE,

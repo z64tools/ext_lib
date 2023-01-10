@@ -84,8 +84,8 @@ static TravelResult Toml_Travel(Toml* this, const char* field, toml_table_t* tbl
         tbl->arr[tbl->narr - 1]->key = strdup(elem);
         tbl->arr[tbl->narr - 1]->kind = 'v';
         tbl->arr[tbl->narr - 1]->type = 'm';
-        tbl->arr[tbl->narr - 1]->nitem = 1;
-        tbl->arr[tbl->narr - 1]->item = new(toml_arritem_t);
+        tbl->arr[tbl->narr - 1]->nitem = 0;
+        tbl->arr[tbl->narr - 1]->item = 0;
     };
     
     nested(TravelResult, Error, (const char* msg)) {
@@ -293,17 +293,21 @@ void Toml_SetVar(Toml* this, const char* item, const char* fmt, ...) {
     if (t.arr) {
         toml_array_t* arr = t.arr;
         
-        _log("SetValue(Arr): %s = %s", item, value);
+        _log("SetValue(Arr[%d]): %s = %s", t.idx, item, value);
+        _log("ArrKey: %s", arr->key);
         
         while (arr->nitem <= t.idx) {
-            arr->item = realloc(arr->item, sizeof(toml_arritem_t) * ++arr->nitem);
-            arr->item[arr->nitem - 1] = (toml_arritem_t) {};
-            arr->item[arr->nitem - 1].val = strdup("0");
-            arr->item[arr->nitem - 1].valtype = valtype("0");
-            arr->item[arr->nitem - 1].tab = 0;
-            arr->item[arr->nitem - 1].arr = 0;
+            arr->item = renew(arr->item, toml_arritem_t[arr->nitem + 1]);
+            arr->item[arr->nitem] = (toml_arritem_t) {};
+            arr->item[arr->nitem].val = strdup("0");
+            arr->item[arr->nitem].valtype = valtype("0");
+            arr->item[arr->nitem].tab = 0;
+            arr->item[arr->nitem].arr = 0;
             this->changed = true;
+            _log("new arr: %d", arr->nitem);
+            arr->nitem++;
         }
+        _assert(arr->nitem > t.idx);
         
         if (!arr->item[t.idx].val || strcmp(arr->item[t.idx].val, value)) {
             vfree(arr->item[t.idx].val);
@@ -312,7 +316,10 @@ void Toml_SetVar(Toml* this, const char* item, const char* fmt, ...) {
             arr->item[t.idx].tab = 0;
             arr->item[t.idx].arr = 0;
             this->changed = true;
+            _log("arr value: %s", value);
         }
+        
+        _log("nitem: %d", arr->nitem);
     }
 }
 
@@ -466,7 +473,7 @@ void Toml_Print(Toml* this, void* d, void (*PRINT)(void*, const char*, ...)) {
         for (var i = 0; i < nkval; i++) {
             _log("Value: %s", toml_key_in(tbl, i));
             
-            PRINT(d, "%s%-16s = ", nd, toml_key_in(tbl, i));
+            PRINT(d, "%s%s = ", nd, toml_key_in(tbl, i));
             PRINT(d, "%s\n", toml_raw_in(tbl, toml_key_in(tbl, i)));
         }
         
@@ -481,12 +488,12 @@ void Toml_Print(Toml* this, void* d, void (*PRINT)(void*, const char*, ...)) {
             
             switch (toml_array_kind(arr)) {
                 case 'a':
-                    PRINT(d, "%s%-16s = [\n", nd, toml_key_in(tbl, i));
+                    PRINT(d, "%s%s = [\n", nd, toml_key_in(tbl, i));
                     
                     ar = toml_array_at(arr, k++);
                     while (ar) {
                         j = 0;
-                        PRINT(d, "\t%s[ ", nd);
+                        PRINT(d, "\t%s[\n", nd);
                         
                         val = toml_raw_at(ar, j++);
                         while (val) {
@@ -506,7 +513,7 @@ void Toml_Print(Toml* this, void* d, void (*PRINT)(void*, const char*, ...)) {
                     
                     break;
                 case 'v':
-                    PRINT(d, "%s%-16s = [ ", nd, toml_key_in(tbl, i));
+                    PRINT(d, "%s%s = [\n%s\t", nd, toml_key_in(tbl, i), nd);
                     
                     j = k = 0;
                     
@@ -515,9 +522,9 @@ void Toml_Print(Toml* this, void* d, void (*PRINT)(void*, const char*, ...)) {
                         PRINT(d, "%s", val);
                         val = toml_raw_at(arr, j++);
                         if (val)
-                            PRINT(d, ", ");
+                            PRINT(d, ",\n%s\t", nd);
                     }
-                    PRINT(d, " ]\n");
+                    PRINT(d, "\n%s]\n", nd);
                     break;
             }
         }
@@ -715,6 +722,45 @@ int Toml_TabItemNum(Toml* this, const char* item, ...) {
     
     if (t.tbl)
         return toml_table_narr(t.tbl) + toml_table_nkval(t.tbl);
+    
+    return 0;
+}
+
+int Toml_TabNum(Toml* this, const char* item, ...) {
+    va_list va;
+    
+    va_start(va, item);
+    TravelResult t = Toml_GetTravelImpl(this, item, ".__get_tbl", va);
+    va_end(va);
+    
+    if (t.tbl)
+        return t.tbl->ntab;
+    
+    return 0;
+}
+
+int Toml_ArrNum(Toml* this, const char* item, ...) {
+    va_list va;
+    
+    va_start(va, item);
+    TravelResult t = Toml_GetTravelImpl(this, item, ".__get_tbl", va);
+    va_end(va);
+    
+    if (t.tbl)
+        return t.tbl->narr;
+    
+    return 0;
+}
+
+int Toml_VarNum(Toml* this, const char* item, ...) {
+    va_list va;
+    
+    va_start(va, item);
+    TravelResult t = Toml_GetTravelImpl(this, item, ".__get_tbl", va);
+    va_end(va);
+    
+    if (t.tbl)
+        return t.tbl->nkval;
     
     return 0;
 }

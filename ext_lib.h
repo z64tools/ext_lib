@@ -47,6 +47,13 @@
 
 #define free(...) INVALID_FREE_USAGE
 
+void time_start(u8 slot);
+f32 time_get(u8 slot);
+
+void profi_start(u8 s);
+void profi_stop(u8 s);
+f32 profi_get(u8 s);
+
 void profilog(const char* msg);
 void profilogdiv(const char* msg, f32 div);
 
@@ -117,9 +124,14 @@ char* regex(const char* str, const char* pattern, enum RegexFlag flag);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
+typedef f64 (*get_val_callback_t)(void*, int);
+
 void IO_SetLevel(enum IOLevel lvl);
+void IO_lock();
+void IO_unlock();
 void IO_KillBuf(FILE* output);
 void IO_FixWin32(void);
+void IO_graph(get_val_callback_t get, void* udata, int num, f64 max, f32 pow);
 
 void info_title(const char* toolname, const char* fmt, ...);
 void warn(const char* fmt, ...);
@@ -187,6 +199,9 @@ void Toml_ListTabs(Toml* this, List* list, const char* item, ...);
 void Toml_ListVars(Toml* this, List* list, const char* item, ...);
 int Toml_ArrItemNum(Toml* this, const char* arr, ...);
 int Toml_TabItemNum(Toml* this, const char* item, ...);
+int Toml_TabNum(Toml* this, const char* item, ...);
+int Toml_ArrNum(Toml* this, const char* item, ...);
+int Toml_VarNum(Toml* this, const char* item, ...);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -201,6 +216,7 @@ int Memfile_Insert(Memfile* this, const void* src, size_t size);
 int Memfile_Append(Memfile* this, Memfile* src);
 void Memfile_Align(Memfile* this, size_t align);
 int Memfile_Fmt(Memfile* this, const char* fmt, ...);
+int Memfile_Cat(Memfile* this, const char* str);
 int Memfile_Read(Memfile* this, void* dest, size_t size);
 void* Memfile_Seek(Memfile* this, size_t seek);
 void Memfile_LoadMem(Memfile* this, void* data, size_t size);
@@ -311,7 +327,7 @@ int valdig(int val, int digid);
 int dighex(int i);
 int valhex(int val, int digid);
 
-hsl_t Color_hsl(u8 r, u8 g, u8 b);
+hsl_t Color_hsl(f32 r, f32 g, f32 b);
 rgb8_t Color_rgb8(f32 h, f32 s, f32 l);
 rgba8_t Color_rgba8(f32 h, f32 s, f32 l);
 void Color_Convert2hsl(hsl_t* dest, rgb8_t* src);
@@ -392,6 +408,7 @@ int strnicmp(const char* a, const char* b, size_t size);
 
 u32 bitfield_get(const void* data, int shift, int size);
 void bitfield_set(void* data, u32 val, int shift, int size);
+int bitfield_num(int val);
 
 bool sys_isdir(const char* path);
 time_t sys_stat(const char* item);
@@ -435,6 +452,7 @@ void cli_hide(void);
 void cli_show(void);
 void cli_getSize(int* r);
 void cli_getPos(int* r);
+void cli_setPos(int x, int y);
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 

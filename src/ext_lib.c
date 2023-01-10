@@ -522,13 +522,13 @@ static char* __impl_rep(void* (*falloc)(size_t), const char* s, const char* a, c
 }
 
 static char* __impl_cpyline(void* (*falloc)(size_t), const char* s, size_t cpyline) {
-    if (!(s = strline(s, cpyline))) return NULL;
+    if (cpyline && !(s = strline(s, cpyline))) return NULL;
     
     return __impl_strndup(falloc, s, linelen(s));
 }
 
 static char* __impl_cpyword(void* (*falloc)(size_t), const char* s, size_t word) {
-    if (!(s = strword(s, word))) return NULL;
+    if (word && !(s = strword(s, word))) return NULL;
     
     return __impl_strndup(falloc, s, wordlen(s));
 }
@@ -1011,7 +1011,7 @@ static f32 hue2rgb(f32 p, f32 q, f32 t) {
     return p;
 }
 
-hsl_t Color_hsl(u8 r, u8 g, u8 b) {
+hsl_t Color_hsl(f32 r, f32 g, f32 b) {
     hsl_t hsl;
     hsl_t* dest = &hsl;
     f32 cmax, cmin, d;
@@ -1501,6 +1501,9 @@ static int __impl_strnrep(char* str, int len, char* (*__strstr)(const char*, con
     int rep_len = strlen(rep);
     int max_len;
     int nlen;
+    
+    if (!str || !*str)
+        return 0;
     
     switch (len) {
         case 0:
@@ -2036,6 +2039,10 @@ void bitfield_set(void* data, u32 val, int shift, int size) {
         b[id] &= ~( 1 << sf );
         b[id] |= ((val >> (szm - i)) & 1) << sf;
     }
+}
+
+int bitfield_num(int val) {
+    return __builtin_popcount(val);
 }
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -2744,13 +2751,17 @@ void cli_getPos(int* r) {
     
     _assert (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cbsi));
     
-    x = cbsi.dwCursorPosition.X;
-    y = cbsi.dwCursorPosition.Y;
+    x = cbsi.dwCursorPosition.X + 1;
+    y = cbsi.dwCursorPosition.Y + 1;
 #else
 #endif // _WIN32
     
     r[0] = x;
     r[1] = y;
+}
+
+void cli_setPos(int x, int y) {
+    fprintf(stdout, "\033[%d;%dH", y, x);
 }
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #

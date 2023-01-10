@@ -16,6 +16,14 @@ void IO_SetLevel(enum IOLevel lvl) {
     sSuppress = lvl;
 }
 
+void IO_lock() {
+    pthread_mutex_lock(&sIoMutex);
+}
+
+void IO_unlock() {
+    pthread_mutex_unlock(&sIoMutex);
+}
+
 void info_title(const char* toolname, const char* fmt, ...) {
     static u32 printed = 0;
     
@@ -105,7 +113,7 @@ static void IO_printImpl(int color_id, int is_progress, int is_error, FILE* stre
     
     xl_vsnprintf(buffer, bufsize, fmt, va);
     
-    pthread_mutex_lock(&sIoMutex);
+    IO_lock();
     if (is_progress)
         xl_fprint(stream, "\r");
     
@@ -128,7 +136,7 @@ static void IO_printImpl(int color_id, int is_progress, int is_error, FILE* stre
     }
     
     fflush(stream);
-    pthread_mutex_unlock(&sIoMutex);
+    IO_unlock();
 }
 
 static void IO_printCall(int color_id, int is_progress, FILE* stream, const char* msg, const char* fmt, ...) {
@@ -137,6 +145,33 @@ static void IO_printCall(int color_id, int is_progress, FILE* stream, const char
     va_start(va, fmt);
     IO_printImpl(color_id, is_progress, false, stream, msg, fmt, va);
     va_end(va);
+}
+
+void IO_graph(get_val_callback_t get, void* udata, int num, f64 max, f32 pow) {
+    int cli_size[2];
+    
+    cli_getSize(cli_size);
+    cli_clear();
+    fflush(stdout);
+    sys_sleep(0.25f);
+    
+    for (var x = 0; x < cli_size[0]; x++) {
+        f32 x_mod = ((f32)x / cli_size[0]);
+        int id_mod = num * x_mod;
+        f64 val = get(udata, id_mod);
+        int y_mod = clamp(invertf(powf(invertf(clamp_max((val / max), 1.0f)), pow)), 0.0f, 0.995f) * cli_size[1];
+        
+        cli_setPos(x, (cli_size[1] - 1) - y_mod);
+        fflush(stdout);
+        puts(".");
+        
+        for (; y_mod; y_mod--) {
+            cli_setPos(x, (cli_size[1] - 1) - (y_mod - 1));
+            fflush(stdout);
+            puts("|");
+        }
+        fflush(stdout);
+    }
 }
 
 void warn(const char* fmt, ...) {
@@ -510,7 +545,7 @@ void __log__(const char* func, u32 line, const char* txt, ...) {
         
         va_list args;
         va_start(args, txt);
-        vsnprintf(sLogMsg[0], FAULT_BUFFER_SIZE, txt, args);
+        xl_vsnprintf(sLogMsg[0], FAULT_BUFFER_SIZE, txt, args);
         va_end(args);
         
         strcpy(sLogFunc[0], func);

@@ -15,11 +15,11 @@ thread_local static struct timeval sTimeStart[255];
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-void Timer_Start(u32 slot) {
+void time_start(u8 slot) {
     gettimeofday(&sTimeStart[slot], NULL);
 }
 
-f32 Timer_End(u32 slot) {
+f32 time_get(u8 slot) {
     struct timeval sTimeStop;
     
     gettimeofday(&sTimeStop, NULL);
@@ -29,13 +29,13 @@ f32 Timer_End(u32 slot) {
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-void Profiler_I(u8 s) {
+void profi_start(u8 s) {
     ProfilerSlot* p = &gProfilerCtx.s[s];
     
     gettimeofday(&p->t, 0);
 }
 
-void Profiler_O(u8 s) {
+void profi_stop(u8 s) {
     struct timeval t;
     ProfilerSlot* p = &gProfilerCtx.s[s];
     
@@ -44,7 +44,7 @@ void Profiler_O(u8 s) {
     p->ring[p->k] = t.tv_sec - p->t.tv_sec + (f32)(t.tv_usec - p->t.tv_usec) * 0.000001f;
 }
 
-f32 Profiler_Time(u8 s) {
+f32 profi_get(u8 s) {
     ProfilerSlot* p = &gProfilerCtx.s[s];
     f32 sec = 0.0f;
     

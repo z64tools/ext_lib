@@ -210,12 +210,12 @@ static void Interface_Update_SubWindows(AppInfo* app) {
 
 void Interface_Main(AppInfo* app) {
     while (!(app->state & APP_CLOSED)) {
-        Timer_Start(0xF0);
+        time_start(0xF0);
         
         Interface_Update_SubWindows(app);
         Interface_Update_AppInfo(app);
         
-        gDeltaTime = Timer_End(0xF0) / (1.0 / gNativeFPS);
+        gDeltaTime = time_get(0xF0) / (1.0 / gNativeFPS);
         glfwPollEvents();
     }
     
