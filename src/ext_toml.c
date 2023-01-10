@@ -297,7 +297,7 @@ void Toml_SetVar(Toml* this, const char* item, const char* fmt, ...) {
         _log("ArrKey: %s", arr->key);
         
         while (arr->nitem <= t.idx) {
-            arr->item = renew(arr->item, toml_arritem_t[arr->nitem + 1]);
+            renew(arr->item, toml_arritem_t[arr->nitem + 1]);
             arr->item[arr->nitem] = (toml_arritem_t) {};
             arr->item[arr->nitem].val = strdup("0");
             arr->item[arr->nitem].valtype = valtype("0");

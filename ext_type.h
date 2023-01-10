@@ -1,11 +1,11 @@
 #ifndef EXT_TYPES_H
 #define EXT_TYPES_H
 
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
+#include <stdint.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 #define FLT_MAX __FLT_MAX__
 #define FLT_MIN __FLT_MIN__

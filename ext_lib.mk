@@ -1,5 +1,4 @@
-CFLAGS      += -I $(PATH_EXTLIB)
-CFLAGS_MAIN += -I $(PATH_EXTLIB)
+CFLAGS      += -I $(PATH_EXTLIB) -fdata-sections -ffunction-sections
 
 PRNT_GRAY := \e[0;90m
 PRNT_REDD := \e[0;91m

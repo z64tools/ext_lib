@@ -38,7 +38,6 @@
 #include "ext_type.h"
 #include "ext_macros.h"
 #include "ext_math.h"
-#include <math.h>
 #include <time.h>
 #include <unistd.h>
 #include <ctype.h>

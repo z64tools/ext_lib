@@ -8,11 +8,7 @@
 #endif
 
 #include "ext_lib.h"
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <ftw.h>
-#include <time.h>
 
 #ifndef EXTLIB_PERMISSIVE
 	#ifdef EXTLIB
@@ -24,7 +20,6 @@
 
 #ifdef _WIN32
     #include <windows.h>
-    #include <libloaderapi.h>
 #endif
 //uncrustify
 

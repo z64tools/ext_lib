@@ -12,6 +12,7 @@ pkg_info = {
 	"linux/src/ext_lib.o":     "-ldl",
 }
 
+print("-Wl,--gc-sections", end = " ")
 for a in sys.argv:
 	for suffix, pkg in pkg_info.items():
 		if a.endswith(suffix):
