@@ -95,7 +95,11 @@
 #define clamp_s16(val) (s16)clamp(((f32)val), (-__INT16_MAX__ - 1), __INT16_MAX__)
 #define clamp_s32(val) (s32)clamp(((f32)val), (-__INT32_MAX__ - 1), (f32)__INT32_MAX__)
 
+#ifdef __clang__
+unsigned int ArrCount(const void* arr);
+#else
 #define ArrCount(arr) (u32)(sizeof(arr) / sizeof(arr[0]))
+#endif
 
 #define BinToMb(x)           ((f32)(x) / (f32)0x100000)
 #define BinToKb(x)           ((f32)(x) / (f32)0x400)
@@ -181,7 +185,7 @@
 #define EXT_INFO_TITLE(xtitle) PRNT_YELW xtitle PRNT_RNL
 #define EXT_INFO(A, indent, B) PRNT_GRAY "[>]: " PRNT_RSET A "\r\033[" #indent "C" PRNT_GRAY "# " B PRNT_NL
 
-#define foreach(val, arr)  for (int val = 0; val < ArrCount(arr); val++)
+#define foreach(val, arr) for (int val = 0; val < ArrCount(arr); val++)
 // #define for (int val = 0; val < list.num; val++) for (int val = 0; val < (list).num; val++)
 #define fornode(val, head) for (typeof(head) val = head; val != NULL; val = val->next)
 #define forstr(val, str)   for (int val = 0; val < strlen(str); val++)

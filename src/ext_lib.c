@@ -2672,7 +2672,7 @@ void cli_gotoprevln(void) {
 const char* cli_gets(void) {
     static char line[512] = { 0 };
     
-    printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_RSET);
+    printf("\r" PRNT_GRAY "<" PRNT_GRAY " " PRNT_RSET);
     fgets(line, 511, stdin);
     
     while (strend(line, "\n"))
@@ -2686,7 +2686,7 @@ const char* cli_gets(void) {
 char cli_getc() {
     char line[16] = {};
     
-    printf("\r" PRNT_GRAY "<" PRNT_GRAY ": " PRNT_BLUE);
+    printf("\r" PRNT_GRAY "<" PRNT_GRAY " " PRNT_BLUE);
     fgets(line, 16, stdin);
     
     cli_clearln(2);
