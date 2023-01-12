@@ -421,7 +421,9 @@ void Memfile_Clear(Memfile* this) {
 #ifdef _WIN32
 #include <windows.h>
 #include <wininet.h>
+
 #else /* UNIX */
+
 #include <curl/curl.h>
 
 typedef struct {
@@ -430,7 +432,7 @@ typedef struct {
     const char* message;
 } DownloadStatus;
 
-static size_t Memfile_WriteF(char* src, size_t size, size_t n, DownloadStatus* status) {
+static size_t __unix_Download_Write(char* src, size_t size, size_t n, DownloadStatus* status) {
     size_t r;
     
     r = Memfile_Write(status->this, src, size * n);
@@ -438,16 +440,63 @@ static size_t Memfile_WriteF(char* src, size_t size, size_t n, DownloadStatus* s
     return r;
 }
 
-static int Memfile_Progress(DownloadStatus* status, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow) {
-    if (status->message)
-        info_progf(status->message, MbToBin(dlnow), MbToBin(dltotal));
+static int __unix_Download_Progress(DownloadStatus* status, curl_off_t max, curl_off_t now, curl_off_t _a, curl_off_t _b ) {
+    if (max)
+        info_progf(status->message, BinToMb(now), BinToMb(max));
     
     return 0;
+}
+
+static const char* __unix_Download_GetDirectUrl(const char* url) {
+    CURL* handle;
+    char* rediret = NULL;
+    CURLcode result;
+    
+    if (!(handle = curl_easy_init()))
+        return NULL;
+    
+    curl_easy_setopt(handle, CURLOPT_URL, url);
+    curl_easy_setopt(handle, CURLOPT_NOBODY, true);
+    curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, true);
+    _log("perform");
+    if ((result = curl_easy_perform(handle)) != CURLE_OK)
+        errr("%s", curl_easy_strerror(result));
+    curl_easy_getinfo(handle, CURLINFO_EFFECTIVE_URL, &rediret);
+    rediret = x_strdup(rediret);
+    curl_easy_cleanup(handle);
+    
+    return rediret;
+}
+
+static bool __unix_DownloadImpl(Memfile* this, const char* url, DownloadStatus* status) {
+    CURL* handle;
+    CURLcode result;
+    
+    if (!(handle = curl_easy_init()))
+        return EXIT_FAILURE;
+    
+    curl_easy_setopt(handle, CURLOPT_URL, url);
+    curl_easy_setopt(handle, CURLOPT_WRITEDATA, status);
+    curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, __unix_Download_Write);
+    
+    if (status->message) {
+        curl_easy_setopt(handle, CURLOPT_NOPROGRESS, false);
+        curl_easy_setopt(handle, CURLOPT_XFERINFODATA, status);
+        curl_easy_setopt(handle, CURLOPT_XFERINFOFUNCTION, __unix_Download_Progress);
+    }
+    
+    if ((result = curl_easy_perform(handle)) != CURLE_OK)
+        errr("%s", curl_easy_strerror(result));
+    curl_easy_cleanup(handle);
+    
+    return this->size;
 }
 
 #endif
 
 bool Memfile_Download(Memfile* this, const char* url, const char* message) {
+    bool r = EXIT_FAILURE;
+    
     Memfile_Validate(this);
     Memfile_Null(this);
     
@@ -455,7 +504,6 @@ bool Memfile_Download(Memfile* this, const char* url, const char* message) {
     this->info.name = strdup(url);
     
 #ifdef _WIN32
-    bool r = EXIT_FAILURE;
     char buf[512] = { "nothing" };
     DWORD read_bytes = 0;
     size_t total_size = 0;
@@ -492,29 +540,18 @@ close_url:
 close_session:
     InternetCloseHandle(session);
     
-    return r;
-    
 #else /* UNIX */
-    CURL* handle;
     DownloadStatus status = { .this = this, .message = message };
-    CURLcode result;
     
-    if (!(handle = curl_easy_init()))
-        return EXIT_FAILURE;
+    if (!__unix_DownloadImpl(this, url, &status)) {
+        url = __unix_Download_GetDirectUrl(url);
+        
+        if (!__unix_DownloadImpl(this, url, &status))
+            return EXIT_FAILURE;
+    }
     
-    curl_easy_setopt(handle, CURLOPT_URL, url);
-    curl_easy_setopt(handle, CURLOPT_VERBOSE, true);
-    curl_easy_setopt(handle, CURLOPT_WRITEDATA, &status);
-    curl_easy_setopt(handle, CURLOPT_XFERINFODATA, &status);
-    curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, Memfile_WriteF);
-    curl_easy_setopt(handle, CURLOPT_XFERINFOFUNCTION, Memfile_Progress);
-    result = curl_easy_perform(handle);
-    
-    if (result != CURLE_OK)
-        errr("%s", curl_easy_strerror(result));
-    
-    curl_easy_cleanup(handle);
-    
-    return EXIT_SUCCESS;
+    r = EXIT_SUCCESS;
 #endif
+    
+    return r;
 }
