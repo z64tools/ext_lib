@@ -261,13 +261,19 @@ void info_align(const char* info, const char* fmt, ...) {
     va_end(args);
 }
 
-void info_progff(const char* info, u32 a, u32 b) {
+void info_fastprog(const char* info, int a, int b) {
+    static int prev;
+    
+    if (a + 1 == prev)
+        return;
+    
     if (sSuppress >= PSL_NO_INFO)
         return;
     
     IO_printCall(1, true, stdout, info,
         x_fmt("[ %%%dd / %%-%dd ]", digint(b), digint(b)), a, b);
     sProgress = true;
+    prev = a + 1;
     
     if (a == b) {
         sProgress = false;
@@ -275,7 +281,7 @@ void info_progff(const char* info, u32 a, u32 b) {
     }
 }
 
-void info_prog(const char* info, u32 a, u32 b) {
+void info_prog(const char* info, int a, int b) {
     if (sSuppress >= PSL_NO_INFO)
         return;
     
@@ -297,7 +303,48 @@ void info_prog(const char* info, u32 a, u32 b) {
         }
     }
     
-    info_progff(info, a, b);
+    info_fastprog(info, a, b);
+}
+
+void info_progf(const char* info, f64 a, f64 b) {
+    if (sSuppress >= PSL_NO_INFO)
+        return;
+    
+    if (a != b && sProgress) {
+        static struct timeval p;
+        
+        if (a <= 1)
+            gettimeofday(&p, 0);
+        else {
+            struct timeval t;
+            
+            gettimeofday(&t, 0);
+            f32 sec = t.tv_sec - p.tv_sec + (f32)(t.tv_usec - p.tv_usec) * 0.000001f;
+            
+            if (sec >= 0.2f) {
+                p = t;
+            } else
+                return;
+        }
+    }
+    
+    static f32 prev;
+    
+    if (a + 1 == prev)
+        return;
+    
+    if (sSuppress >= PSL_NO_INFO)
+        return;
+    
+    IO_printCall(1, true, stdout, info,
+        x_fmt("[ %%%d.2f / %%-%d.2f ]", digint(b), digint(b)), a, b);
+    sProgress = true;
+    prev = a + 1;
+    
+    if (a == b) {
+        sProgress = false;
+        xl_fprint(stdout, "\n");
+    }
 }
 
 void info_getc(const char* txt) {

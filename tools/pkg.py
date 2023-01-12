@@ -9,7 +9,9 @@ pkg_info = {
 	"win32/libreproc.a":       "-lws2_32",
 	
 	"src/ext_lib.o":           "-lm -pthread",
-	"linux/src/ext_lib.o":     "-ldl",
+	"linux/src/ext_lib.o":     "-ldl -lcurl",
+	
+	"win32/src/ext_lib.o":     "-lwininet",
 }
 
 print("-Wl,--gc-sections", end = " ")

@@ -1902,14 +1902,21 @@ size_t strvnlen(const char* str, size_t n) {
     size_t length = 0;
     
     while ((size_t)(str - t) < n && '\0' != *str) {
+        
         if (0xf0 == (0xf8 & *str))
-            str += 4;
+            str += 3;
         else if (0xe0 == (0xf0 & *str))
             str += 2;
         else if (0xc0 == (0xe0 & *str))
             str += 2;
-        else
+        else {
+            if (*str == '\e') {
+                while (*str != 'm') str++;
+                str += 1;
+                continue;
+            }
             str += 1;
+        }
         
         length++;
     }

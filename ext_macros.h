@@ -206,7 +206,7 @@ unsigned int ArrCount(const void* arr);
 } while (0)
 
 #define arrzero(arr)  memset((arr), 0, sizeof((arr)))
-#define typezero(ptr) memset((ptr), 0, sizeof(*(ptr)))
+#define addrzero(ptr) memset((ptr), 0, sizeof(*(ptr)))
 
 /**
  * These are only to satisfy clang IDE. These won't work

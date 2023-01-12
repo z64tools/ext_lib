@@ -5,6 +5,10 @@
 #define NDEBUG
 #endif
 
+#ifdef __clang__
+#undef _WIN32
+#endif
+
 #define THIS_EXTLIB_VERSION 220
 
 /**
@@ -13,12 +17,6 @@
  *
  * I just use clang IDE, that's all.
  */
-
-#ifdef __clang__
-#ifdef _WIN32
-#undef _WIN32
-#endif
-#endif
 
 #ifndef EXTLIB_PERMISSIVE
 #ifndef EXTLIB
@@ -31,9 +29,7 @@
 #endif
 
 #define _GNU_SOURCE
-#ifndef __CRT__NO_INLINE
 #define __CRT__NO_INLINE
-#endif
 
 #include "ext_type.h"
 #include "ext_macros.h"
@@ -43,6 +39,8 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <string.h>
+
+/*============================================================================*/
 
 #define free(...) INVALID_FREE_USAGE
 
@@ -56,7 +54,7 @@ f32 profi_get(u8 s);
 void profilog(const char* msg);
 void profilogdiv(const char* msg, f32 div);
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 void* qxf(const void* ptr);
 void* FreeList_Que(void* ptr);
@@ -69,7 +67,7 @@ void* alloc(int size);
 Hash HashMem(const void* data, size_t size);
 bool HashCmp(Hash* a, Hash* b);
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 void _log_print();
 
@@ -117,11 +115,11 @@ void Ini_WriteTab(Memfile* mem, const char* variable, const char* comment);
 #define QUOTES     1
 #define NO_QUOTES  0
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 char* regex(const char* str, const char* pattern, enum RegexFlag flag);
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 typedef f64 (*get_val_callback_t)(void*, int);
 
@@ -139,8 +137,9 @@ void errr(const char* fmt, ...);
 void errr_align(const char* info, const char* fmt, ...);
 void info(const char* fmt, ...);
 void info_align(const char* info, const char* fmt, ...);
-void info_progff(const char* info, u32 a, u32 b);
-void info_prog(const char* info, u32 a, u32 b);
+void info_fastprog(const char* info, int a, int b);
+void info_prog(const char* info, int a, int b);
+void info_progf(const char* info, f64 a, f64 b);
 void info_getc(const char* txt);
 void info_volatile(const char* fmt, ...);
 void info_hex(const char* txt, const void* data, u32 size, u32 dispOffset);
@@ -151,7 +150,7 @@ size_t xl_vsnprintf(char*, size_t, const char*, va_list);
 size_t xl_snprintf(char*, size_t, const char*, ...);
 size_t xl_fprint(FILE*, const char*, ...);
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 List List_New(void);
 void List_SetFilters(List* list, u32 filterNum, ...);
@@ -175,7 +174,7 @@ void List_Sort(List* this);
 #define List_SetFilters(list, ...) List_SetFilters(list, NARGS(__VA_ARGS__), __VA_ARGS__)
 #endif
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 Toml Toml_New();
 void Toml_SetVar(Toml* this, const char* item, const char* fmt, ...);
@@ -202,7 +201,7 @@ int Toml_TabNum(Toml* this, const char* item, ...);
 int Toml_ArrNum(Toml* this, const char* item, ...);
 int Toml_VarNum(Toml* this, const char* item, ...);
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 Memfile Memfile_New();
 void Memfile_Set(Memfile* this, ...);
@@ -226,6 +225,7 @@ int Memfile_SaveStr(Memfile* this, const char* filepath);
 void Memfile_Free(Memfile* this);
 void Memfile_Null(Memfile* this);
 void Memfile_Clear(Memfile* this);
+bool Memfile_Download(Memfile* this, const char* url, const char* message);
 
 #ifndef __clang__
 #define Memfile_Set(this, ...) Memfile_Set(this, __VA_ARGS__, MEM_END)
@@ -233,7 +233,7 @@ void Memfile_Clear(Memfile* this);
 
 #define MEMFILE_SEEK_END 0xDEFEBABE
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 extern vbool gThreadMode;
 extern mutex_t gThreadMutex;
@@ -243,13 +243,13 @@ void Parallel_Exec(u32 max);
 void Parallel_SetID(void* __this, int id);
 void Parallel_SetDepID(void* __this, int id);
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 void SegmentSet(const u8 id, void* segment);
 void* SegmentToVirtual(const u8 id, u32 ptr);
 u32 VirtualToSegment(const u8 id, void* ptr);
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 void* x_alloc(size_t size);
 
@@ -293,7 +293,7 @@ char* dirabs_f(const char* from, const char* item);
 char* dirrel( const char* item);
 char* dirabs(const char* item);
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 #define calloc(size) calloc(1, size)
 
@@ -311,7 +311,7 @@ void* __vfree(const void* data);
 
 #endif
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 int shex(const char* string);
 int sint(const char* string);
@@ -335,7 +335,7 @@ void Color_Convert2rgb(rgb8_t* dest, hsl_t* src);
 int Note_Index(const char* note);
 const char* Note_Name(int note);
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 f32 randf();
 f32 Math_SmoothStepToF(f32* pValue, f32 target, f32 fraction, f32 step, f32 minStep);
@@ -343,7 +343,7 @@ f32 Math_Spline(f32 k, f32 xm1, f32 x0, f32 x1, f32 x2);
 void Math_ApproachF(f32* pValue, f32 target, f32 fraction, f32 step);
 void Math_ApproachS(s16* pValue, s16 target, s16 scale, s16 step);
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 void* memmem(const void* hay, size_t haylen, const void* nee, size_t neelen);
 void* memmem_align(u32 val, const void* haystack, size_t haystacklen, const void* needle, size_t needlelen);
@@ -453,12 +453,12 @@ void cli_getSize(int* r);
 void cli_getPos(int* r);
 void cli_setPos(int x, int y);
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 int qsort_numhex(const void* arg_a, const void* arg_b);
 int qsort_u32(const void* arg_a, const void* arg_b);
 
-// # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"

@@ -702,7 +702,7 @@ void FileDialog_New(FileDialog* this, AppInfo* app, const char* title) {
     FileDialogConfig cfg = FileDialog_LoadConfig(title);
     
     _assert (memcmp(this->private.key, sFileDialogKey, sizeof(sFileDialogKey)));
-    typezero(this);
+    addrzero(this);
     memcpy((void*)this->private.key, sFileDialogKey, sizeof(sFileDialogKey));
     
     cfg.scale.x = clamp(cfg.scale.x, minX, maxX);

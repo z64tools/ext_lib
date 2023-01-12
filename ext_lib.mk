@@ -20,6 +20,7 @@ Zip_C            = $(shell cd $(PATH_EXTLIB) && find src/xzip/* -type f -name '*
 Mp3_C            = $(shell cd $(PATH_EXTLIB) && find src/xmp3/* -type f -name '*.c')
 Proc_C           = $(shell cd $(PATH_EXTLIB) && find src/proc/* -type f -name '*.c')
 Texel_C          = $(shell cd $(PATH_EXTLIB) && find src/xtexel/* -type f -name '*.c')
+
 Fonts            = $(shell cd $(PATH_EXTLIB) && find src/fonts/* -type f -name '*.ttf')
 Fonts           += $(shell cd $(PATH_EXTLIB) && find src/fonts/* -type f -name '*.otf')
 
@@ -32,7 +33,9 @@ Mp3_Linux_O      = $(foreach f,$(Mp3_C:.c=.o), bin/linux/$f)
 Xm_Linux_O       = $(foreach f,$(Xm_C:.c=.o), bin/linux/$f)
 Proc_Linux_O     = $(foreach f,$(Proc_C:.c=.o), bin/linux/$f)
 Image_Linux_O    = $(foreach f,$(Texel_C:.c=.o), bin/linux/$f)
-All_Linux_O      = $(ExtLib_Linux_O) $(ExtGui_Linux_O) $(Zip_Linux_O) $(Audio_Linux_O) $(Mp3_Linux_O) $(Xm_Linux_O) $(Proc_Linux_O) $(Image_Linux_O) $(Regex_Linux_O)
+All_Linux_O      = $(ExtLib_Linux_O) $(ExtGui_Linux_O) $(Zip_Linux_O) \
+					$(Audio_Linux_O) $(Mp3_Linux_O) $(Xm_Linux_O) \
+					$(Proc_Linux_O) $(Image_Linux_O) $(Regex_Linux_O)
 
 ExtLib_Win32_O   = $(foreach f,$(ExtLib_C:.c=.o), bin/win32/$f)
 ExtGui_Win32_O   = $(foreach f,$(ExtGui_C:.c=.o), bin/win32/$f)
@@ -43,7 +46,9 @@ Mp3_Win32_O      = $(foreach f,$(Mp3_C:.c=.o), bin/win32/$f)
 Xm_Win32_O       = $(foreach f,$(Xm_C:.c=.o), bin/win32/$f)
 Proc_Win32_O     = $(foreach f,$(Proc_C:.c=.o), bin/win32/$f)
 Image_Win32_O    = $(foreach f,$(Texel_C:.c=.o), bin/win32/$f)
-All_Win32_O      = $(ExtLib_Win32_O) $(ExtGui_Win32_O) $(Zip_Win32_O) $(Audio_Win32_O) $(Mp3_Win32_O) $(Xm_Win32_O) $(Proc_Win32_O) $(Image_Win32_O) $(Regex_Win32_O)
+All_Win32_O      = $(ExtLib_Win32_O) $(ExtGui_Win32_O) $(Zip_Win32_O) \
+					$(Audio_Win32_O) $(Mp3_Win32_O) $(Xm_Win32_O) \
+					$(Proc_Win32_O) $(Image_Win32_O) $(Regex_Win32_O)
 
 ExtGui_Linux_O  += $(foreach f,$(Fonts:%=%.o), bin/linux/$f)
 ExtGui_Win32_O  += $(foreach f,$(Fonts:%=%.o), bin/win32/$f)

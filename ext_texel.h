@@ -8,7 +8,7 @@ typedef struct {
     char     key[20];
     int      x, y, cnum;
     uint8_t* data;
-    size_t   size;
+    u32   size;
     
     struct {
         bool throwError : 1;

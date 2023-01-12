@@ -10,10 +10,10 @@ static void Memfile_Throw(Memfile* this, const char* msg, const char* info) {
     _log_print();
     
     warn_align("" PRNT_REDD "Work Directory" PRNT_RSET ":", PRNT_YELW "%s", sys_workdir());
-    warn_align("" PRNT_REDD "File" PRNT_RSET ":", PRNT_YELW "%s", this->info.name);
     warn_align("" PRNT_REDD "Error" PRNT_RSET ":", "%s", msg);
+    warn_align("" PRNT_REDD "Target" PRNT_RSET ":", "%s", info);
     if (info) {
-        warn_align("" PRNT_REDD "Info" PRNT_RSET ":", "%s", info);
+        warn_align("" PRNT_REDD "Prev" PRNT_RSET ":", PRNT_YELW "%s", this->info.name);
         warn_align("" PRNT_REDD "size_t" PRNT_RSET ":", "%f kB", KbToBin(this->size));
         warn_align("" PRNT_REDD "MemSize" PRNT_RSET ":", "%f kB", KbToBin(this->memSize));
     }
@@ -416,4 +416,105 @@ void Memfile_Null(Memfile* this) {
 void Memfile_Clear(Memfile* this) {
     memset(this->data, 0, this->memSize);
     Memfile_Null(this);
+}
+
+#ifdef _WIN32
+#include <windows.h>
+#include <wininet.h>
+#else /* UNIX */
+#include <curl/curl.h>
+
+typedef struct {
+    Memfile*    this;
+    curl_off_t  size;
+    const char* message;
+} DownloadStatus;
+
+static size_t Memfile_WriteF(char* src, size_t size, size_t n, DownloadStatus* status) {
+    size_t r;
+    
+    r = Memfile_Write(status->this, src, size * n);
+    
+    return r;
+}
+
+static int Memfile_Progress(DownloadStatus* status, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow) {
+    if (status->message)
+        info_progf(status->message, MbToBin(dlnow), MbToBin(dltotal));
+    
+    return 0;
+}
+
+#endif
+
+bool Memfile_Download(Memfile* this, const char* url, const char* message) {
+    Memfile_Validate(this);
+    Memfile_Null(this);
+    
+    vfree(this->info.name);
+    this->info.name = strdup(url);
+    
+#ifdef _WIN32
+    bool r = EXIT_FAILURE;
+    char buf[512] = { "nothing" };
+    DWORD read_bytes = 0;
+    size_t total_size = 0;
+    size_t mal_size = 0;
+    
+    HINTERNET session = InternetOpen("C", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+    if (!session)
+        return EXIT_FAILURE;
+    
+    HINTERNET open_url = InternetOpenUrl(session, url, NULL, 0, INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_NO_UI | INTERNET_FLAG_PRAGMA_NOCACHE, 0);
+    if (!open_url)
+        goto close_session;
+    
+    char size_str_buf[128] = {};
+    DWORD len_buf_que = sizeof(size_str_buf);
+    DWORD index = 0;
+    
+    if (!HttpQueryInfo(open_url, HTTP_QUERY_CONTENT_LENGTH, size_str_buf, &len_buf_que, &index))
+        goto close_url;
+    
+    total_size = sint(size_str_buf);
+    
+    while (InternetReadFile(open_url, buf, 512, &read_bytes) && read_bytes > 0) {
+        Memfile_Write(this, buf, read_bytes);
+        
+        if (message)
+            info_progf(message, BinToMb(this->size), BinToMb(total_size));
+    }
+    
+    r = EXIT_SUCCESS;
+    
+close_url:
+    InternetCloseHandle(open_url);
+close_session:
+    InternetCloseHandle(session);
+    
+    return r;
+    
+#else /* UNIX */
+    CURL* handle;
+    DownloadStatus status = { .this = this, .message = message };
+    CURLcode result;
+    
+    if (!(handle = curl_easy_init()))
+        return EXIT_FAILURE;
+    
+    curl_easy_setopt(handle, CURLOPT_URL, url);
+    curl_easy_setopt(handle, CURLOPT_VERBOSE, true);
+    curl_easy_setopt(handle, CURLOPT_WRITEDATA, &status);
+    curl_easy_setopt(handle, CURLOPT_XFERINFODATA, &status);
+    curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, Memfile_WriteF);
+    curl_easy_setopt(handle, CURLOPT_XFERINFOFUNCTION, Memfile_Progress);
+    result = curl_easy_perform(handle);
+    
+    if (result != CURLE_OK)
+        errr("%s", curl_easy_strerror(result));
+    
+    curl_easy_cleanup(handle);
+    
+    return EXIT_SUCCESS;
+#endif
 }
