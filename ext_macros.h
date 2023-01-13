@@ -95,11 +95,7 @@
 #define clamp_s16(val) (s16)clamp(((f32)val), (-__INT16_MAX__ - 1), __INT16_MAX__)
 #define clamp_s32(val) (s32)clamp(((f32)val), (-__INT32_MAX__ - 1), (f32)__INT32_MAX__)
 
-#ifdef __clang__
-unsigned int ArrCount(const void* arr);
-#else
 #define ArrCount(arr) (u32)(sizeof(arr) / sizeof(arr[0]))
-#endif
 
 #define BinToMb(x)           ((f32)(x) / (f32)0x100000)
 #define BinToKb(x)           ((f32)(x) / (f32)0x400)

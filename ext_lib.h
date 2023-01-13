@@ -122,6 +122,7 @@ char* regex(const char* str, const char* pattern, enum RegexFlag flag);
 /*============================================================================*/
 
 typedef f64 (*get_val_callback_t)(void*, int);
+extern u8 gInfoProgState;
 
 void IO_SetLevel(enum IOLevel lvl);
 void IO_lock();

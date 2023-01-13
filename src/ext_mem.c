@@ -450,7 +450,6 @@ static int __unix_Download_Progress(DownloadStatus* status, curl_off_t max, curl
 static const char* __unix_Download_GetDirectUrl(const char* url) {
     CURL* handle;
     char* rediret = NULL;
-    CURLcode result;
     
     if (!(handle = curl_easy_init()))
         return NULL;
@@ -458,11 +457,10 @@ static const char* __unix_Download_GetDirectUrl(const char* url) {
     curl_easy_setopt(handle, CURLOPT_URL, url);
     curl_easy_setopt(handle, CURLOPT_NOBODY, true);
     curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, true);
-    _log("perform");
-    if ((result = curl_easy_perform(handle)) != CURLE_OK)
-        errr("%s", curl_easy_strerror(result));
-    curl_easy_getinfo(handle, CURLINFO_EFFECTIVE_URL, &rediret);
-    rediret = x_strdup(rediret);
+    if (curl_easy_perform(handle) == CURLE_OK) {
+        curl_easy_getinfo(handle, CURLINFO_EFFECTIVE_URL, &rediret);
+        rediret = x_strdup(rediret);
+    }
     curl_easy_cleanup(handle);
     
     return rediret;
@@ -470,7 +468,6 @@ static const char* __unix_Download_GetDirectUrl(const char* url) {
 
 static bool __unix_DownloadImpl(Memfile* this, const char* url, DownloadStatus* status) {
     CURL* handle;
-    CURLcode result;
     
     if (!(handle = curl_easy_init()))
         return EXIT_FAILURE;
@@ -485,8 +482,7 @@ static bool __unix_DownloadImpl(Memfile* this, const char* url, DownloadStatus* 
         curl_easy_setopt(handle, CURLOPT_XFERINFOFUNCTION, __unix_Download_Progress);
     }
     
-    if ((result = curl_easy_perform(handle)) != CURLE_OK)
-        errr("%s", curl_easy_strerror(result));
+    curl_easy_perform(handle);
     curl_easy_cleanup(handle);
     
     return this->size;
@@ -495,7 +491,7 @@ static bool __unix_DownloadImpl(Memfile* this, const char* url, DownloadStatus* 
 #endif
 
 bool Memfile_Download(Memfile* this, const char* url, const char* message) {
-    bool r = EXIT_FAILURE;
+    bool result = EXIT_FAILURE;
     
     Memfile_Validate(this);
     Memfile_Null(this);
@@ -507,7 +503,6 @@ bool Memfile_Download(Memfile* this, const char* url, const char* message) {
     char buf[512] = { "nothing" };
     DWORD read_bytes = 0;
     size_t total_size = 0;
-    size_t mal_size = 0;
     
     HINTERNET session = InternetOpen("C", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
     if (!session)
@@ -533,7 +528,7 @@ bool Memfile_Download(Memfile* this, const char* url, const char* message) {
             info_progf(message, BinToMb(this->size), BinToMb(total_size));
     }
     
-    r = EXIT_SUCCESS;
+    result = EXIT_SUCCESS;
     
 close_url:
     InternetCloseHandle(open_url);
@@ -550,8 +545,8 @@ close_session:
             return EXIT_FAILURE;
     }
     
-    r = EXIT_SUCCESS;
+    result = EXIT_SUCCESS;
 #endif
     
-    return r;
+    return result;
 }

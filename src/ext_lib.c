@@ -351,7 +351,7 @@ Hash HashMem(const void* data, size_t size) {
         0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
     };
     u64 RemainingDataSizeByte = size;
-    Hash dst;
+    Hash dst = { .hashed = true };
     u8* d = (u8*)data;
     
     while (Sha_CreateCompleteScheduleArray(d, size, &RemainingDataSizeByte, W) == 1) {
@@ -362,14 +362,12 @@ Hash HashMem(const void* data, size_t size) {
     Sha_Compression(hash, W);
     
     dst = Sha_ExtractDigest(hash);
-    dst.data = d;
-    dst.size = size;
     
     return dst;
 }
 
 bool HashCmp(Hash* a, Hash* b) {
-    return !memcmp(a->hash, b->hash, sizeof(a->hash));
+    return memcmp(a->hash, b->hash, sizeof(a->hash));
 }
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -2443,7 +2441,7 @@ const char* sys_env(env_index_t env) {
         case ENV_USERNAME:
             return x_strdup(getenv("USER"));
         case ENV_APPDATA:
-            return x_strdup("~/.local");
+            return x_fmt("/home/%s/.local", getenv("USER"));
         case ENV_HOME:
             return x_strdup(getenv("HOME"));
         case ENV_TEMP:

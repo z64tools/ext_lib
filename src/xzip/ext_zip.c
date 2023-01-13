@@ -4,7 +4,7 @@
 // # # # # # # # # # # # # # # # # # # # #
 
 #include "ext_zip.h"
-#include <zip/src/zip.h>
+#include "impl/zip.h"
 
 void* Zip_Load(Zip* zip, const char* file, char mode) {
     zip->filename = strdup(file);
@@ -41,6 +41,7 @@ int Zip_ReadByName(Zip* zip, const char* entry, Memfile* mem) {
         return ZIP_ERROR_RW_ENTRY;
     }
     
+    vfree(mem->info.name);
     mem->info.name = strdup(entry);
     
     if (zip_entry_close(zip->pkg))
@@ -57,7 +58,7 @@ int Zip_ReadByID(Zip* zip, size_t index, Memfile* mem) {
     
     if (zip_entry_openbyindex(zip->pkg, index))
         return ZIP_ERROR_OPEN_ENTRY;
-    _log("Reading Entry \"%s\"", mem->info.name);
+    _log("Reading Entry \"%s\"", zip_entry_name(zip->pkg));
     
     if (zip_entry_isdir(zip->pkg)) {
         if (zip_entry_close(zip->pkg))
@@ -74,6 +75,7 @@ int Zip_ReadByID(Zip* zip, size_t index, Memfile* mem) {
     }
     
     Memfile_LoadMem(mem, data, sz);
+    vfree(mem->info.name);
     mem->info.name = strdup(zip_entry_name(zip->pkg));
     
     if (zip_entry_close(zip->pkg))

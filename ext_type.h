@@ -49,9 +49,8 @@ typedef volatile unsigned long long int vu64;
 typedef volatile bool                   vbool;
 
 typedef struct {
-    u8 hash[32];
-    const void* data;
-    u32 size;
+    u8   hash[32];
+    bool hashed;
 } Hash;
 
 typedef struct {

@@ -4,9 +4,9 @@
 static void _log_signal(int arg);
 
 static vbool sAbort;
-static u8 sProgress;
 static enum IOLevel sSuppress = 0;
 static mutex_t sIoMutex;
+u8 gInfoProgState;
 
 // # # # # # # # # # # # # # # # # # # # #
 // #                                     #
@@ -103,9 +103,9 @@ static void IO_printImpl(int color_id, int is_progress, int is_error, FILE* stre
     
     if (sAbort && !is_error)
         return;
-    if (sProgress && !is_progress) {
+    if (gInfoProgState && !is_progress) {
         xl_fprint(stream, "\n");
-        sProgress = false;
+        gInfoProgState = false;
     }
     
     const size_t bufsize = 2048;
@@ -272,11 +272,11 @@ void info_fastprog(const char* info, int a, int b) {
     
     IO_printCall(1, true, stdout, info,
         x_fmt("[ %%%dd / %%-%dd ]", digint(b), digint(b)), a, b);
-    sProgress = true;
+    gInfoProgState = true;
     prev = a + 1;
     
     if (a == b) {
-        sProgress = false;
+        gInfoProgState = false;
         xl_fprint(stdout, "\n");
     }
 }
@@ -285,7 +285,7 @@ void info_prog(const char* info, int a, int b) {
     if (sSuppress >= PSL_NO_INFO)
         return;
     
-    if (a != b && sProgress) {
+    if (a != b && gInfoProgState) {
         static struct timeval p;
         
         if (a <= 1)
@@ -310,7 +310,7 @@ void info_progf(const char* info, f64 a, f64 b) {
     if (sSuppress >= PSL_NO_INFO)
         return;
     
-    if (a != b && sProgress) {
+    if (a != b && gInfoProgState) {
         static struct timeval p;
         
         if (a <= 1)
@@ -338,11 +338,11 @@ void info_progf(const char* info, f64 a, f64 b) {
     
     IO_printCall(1, true, stdout, info,
         x_fmt("[ %%%d.2f / %%-%d.2f ]", digint(b), digint(b)), a, b);
-    sProgress = true;
+    gInfoProgState = true;
     prev = a + 1;
     
     if (a == b) {
-        sProgress = false;
+        gInfoProgState = false;
         xl_fprint(stdout, "\n");
     }
 }
@@ -494,7 +494,7 @@ static void _log_print_title(int arg, FILE* file) {
         "\aLog List",
     };
     
-    if (sProgress)
+    if (gInfoProgState)
         fprintf(file, "\n");
     
     if (arg != 0xDEADBEEF)
