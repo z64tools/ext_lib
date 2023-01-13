@@ -275,10 +275,26 @@ void info_fastprog(const char* info, int a, int b) {
     gInfoProgState = true;
     prev = a + 1;
     
-    if (a == b) {
-        gInfoProgState = false;
-        xl_fprint(stdout, "\n");
-    }
+    if (a == b && b != 0)
+        info_prog_end();
+}
+
+void info_fastprogf(const char* info, f64 a, f64 b) {
+    static int prev;
+    
+    if (a + 1 == prev)
+        return;
+    
+    if (sSuppress >= PSL_NO_INFO)
+        return;
+    
+    IO_printCall(1, true, stdout, info,
+        x_fmt("[ %%%d.2f / %%-%d.2f ]", digint(b), digint(b)), a, b);
+    gInfoProgState = true;
+    prev = a + 1;
+    
+    if (a == b && b != 0)
+        info_prog_end();
 }
 
 void info_prog(const char* info, int a, int b) {
@@ -288,7 +304,7 @@ void info_prog(const char* info, int a, int b) {
     if (a != b && gInfoProgState) {
         static struct timeval p;
         
-        if (a <= 1)
+        if (a < 1)
             gettimeofday(&p, 0);
         else {
             struct timeval t;
@@ -296,7 +312,7 @@ void info_prog(const char* info, int a, int b) {
             gettimeofday(&t, 0);
             f32 sec = t.tv_sec - p.tv_sec + (f32)(t.tv_usec - p.tv_usec) * 0.000001f;
             
-            if (sec >= 0.2f) {
+            if (sec >= 0.12f) {
                 p = t;
             } else
                 return;
@@ -313,7 +329,7 @@ void info_progf(const char* info, f64 a, f64 b) {
     if (a != b && gInfoProgState) {
         static struct timeval p;
         
-        if (a <= 1)
+        if (a < 1)
             gettimeofday(&p, 0);
         else {
             struct timeval t;
@@ -321,27 +337,18 @@ void info_progf(const char* info, f64 a, f64 b) {
             gettimeofday(&t, 0);
             f32 sec = t.tv_sec - p.tv_sec + (f32)(t.tv_usec - p.tv_usec) * 0.000001f;
             
-            if (sec >= 0.2f) {
+            if (sec >= 0.12f) {
                 p = t;
             } else
                 return;
         }
     }
     
-    static f32 prev;
-    
-    if (a + 1 == prev)
-        return;
-    
-    if (sSuppress >= PSL_NO_INFO)
-        return;
-    
-    IO_printCall(1, true, stdout, info,
-        x_fmt("[ %%%d.2f / %%-%d.2f ]", digint(b), digint(b)), a, b);
-    gInfoProgState = true;
-    prev = a + 1;
-    
-    if (a == b) {
+    info_fastprogf(info, a, b);
+}
+
+void info_prog_end(void) {
+    if (gInfoProgState) {
         gInfoProgState = false;
         xl_fprint(stdout, "\n");
     }

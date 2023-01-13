@@ -441,8 +441,7 @@ static size_t __unix_Download_Write(char* src, size_t size, size_t n, DownloadSt
 }
 
 static int __unix_Download_Progress(DownloadStatus* status, curl_off_t max, curl_off_t now, curl_off_t _a, curl_off_t _b ) {
-    if (max)
-        info_progf(status->message, BinToMb(now), BinToMb(max));
+    info_progf(status->message, BinToMb(now), BinToMb(max));
     
     return 0;
 }
@@ -505,28 +504,37 @@ bool Memfile_Download(Memfile* this, const char* url, const char* message) {
     size_t total_size = 0;
     
     HINTERNET session = InternetOpen("C", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
-    if (!session)
+    if (!session) {
+        _log("session fail:  %s", url);
         return EXIT_FAILURE;
+    }
     
     HINTERNET open_url = InternetOpenUrl(session, url, NULL, 0, INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_NO_UI | INTERNET_FLAG_PRAGMA_NOCACHE, 0);
-    if (!open_url)
+    if (!open_url) {
+        _log("open_url fail: %s", url);
         goto close_session;
+    }
     
     char size_str_buf[128] = {};
     DWORD len_buf_que = sizeof(size_str_buf);
     DWORD index = 0;
     
-    if (!HttpQueryInfo(open_url, HTTP_QUERY_CONTENT_LENGTH, size_str_buf, &len_buf_que, &index))
+    if (!HttpQueryInfo(open_url, HTTP_QUERY_CONTENT_LENGTH, size_str_buf, &len_buf_que, &index)) {
+        _log("query fail:    %s", url);
         goto close_url;
+    }
     
     total_size = sint(size_str_buf);
     
+    if (message)
+        info_progf(message, 0, BinToMb(total_size));
     while (InternetReadFile(open_url, buf, 512, &read_bytes) && read_bytes > 0) {
         Memfile_Write(this, buf, read_bytes);
         
         if (message)
             info_progf(message, BinToMb(this->size), BinToMb(total_size));
     }
+    info_prog_end();
     
     result = EXIT_SUCCESS;
     
@@ -543,6 +551,7 @@ close_session:
         
         if (!__unix_DownloadImpl(this, url, &status))
             return EXIT_FAILURE;
+        info_prog_end();
     }
     
     result = EXIT_SUCCESS;
