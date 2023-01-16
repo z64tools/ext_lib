@@ -1,6 +1,12 @@
 #ifndef EXT_LIB_H
 #define EXT_LIB_H
 
+#ifdef __cplusplus
+#define this self
+
+extern "C" {
+#endif
+
 #ifndef NDEBUG
 #define NDEBUG
 #endif
@@ -28,21 +34,32 @@
 #endif
 #endif
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+
+#ifndef __CRT__NO_INLINE
 #define __CRT__NO_INLINE
+#endif
 
 #include "ext_type.h"
-#include "ext_macros.h"
-#include "ext_math.h"
 #include <time.h>
+#ifndef EXT_BAREBONES
 #include <unistd.h>
 #include <ctype.h>
-#include <stdarg.h>
 #include <string.h>
+#endif
+#include <stdarg.h>
 
 /*============================================================================*/
 
+#ifndef EXT_BAREBONES
+
+#include "ext_macros.h"
+#include "ext_math.h"
 #define free(...) INVALID_FREE_USAGE
+
+#endif
 
 void time_start(u8 slot);
 f32 time_get(u8 slot);
@@ -71,6 +88,7 @@ bool HashCmp(Hash* a, Hash* b);
 
 void _log_print();
 
+#ifndef EXT_BAREBONES
 #ifdef __clang__
 void _assert(bool);
 void _log(const char* fmt, ...);
@@ -85,8 +103,8 @@ void __log__(const char* func, u32 line, const char* txt, ...);
             exit(1);                                            \
         }                                                       \
 } while (0)
-
-#endif
+#endif // __clang__
+#endif // EXT_BAREBONES
 
 char* Ini_Var(const char* str, const char* name);
 char* Ini_GetVar(const char* str, const char* name);
@@ -110,10 +128,13 @@ void Ini_WriteStr(Memfile* mem, const char* variable, const char* str, bool quot
 void Ini_WriteFloat(Memfile* mem, const char* variable, f64 flo, const char* comment);
 void Ini_WriteBool(Memfile* mem, const char* variable, s32 val, const char* comment);
 void Ini_WriteTab(Memfile* mem, const char* variable, const char* comment);
+
+#ifndef EXT_BAREBONES
 #define Ini_Fmt(mem, ...) Memfile_Fmt(mem, __VA_ARGS__)
 #define NO_COMMENT NULL
 #define QUOTES     1
 #define NO_QUOTES  0
+#endif
 
 /*============================================================================*/
 
@@ -173,8 +194,10 @@ void List_Combine(List* out, List* a, List* b);
 void List_Tokenize(List* this, const char* s, char r);
 void List_Sort(List* this);
 
+#ifndef EXT_BAREBONES
 #ifndef __clang__
 #define List_SetFilters(list, ...) List_SetFilters(list, NARGS(__VA_ARGS__), __VA_ARGS__)
+#endif
 #endif
 
 /*============================================================================*/
@@ -185,11 +208,11 @@ void Toml_SetTab(Toml* this, const char* item, ...);
 bool Toml_RmVar(Toml* this, const char* fmt, ...);
 bool Toml_RmArr(Toml* this, const char* fmt, ...);
 bool Toml_RmTab(Toml* this, const char* fmt, ...);
-void Toml_Load(Toml* this, const char* file);
+bool Toml_Load(Toml* this, const char* file);
 void Toml_Free(Toml* this);
 void Toml_Print(Toml* this, void* d, void (*PRINT)(void*, const char*, ...));
 void Toml_SaveMem(Toml* this, Memfile* mem);
-void Toml_Save(Toml* this, const char* file);
+bool Toml_Save(Toml* this, const char* file);
 int Toml_GetInt(Toml* this, const char* item, ...);
 f32 Toml_GetFloat(Toml* this, const char* item, ...);
 bool Toml_GetBool(Toml* this, const char* item, ...);
@@ -230,14 +253,17 @@ void Memfile_Null(Memfile* this);
 void Memfile_Clear(Memfile* this);
 bool Memfile_Download(Memfile* this, const char* url, const char* message);
 
+#ifndef EXT_BAREBONES
 #ifndef __clang__
 #define Memfile_Set(this, ...) Memfile_Set(this, __VA_ARGS__, MEM_END)
 #endif
 
 #define MEMFILE_SEEK_END 0xDEFEBABE
+#endif
 
 /*============================================================================*/
 
+#ifndef EXT_BAREBONES
 extern vbool gThreadMode;
 extern mutex_t gThreadMutex;
 extern const char* gParallel_ProgMsg;
@@ -245,6 +271,7 @@ void* Parallel_Add(void* function, void* arg);
 void Parallel_Exec(u32 max);
 void Parallel_SetID(void* __this, int id);
 void Parallel_SetDepID(void* __this, int id);
+#endif
 
 /*============================================================================*/
 
@@ -298,6 +325,7 @@ char* dirabs(const char* item);
 
 /*============================================================================*/
 
+#ifndef EXT_BAREBONES
 #define calloc(size) calloc(1, size)
 
 #ifdef __clang__
@@ -312,6 +340,7 @@ void* __vfree(const void* data);
         NULL;                                           \
     })
 
+#endif
 #endif
 
 /*============================================================================*/
@@ -463,6 +492,8 @@ int qsort_u32(const void* arg_a, const void* arg_b);
 
 /*============================================================================*/
 
+#ifndef EXT_BAREBONES
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 
@@ -485,9 +516,16 @@ static inline int thd_join(thread_t* thread) {
 
 #pragma GCC diagnostic pop
 
+#endif // EXT_BAREBONES
+
 #ifndef __clang__
 #define strncat(str, cat, size) strncat(str, cat, (size) - 1)
 #define strncpy(str, cpy, size) strncpy(str, cpy, (size) - 1)
+#endif
+
+#ifdef __cplusplus
+}
+#undef this
 #endif
 
 #endif /* EXT_LIB_H */

@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <pthread.h>
 
 #define FLT_MAX __FLT_MAX__
 #define FLT_MIN __FLT_MIN__
@@ -29,8 +28,6 @@ typedef double                 f64;
 typedef uintptr_t              uaddr_t;
 typedef intptr_t               addr_t;
 typedef time_t                 time_t;
-typedef pthread_t              thread_t;
-typedef pthread_mutex_t        mutex_t;
 typedef size_t                 size_t;
 typedef wchar_t                wchar;
 #define var __auto_type
@@ -47,6 +44,12 @@ typedef volatile unsigned int           vu32;
 typedef volatile signed long long int   vs64;
 typedef volatile unsigned long long int vu64;
 typedef volatile bool                   vbool;
+
+#ifndef EXT_BAREBONES
+#include <pthread.h>
+typedef pthread_t       thread_t;
+typedef pthread_mutex_t mutex_t;
+#endif
 
 typedef struct {
     u8   hash[32];
@@ -259,22 +262,17 @@ typedef enum {
 } env_index_t;
 
 typedef struct Toml {
-    bool changed;
+    struct {
+        bool changed : 1;
+        bool silence : 1;
+        bool success : 1;
+        bool write   : 1;
+    };
     union {
 #ifdef EXT_TOML_C
-        struct {
-            toml_table_t* root;
-            struct {
-                bool silence : 1;
-                bool success : 1;
-                bool write   : 1;
-            };
-        };
+        toml_table_t* root;
 #endif
-        struct {
-            void* data;
-            u32   _[4];
-        };
+        void* data;
     };
 } Toml;
 

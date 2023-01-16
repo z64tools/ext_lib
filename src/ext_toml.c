@@ -436,18 +436,25 @@ bool Toml_RmTab(Toml* this, const char* fmt, ...) {
 // # Base                                #
 // # # # # # # # # # # # # # # # # # # # #
 
-void Toml_Load(Toml* this, const char* file) {
+bool Toml_Load(Toml* this, const char* file) {
     Memfile mem = Memfile_New();
     char errbuf[200];
+    
+    this->success = true;
     
     _log("Parse File: [%s]", file);
     Memfile_LoadStr(&mem, file);
     if (!(this->root = toml_parse(mem.str, errbuf, 200))) {
-        warn("[Toml Praser Error!]");
-        warn("File: %s", file);
-        errr("%s", errbuf);
+        if (!this->silence) {
+            warn("[Toml Praser Error!]");
+            warn("File: %s", file);
+            errr("%s", errbuf);
+        }
+        return EXIT_FAILURE;
     }
     Memfile_Free(&mem);
+    
+    return EXIT_SUCCESS;
 }
 
 void Toml_Free(Toml* this) {
@@ -564,13 +571,19 @@ void Toml_SaveMem(Toml* this, Memfile* mem) {
     Toml_Print(this, mem, (void*)Memfile_Fmt);
 }
 
-void Toml_Save(Toml* this, const char* file) {
+bool Toml_Save(Toml* this, const char* file) {
     Memfile mem = Memfile_New();
     
+    this->success = true;
     Toml_Print(this, &mem, (void*)Memfile_Fmt);
     _log("save toml: %s", file);
-    Memfile_SaveStr(&mem, file);
+    
+    mem.param.throwError = false;
+    if (Memfile_SaveStr(&mem, file))
+        this->success = false;
     Memfile_Free(&mem);
+    
+    return this->success;
 }
 
 // # # # # # # # # # # # # # # # # # # # #

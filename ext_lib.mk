@@ -1,4 +1,5 @@
 CFLAGS      += -I $(PATH_EXTLIB) -fdata-sections -ffunction-sections
+CC_W32      ?= i686-w64-mingw32.static-gcc
 
 PRNT_GRAY := \e[0;90m
 PRNT_REDD := \e[0;91m
@@ -103,7 +104,7 @@ Proc_Win32_O    += bin/win32/libreproc.a
 
 define GD_WIN32
 	@echo -n $(dir $@) > $(@:.o=.d)
-	@i686-w64-mingw32.static-gcc -MM $(CFLAGS) -D_WIN32 $< >> $(@:.o=.d)
+	@$(CC_W32) -MM $(CFLAGS) -D_WIN32 $< >> $(@:.o=.d)
 endef
 
 define GD_LINUX
@@ -123,7 +124,7 @@ endef
 
 bin/win32/src/fonts/%.o: $(PATH_EXTLIB)/src/fonts/%
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
-	@$(DataFileCompiler) --cc i686-w64-mingw32.static-gcc --i $< --o $@
+	@$(DataFileCompiler) --cc $(CC_W32) --i $< --o $@
 	
 bin/linux/src/fonts/%.o: $(PATH_EXTLIB)/src/fonts/%
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
@@ -131,7 +132,7 @@ bin/linux/src/fonts/%.o: $(PATH_EXTLIB)/src/fonts/%
 
 bin/win32/%.o: $(PATH_EXTLIB)/%.c
 	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
-	@i686-w64-mingw32.static-gcc -c -o $@ $< $(CFLAGS) -D_WIN32
+	@$(CC_W32) -c -o $@ $< $(CFLAGS) -D_WIN32
 	$(GD_WIN32)
 	
 bin/linux/%.o: $(PATH_EXTLIB)/%.c
@@ -146,12 +147,12 @@ bin/linux/%.o: %.c
 		
 bin/win32/%.o: %.c
 	@echo "$(PRNT_RSET)[$(PRNT_PRPL)$(notdir $@)$(PRNT_RSET)]"
-	@i686-w64-mingw32.static-gcc -c -o $@ $< $(CFLAGS) -D_WIN32
+	@$(CC_W32) -c -o $@ $< $(CFLAGS) -D_WIN32
 	$(GD_WIN32)
 	
 bin/win32/src/data/%.o: src/data/%
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
-	@$(DataFileCompiler) --cc i686-w64-mingw32.static-gcc --i $< --o $@
+	@$(DataFileCompiler) --cc $(CC_W32) --i $< --o $@
 	
 bin/linux/src/data/%.o: src/data/%
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
