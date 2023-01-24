@@ -261,6 +261,14 @@ typedef enum {
     ENV_TEMP,
 } env_index_t;
 
+typedef enum Type {
+    TYPE_NONE,
+    TYPE_INT,
+    TYPE_FLOAT,
+    TYPE_BOOL,
+    TYPE_STRING,
+} Type;
+
 typedef struct Toml {
     struct {
         bool changed : 1;

@@ -4,13 +4,6 @@
 #include "xtoml/x0impl.h"
 #include <ext_lib.h>
 
-enum GetVal {
-    GET_VALUE_INT,
-    GET_VALUE_FLOAT,
-    GET_VALUE_BOOL,
-    GET_VALUE_STR,
-};
-
 enum Remove {
     RM_NONE,
     RM_VAR,
@@ -224,21 +217,20 @@ static TravelResult Toml_Travel(Toml* this, const char* field, toml_table_t* tbl
     return Toml_Travel(this, next, new_tbl, path);
 }
 
-static toml_datum_t Toml_GetValue(Toml* this, const char* item, enum GetVal type) {
+static toml_datum_t Toml_GetValue(Toml* this, const char* item, enum Type type) {
     this->success = true;
     toml_datum_t (*getVar[])(const toml_table_t*, const char*) = {
-        toml_int_in,
-        toml_double_in,
-        toml_bool_in,
-        toml_string_in,
+        [TYPE_INT] = toml_int_in,
+        [TYPE_FLOAT] = toml_double_in,
+        [TYPE_BOOL] = toml_bool_in,
+        [TYPE_STRING] = toml_string_in,
     };
     toml_datum_t (*getArr[])(const toml_array_t*, int) = {
-        toml_int_at,
-        toml_double_at,
-        toml_bool_at,
-        toml_string_at,
+        [TYPE_INT] = toml_int_at,
+        [TYPE_FLOAT] = toml_double_at,
+        [TYPE_BOOL] = toml_bool_at,
+        [TYPE_STRING] = toml_string_at,
     };
-    
     char path[BUFFER_SIZE] = {};
     TravelResult t = Toml_Travel(this, item, this->root, path);
     
@@ -250,14 +242,8 @@ static toml_datum_t Toml_GetValue(Toml* this, const char* item, enum GetVal type
     return (toml_datum_t) {};
 }
 
-void Toml_SetVar(Toml* this, const char* item, const char* fmt, ...) {
+static void Toml_SetVarImpl(Toml* this, const char* item, const char* value) {
     char path[BUFFER_SIZE] = {};
-    char value[BUFFER_SIZE];
-    va_list va;
-    
-    va_start(va, fmt);
-    vsnprintf(value, BUFFER_SIZE, fmt, va);
-    va_end(va);
     
     if (this->root == NULL)
         this->root = new(toml_table_t);
@@ -323,13 +309,24 @@ void Toml_SetVar(Toml* this, const char* item, const char* fmt, ...) {
     }
 }
 
+void Toml_SetVar(Toml* this, const char* item, const char* fmt, ...) {
+    char buffer[512];
+    va_list va;
+    
+    va_start(va, fmt);
+    xl_vsnprintf(buffer, sizeof(buffer), fmt, va);
+    va_end(va);
+    
+    Toml_SetVarImpl(this, item, buffer);
+}
+
 void Toml_SetTab(Toml* this, const char* item, ...) {
     char path[BUFFER_SIZE] = {};
     char table[BUFFER_SIZE];
     va_list va;
     
     va_start(va, item);
-    vsnprintf(table, BUFFER_SIZE, item, va);
+    xl_vsnprintf(table, BUFFER_SIZE, item, va);
     strncat(table, ".temp", BUFFER_SIZE);
     va_end(va);
     
@@ -346,7 +343,7 @@ static bool Toml_Remove(Toml* this, enum Remove rem, const char* item, va_list v
     char path[BUFFER_SIZE] = {};
     char value[BUFFER_SIZE];
     
-    vsnprintf(value, BUFFER_SIZE, item, va);
+    xl_vsnprintf(value, BUFFER_SIZE, item, va);
     
     if (this->root == NULL)
         this->root = new(toml_table_t);
@@ -457,6 +454,22 @@ bool Toml_Load(Toml* this, const char* file) {
     return EXIT_SUCCESS;
 }
 
+bool Toml_LoadMem(Toml* this, const char* str) {
+    char errbuf[200];
+    
+    if (!(this->root = toml_parse((char*)str, errbuf, 200))) {
+        if (!this->silence) {
+            warn("[Toml Praser Error!]");
+            warn("File: LoadMem");
+            _log_print();
+            errr("%s", errbuf);
+        }
+        return EXIT_FAILURE;
+    }
+    
+    return EXIT_SUCCESS;
+}
+
 void Toml_Free(Toml* this) {
     if (!this) return;
     __toml_free(this->root);
@@ -498,6 +511,7 @@ void Toml_Print(Toml* this, void* d, void (*PRINT)(void*, const char*, ...)) {
                     PRINT(d, "%s%s = [\n", nd, toml_key_in(tbl, i));
                     
                     ar = toml_array_at(arr, k++);
+                    
                     while (ar) {
                         j = 0;
                         PRINT(d, "\t%s[\n", nd);
@@ -516,6 +530,7 @@ void Toml_Print(Toml* this, void* d, void (*PRINT)(void*, const char*, ...)) {
                             PRINT(d, ",");
                         PRINT(d, "\n");
                     }
+                    
                     PRINT(d, "%s]\n", nd);
                     
                     break;
@@ -595,8 +610,8 @@ int Toml_GetInt(Toml* this, const char* item, ...) {
     va_list va;
     
     va_start(va, item);
-    vsnprintf(buffer, BUFFER_SIZE, item, va);
-    toml_datum_t t = Toml_GetValue(this, buffer, GET_VALUE_INT);
+    xl_vsnprintf(buffer, BUFFER_SIZE, item, va);
+    toml_datum_t t = Toml_GetValue(this, buffer, TYPE_INT);
     va_end(va);
     
     return t.u.i;
@@ -607,8 +622,8 @@ f32 Toml_GetFloat(Toml* this, const char* item, ...) {
     va_list va;
     
     va_start(va, item);
-    vsnprintf(buffer, BUFFER_SIZE, item, va);
-    toml_datum_t t = Toml_GetValue(this, buffer, GET_VALUE_FLOAT);
+    xl_vsnprintf(buffer, BUFFER_SIZE, item, va);
+    toml_datum_t t = Toml_GetValue(this, buffer, TYPE_FLOAT);
     va_end(va);
     
     return t.u.d;
@@ -619,8 +634,8 @@ bool Toml_GetBool(Toml* this, const char* item, ...) {
     va_list va;
     
     va_start(va, item);
-    vsnprintf(buffer, BUFFER_SIZE, item, va);
-    toml_datum_t t = Toml_GetValue(this, buffer, GET_VALUE_BOOL);
+    xl_vsnprintf(buffer, BUFFER_SIZE, item, va);
+    toml_datum_t t = Toml_GetValue(this, buffer, TYPE_BOOL);
     va_end(va);
     
     return t.u.b;
@@ -631,8 +646,8 @@ char* Toml_GetStr(Toml* this, const char* item, ...) {
     va_list va;
     
     va_start(va, item);
-    vsnprintf(buffer, BUFFER_SIZE, item, va);
-    toml_datum_t t = Toml_GetValue(this, buffer, GET_VALUE_STR);
+    xl_vsnprintf(buffer, BUFFER_SIZE, item, va);
+    toml_datum_t t = Toml_GetValue(this, buffer, TYPE_STRING);
     va_end(va);
     
     if (!t.ok) return NULL;
@@ -645,7 +660,7 @@ char* Toml_Var(Toml* this, const char* item, ...) {
     va_list va;
     
     va_start(va, item);
-    vsnprintf(buffer, BUFFER_SIZE, item, va);
+    xl_vsnprintf(buffer, BUFFER_SIZE, item, va);
     va_end(va);
     
     this->silence = true;
@@ -662,6 +677,53 @@ char* Toml_Var(Toml* this, const char* item, ...) {
     return NULL;
 }
 
+Type Toml_VarType(Toml* this, const char* item, ...) {
+    char buffer[BUFFER_SIZE];
+    va_list va;
+    
+    va_start(va, item);
+    xl_vsnprintf(buffer, BUFFER_SIZE, item, va);
+    va_end(va);
+    
+    this->silence = true;
+    char path[BUFFER_SIZE] = {};
+    TravelResult t = Toml_Travel(this, buffer, this->root, path);
+    this->silence = false;
+    
+    if (t.arr && t.arr->nitem > t.idx) {
+        switch (t.arr->item[t.idx].valtype) {
+            case 'i':
+                return TYPE_INT;
+            case 'd':
+                return TYPE_FLOAT;
+            case 'b':
+                return TYPE_BOOL;
+            case 's':
+                return TYPE_STRING;
+        }
+    }
+    
+    if (t.tbl && toml_key_exists(t.tbl, t.item)) {
+        for (var i = 0; i < t.tbl->nkval; i++) {
+            if (!strcmp(t.tbl->kval[i]->key, t.item)) {
+                
+                switch (valtype(t.arr->item[t.idx].val)) {
+                    case 'i':
+                        return TYPE_INT;
+                    case 'd':
+                        return TYPE_FLOAT;
+                    case 'b':
+                        return TYPE_BOOL;
+                    case 's':
+                        return TYPE_STRING;
+                }
+            }
+        }
+    }
+    
+    return TYPE_NONE;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # NumArray                            #
 // # # # # # # # # # # # # # # # # # # # #
@@ -670,7 +732,7 @@ static TravelResult Toml_GetTravelImpl(Toml* this, const char* item, const char*
     char buf[BUFFER_SIZE];
     char path[BUFFER_SIZE] = {};
     
-    vsnprintf(buf, BUFFER_SIZE, item, va);
+    xl_vsnprintf(buf, BUFFER_SIZE, item, va);
     if (!*buf)
         return (TravelResult) { .tbl = this->root };
     strcat(buf, cat);
@@ -714,7 +776,7 @@ void Toml_ListVars(Toml* this, List* list, const char* item, ...) {
     }
 }
 
-int Toml_ArrItemNum(Toml* this, const char* arr, ...) {
+int Toml_ArrCount(Toml* this, const char* arr, ...) {
     va_list va;
     
     va_start(va, arr);
@@ -734,7 +796,7 @@ int Toml_TabItemNum(Toml* this, const char* item, ...) {
     va_end(va);
     
     if (t.tbl)
-        return toml_table_narr(t.tbl) + toml_table_nkval(t.tbl);
+        return toml_table_narr(t.tbl) + toml_table_nkval(t.tbl) + toml_table_ntab(t.tbl);
     
     return 0;
 }
@@ -774,6 +836,19 @@ int Toml_VarNum(Toml* this, const char* item, ...) {
     
     if (t.tbl)
         return t.tbl->nkval;
+    
+    return 0;
+}
+
+const char* Toml_VarKey(Toml* this, int index, const char* item, ...) {
+    va_list va;
+    
+    va_start(va, item);
+    TravelResult t = Toml_GetTravelImpl(this, item, ".__get_tbl", va);
+    va_end(va);
+    
+    if (t.tbl && t.tbl->nkval > index)
+        return t.tbl->kval[index]->key;
     
     return 0;
 }

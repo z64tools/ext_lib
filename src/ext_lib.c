@@ -332,7 +332,7 @@ static void Sha_Compression(u32* Hash, u32* W) {
 }
 
 static Hash Sha_ExtractDigest(u32* hash) {
-    Hash Digest;
+    Hash Digest = { .hashed = true };
     
     for (u32 i = 0; i < 32; i += 4) {
         Digest.hash[i] = (u8)((hash[i / 4] >> 24) & 0x000000FF);
@@ -351,7 +351,6 @@ Hash HashMem(const void* data, size_t size) {
         0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
     };
     u64 RemainingDataSizeByte = size;
-    Hash dst = { .hashed = true };
     u8* d = (u8*)data;
     
     while (Sha_CreateCompleteScheduleArray(d, size, &RemainingDataSizeByte, W) == 1) {
@@ -361,13 +360,13 @@ Hash HashMem(const void* data, size_t size) {
     Sha_CompleteScheduleArray(W);
     Sha_Compression(hash, W);
     
-    dst = Sha_ExtractDigest(hash);
+    Hash dst = Sha_ExtractDigest(hash);
     
     return dst;
 }
 
 bool HashCmp(Hash* a, Hash* b) {
-    return memcmp(a->hash, b->hash, sizeof(a->hash));
+    return !!memcmp(a->hash, b->hash, sizeof(a->hash));
 }
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -1357,7 +1356,7 @@ char* strracpt(const char* str, const char* c) {
     return NULL;
 }
 
-char* strlnhead(const char* str, const char* head) {
+char* linehead(const char* str, const char* head) {
     if (str == NULL) return NULL;
     
     for (int i = 0;; i--) {
@@ -1435,6 +1434,13 @@ bool chrspn(int c, const char* accept) {
         if (c == *accept)
             return true;
     return false;
+}
+
+bool strconsist(const char* str, const char* accept) {
+    for (; *str; str++)
+        if (!chrspn(*str, accept))
+            return false;
+    return true;
 }
 
 static int __impl_strnocc(const char* s, int n, const char* accept) {
@@ -2286,7 +2292,7 @@ int sys_rmdir(const char* item) {
     return 0;
 }
 
-void sys_setworkpath(const char* txt) {
+void sys_setworkdir(const char* txt) {
     if (dir_isrel(txt))
         txt = x_dirabs(txt);
     

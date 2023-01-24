@@ -88,7 +88,6 @@ bool HashCmp(Hash* a, Hash* b);
 
 void _log_print();
 
-#ifndef EXT_BAREBONES
 #ifdef __clang__
 void _assert(bool);
 void _log(const char* fmt, ...);
@@ -104,7 +103,6 @@ void __log__(const char* func, u32 line, const char* txt, ...);
         }                                                       \
 } while (0)
 #endif // __clang__
-#endif // EXT_BAREBONES
 
 char* Ini_Var(const char* str, const char* name);
 char* Ini_GetVar(const char* str, const char* name);
@@ -170,14 +168,14 @@ void info_hex(const char* txt, const void* data, u32 size, u32 dispOffset);
 void info_bit(const char* txt, const void* data, u32 size, u32 dispOffset);
 void info_nl(void);
 
-size_t xl_vsnprintf(char*, size_t, const char*, va_list);
-size_t xl_snprintf(char*, size_t, const char*, ...);
-size_t xl_fprint(FILE*, const char*, ...);
+int xl_vsnprintf(char*, int, const char*, va_list va);
+int xl_snprintf(char*, int, const char*, ...);
+int xl_fprintf(FILE*, const char* fmt, ...);
 
 /*============================================================================*/
 
 List List_New(void);
-void List_SetFilters(List* list, u32 filterNum, ...);
+void List_SetFilters(List* list, u32 arg_num, ...);
 void List_FreeFilters(List* this);
 void List_Walk(List* this, const char* path, s32 depth, ListFlag flags);
 char* List_Concat(List* this, const char* separator);
@@ -209,6 +207,7 @@ bool Toml_RmVar(Toml* this, const char* fmt, ...);
 bool Toml_RmArr(Toml* this, const char* fmt, ...);
 bool Toml_RmTab(Toml* this, const char* fmt, ...);
 bool Toml_Load(Toml* this, const char* file);
+bool Toml_LoadMem(Toml* this, const char* str);
 void Toml_Free(Toml* this);
 void Toml_Print(Toml* this, void* d, void (*PRINT)(void*, const char*, ...));
 void Toml_SaveMem(Toml* this, Memfile* mem);
@@ -219,13 +218,16 @@ bool Toml_GetBool(Toml* this, const char* item, ...);
 char* Toml_GetStr(Toml* this, const char* item, ...);
 
 char* Toml_Var(Toml* this, const char* item, ...);
+Type Toml_VarType(Toml* this, const char* item, ...);
 void Toml_ListTabs(Toml* this, List* list, const char* item, ...);
 void Toml_ListVars(Toml* this, List* list, const char* item, ...);
-int Toml_ArrItemNum(Toml* this, const char* arr, ...);
+int Toml_ArrCount(Toml* this, const char* arr, ...);
 int Toml_TabItemNum(Toml* this, const char* item, ...);
 int Toml_TabNum(Toml* this, const char* item, ...);
 int Toml_ArrNum(Toml* this, const char* item, ...);
 int Toml_VarNum(Toml* this, const char* item, ...);
+
+const char* Toml_VarKey(Toml* this, int index, const char* item, ...);
 
 /*============================================================================*/
 
@@ -243,7 +245,7 @@ int Memfile_Fmt(Memfile* this, const char* fmt, ...);
 int Memfile_Cat(Memfile* this, const char* str);
 int Memfile_Read(Memfile* this, void* dest, size_t size);
 void* Memfile_Seek(Memfile* this, size_t seek);
-void Memfile_LoadMem(Memfile* this, void* data, size_t size);
+void Memfile_LoadMem(Memfile* this, const void* data, size_t size);
 int Memfile_LoadBin(Memfile* this, const char* filepath);
 int Memfile_LoadStr(Memfile* this, const char* filepath);
 int Memfile_SaveBin(Memfile* this, const char* filepath);
@@ -252,6 +254,7 @@ void Memfile_Free(Memfile* this);
 void Memfile_Null(Memfile* this);
 void Memfile_Clear(Memfile* this);
 bool Memfile_Download(Memfile* this, const char* url, const char* message);
+void memdump(const void* data, size_t size, const char* file);
 
 #ifndef EXT_BAREBONES
 #ifndef __clang__
@@ -388,12 +391,13 @@ char* strstart(const char* src, const char* ext);
 char* stristart(const char* src, const char* ext);
 int strarg(const char* args[], const char* arg);
 char* strracpt(const char* str, const char* c);
-char* strlnhead(const char* str, const char* head);
+char* linehead(const char* str, const char* head);
 char* strline(const char* str, int line);
 char* strword(const char* str, int word);
 size_t linelen(const char* str);
 size_t wordlen(const char* str);
 bool chrspn(int c, const char* accept);
+bool strconsist(const char* str, const char* accept);
 int strnocc(const char* s, size_t n, const char* accept);
 int strocc(const char* s, const char* accept);
 int strnins(char* dst, const char* src, size_t pos, int n);
@@ -453,7 +457,7 @@ const char* sys_appdir(void);
 int sys_mv(const char* input, const char* output);
 int sys_rm(const char* item);
 int sys_rmdir(const char* item);
-void sys_setworkpath(const char* txt);
+void sys_setworkdir(const char* txt);
 int sys_touch(const char* file);
 int sys_cp(const char* src, const char* dest);
 date_t sys_timedate(time_t time);

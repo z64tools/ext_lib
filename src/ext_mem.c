@@ -208,7 +208,7 @@ int Memfile_Fmt(Memfile* this, const char* fmt, ...) {
     
     _log("form");
     va_start(args, fmt);
-    size = vsnprintf(
+    size = xl_vsnprintf(
         buffer,
         8192,
         fmt,
@@ -264,11 +264,11 @@ void* Memfile_Seek(Memfile* this, size_t seek) {
     return (void*)&this->cast.u8[seek];
 }
 
-void Memfile_LoadMem(Memfile* this, void* data, size_t size) {
+void Memfile_LoadMem(Memfile* this, const void* data, size_t size) {
     Memfile_Validate(this);
     Memfile_Null(this);
     this->size = this->memSize = size;
-    this->data = data;
+    this->data = (void*)data;
 }
 
 int Memfile_LoadBin(Memfile* this, const char* filepath) {
@@ -558,4 +558,11 @@ close_session:
 #endif
     
     return result;
+}
+
+void memdump(const void* data, size_t size, const char* file) {
+    Memfile mem = Memfile_New();
+    
+    Memfile_LoadMem(&mem, data, size);
+    Memfile_SaveBin(&mem, file);
 }
