@@ -164,6 +164,7 @@ static void Interface_Update_AppInfo(AppInfo* app) {
         _log("Close Window: [%s]", app->title);
         app->state |= APP_CLOSED;
         glfwDestroyWindow(app->window);
+        vfree(app->window);
         nvgDeleteGL3(app->vg);
         
         app->window = app->vg = NULL;
