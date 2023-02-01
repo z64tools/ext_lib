@@ -4,7 +4,6 @@
 #include <nanovg/src/nanovg_gl.h>
 #include "ext_interface.h"
 
-
 const f64 gNativeFPS = 60;
 
 static void Interface_Update(AppInfo* app);
@@ -175,6 +174,23 @@ static void Interface_Update_SubWindows(AppInfo* app) {
     SubWindow* this = app->subWinHead;
     
     while (this != NULL) {
+        if (this->app.state & APP_CLOSED) {
+            _log("Kill Window: [%s]", this->app.title);
+            
+            Node_Remove(app->subWinHead, this);
+            if (!this->settings.noDestroy) {
+                if (this->destroyCall)
+                    this->destroyCall(this->app.context);
+                vfree(this->app.context);
+            }
+        }
+        
+        this = this->next;
+    }
+    
+    this = app->subWinHead;
+    
+    while (this != NULL) {
 #if 0
         if (!(this->parent->state & APP_CLOSED)) {
             if (glfwGetWindowAttrib(this->parent->window, GLFW_ICONIFIED) != glfwGetWindowAttrib(this->app.window, GLFW_ICONIFIED)) {
@@ -189,22 +205,6 @@ static void Interface_Update_SubWindows(AppInfo* app) {
 #endif
         
         Interface_Update_AppInfo(&this->app);
-        this = this->next;
-    }
-    
-    this = app->subWinHead;
-    while (this != NULL) {
-        if (this->app.state & APP_CLOSED) {
-            _log("Kill Window: [%s]", this->app.title);
-            
-            Node_Remove(app->subWinHead, this);
-            if (!this->settings.noDestroy) {
-                if (this->destroyCall)
-                    this->destroyCall(this->app.context);
-                vfree(this->app.context);
-            }
-        }
-        
         this = this->next;
     }
 }

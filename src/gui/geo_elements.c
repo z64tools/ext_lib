@@ -1917,6 +1917,14 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
     }
 }
 
+void Element_Flush() {
+    while (gElemState->head) {
+        Element* this = gElemState->head->arg;
+        if (this->doFree) vfree(this);
+        Node_Kill(gElemState->head, gElemState->head);
+    }
+}
+
 void DragItem_Draw(GeoGrid* geo) {
     DragItem* this = &gElemState->dragItem;
     void* vg = geo->vg;

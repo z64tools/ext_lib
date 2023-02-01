@@ -1307,6 +1307,8 @@ void GeoGrid_Draw(GeoGrid* geo) {
     
     ContextMenu_Draw(geo);
     DragItem_Draw(geo);
+    void Element_Flush();
+    Element_Flush();
 }
 
 void GeoGrid_Splitless_Start(GeoGrid* geo, Rect r) {
