@@ -901,7 +901,7 @@ static void Element_TextDraw(ElementCallInfo* info) {
 }
 
 ElText* Element_Text(const char* txt) {
-    ElText* this = calloc(sizeof(ElText));
+    ElText* this = new(ElText);
     
     _assert(GEO && SPLIT);
     this->element.name = txt;
@@ -1590,8 +1590,6 @@ static void Element_BoxDraw(ElementCallInfo* info) {
     
     Gfx_DrawRounderOutline(info->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 45, 1.0f));
     Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 45, 1.0f));
-    
-    this->doFree = true;
 }
 
 s32 Element_Box(BoxInit io) {
@@ -1613,7 +1611,8 @@ s32 Element_Box(BoxInit io) {
     if (io == BOX_START) {
         ROW_Y = gElemState->rowY;
         
-        THIS = calloc(sizeof(*THIS));
+        THIS = new(*THIS);
+        THIS->doFree = true;
         Element_Row(1, THIS, 1.0);
         gElemState->rowY = ROW_Y + SPLIT_ELEM_X_PADDING;
         
@@ -1641,6 +1640,7 @@ s32 Element_Box(BoxInit io) {
 #undef BOX_POP
 #undef THIS
 #undef ROW_Y
+    
     return 0;
 }
 
@@ -1907,14 +1907,14 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
             
             if (header || !Element_DisableDraw(elem->arg, elem->split))
                 elem->func(elem);
-            if (this->doFree) vfree(this);
+            if (this->doFree)
+                vfree(this);
+            
+            Node_Kill(gElemState->head, elem);
         }
         
         elem = next;
     }
-    
-    while (gElemState->head)
-        Node_Kill(gElemState->head, gElemState->head);
 }
 
 void DragItem_Draw(GeoGrid* geo) {
