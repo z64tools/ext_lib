@@ -424,6 +424,8 @@ size_t str8nlen(const char* str, size_t n);
 size_t str8len(const char* str);
 size_t strvnlen(const char* str, size_t n);
 size_t strvlen(const char* str);
+bool streq(const char* a, const char* b);
+bool strieq(const char* a, const char* b);
 char* strto8(char* dst, const wchar* src);
 wchar* strto16(wchar* dst, const char* src);
 int linenum(const char* str);
@@ -496,10 +498,37 @@ int qsort_u32(const void* arg_a, const void* arg_b);
 
 /*============================================================================*/
 
+Arli Arli_New(size_t element_size);
+#define Arli_New(element) Arli_New(sizeof(element));
+void* Arli_At(Arli* this, size_t position);
+int Arli_Alloc(Arli* this, size_t num);
+void* Arli_Insert(Arli* this, size_t position, size_t num, const void* data);
+void* Arli_Append(Arli* this, size_t num, const void* data);
+int Arli_Remove(Arli* this, size_t position, size_t num);
+int Arli_Shrink(Arli* this);
+void Arli_Clear(Arli* this);
+void Arli_Destroy(Arli* this);
+
 #ifndef EXT_BAREBONES
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
+
+static inline void mutex_init(mutex_t* m) {
+    pthread_mutex_init(m, 0);
+}
+
+static inline void mutex_dest(mutex_t* m) {
+    pthread_mutex_destroy(m);
+}
+
+static inline void mutex_lock(mutex_t* m) {
+    pthread_mutex_lock(m);
+}
+
+static inline void mutex_unlock(mutex_t* m) {
+    pthread_mutex_unlock(m);
+}
 
 static inline void thd_lock(void) {
     pthread_mutex_lock(&gThreadMutex);

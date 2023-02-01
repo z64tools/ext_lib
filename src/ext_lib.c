@@ -1934,6 +1934,22 @@ size_t strvlen(const char* str) {
     return strvnlen(str, SIZE_MAX);
 }
 
+bool streq(const char* a, const char* b) {
+    while (true) {
+        if (*a != *b) return false;
+        if (!*a) return true;
+        a++, b++;
+    }
+}
+
+bool strieq(const char* a, const char* b) {
+    while (true) {
+        if (tolower(*a) != tolower(*b)) return false;
+        if (!*a) return true;
+        a++, b++;
+    }
+}
+
 char* strto8(char* dst, const wchar* src) {
     size_t dstIndex = 0;
     size_t len = strwlen(src) + 1;

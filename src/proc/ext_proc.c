@@ -88,28 +88,15 @@ Proc* Proc_New(char* fmt, ...) {
 
 void Proc_AddArg(Proc* this, char* fmt, ...) {
     char buffer[8192];
-    char* tok;
-    char* args[512] = {};
     va_list va;
-    u32 numArg = 0;
     
     va_start(va, fmt);
     vsnprintf(buffer, 8192, fmt, va);
     va_end(va);
     
-    tok = buffer;
-    
-    while (tok) {
-        args[numArg++] = argtok_cpy(tok);
-        tok = argtok_next(tok);
-    }
-    
-    this->arg = realloc(this->arg, sizeof(char*) * (this->numArg + numArg + 1));
-    
-    for (int i = 0; i <= numArg; i++)
-        this->arg[this->numArg + i] = args[i];
-    
-    this->numArg += numArg;
+    renew(this->arg, char*[this->numArg + 2]);
+    this->arg[this->numArg++] = strdup(buffer);
+    this->arg[this->numArg] = NULL;
 }
 
 void Proc_SetState(Proc* this, e_ProcState state) {
