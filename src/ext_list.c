@@ -338,6 +338,7 @@ void List_Print(List* target) {
     const char* cat = List_ConcatNumd(target, "\n");
     
     info("" PRNT_BLUE "list content:" PRNT_RSET "\n%s", cat);
+    vfree(cat);
 }
 
 time_t List_StatMax(List* list) {

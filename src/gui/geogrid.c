@@ -194,9 +194,9 @@ static SplitState Split_GetCursorPosState(Split* split, s32 range) {
 }
 
 static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
-    this->taskList = calloc(sizeof(struct PropList));
+    this->taskList = new(PropList);
     *this->taskList = PropList_Init(this->id);
-    this->taskCombo = calloc(sizeof(*this->taskCombo));
+    this->taskCombo = qxf(new(*this->taskCombo));
     
     _assert(this->taskList != NULL);
     _assert(this->taskCombo != NULL);

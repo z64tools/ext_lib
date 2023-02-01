@@ -5,7 +5,7 @@
 #include "ext_type.h"
 
 typedef struct {
-    rgba8_t*    bitmap;
+    rgba8_t*  bitmap;
     GLFWimage img;
     void*     glfwCur;
 } CursorBitmap;
@@ -29,8 +29,7 @@ typedef enum {
 
 typedef struct {
     struct AppInfo* app;
-    void* _p;
-    CursorBitmap cursor[64];
+    CursorBitmap cursor[CURSOR_MAX];
     CursorIndex  cursorNow;
     CursorIndex  cursorSet;
     CursorIndex  cursorForce;
@@ -38,6 +37,7 @@ typedef struct {
 
 void Cursor_CreateCursor(CursorIndex id,  const u8* data, s32 size, s32 xcent, s32 ycent);
 void Cursor_Init(CursorIcon* cursor, struct AppInfo* app);
+void Cursor_Free();
 void Cursor_Update();
 void Cursor_SetCursor(CursorIndex id);
 void Cursor_ForceCursor(CursorIndex id);

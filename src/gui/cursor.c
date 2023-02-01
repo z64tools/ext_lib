@@ -5,7 +5,7 @@ CursorIcon* gCursor;
 void Cursor_CreateCursor(CursorIndex id,  const u8* data, s32 size, s32 xcent, s32 ycent) {
     CursorBitmap* dest = &gCursor->cursor[id];
     
-    gCursor->cursor[id].bitmap = alloc(sizeof(rgba8_t) * size * size);
+    gCursor->cursor[id].bitmap = new(rgba8_t[size * size]);
     
     for (int i = 0, j = 0; i < size * size; i++, j += 2) {
         dest->bitmap[i].r = data[j];
@@ -25,6 +25,11 @@ void Cursor_Init(CursorIcon* cursor, AppInfo* app) {
     cursor->app = app;
     cursor->cursor[CURSOR_DEFAULT].glfwCur = glfwCreateStandardCursor(0);
     cursor->cursorForce = CURSOR_NONE;
+}
+
+void Cursor_Free() {
+    for (int i = 0; i < CURSOR_MAX; i++)
+        vfree(gCursor->cursor[i].bitmap);
 }
 
 void Cursor_Update() {

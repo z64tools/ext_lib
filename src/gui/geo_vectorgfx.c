@@ -135,6 +135,8 @@ VectorGfx VectorGfx_New(VectorGfx* this, const void* data, f32 fidelity) {
         AddPoint(FLT_MAX, FLT_MAX);
     }
     
+    nsvgDelete(img);
+    
     return vgfx;
 }
 

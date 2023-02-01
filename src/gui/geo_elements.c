@@ -244,7 +244,7 @@ f32 Gfx_TextWidth(void* vg, const char* txt) {
 static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, void* arg, const char* elemFunc) {
     ElementCallInfo* node;
     
-    node = calloc(sizeof(ElementCallInfo));
+    node = new(ElementCallInfo);
     Node_Add(gElemState->head, node);
     node->geo = geo;
     node->split = split;
@@ -1908,13 +1908,13 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
             if (header || !Element_DisableDraw(elem->arg, elem->split))
                 elem->func(elem);
             if (this->doFree) vfree(this);
-            
-            Node_Remove(gElemState->head, elem);
-            vfree(elem);
         }
         
         elem = next;
     }
+    
+    while (gElemState->head)
+        Node_Kill(gElemState->head, gElemState->head);
 }
 
 void DragItem_Draw(GeoGrid* geo) {
