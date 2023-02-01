@@ -1,5 +1,6 @@
 #include <ext_proc.h>
 #include <reproc/reproc.h>
+#undef Proc_AddEach
 
 enum e_ProcState {
     PROC_NEW,
@@ -97,6 +98,29 @@ void Proc_AddArg(Proc* this, char* fmt, ...) {
     renew(this->arg, char*[this->numArg + 2]);
     this->arg[this->numArg++] = strdup(buffer);
     this->arg[this->numArg] = NULL;
+}
+
+void Proc_AddEach(Proc* this, ...) {
+    va_list va;
+    int num;
+    
+    va_start(va, this);
+    
+    num = va_arg(va, int);
+    
+    _log("num: %d", num);
+    for (int i = 0; i < num; i++) {
+        char* arg = va_arg(va, char*);
+        
+        _assert(arg != NULL);
+        _log("arg: %s", arg);
+        
+        renew(this->arg, char*[this->numArg + 2]);
+        this->arg[this->numArg++] = strdup(arg);
+        this->arg[this->numArg] = NULL;
+    }
+    
+    va_end(va);
 }
 
 void Proc_SetState(Proc* this, e_ProcState state) {

@@ -94,7 +94,7 @@ void PropList_Remove(PropList* this, s32 slot) {
     if (PROP_ONCHANGE(PROP_REMOVE, slot))
         return;
     
-    free(this->list[slot]);
+    vfree(this->list[slot]);
     arrmove_l(this->list, slot, this->num - slot);
     this->num--;
 }
@@ -179,7 +179,7 @@ void PropList_DestroyDetach(PropList* this) {
         this->list[this->detachKey] = NULL;
         arrmove_l(this->list, this->detachKey, this->num - this->detachKey);
         this->num--;
-        free(this->detach);
+        vfree(this->detach);
         
         if (this->key >= this->detachKey)
             PropList_Set(this, this->key - 1);
@@ -188,7 +188,7 @@ void PropList_DestroyDetach(PropList* this) {
 
 void PropList_Free(PropList* this) {
     for (var i = 0; i < this->num; i++)
-        free(this->list[i]);
-    free(this->list);
-    free(this->detach);
+        vfree(this->list[i]);
+    vfree(this->list);
+    vfree(this->detach);
 }

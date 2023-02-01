@@ -1,8 +1,8 @@
 #ifndef EXT_CURSOR_H
 #define EXT_CURSOR_H
 #include <GLFW/glfw3.h>
-#include "ext_type.h"
 #include <nanovg/src/nanovg.h>
+#include "ext_type.h"
 
 typedef struct {
     rgba8_t*    bitmap;

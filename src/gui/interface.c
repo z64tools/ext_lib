@@ -1,8 +1,9 @@
 #include <glad/glad.h>
-#include "ext_interface.h"
-
+#include <nanovg/src/nanovg.h>
 #define NANOVG_GL3_IMPLEMENTATION
 #include <nanovg/src/nanovg_gl.h>
+#include "ext_interface.h"
+
 
 const f64 gNativeFPS = 60;
 
@@ -200,7 +201,7 @@ static void Interface_Update_SubWindows(AppInfo* app) {
             if (!this->settings.noDestroy) {
                 if (this->destroyCall)
                     this->destroyCall(this->app.context);
-                free(this->app.context);
+                vfree(this->app.context);
             }
         }
         
@@ -325,8 +326,10 @@ static s32 FileDialog_PathRead(FileDialog* this, const char* travel) {
     List_Walk(&this->files, this->path, 0, LIST_FILES | LIST_RELATIVE);
     List_Sort(&this->folders);
     List_Sort(&this->files);
+    List_Print(&this->folders);
+    List_Print(&this->files);
     
-    forlist(i, this->folders) {
+    for (int i = 0; i < this->folders.num; i++) {
         strrep(this->folders.item[i], "\\", "");
         strrep(this->folders.item[i], "/", "");
     }
@@ -485,7 +488,7 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
     r.y -= this->vscroll * SPLIT_ELEM_Y_PADDING;
     
     foreach(i, list) {
-        forlist(j, *list[i]) {
+        for (int j = 0; j < list[i]->num; j++) {
             if (IsBetween(r.y, mainr.y - r.h, mainr.y + mainr.h)) {
                 const char* item = list[i]->item[j];
                 NVGcolor color;
@@ -550,8 +553,7 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
                 if (strcspn(this->rename.txt, "\\/:*?\"<>|") == strlen(this->rename.txt)) {
                     sys_mv(input, output);
                     FileDialog_PathRead(this, NULL);
-                } else
-                    Sys_Sound("error");
+                } // else Sys_Sound("error");
             }
             
             info("%d", ret);

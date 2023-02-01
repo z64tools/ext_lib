@@ -1,9 +1,9 @@
 #ifndef EXT_INPUT_H
 #define EXT_INPUT_H
+#include <GLFW/glfw3.h>
 #include "ext_lib.h"
 #include "ext_math.h"
 #include "ext_vector.h"
-#include <GLFW/glfw3.h>
 
 struct AppInfo;
 

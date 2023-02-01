@@ -15,7 +15,7 @@ void TriBuffer_Realloc(TriBuffer* this) {
 }
 
 void TriBuffer_Free(TriBuffer* this) {
-    free(this->head);
+    vfree(this->head);
     memset(this, 0, sizeof(*this));
 }
 

@@ -446,6 +446,7 @@ int strnicmp(const char* a, const char* b, size_t size);
 
 u32 bitfield_get(const void* data, int shift, int size);
 void bitfield_set(void* data, u32 val, int shift, int size);
+int bitfield_lzeronum(u32 v);
 int bitfield_num(int val);
 
 bool sys_isdir(const char* path);

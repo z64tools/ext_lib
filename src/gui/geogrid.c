@@ -155,7 +155,7 @@ static s32 Split_CursorDistToFlagPos(SplitState flag, Split* split) {
     };
     s32 i;
     
-    i = bit_first(flag);
+    i = bitfield_lzeronum(flag);
     
     return Math_Vec2s_DistXZ(cursor[i], pos[i]);
 }
@@ -418,8 +418,7 @@ static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
     geo->taskTable[killSplit->id]->destroy(geo->passArg, killSplit->instance, killSplit);
     
     PropList_Free(killSplit->taskList);
-    free(killSplit->taskList);
-    free(killSplit->taskCombo);
+    vfree(killSplit->taskList, killSplit->taskCombo);
     Node_Kill(geo->splitHead, killSplit);
     GeoGrid_RemoveDuplicates(geo);
 #if 0
@@ -766,7 +765,7 @@ static void Split_SwapInstance(GeoGrid* geo, Split* split) {
         _log("Swap ID");
         geo->taskTable[split->prevId]->destroy(geo->passArg, split->instance, split);
         scroll->offset = scroll->enabled = 0;
-        free(split->instance);
+        vfree(split->instance);
     }
     
     split->prevId = split->id;
@@ -1248,20 +1247,20 @@ void GeoGrid_Destroy(GeoGrid* this) {
     while (this->splitHead) {
         _log("Split [%d]", this->splitHead->id);
         this->taskTable[this->splitHead->id]->destroy(this->passArg, this->splitHead->instance, this->splitHead);
-        free(this->splitHead->instance);
+        vfree(this->splitHead->instance);
         Node_Kill(this->splitHead, this->splitHead);
     }
     
-    _log("free Vtx");
+    _log("vfree Vtx");
     while (this->vtxHead)
         Node_Kill(this->vtxHead, this->vtxHead);
     
-    _log("free Edge");
+    _log("vfree Edge");
     while (this->edgeHead)
         Node_Kill(this->edgeHead, this->edgeHead);
     
-    _log("free ElemState");
-    free(this->elemState);
+    _log("vfree ElemState");
+    vfree(this->elemState);
 }
 
 void GeoGrid_Update(GeoGrid* geo) {

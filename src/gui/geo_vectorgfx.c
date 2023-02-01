@@ -1,7 +1,7 @@
 #define GEO_VECTORGFX_C
-#include <ext_geogrid.h>
 #define NANOSVG_IMPLEMENTATION
 #include "nanosvg.h"
+#include <ext_geogrid.h>
 
 ElemAssets gAssets;
 
@@ -77,7 +77,7 @@ VectorGfx VectorGfx_New(VectorGfx* this, const void* data, f32 fidelity) {
     
     if (!this) this = &vgfx;
     
-    free(new);
+    vfree(new);
     
     if (!img) errr("Failed to parse data:\n%s", data);
     
@@ -139,6 +139,6 @@ VectorGfx VectorGfx_New(VectorGfx* this, const void* data, f32 fidelity) {
 }
 
 void VectorGfx_Free(VectorGfx* this) {
-    free(this->pos);
+    vfree(this->pos);
     this->num = 0;
 }

@@ -39,3 +39,10 @@ int Proc_Exec(Proc* this);
 char* Proc_Read(Proc* this, e_ProcRead);
 int Proc_Kill(Proc* this);
 int Proc_Join(Proc* this);
+
+void Proc_AddEach(Proc* this, ...);
+
+#ifndef __clang__
+#define Proc_AddEach(instance, ...) \
+    Proc_AddEach(instance, NARGS(__VA_ARGS__), __VA_ARGS__)
+#endif

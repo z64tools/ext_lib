@@ -1,8 +1,6 @@
 #include "ext_interface.h"
 
-// # # # # # # # # # # # # # # # # # # # #
-// # FLY                                 #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static void Camera_CalculateFly(Camera* cam) {
     Vec3f zero = Math_Vec3f_New(0, 0, 0);
@@ -95,9 +93,7 @@ static void Camera_FlyMode(View3D* this, Input* inputCtx, bool update) {
     Camera_CalculateFly(cam);
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// # ORBIT                               #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static void Camera_CalculateOrbit(Camera* cam) {
     Vec3f zero = Math_Vec3f_New(0, 0, 0);
@@ -174,9 +170,7 @@ static void Camera_OrbitMode(View3D* this, Input* inputCtx, bool update) {
     Camera_CalculateOrbit(cam);
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #  XTo                                #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static void Camera_CalculateMove(Camera* cam, f32 x, f32 y, f32 z) {
     Vec3f zero = Math_Vec3f_New(0, 0, 0);
@@ -322,9 +316,7 @@ static void Camera_Update_RotTo(View3D* this, Input* input) {
         this->rotToAngle = false;
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 void View_Init(View3D* this, Input* inputCtx) {
     Camera* cam;
@@ -393,9 +385,7 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
     this->interrupt = false;
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 bool View_CheckControlKeys(Input* input) {
     if (Input_GetMouse(input, CLICK_L)->hold)
@@ -535,6 +525,4 @@ f32 View_DimFactor(View3D* this) {
     return sqrtf(this->split->rect.w * this->split->rect.h);
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/

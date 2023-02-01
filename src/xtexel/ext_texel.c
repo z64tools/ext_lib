@@ -1,7 +1,13 @@
-#include <ext_texel.h>
-
+#ifndef __clang__
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STBIDEF  static
+#define STBIWDEF static
+#endif
 #include "__xtexread.h"
 #include "__xtexwrite.h"
+
+#include <ext_texel.h>
 
 #define TEX_KEY "OKKek2ldMHXTqEpmI10e"
 

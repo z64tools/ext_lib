@@ -1,13 +1,13 @@
 #ifndef EXT_INTERFACE_H
 #define EXT_INTERFACE_H
 
+#include "ext_geogrid.h"
 #include "ext_lib.h"
 #include "ext_cursor.h"
 #include "ext_input.h"
 #include "ext_matrix.h"
 #include "ext_view.h"
 #include "ext_theme.h"
-#include "ext_geogrid.h"
 #include "ext_collision.h"
 
 typedef enum {

@@ -1,8 +1,8 @@
 #ifndef EXT_GEOGRID_H
 #define EXT_GEOGRID_H
-#include "ext_lib.h"
 #include <GLFW/glfw3.h>
 #include <nanovg/src/nanovg.h>
+#include "ext_lib.h"
 #include "ext_math.h"
 #include "ext_vector.h"
 #include "ext_input.h"

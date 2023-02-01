@@ -663,8 +663,8 @@ void Element_UpdateTextbox(GeoGrid* geo) {
                 this->isClicked = true;
                 info("Textbox: Select %d", id);
             } else if (cHold && this->isClicked && split->cursorPos.x >= r.x && split->cursorPos.x < r.x + r.w) {
-                this->selA = min (this->selPivot, id );
-                this->selPos = this->selB = max (this->selPivot, id );
+                this->selA = Min(this->selPivot, id );
+                this->selPos = this->selB = Max(this->selPivot, id );
             }
         } else {
             this->isClicked = false;
@@ -1552,7 +1552,7 @@ static void Element_SeparatorDraw(ElementCallInfo* info) {
     Gfx_DrawRounderOutline(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 255, 1.0f));
     Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 175, 1.0f));
     
-    free(this);
+    vfree(this);
 }
 
 void Element_Separator(bool drawLine) {
@@ -1588,7 +1588,7 @@ static void Element_BoxDraw(ElementCallInfo* info) {
     Gfx_DrawRounderOutline(info->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 45, 1.0f));
     Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 45, 1.0f));
     
-    free(this);
+    vfree(this);
 }
 
 s32 Element_Box(BoxInit io) {
@@ -1906,10 +1906,10 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
                 elem->func(elem);
             
             if (this->doFree)
-                free(this);
+                vfree(this);
             
             Node_Remove(gElemState->head, elem);
-            free(elem);
+            vfree(elem);
         }
         
         elem = next;
@@ -1978,6 +1978,6 @@ void DragItem_Draw(GeoGrid* geo) {
     
     if (this->alpha <= EPSILON && this->item) {
         this->alpha = 0.0f;
-        free(this->item);
+        vfree(this->item);
     }
 }

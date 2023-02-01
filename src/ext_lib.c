@@ -2028,7 +2028,6 @@ int dir_isrel(const char* item) {
 #define _bitnummask(bitNum)          ((1 << (bitNum)) - 1)
 #define _bitsizemask(size)           _bitnummask(size * 8)
 #define _bitfield(data, shift, size) (((data) >> (shift))&_bitnummask(size))
-#define _bitfirst(u32)               __builtin_ctz(u32)
 
 u32 bitfield_get(const void* data, int shift, int size) {
     const u8* b = data;
@@ -2064,6 +2063,10 @@ void bitfield_set(void* data, u32 val, int shift, int size) {
         b[id] &= ~( 1 << sf );
         b[id] |= ((val >> (szm - i)) & 1) << sf;
     }
+}
+
+int bitfield_lzeronum(u32 v) {
+    return __builtin_ctz(v);
 }
 
 int bitfield_num(int val) {
