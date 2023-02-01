@@ -196,7 +196,7 @@ static SplitState Split_GetCursorPosState(Split* split, s32 range) {
 static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
     this->taskList = new(PropList);
     *this->taskList = PropList_Init(this->id);
-    this->taskCombo = qxf(new(*this->taskCombo));
+    this->taskCombo = new(*this->taskCombo);
     
     _assert(this->taskList != NULL);
     _assert(this->taskCombo != NULL);
@@ -362,6 +362,11 @@ static void Split_Split(GeoGrid* geo, Split* split, SplitDir dir) {
     _log("Done");
 }
 
+static void Split_Free(Split* this) {
+    PropList_Free(this->taskList);
+    vfree(this->taskList, this->taskCombo, this->instance);
+}
+
 static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
     SplitEdge* sharedEdge = split->edge[dir];
     Split* killSplit = geo->splitHead;
@@ -417,8 +422,7 @@ static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
     split->edge[dir] = killSplit->edge[dir];
     geo->taskTable[killSplit->id]->destroy(geo->passArg, killSplit->instance, killSplit);
     
-    PropList_Free(killSplit->taskList);
-    vfree(killSplit->taskList, killSplit->taskCombo);
+    Split_Free(killSplit);
     Node_Kill(geo->splitHead, killSplit);
     GeoGrid_RemoveDuplicates(geo);
 #if 0
@@ -1242,12 +1246,11 @@ void GeoGrid_Init(GeoGrid* this, struct AppInfo* app, void* passArg) {
 }
 
 void GeoGrid_Destroy(GeoGrid* this) {
-    
     _log("Destroy Splits");
     while (this->splitHead) {
         _log("Split [%d]", this->splitHead->id);
         this->taskTable[this->splitHead->id]->destroy(this->passArg, this->splitHead->instance, this->splitHead);
-        vfree(this->splitHead->instance);
+        Split_Free(this->splitHead);
         Node_Kill(this->splitHead, this->splitHead);
     }
     
