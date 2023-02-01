@@ -1588,7 +1588,7 @@ static void Element_BoxDraw(ElementCallInfo* info) {
     Gfx_DrawRounderOutline(info->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 45, 1.0f));
     Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 45, 1.0f));
     
-    vfree(this);
+    this->doFree = true;
 }
 
 s32 Element_Box(BoxInit io) {
@@ -1904,9 +1904,7 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
             
             if (header || !Element_DisableDraw(elem->arg, elem->split))
                 elem->func(elem);
-            
-            if (this->doFree)
-                vfree(this);
+            if (this->doFree) vfree(this);
             
             Node_Remove(gElemState->head, elem);
             vfree(elem);
