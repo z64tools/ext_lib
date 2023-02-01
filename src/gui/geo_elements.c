@@ -767,7 +767,8 @@ static void Element_TextboxDraw(ElementCallInfo* info) {
         
         if (this->selA == this->selB) {
             memset(str, 0, sizeof(str));
-            strncpy(str, this->txt, gElemState->textbox->selA);
+            if (gElemState->textbox->selA > 0)
+                strncpy(str, this->txt, gElemState->textbox->selA);
             strrep(str, " ", "-");
             r.x += Gfx_TextWidth(vg, str) + SPLIT_ELEM_X_PADDING;
             
@@ -792,13 +793,13 @@ static void Element_TextboxDraw(ElementCallInfo* info) {
             
             memset(str, 0, sizeof(str));
             _log("cpymin: %d", min);
-            if (min) strncpy(str, this->txt, min);
+            if (min > 0) strncpy(str, this->txt, min);
             strrep(str, " ", "-");
             r.x += clamp((start = Gfx_TextWidth(vg, str)) + SPLIT_ELEM_X_PADDING, 0, this->boxRect.w);
             
             memset(str, 0, sizeof(str));
             _log("cpymax: %d", max);
-            if (max) strncpy(str, this->txt, max);
+            if (max > 0) strncpy(str, this->txt, max);
             strrep(str, " ", "-");
             r.w = clamp(Gfx_TextWidth(vg, str) - start, 0, this->boxRect.w);
             
