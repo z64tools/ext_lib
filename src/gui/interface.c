@@ -164,7 +164,6 @@ static void Interface_Update_AppInfo(AppInfo* app) {
         _log("Close Window: [%s]", app->title);
         app->state |= APP_CLOSED;
         glfwDestroyWindow(app->window);
-        vfree(app->window);
         nvgDeleteGL3(app->vg);
         
         app->window = app->vg = NULL;
@@ -173,23 +172,6 @@ static void Interface_Update_AppInfo(AppInfo* app) {
 
 static void Interface_Update_SubWindows(AppInfo* app) {
     SubWindow* this = app->subWinHead;
-    
-    while (this != NULL) {
-        if (this->app.state & APP_CLOSED) {
-            _log("Kill Window: [%s]", this->app.title);
-            
-            Node_Remove(app->subWinHead, this);
-            if (!this->settings.noDestroy) {
-                if (this->destroyCall)
-                    this->destroyCall(this->app.context);
-                vfree(this->app.context);
-            }
-        }
-        
-        this = this->next;
-    }
-    
-    this = app->subWinHead;
     
     while (this != NULL) {
 #if 0
@@ -206,6 +188,23 @@ static void Interface_Update_SubWindows(AppInfo* app) {
 #endif
         
         Interface_Update_AppInfo(&this->app);
+        this = this->next;
+    }
+    
+    this = app->subWinHead;
+    
+    while (this != NULL) {
+        if (this->app.state & APP_CLOSED) {
+            _log("Kill Window: [%s]", this->app.title);
+            
+            Node_Remove(app->subWinHead, this);
+            if (!this->settings.noDestroy) {
+                if (this->destroyCall)
+                    this->destroyCall(this->app.context);
+                vfree(this->app.context);
+            }
+        }
+        
         this = this->next;
     }
 }
