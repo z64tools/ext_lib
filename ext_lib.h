@@ -278,6 +278,7 @@ void Parallel_SetDepID(void* __this, int id);
 
 /*============================================================================*/
 
+extern mutex_t gSegmentMutex;
 void SegmentSet(const u8 id, void* segment);
 void* SegmentToVirtual(const u8 id, u32 ptr);
 u32 VirtualToSegment(const u8 id, void* ptr);
@@ -514,38 +515,52 @@ void Arli_Destroy(Arli* this);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 
+__attribute__((always_inline))
 static inline void mutex_init(mutex_t* m) {
     pthread_mutex_init(m, 0);
 }
 
+__attribute__((always_inline))
 static inline void mutex_dest(mutex_t* m) {
     pthread_mutex_destroy(m);
 }
 
+__attribute__((always_inline))
 static inline void mutex_lock(mutex_t* m) {
     pthread_mutex_lock(m);
 }
 
+__attribute__((always_inline))
 static inline void mutex_unlock(mutex_t* m) {
     pthread_mutex_unlock(m);
 }
 
+__attribute__((always_inline))
 static inline void thd_lock(void) {
     pthread_mutex_lock(&gThreadMutex);
 }
 
+__attribute__((always_inline))
 static inline void thd_unlock(void) {
     
     pthread_mutex_unlock(&gThreadMutex);
 }
 
+__attribute__((always_inline))
 static inline int thd_create(thread_t* thread, void* func, void* arg) {
     return pthread_create(thread, NULL, (void*)func, (void*)(arg));
 }
 
+__attribute__((always_inline))
 static inline int thd_join(thread_t* thread) {
     return pthread_join(*thread, NULL);
 }
+
+#define mutex_scope(mutex_var, ...) do { \
+    mutex_lock(&mutex_var); \
+    { __VA_ARGS__ } \
+    mutex_unlock(&mutex_var); \
+} while(0)
 
 #pragma GCC diagnostic pop
 

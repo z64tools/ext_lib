@@ -1,4 +1,4 @@
-CFLAGS      += -I $(PATH_EXTLIB) -fdata-sections -ffunction-sections
+CFLAGS      += -I $(PATH_EXTLIB)
 CC_W32      ?= i686-w64-mingw32.static-gcc
 
 PRNT_GRAY := \e[0;90m

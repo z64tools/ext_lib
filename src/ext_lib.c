@@ -92,7 +92,8 @@ extern void _log_dest();
 
 const_func extlib_init(void) {
     _log_init();
-    pthread_mutex_init(&gThreadMutex, NULL);
+    mutex_init(&gSegmentMutex);
+    mutex_init(&gThreadMutex);
     
     {
         _log("bitfield assert:");
@@ -113,7 +114,8 @@ const_func extlib_init(void) {
 }
 
 dest_func extlib_dest(void) {
-    pthread_mutex_destroy(&gThreadMutex);
+    mutex_dest(&gSegmentMutex);
+    mutex_dest(&gThreadMutex);
     
     while (s_freelist_dest) {
         vfree(s_freelist_dest->ptr);
@@ -372,6 +374,7 @@ bool HashCmp(Hash* a, Hash* b) {
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 static u8** sSegment;
+mutex_t gSegmentMutex;
 
 void SegmentSet(u8 id, void* segment) {
     _log("%-4d%08X", id, segment);
