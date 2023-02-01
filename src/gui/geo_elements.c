@@ -791,11 +791,13 @@ static void Element_TextboxDraw(ElementCallInfo* info) {
             s32 start;
             
             memset(str, 0, sizeof(str));
+            _log("cpymin: %d", min);
             strncpy(str, this->txt, min);
             strrep(str, " ", "-");
             r.x += clamp((start = Gfx_TextWidth(vg, str)) + SPLIT_ELEM_X_PADDING, 0, this->boxRect.w);
             
             memset(str, 0, sizeof(str));
+            _log("cpymax: %d", max);
             strncpy(str, this->txt, max);
             strrep(str, " ", "-");
             r.w = clamp(Gfx_TextWidth(vg, str) - start, 0, this->boxRect.w);
