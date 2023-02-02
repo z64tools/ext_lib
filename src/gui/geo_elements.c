@@ -27,9 +27,7 @@ typedef struct ElementCallInfo {
     u32 update : 1;
 } ElementCallInfo;
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 typedef struct {
     const char* item;
@@ -113,9 +111,7 @@ static bool DragItem_Release(GeoGrid* geo, void* src) {
     return true;
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 void Gfx_SetDefaultTextParams(void* vg) {
     nvgFontFace(vg, "default");
@@ -237,9 +233,7 @@ f32 Gfx_TextWidth(void* vg, const char* txt) {
     return bounds[2];
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, void* arg, const char* elemFunc) {
     ElementCallInfo* node;
@@ -308,9 +302,7 @@ void Element_SetContext(GeoGrid* setGeo, Split* setSplit) {
     gElemState->geo = setGeo;
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 #define ELEMENT_QUEUE_CHECK() if (this->element.disabled || gElemState->geo->state.blockElemInput) \
     goto queue_element;
@@ -321,9 +313,7 @@ void Element_SetContext(GeoGrid* setGeo, Split* setSplit) {
 #define SPLIT gElemState->split
 #define GEO   gElemState->geo
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static void Element_ButtonDraw(ElementCallInfo* info) {
     void* vg = info->geo->vg;
@@ -413,9 +403,7 @@ s32 Element_Button(ElButton* this) {
     return this->state;
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static void Element_ColorBoxDraw(ElementCallInfo* info) {
     void* vg = info->geo->vg;
@@ -453,9 +441,7 @@ void Element_Color(ElColor* this) {
     ELEMENT_QUEUE(Element_ColorBoxDraw);
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static void Textbox_SetValue(ElTextbox* this) {
     if (this->type != TEXTBOX_STR) {
@@ -740,8 +726,6 @@ void Element_UpdateTextbox(GeoGrid* geo) {
 
 static void Element_TextboxDraw(ElementCallInfo* info) {
     void* vg = info->geo->vg;
-    // GeoGrid* geo = info->geo;
-    // Split* split = info->split;
     ElTextbox* this = info->arg;
     enum NVGalign align = NVG_ALIGN_MIDDLE + this->align;
     
@@ -753,7 +737,6 @@ static void Element_TextboxDraw(ElementCallInfo* info) {
         Gfx_DrawRounderOutline(vg, this->boxRect, this->element.light);
     
     nvgFillColor(vg, this->element.texcol);
-    
     nvgScissor(vg, UnfoldRect(this->boxRect));
     
     if (gElemState->textbox == this) {
@@ -767,8 +750,7 @@ static void Element_TextboxDraw(ElementCallInfo* info) {
         
         if (this->selA == this->selB) {
             memset(str, 0, sizeof(str));
-            if (gElemState->textbox->selA > 0)
-                strncpy(str, this->txt, gElemState->textbox->selA);
+            strncpy(str, this->txt, gElemState->textbox->selA + 1);
             strrep(str, " ", "-");
             r.x += Gfx_TextWidth(vg, str) + SPLIT_ELEM_X_PADDING;
             
@@ -793,13 +775,13 @@ static void Element_TextboxDraw(ElementCallInfo* info) {
             
             memset(str, 0, sizeof(str));
             _log("cpymin: %d", min);
-            if (min > 0) strncpy(str, this->txt, min);
+            strncpy(str, this->txt, min + 1);
             strrep(str, " ", "-");
             r.x += clamp((start = Gfx_TextWidth(vg, str)) + SPLIT_ELEM_X_PADDING, 0, this->boxRect.w);
             
             memset(str, 0, sizeof(str));
             _log("cpymax: %d", max);
-            if (max > 0) strncpy(str, this->txt, max);
+            strncpy(str, this->txt, max + 1);
             strrep(str, " ", "-");
             r.w = clamp(Gfx_TextWidth(vg, str) - start, 0, this->boxRect.w);
             
@@ -867,9 +849,7 @@ s32 Element_Textbox(ElTextbox* this) {
     return (this->ret = 0, ret);
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static void Element_TextDraw(ElementCallInfo* info) {
     void* vg = info->geo->vg;
@@ -912,9 +892,7 @@ ElText* Element_Text(const char* txt) {
     return this;
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static void Element_CheckboxDraw(ElementCallInfo* info) {
     void* vg = info->geo->vg;
@@ -999,9 +977,7 @@ s32 Element_Checkbox(ElCheckbox* this) {
     return this->element.toggle;
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static void Element_SliderDraw(ElementCallInfo* info) {
     void* vg = info->geo->vg;
@@ -1186,9 +1162,7 @@ f32 Element_Slider(ElSlider* this) {
         return lerpf(this->value, this->min, this->max);
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static void Element_ComboDraw(ElementCallInfo* info) {
     ElCombo* this = info->arg;
@@ -1274,9 +1248,7 @@ s32 Element_Combo(ElCombo* this) {
         return 0;
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static Rect Element_Container_GetPropRect(ElContainer* this, s32 i) {
     Rect r = this->element.rect;
@@ -1545,9 +1517,7 @@ s32 Element_Container(ElContainer* this) {
         return 0;
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static void Element_SeparatorDraw(ElementCallInfo* info) {
     Element* this = info->arg;
@@ -1581,9 +1551,7 @@ void Element_Separator(bool drawLine) {
     }
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static void Element_BoxDraw(ElementCallInfo* info) {
     Element* this = info->arg;
@@ -1644,9 +1612,7 @@ s32 Element_Box(BoxInit io) {
     return 0;
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// #                                     #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 void Element_DisplayName(Element* this, f32 lerp) {
     ElementCallInfo* node;
@@ -1672,9 +1638,7 @@ void Element_DisplayName(Element* this, f32 lerp) {
     node->update = false;
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// # Element Property Settings           #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type) {
     this->min = min;
@@ -1810,9 +1774,7 @@ void Element_Header(s32 num, ...) {
     va_end(va);
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// # Element Main                        #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 static void Element_UpdateElement(ElementCallInfo* info) {
     GeoGrid* geo = info->geo;

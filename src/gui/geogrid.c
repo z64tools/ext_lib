@@ -877,7 +877,7 @@ static void Split_Update(GeoGrid* geo) {
     if (geo->actionSplit != NULL && cursor->cursorAction == false)
         Split_ClearActionSplit(geo);
     
-    while (split) {
+    for (; split != NULL; split = split->next) {
         Split_UpdateSplit(geo, split);
         split = split->next;
     }
@@ -1013,95 +1013,98 @@ static void Split_Draw_KillArrow(Split* this, void* vg) {
 static inline void Split_DrawSplit(GeoGrid* geo, Split* split) {
     Element_SetContext(geo, split);
     
-    if (!split->isHeader) {
-        Split_UpdateRect(split);
-        
-        glViewportRect(UnfoldRect(split->dispRect));
-        nvgBeginFrame(geo->vg, split->dispRect.w, split->dispRect.h, gPixelRatio); {
-            void* vg = geo->vg;
-            Rect r = split->dispRect;
-            u32 id = split->id;
-            SplitTask** table = geo->taskTable;
-            
-            r.x = r.y = 0;
-            
-            nvgBeginPath(vg);
-            nvgRect(vg, 0, 0, split->dispRect.w, split->dispRect.h);
-            
-            if (split->bg.useCustomColor)
-                nvgFillColor(vg, nvgRGBA(split->bg.color.r, split->bg.color.g, split->bg.color.b, 255));
-            
-            else if (split->bg.useCustomPaint)
-                nvgFillPaint(vg, split->bg.paint);
-            
-            else
-                nvgFillPaint(vg, nvgBoxGradient(vg, UnfoldRect(r), SPLIT_ROUND_R, 8.0f, Theme_GetColor(THEME_BASE, 255, 1.0f), Theme_GetColor(THEME_BASE, 255, 0.8f)));
-            
-            nvgFill(vg);
-            
-            /*
-             * New frame to make it possible to have
-             * something drawn from other sources than nvg
-             */
-            nvgEndFrame(geo->vg);
-            nvgBeginFrame(geo->vg, split->dispRect.w, split->dispRect.h, gPixelRatio);
-            
-            Math_SmoothStepToF(&split->scroll.voffset, split->scroll.offset, 0.25f, fabsf(split->scroll.offset - split->scroll.voffset) * 0.5f, 0.1f);
-            table[id]->draw(geo->passArg, split->instance, split);
-            Element_Draw(geo, split, false);
-            Split_Draw_KillArrow(split, geo->vg);
-            
-            r = split->dispRect;
-            r.x = 4;
-            r.y = 4;
-            r.w -= 8;
-            r.h -= 8;
-            
-            if (!(split->edge[EDGE_L]->state & EDGE_STICK_L)) {
-                r.x -= 2;
-                r.w += 2;
-            }
-            if (!(split->edge[EDGE_R]->state & EDGE_STICK_R)) {
-                r.w += 2;
-            }
-            if (!(split->edge[EDGE_T]->state & EDGE_STICK_T)) {
-                r.y -= 2;
-                r.h += 2;
-            }
-            if (!(split->edge[EDGE_B]->state & EDGE_STICK_B)) {
-                r.h += 2;
-            }
-            
-            nvgBeginPath(geo->vg);
-            nvgRect(geo->vg, -4, -4, split->dispRect.w + 8, split->dispRect.h + 8);
-            nvgRoundedRect(
-                geo->vg,
-                UnfoldRect(r),
-                SPLIT_ROUND_R * 2
-            );
-            nvgPathWinding(geo->vg, NVG_HOLE);
-            
-            nvgFillColor(geo->vg, Theme_GetColor(THEME_SPLIT, 255, 0.85f));
-            nvgFill(geo->vg);
-            
-            Rect sc = Rect_SubPos(split->headRect, split->dispRect);
-            nvgScissor(vg, UnfoldRect(sc));
-            nvgBeginPath(vg);
-            nvgRoundedRect(
-                geo->vg,
-                UnfoldRect(r),
-                SPLIT_ROUND_R
-            );
-            nvgFillColor(geo->vg, Theme_GetColor(THEME_BASE, 255, 1.25f));
-            nvgFill(geo->vg);
-            nvgResetScissor(vg);
-        } nvgEndFrame(geo->vg);
-    }
+    if (split->isHeader)
+        goto draw_header;
     
+    Split_UpdateRect(split);
+    
+    glViewportRect(UnfoldRect(split->dispRect));
+    nvgBeginFrame(geo->vg, split->dispRect.w, split->dispRect.h, gPixelRatio); {
+        void* vg = geo->vg;
+        Rect r = split->dispRect;
+        u32 id = split->id;
+        SplitTask** table = geo->taskTable;
+        
+        r.x = r.y = 0;
+        
+        nvgBeginPath(vg);
+        nvgRect(vg, 0, 0, split->dispRect.w, split->dispRect.h);
+        
+        if (split->bg.useCustomColor)
+            nvgFillColor(vg, nvgRGBA(split->bg.color.r, split->bg.color.g, split->bg.color.b, 255));
+        
+        else if (split->bg.useCustomPaint)
+            nvgFillPaint(vg, split->bg.paint);
+        
+        else
+            nvgFillPaint(vg, nvgBoxGradient(vg, UnfoldRect(r), SPLIT_ROUND_R, 8.0f, Theme_GetColor(THEME_BASE, 255, 1.0f), Theme_GetColor(THEME_BASE, 255, 0.8f)));
+        
+        nvgFill(vg);
+        
+        /*
+         * New frame to make it possible to have
+         * something drawn from other sources than nvg
+         */
+        nvgEndFrame(geo->vg);
+        nvgBeginFrame(geo->vg, split->dispRect.w, split->dispRect.h, gPixelRatio);
+        
+        Math_SmoothStepToF(&split->scroll.voffset, split->scroll.offset, 0.25f, fabsf(split->scroll.offset - split->scroll.voffset) * 0.5f, 0.1f);
+        table[id]->draw(geo->passArg, split->instance, split);
+        Element_Draw(geo, split, false);
+        Split_Draw_KillArrow(split, geo->vg);
+        
+        r = split->dispRect;
+        r.x = 4;
+        r.y = 4;
+        r.w -= 8;
+        r.h -= 8;
+        
+        if (!(split->edge[EDGE_L]->state & EDGE_STICK_L)) {
+            r.x -= 2;
+            r.w += 2;
+        }
+        if (!(split->edge[EDGE_R]->state & EDGE_STICK_R)) {
+            r.w += 2;
+        }
+        if (!(split->edge[EDGE_T]->state & EDGE_STICK_T)) {
+            r.y -= 2;
+            r.h += 2;
+        }
+        if (!(split->edge[EDGE_B]->state & EDGE_STICK_B)) {
+            r.h += 2;
+        }
+        
+        nvgBeginPath(geo->vg);
+        nvgRect(geo->vg, -4, -4, split->dispRect.w + 8, split->dispRect.h + 8);
+        nvgRoundedRect(
+            geo->vg,
+            UnfoldRect(r),
+            SPLIT_ROUND_R * 2
+        );
+        nvgPathWinding(geo->vg, NVG_HOLE);
+        
+        nvgFillColor(geo->vg, Theme_GetColor(THEME_SPLIT, 255, 0.85f));
+        nvgFill(geo->vg);
+        
+        Rect sc = Rect_SubPos(split->headRect, split->dispRect);
+        nvgScissor(vg, UnfoldRect(sc));
+        nvgBeginPath(vg);
+        nvgRoundedRect(
+            geo->vg,
+            UnfoldRect(r),
+            SPLIT_ROUND_R
+        );
+        nvgFillColor(geo->vg, Theme_GetColor(THEME_BASE, 255, 1.25f));
+        nvgFill(geo->vg);
+        nvgResetScissor(vg);
+    } nvgEndFrame(geo->vg);
+    
+draw_header:
     glViewportRect(UnfoldRect(split->headRect));
     nvgBeginFrame(geo->vg, split->headRect.w, split->headRect.h, gPixelRatio); {
         Element_Draw(geo, split, true);
     } nvgEndFrame(geo->vg);
+    
 }
 
 static void Split_Draw(GeoGrid* geo) {
@@ -1220,15 +1223,13 @@ extern void ElementState_SetElemState(void* elemState);
 
 void GeoGrid_Init(GeoGrid* this, struct AppInfo* app, void* passArg) {
     void VectorGfx_InitCommon();
-    u8* write;
     
     this->vg = app->vg;
     this->passArg = passArg;
     
     _log("Prepare Headers");
     for (var i = 0; i < 2; i++)
-        write = (u8*)&this->bar[i],
-        write[offsetof(Split, isHeader)] = true;
+        *(u32*)(&this->bar[i].isHeader) = true;
     
     _log("Assign Info");
     this->wdim = &app->wdim;
@@ -1307,6 +1308,7 @@ void GeoGrid_Draw(GeoGrid* geo) {
     
     ContextMenu_Draw(geo);
     DragItem_Draw(geo);
+    
     void Element_Flush();
     Element_Flush();
 }
