@@ -63,7 +63,7 @@ static SplitVtx* GeoGrid_AddVtx(GeoGrid* geo, f64 x, f64 y) {
     }
     
     vtx = new(SplitVtx);
-    info("New Vtx: %08X", vtx);
+    info("New Vtx: %s", addr_name(vtx));
     
     vtx->pos.x = x;
     vtx->pos.y = y;
@@ -96,7 +96,7 @@ static SplitEdge* GeoGrid_AddEdge(GeoGrid* geo, SplitVtx* v1, SplitVtx* v2) {
     
     if (edge == NULL) {
         edge = new(SplitEdge);
-        info("New Edge: %08X", edge);
+        info("New Edge: %s", addr_name(edge));
         
         edge->vtx[0] = v1;
         edge->vtx[1] = v2;
@@ -363,6 +363,7 @@ static void Split_Split(GeoGrid* geo, Split* split, SplitDir dir) {
 }
 
 static void Split_Free(Split* this) {
+    info("Kill Split: %s", addr_name(this));
     PropList_Free(this->taskList);
     vfree(this->taskList, this->taskCombo, this->instance);
 }
@@ -498,7 +499,7 @@ static void Vtx_Update(GeoGrid* geo) {
             if (vtx->killFlag == true) {
                 SplitVtx* killVtx = vtx;
                 vtx = geo->vtxHead;
-                info("Vtx Kill");
+                info("Kill Vtx: %s", addr_name(vtx));
                 Node_Kill(geo->vtxHead, killVtx);
                 continue;
             }
@@ -650,7 +651,7 @@ static void Edge_Update(GeoGrid* geo) {
         SplitEdge* next = edge->next;
         
         if (edge->killFlag == true) {
-            info("Kill Edge: %08X", edge);
+            info("Kill Edge: %s", addr_name(edge));
             Node_Kill(geo->edgeHead, edge);
             
         } else {
@@ -879,11 +880,8 @@ static void Split_Update(GeoGrid* geo) {
     if (geo->actionSplit != NULL && cursor->cursorAction == false)
         Split_ClearActionSplit(geo);
     
-    for (; split != NULL; split = split->next) {
+    for (; split != NULL; split = split->next)
         Split_UpdateSplit(geo, split);
-        split = split->next;
-    }
-    
     Split_UpdateSplit(geo, &geo->bar[0]);
     Split_UpdateSplit(geo, &geo->bar[1]);
 }
@@ -1112,11 +1110,9 @@ draw_header:
 static void Split_Draw(GeoGrid* geo) {
     Split* split = geo->splitHead;
     
-    for (; split != NULL; split = split->next) {
+    for (; split != NULL; split = split->next)
         Split_DrawSplit(geo, split);
-    }
     
-    _log("DrawSplit: Headers");
     Split_DrawSplit(geo, &geo->bar[0]);
     Split_DrawSplit(geo, &geo->bar[1]);
 }
@@ -1223,10 +1219,9 @@ void GeoGrid_TaskTable(GeoGrid* geo, SplitTask** taskTable, u32 num) {
 extern void* ElementState_New(void);
 extern void ElementState_SetElemState(void* elemState);
 extern void Element_Flush();
+extern void VectorGfx_InitCommon();
 
 void GeoGrid_Init(GeoGrid* this, struct AppInfo* app, void* passArg) {
-    void VectorGfx_InitCommon();
-    
     this->vg = app->vg;
     this->passArg = passArg;
     
@@ -1273,46 +1268,42 @@ void GeoGrid_Destroy(GeoGrid* this) {
 void GeoGrid_Update(GeoGrid* geo) {
     GeoGrid_SetTopBarHeight(geo, geo->bar[BAR_TOP].rect.h);
     GeoGrid_SetBotBarHeight(geo, geo->bar[BAR_BOT].rect.h);
+    
     Vtx_Update(geo);
     Edge_Update(geo);
     
     geo->prevWorkRect = geo->workRect;
 }
 
-void GeoGrid_Draw(GeoGrid* geo) {
+void GeoGrid_Draw(GeoGrid* this) {
+    ElementState_SetElemState(this->elemState);
     Element_Flush();
     
-    ElementState_SetElemState(geo->elemState);
-    Element_UpdateTextbox(geo);
-    Split_Update(geo);
+    Element_UpdateTextbox(this);
+    Split_Update(this);
     
     // Draw Bars
     for (int i = 0; i < 2; i++) {
-        glViewportRect(UnfoldRect(geo->bar[i].rect));
-        nvgBeginFrame(geo->vg, geo->bar[i].rect.w, geo->bar[i].rect.h, gPixelRatio); {
-            Rect r = geo->bar[i].rect;
+        glViewportRect(UnfoldRect(this->bar[i].rect));
+        nvgBeginFrame(this->vg, this->bar[i].rect.w, this->bar[i].rect.h, gPixelRatio); {
+            Rect r = this->bar[i].rect;
             
             r.x = r.y = 0;
             
-            nvgBeginPath(geo->vg);
-            nvgRect(
-                geo->vg,
-                UnfoldRect(r)
-            );
-            nvgFillColor(geo->vg, Theme_GetColor(THEME_SPLIT, 255, 1.0f));
-            nvgFill(geo->vg);
-        } nvgEndFrame(geo->vg);
+            nvgBeginPath(this->vg);
+            nvgRect(this->vg,
+                UnfoldRect(r));
+            nvgFillColor(this->vg, Theme_GetColor(THEME_SPLIT, 255, 1.0f));
+            nvgFill(this->vg);
+        } nvgEndFrame(this->vg);
     }
     
-    Split_Draw(geo);
+    Split_Draw(this);
+    if (sDebugMode) Split_DrawDebug(this);
     
-    if (sDebugMode)
-        Split_DrawDebug(geo);
-    
-    glViewport(0, 0, geo->wdim->x, geo->wdim->y);
-    
-    ContextMenu_Draw(geo);
-    DragItem_Draw(geo);
+    glViewport(0, 0, this->wdim->x, this->wdim->y);
+    ContextMenu_Draw(this);
+    DragItem_Draw(this);
 }
 
 void GeoGrid_Splitless_Start(GeoGrid* geo, Rect r) {

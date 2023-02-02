@@ -9,14 +9,14 @@
 #undef Element_DisplayName
 #undef Element_Header
 
-struct ElementCallInfo;
+struct ElementQueCall;
 
-typedef void (*ElementFunc)(struct ElementCallInfo*);
+typedef void (*ElementFunc)(struct ElementQueCall*);
 
 static void Textbox_Set(ElTextbox*, Split*);
 
-typedef struct ElementCallInfo {
-    struct ElementCallInfo* next;
+typedef struct ElementQueCall {
+    struct ElementQueCall* next;
     
     void*       arg;
     Split*      split;
@@ -25,7 +25,7 @@ typedef struct ElementCallInfo {
     
     const char* elemFunc;
     u32 update : 1;
-} ElementCallInfo;
+} ElementQueCall;
 
 /*============================================================================*/
 
@@ -43,8 +43,8 @@ typedef struct {
 } DragItem;
 
 typedef struct {
-    ElementCallInfo* head;
-    ElTextbox*       textbox;
+    ElementQueCall* head;
+    ElTextbox*      textbox;
     
     s16 breathYaw;
     f32 breath;
@@ -236,9 +236,9 @@ f32 Gfx_TextWidth(void* vg, const char* txt) {
 /*============================================================================*/
 
 static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, void* arg, const char* elemFunc) {
-    ElementCallInfo* node;
+    ElementQueCall* node;
     
-    node = new(ElementCallInfo);
+    node = new(ElementQueCall);
     Node_Add(gElemState->head, node);
     node->geo = geo;
     node->split = split;
@@ -315,9 +315,9 @@ void Element_SetContext(GeoGrid* setGeo, Split* setSplit) {
 
 /*============================================================================*/
 
-static void Element_ButtonDraw(ElementCallInfo* info) {
-    void* vg = info->geo->vg;
-    ElButton* this = info->arg;
+static void Element_ButtonDraw(ElementQueCall* call) {
+    void* vg = call->geo->vg;
+    ElButton* this = call->arg;
     Rect r = this->element.rect;
     bool name = this->element.name != NULL;
     
@@ -405,9 +405,9 @@ s32 Element_Button(ElButton* this) {
 
 /*============================================================================*/
 
-static void Element_ColorBoxDraw(ElementCallInfo* info) {
-    void* vg = info->geo->vg;
-    ElColor* this = info->arg;
+static void Element_ColorBoxDraw(ElementQueCall* call) {
+    void* vg = call->geo->vg;
+    ElColor* this = call->arg;
     rgb8_t color = {
         0x20, 0x20, 0x20,
     };
@@ -509,7 +509,7 @@ static void Textbox_Clear(GeoGrid* geo) {
         this->ret = true;
     }
     
-    info("Textbox: Clear");
+    warn("Textbox: Clear");
 }
 
 static void Textbox_Set(ElTextbox* this, Split* split) {
@@ -522,7 +522,7 @@ static void Textbox_Set(ElTextbox* this, Split* split) {
     gElemState->textbox = this;
     gElemState->textbox->split = split;
     
-    info("Textbox: Set [%s]", this->txt);
+    warn("Textbox: Set [%s]", this->txt);
 }
 
 static InputType* Textbox_GetKey(GeoGrid* geo, KeyMap key) {
@@ -647,7 +647,7 @@ void Element_UpdateTextbox(GeoGrid* geo) {
                 }
                 this->selPos = this->selPivot = this->selA = this->selB = id;
                 this->isClicked = true;
-                info("Textbox: Select %d", id);
+                warn("Textbox: Select %d", id);
             } else if (cHold && this->isClicked && split->cursorPos.x >= r.x && split->cursorPos.x < r.x + r.w) {
                 this->selA = Min(this->selPivot, id );
                 this->selPos = this->selB = Max(this->selPivot, id );
@@ -724,9 +724,9 @@ void Element_UpdateTextbox(GeoGrid* geo) {
 #undef HOLDREPKEY
 }
 
-static void Element_TextboxDraw(ElementCallInfo* info) {
-    void* vg = info->geo->vg;
-    ElTextbox* this = info->arg;
+static void Element_TextboxDraw(ElementQueCall* call) {
+    void* vg = call->geo->vg;
+    ElTextbox* this = call->arg;
     enum NVGalign align = NVG_ALIGN_MIDDLE + this->align;
     
     Gfx_DrawRounderRect(vg, this->boxRect, this->element.base);
@@ -851,10 +851,10 @@ s32 Element_Textbox(ElTextbox* this) {
 
 /*============================================================================*/
 
-static void Element_TextDraw(ElementCallInfo* info) {
-    void* vg = info->geo->vg;
-    // Split* split = info->split;
-    ElText* this = info->arg;
+static void Element_TextDraw(ElementQueCall* call) {
+    void* vg = call->geo->vg;
+    // Split* split = call->split;
+    ElText* this = call->arg;
     
     Gfx_SetDefaultTextParams(vg);
     
@@ -894,10 +894,10 @@ ElText* Element_Text(const char* txt) {
 
 /*============================================================================*/
 
-static void Element_CheckboxDraw(ElementCallInfo* info) {
-    void* vg = info->geo->vg;
-    // Split* split = info->split;
-    ElCheckbox* this = info->arg;
+static void Element_CheckboxDraw(ElementQueCall* call) {
+    void* vg = call->geo->vg;
+    // Split* split = call->split;
+    ElCheckbox* this = call->arg;
     Vec2f center;
     const Vec2f sVector_Cross[] = {
         { .x = -10, .y =  10 }, { .x =  -7, .y =  10 },
@@ -979,10 +979,10 @@ s32 Element_Checkbox(ElCheckbox* this) {
 
 /*============================================================================*/
 
-static void Element_SliderDraw(ElementCallInfo* info) {
-    void* vg = info->geo->vg;
-    // Split* split = info->split;
-    ElSlider* this = info->arg;
+static void Element_SliderDraw(ElementQueCall* call) {
+    void* vg = call->geo->vg;
+    // Split* split = call->split;
+    ElSlider* this = call->arg;
     Rectf32 rect;
     f32 step = (this->max - this->min) * 0.5f;
     
@@ -1164,9 +1164,9 @@ f32 Element_Slider(ElSlider* this) {
 
 /*============================================================================*/
 
-static void Element_ComboDraw(ElementCallInfo* info) {
-    ElCombo* this = info->arg;
-    GeoGrid* geo = info->geo;
+static void Element_ComboDraw(ElementQueCall* call) {
+    ElCombo* this = call->arg;
+    GeoGrid* geo = call->geo;
     void* vg = geo->vg;
     PropList* prop = this->prop;
     Rect r = this->element.rect;
@@ -1275,9 +1275,9 @@ static Rect Element_Container_GetDragRect(ElContainer* this, s32 i) {
     return r;
 }
 
-static void Element_ContainerDraw(ElementCallInfo* info) {
-    ElContainer* this = info->arg;
-    GeoGrid* geo = info->geo;
+static void Element_ContainerDraw(ElementQueCall* call) {
+    ElContainer* this = call->arg;
+    GeoGrid* geo = call->geo;
     void* vg = geo->vg;
     PropList* prop = this->prop;
     Rect r = this->element.rect;
@@ -1519,11 +1519,11 @@ s32 Element_Container(ElContainer* this) {
 
 /*============================================================================*/
 
-static void Element_SeparatorDraw(ElementCallInfo* info) {
-    Element* this = info->arg;
+static void Element_SeparatorDraw(ElementQueCall* call) {
+    Element* this = call->arg;
     
-    Gfx_DrawRounderOutline(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 255, 1.0f));
-    Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 175, 1.0f));
+    Gfx_DrawRounderOutline(call->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 255, 1.0f));
+    Gfx_DrawRounderRect(call->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 175, 1.0f));
     
     vfree(this);
 }
@@ -1553,11 +1553,11 @@ void Element_Separator(bool drawLine) {
 
 /*============================================================================*/
 
-static void Element_BoxDraw(ElementCallInfo* info) {
-    Element* this = info->arg;
+static void Element_BoxDraw(ElementQueCall* call) {
+    Element* this = call->arg;
     
-    Gfx_DrawRounderOutline(info->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 45, 1.0f));
-    Gfx_DrawRounderRect(info->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 45, 1.0f));
+    Gfx_DrawRounderOutline(call->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 45, 1.0f));
+    Gfx_DrawRounderRect(call->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 45, 1.0f));
 }
 
 s32 Element_Box(BoxInit io) {
@@ -1615,7 +1615,7 @@ s32 Element_Box(BoxInit io) {
 /*============================================================================*/
 
 void Element_DisplayName(Element* this, f32 lerp) {
-    ElementCallInfo* node;
+    ElementQueCall* node;
     s32 w = this->rect.w * lerp;
     
     _assert(GEO && SPLIT);
@@ -1628,7 +1628,7 @@ void Element_DisplayName(Element* this, f32 lerp) {
     
     this->dispText = true;
     
-    node = calloc(sizeof(ElementCallInfo));
+    node = calloc(sizeof(ElementQueCall));
     Node_Add(gElemState->head, node);
     node->geo = gElemState->geo;
     node->split = gElemState->split;
@@ -1776,10 +1776,10 @@ void Element_Header(s32 num, ...) {
 
 /*============================================================================*/
 
-static void Element_UpdateElement(ElementCallInfo* info) {
-    GeoGrid* geo = info->geo;
-    Element* this = info->arg;
-    Split* split = info->split;
+static void Element_UpdateElement(ElementQueCall* call) {
+    GeoGrid* geo = call->geo;
+    Element* this = call->arg;
+    Split* split = call->split;
     f32 toggle = this->toggle == 3 ? 0.50f : 0.0f;
     f32 press = 1.0f;
     bool disabled = (this->disabled || this->disableTemp);
@@ -1854,11 +1854,11 @@ static bool Element_DisableDraw(Element* element, Split* split) {
 }
 
 void Element_Draw(GeoGrid* geo, Split* split, bool header) {
-    ElementCallInfo* elem = gElemState->head;
+    ElementQueCall* elem = gElemState->head;
     Element* this;
     
     while (elem) {
-        ElementCallInfo* next = elem->next;
+        ElementQueCall* next = elem->next;
         this = elem->arg;
         
         if (this->header == header && elem->split == split) {
@@ -1869,6 +1869,7 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
             
             if (header || !Element_DisableDraw(elem->arg, elem->split))
                 elem->func(elem);
+            
             if (this->doFree)
                 vfree(this);
             

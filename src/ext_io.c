@@ -480,6 +480,69 @@ void info_nl(void) {
     xl_fprintf(stdout, "\n");
 }
 
+const char* addr_name(void* addr) {
+    const char* color[] = {
+        PRNT_REDD, PRNT_YELW,        PRNT_GREN,
+        PRNT_CYAN, PRNT_BLUE,        PRNT_PRPL,
+        "",        PRNT_GRAY,
+    };
+    const char* syltable[] = {
+        "la",  "va",  "ra",  "sa",
+        "lu",  "vu",  "ru",  "su",
+        "se",  "me",  "te",  "ke",
+        "a",   "i",   "o",   "u",
+        "mo",  "ko",  "to",  "no",
+        "si",  "ti",  "ki",  "vi",
+        "nie", "vie", "mie", "kie",
+        "nai", "vai", "mai", "kai",
+    };
+    
+    //crustify
+    int shuffleTable[][16] = {
+        { 14, 12, 15, 27, 4,  23, 18, 8,  16, 9,  17, 29, 31, 1,  20, 21 },
+        { 12, 16, 9,  7,  24, 21, 11, 29, 6,  23, 27, 8,  3,  14, 25, 31 },
+        { 31, 20, 7,  2,  3,  13, 0,  22, 11, 30, 10, 25, 18, 8,  21, 28 },
+        { 1,  3,  10, 9,  25, 2,  11, 14, 8,  26, 15, 30, 29, 31, 28, 20 },
+        { 15, 24, 2,  26, 11, 21, 30, 31, 4,  6,  13, 17, 18, 10, 12, 28 },
+        { 10, 25, 12, 0,  2,  30, 4,  17, 9,  26, 24, 11, 5,  19, 22, 14 },
+        { 3,  5,  2,  11, 28, 24, 18, 6,  13, 21, 12, 26, 17, 14, 19, 15 },
+        { 4,  30, 1,  2,  29, 31, 6,  3,  12, 14, 22, 16, 7,  5,  21, 20 },
+    };
+    //uncrustify
+    
+    union {
+        struct {
+            u32 _pad       : 3;
+            u32 fn_shuffle : 3;
+            u32 ln_shuffle : 3;
+            u32 fn_syl0    : 4;
+            u32 ln_syl0    : 4;
+            u32 fn_syl1    : 4;
+            u32 ln_syl1    : 4;
+            u32 fn_syl2    : 4;
+            u32 ln_syl2    : 3;
+        };
+        u32 val;
+    } tbl = { .val = (u32)addr };
+    
+    char* firstName = x_fmt(
+        "%s%s%s",
+        syltable[shuffleTable[tbl.fn_shuffle][tbl.fn_syl0]],
+        syltable[shuffleTable[tbl.fn_shuffle][tbl.fn_syl1]],
+        syltable[shuffleTable[tbl.fn_shuffle][tbl.fn_syl2]]);
+    
+    char* lastName = x_fmt(
+        "%s%s%s",
+        syltable[shuffleTable[tbl.ln_shuffle][tbl.ln_syl0]],
+        syltable[shuffleTable[tbl.ln_shuffle][tbl.ln_syl1]],
+        syltable[shuffleTable[tbl.ln_shuffle][tbl.ln_syl2]]);
+    
+    firstName[0] = toupper(firstName[0]);
+    lastName[0] = toupper(lastName[0]);
+    
+    return x_fmt("%s%s %s: %08X", color[(tbl.val >> 3) % ArrCount(color)], firstName, lastName, addr);
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # _log                                 #
 // # # # # # # # # # # # # # # # # # # # #

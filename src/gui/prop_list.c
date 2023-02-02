@@ -71,6 +71,8 @@ void PropList_SetOnChangeCallback(PropList* this, PropOnChange onChange, void* u
 }
 
 void PropList_Add(PropList* this, const char* item) {
+    info("" PRNT_GRAY "PropList.Add(" PRNT_RSET "" PRNT_RSET "%s" PRNT_GRAY ");", item);
+    
     if (this->max && this->num >= this->max) return;
     if (PROP_ONCHANGE(PROP_ADD, 0))
         return;
@@ -81,6 +83,8 @@ void PropList_Add(PropList* this, const char* item) {
 }
 
 void PropList_Insert(PropList* this, const char* item, s32 slot) {
+    info("" PRNT_GRAY "PropList.Insert(" PRNT_RSET "%d, " PRNT_RSET "%s" PRNT_GRAY ")", slot, item);
+    
     if (this->max && this->num >= this->max) return;
     if (PROP_ONCHANGE(PROP_INSERT, slot))
         return;
@@ -91,6 +95,7 @@ void PropList_Insert(PropList* this, const char* item, s32 slot) {
 }
 
 void PropList_Remove(PropList* this, s32 slot) {
+    info("" PRNT_GRAY "PropList.Remove(" PRNT_RSET "%d"PRNT_GRAY ")", slot);
     if (PROP_ONCHANGE(PROP_REMOVE, slot))
         return;
     
@@ -100,6 +105,7 @@ void PropList_Remove(PropList* this, s32 slot) {
 }
 
 void PropList_Detach(PropList* this, s32 slot, bool copy) {
+    info("" PRNT_GRAY "PropList.Detach(" PRNT_RSET "%d, %B"PRNT_GRAY ")", slot, copy);
     if (PROP_ONCHANGE(PROP_DETACH, slot))
         return;
     

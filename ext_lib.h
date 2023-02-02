@@ -167,6 +167,7 @@ void info_volatile(const char* fmt, ...);
 void info_hex(const char* txt, const void* data, u32 size, u32 dispOffset);
 void info_bit(const char* txt, const void* data, u32 size, u32 dispOffset);
 void info_nl(void);
+const char* addr_name(void*);
 
 int xl_vsnprintf(char*, int, const char*, va_list va);
 int xl_snprintf(char*, int, const char*, ...);
