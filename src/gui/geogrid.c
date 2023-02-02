@@ -62,7 +62,7 @@ static SplitVtx* GeoGrid_AddVtx(GeoGrid* geo, f64 x, f64 y) {
         head = head->next;
     }
     
-    vtx = calloc(sizeof(SplitVtx));
+    vtx = new(SplitVtx);
     
     vtx->pos.x = x;
     vtx->pos.y = y;
@@ -96,7 +96,7 @@ static SplitEdge* GeoGrid_AddEdge(GeoGrid* geo, SplitVtx* v1, SplitVtx* v2) {
     }
     
     if (edge == NULL) {
-        edge = calloc(sizeof(SplitEdge));
+        edge = new(SplitEdge);
         
         edge->vtx[0] = v1;
         edge->vtx[1] = v2;
@@ -196,7 +196,7 @@ static SplitState Split_GetCursorPosState(Split* split, s32 range) {
 static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
     this->taskList = new(PropList);
     *this->taskList = PropList_Init(this->id);
-    this->taskCombo = new(*this->taskCombo);
+    this->taskCombo = new(ElCombo);
     
     _assert(this->taskList != NULL);
     _assert(this->taskCombo != NULL);
@@ -209,7 +209,7 @@ static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
 static Split* Split_Alloc(GeoGrid* geo, s32 id) {
     Split* split;
     
-    split = calloc(sizeof(Split));
+    split = new(Split);
     split->prevId = -1; // Forces init
     split->id = id;
     
@@ -646,22 +646,22 @@ static void Edge_Update(GeoGrid* geo) {
         geo->actionEdge = NULL;
     
     while (edge) {
+        SplitEdge* next = edge->next;
+        
         if (edge->killFlag == true) {
-            SplitEdge* temp = edge->next;
-            
             Node_Kill(geo->edgeHead, edge);
-            edge = temp;
             
-            continue;
+        } else {
+            edge->killFlag = true;
+            
+            if (geo->actionEdge == NULL) {
+                edge->state &= ~EDGE_EDIT;
+            }
+            
+            Edge_RemoveDuplicates(geo, edge);
         }
-        edge->killFlag = true;
         
-        if (geo->actionEdge == NULL) {
-            edge->state &= ~EDGE_EDIT;
-        }
-        
-        Edge_RemoveDuplicates(geo, edge);
-        edge = edge->next;
+        edge = next;
     }
     
     Edge_SetSlide(geo);
@@ -1229,7 +1229,7 @@ void GeoGrid_Init(GeoGrid* this, struct AppInfo* app, void* passArg) {
     
     _log("Prepare Headers");
     for (var i = 0; i < 2; i++)
-        *(u32*)(&this->bar[i].isHeader) = true;
+        this->bar[i].isHeader = true;
     
     _log("Assign Info");
     this->wdim = &app->wdim;
@@ -1277,6 +1277,8 @@ void GeoGrid_Update(GeoGrid* geo) {
 }
 
 void GeoGrid_Draw(GeoGrid* geo) {
+    void Element_Flush();
+    Element_Flush();
     ElementState_SetElemState(geo->elemState);
     Element_UpdateTextbox(geo);
     Split_Update(geo);
@@ -1308,9 +1310,6 @@ void GeoGrid_Draw(GeoGrid* geo) {
     
     ContextMenu_Draw(geo);
     DragItem_Draw(geo);
-    
-    void Element_Flush();
-    Element_Flush();
 }
 
 void GeoGrid_Splitless_Start(GeoGrid* geo, Rect r) {

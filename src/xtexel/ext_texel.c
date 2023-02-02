@@ -1,3 +1,6 @@
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+
 #ifndef __clang__
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -6,6 +9,8 @@
 #endif
 #include "__xtexread.h"
 #include "__xtexwrite.h"
+
+#pragma GCC diagnostic pop
 
 #include <ext_texel.h>
 

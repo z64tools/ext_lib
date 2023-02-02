@@ -155,7 +155,7 @@ typedef struct Split {
     struct {
         bool     useCustomColor : 1;
         bool     useCustomPaint : 1;
-        rgb8_t     color;
+        rgb8_t   color;
         NVGpaint paint;
     } bg;
     
@@ -172,7 +172,7 @@ typedef struct Split {
         bool blockMouse      : 1;
     };
     
-    const u32 isHeader;
+    u32       isHeader;
     SplitFunc headerFunc;
 } Split;
 
