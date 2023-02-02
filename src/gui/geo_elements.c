@@ -1219,8 +1219,6 @@ s32 Element_Combo(ElCombo* this) {
     
     ELEMENT_QUEUE_CHECK();
     
-    _log("PROP %X", this->prop);
-    
     if (this->prop && this->prop->num) {
         if (ELEM_PRESS_CONDITION(this)) {
             SPLIT->splitBlockScroll++;
@@ -1713,8 +1711,6 @@ void Element_Row(s32 rectNum, ...) {
     
     va_start(va, rectNum);
     
-    _log("Setting [%d] Elements for Split ID %d", rectNum, gElemState->split->id);
-    
     for (int i = 0; i < rectNum; i++) {
         Element* this = va_arg(va, void*);
         f64 a = va_arg(va, f64);
@@ -1723,7 +1719,6 @@ void Element_Row(s32 rectNum, ...) {
         
         if (this) {
             Rect* rect = &this->rect;
-            _log("[%d]: %s", i, this->name);
             
             if (this->heightAdd && yadd == 0)
                 yadd = this->heightAdd;
@@ -1756,8 +1751,6 @@ void Element_Header(s32 num, ...) {
     va_list va;
     
     va_start(va, num);
-    
-    _log("Setting [%d] Header Elements", num);
     
     for (int i = 0; i < num; i++) {
         Element* this = va_arg(va, Element*);
@@ -1862,7 +1855,7 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
         this = elem->arg;
         
         if (this->header == header && elem->split == split) {
-            _log("[%d][Split ID %d] ElemFunc: " PRNT_PRPL "%sDraw", header, split->id, elem->elemFunc);
+            _log("ElemDraw%s: " PRNT_PRPL "%sDraw", header ? "Header" : "Split", elem->elemFunc);
             
             if (elem->update)
                 Element_UpdateElement(elem);
@@ -1878,6 +1871,8 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
         
         elem = next;
     }
+    
+    _log("ElemDraw%s: Done", header ? "Header" : "Split");
 }
 
 void Element_Flush() {

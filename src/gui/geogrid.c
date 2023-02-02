@@ -421,7 +421,8 @@ static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
     }
     
     split->edge[dir] = killSplit->edge[dir];
-    geo->taskTable[killSplit->id]->destroy(geo->passArg, killSplit->instance, killSplit);
+    if (geo->taskTable[killSplit->id]->destroy)
+        geo->taskTable[killSplit->id]->destroy(geo->passArg, killSplit->instance, killSplit);
     
     Split_Free(killSplit);
     Node_Kill(geo->splitHead, killSplit);
@@ -769,15 +770,17 @@ static void Split_SwapInstance(GeoGrid* geo, Split* split) {
     SplitScroll* scroll = &split->scroll;
     
     if (split->instance) {
-        _log("Swap ID");
-        geo->taskTable[split->prevId]->destroy(geo->passArg, split->instance, split);
+        _log("" PRNT_REDD "SplitSwapInstance" PRNT_RSET "( %d -> %d )", split->prevId, split->id);
+        if (geo->taskTable[split->prevId]->destroy)
+            geo->taskTable[split->prevId]->destroy(geo->passArg, split->instance, split);
         scroll->offset = scroll->enabled = 0;
         vfree(split->instance);
     }
     
     split->prevId = split->id;
     split->instance = calloc(geo->taskTable[split->id]->size);
-    geo->taskTable[split->id]->init(geo->passArg, split->instance, split);
+    if (geo->taskTable[split->id]->init)
+        geo->taskTable[split->id]->init(geo->passArg, split->instance, split);
 }
 
 static void Split_UpdateScroll(Split* split, Input* input) {
@@ -796,7 +799,7 @@ static void Split_UpdateScroll(Split* split, Input* input) {
     split->splitBlockScroll = 0;
 }
 
-static inline void Split_UpdateSplit(GeoGrid* geo, Split* split) {
+static void Split_UpdateSplit(GeoGrid* geo, Split* split) {
     Cursor* cursor = &geo->input->cursor;
     
     if (!split->isHeader)
@@ -855,21 +858,20 @@ static inline void Split_UpdateSplit(GeoGrid* geo, Split* split) {
         if (split->id != split->prevId)
             Split_SwapInstance(geo, split);
         
-        _log("Run Split ID %d Update Func", split->id);
+        _log("SplitUpdate( %d %s )", split->id, geo->taskTable[split->id]->taskName);
+        _assert(table[split->id]->update != NULL);
         table[split->id]->update(geo->passArg, split->instance, split);
+        
+        if (Element_Box(BOX_GET_NUM) != 0)
+            errr("" PRNT_YELW "Element_Box Overflow" PRNT_RSET "( %d %s )", split->id, table[split->id]->taskName);
         
         for (int i = 0; i < 4; i++) {
             _assert(split->edge[i] != NULL);
             split->edge[i]->killFlag = false;
         }
-    } else {
-        if (split->headerFunc)
-            split->headerFunc(geo->passArg, split->instance, split);
-    }
-    
-    if (Element_Box(BOX_GET_NUM) != 0)
-        errr("Element_Box Overflow in Split: "PRNT_YELW "[%d] [%s]", split->id, table[split->id]->taskName);
-    
+    } else if (split->headerFunc)
+        split->headerFunc(geo->passArg, split->instance, split);
+    _log("OK");
 }
 
 static void Split_Update(GeoGrid* geo) {
@@ -1011,8 +1013,14 @@ static void Split_Draw_KillArrow(Split* this, void* vg) {
     }
 }
 
-static inline void Split_DrawSplit(GeoGrid* geo, Split* split) {
+static void Split_DrawSplit(GeoGrid* geo, Split* split) {
     Element_SetContext(geo, split);
+    
+    _assert(split != NULL);
+    if (geo->taskTable && geo->numTaskTable > split->id && geo->taskTable[split->id])
+        _log("SplitDraw( %d %s )", split->id, geo->taskTable[split->id]->taskName);
+    else
+        _log("SplitDraw( %d )", split->id);
     
     if (split->isHeader)
         goto draw_header;
@@ -1050,7 +1058,8 @@ static inline void Split_DrawSplit(GeoGrid* geo, Split* split) {
         nvgBeginFrame(geo->vg, split->dispRect.w, split->dispRect.h, gPixelRatio);
         
         Math_SmoothStepToF(&split->scroll.voffset, split->scroll.offset, 0.25f, fabsf(split->scroll.offset - split->scroll.voffset) * 0.5f, 0.1f);
-        table[id]->draw(geo->passArg, split->instance, split);
+        if (table[id]->draw)
+            table[id]->draw(geo->passArg, split->instance, split);
         Element_Draw(geo, split, false);
         Split_Draw_KillArrow(split, geo->vg);
         
@@ -1105,7 +1114,6 @@ draw_header:
     nvgBeginFrame(geo->vg, split->headRect.w, split->headRect.h, gPixelRatio); {
         Element_Draw(geo, split, true);
     } nvgEndFrame(geo->vg);
-    
 }
 
 static void Split_Draw(GeoGrid* geo) {
@@ -1215,6 +1223,9 @@ void GeoGrid_TaskTable(GeoGrid* geo, SplitTask** taskTable, u32 num) {
     _assert(num != 0);
     geo->taskTable = taskTable;
     geo->numTaskTable = num;
+    
+    for (int i = 0; i < num; i++)
+        info("%d: %s", i, taskTable[i]->taskName);
 }
 
 extern void* ElementState_New(void);
@@ -1249,7 +1260,8 @@ void GeoGrid_Destroy(GeoGrid* this) {
     _log("Destroy Splits");
     while (this->splitHead) {
         _log("Split [%d]", this->splitHead->id);
-        this->taskTable[this->splitHead->id]->destroy(this->passArg, this->splitHead->instance, this->splitHead);
+        if (this->taskTable[this->splitHead->id]->destroy)
+            this->taskTable[this->splitHead->id]->destroy(this->passArg, this->splitHead->instance, this->splitHead);
         Split_Free(this->splitHead);
         Node_Kill(this->splitHead, this->splitHead);
     }
