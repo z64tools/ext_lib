@@ -63,6 +63,7 @@ static SplitVtx* GeoGrid_AddVtx(GeoGrid* geo, f64 x, f64 y) {
     }
     
     vtx = new(SplitVtx);
+    info("New Vtx: %08X", vtx);
     
     vtx->pos.x = x;
     vtx->pos.y = y;
@@ -78,13 +79,11 @@ static SplitEdge* GeoGrid_AddEdge(GeoGrid* geo, SplitVtx* v1, SplitVtx* v2) {
     _assert(v1 != NULL && v2 != NULL);
     
     if (v1->pos.y == v2->pos.y) {
-        if (v1->pos.x > v2->pos.x) {
+        if (v1->pos.x > v2->pos.x)
             Swap(v1, v2);
-        }
     } else {
-        if (v1->pos.y > v2->pos.y) {
+        if (v1->pos.y > v2->pos.y)
             Swap(v1, v2);
-        }
     }
     
     while (head) {
@@ -97,6 +96,7 @@ static SplitEdge* GeoGrid_AddEdge(GeoGrid* geo, SplitVtx* v1, SplitVtx* v2) {
     
     if (edge == NULL) {
         edge = new(SplitEdge);
+        info("New Edge: %08X", edge);
         
         edge->vtx[0] = v1;
         edge->vtx[1] = v2;
@@ -498,6 +498,7 @@ static void Vtx_Update(GeoGrid* geo) {
             if (vtx->killFlag == true) {
                 SplitVtx* killVtx = vtx;
                 vtx = geo->vtxHead;
+                info("Vtx Kill");
                 Node_Kill(geo->vtxHead, killVtx);
                 continue;
             }
@@ -649,6 +650,7 @@ static void Edge_Update(GeoGrid* geo) {
         SplitEdge* next = edge->next;
         
         if (edge->killFlag == true) {
+            info("Kill Edge: %08X", edge);
             Node_Kill(geo->edgeHead, edge);
             
         } else {
@@ -1220,6 +1222,7 @@ void GeoGrid_TaskTable(GeoGrid* geo, SplitTask** taskTable, u32 num) {
 
 extern void* ElementState_New(void);
 extern void ElementState_SetElemState(void* elemState);
+extern void Element_Flush();
 
 void GeoGrid_Init(GeoGrid* this, struct AppInfo* app, void* passArg) {
     void VectorGfx_InitCommon();
@@ -1277,8 +1280,8 @@ void GeoGrid_Update(GeoGrid* geo) {
 }
 
 void GeoGrid_Draw(GeoGrid* geo) {
-    void Element_Flush();
     Element_Flush();
+    
     ElementState_SetElemState(geo->elemState);
     Element_UpdateTextbox(geo);
     Split_Update(geo);
