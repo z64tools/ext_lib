@@ -1407,7 +1407,7 @@ s32 Element_Container(ElContainer* this) {
         
         ELEMENT_QUEUE_CHECK();
         
-        if (this->heldKey > 0 && Math_Vec2s_DistXZ(cursor->pos, cursor->pressPos) > 8) {
+        if (this->drag && this->heldKey > 0 && Math_Vec2s_DistXZ(cursor->pos, cursor->pressPos) > 8) {
             _log("Drag Item Init");
             DragItem_Init(gElemState->geo, this, this->grabRect, PropList_Get(prop, this->heldKey - 1), this->prop);
             this->detachID = this->heldKey - 1;

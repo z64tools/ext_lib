@@ -847,6 +847,7 @@ static inline void Split_UpdateSplit(GeoGrid* geo, Split* split) {
     split->inputAccess = split->mouseInSplit && !geo->state.blockElemInput && !split->blockMouse;
     
     Element_SetContext(geo, split);
+    Element_RowY(SPLIT_ELEM_X_PADDING * 2);
     
     if (!split->isHeader) {
         split->id = split->taskList->key;
