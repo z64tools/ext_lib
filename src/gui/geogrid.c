@@ -802,6 +802,7 @@ static void Split_UpdateScroll(Split* split, Input* input) {
 static void Split_UpdateSplit(GeoGrid* geo, Split* split) {
     Cursor* cursor = &geo->input->cursor;
     
+    _log("Split %s", addr_name(split));
     if (!split->isHeader)
         Split_UpdateRect(split);
     
@@ -885,6 +886,7 @@ static void Split_Update(GeoGrid* geo) {
     
     for (; split != NULL; split = split->next)
         Split_UpdateSplit(geo, split);
+    
     Split_UpdateSplit(geo, &geo->bar[0]);
     Split_UpdateSplit(geo, &geo->bar[1]);
 }

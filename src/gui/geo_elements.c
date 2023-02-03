@@ -1313,6 +1313,7 @@ static void Element_ContainerDraw(ElementQueCall* call) {
     
     for (int i = 0; i < prop->num; i++) {
         Rect tr = Element_Container_GetPropRect(this, i);
+        const char* item;
         
         if (prop->detach && prop->detachKey == i)
             continue;
@@ -1340,10 +1341,14 @@ static void Element_ContainerDraw(ElementQueCall* call) {
             }
         }
         
+        if (this->showIndex) {
+            item = x_fmt("%d: %s", i, PropList_Get(prop, i));
+        } else item = PropList_Get(prop, i);
+        
         Gfx_Text(
             vg, tr, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE,
             this->element.texcol,
-            PropList_Get(prop, i)
+            item
         );
     }
     nvgResetScissor(vg);

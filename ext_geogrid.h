@@ -428,9 +428,10 @@ typedef struct {
     SplitScroll scroll;
     
     struct {
-        bool pressed : 1;
-        bool text    : 1;
-        bool drag    : 1;
+        bool pressed   : 1;
+        bool text      : 1;
+        bool drag      : 1;
+        bool showIndex : 1;
     };
     
     Rect      grabRect;
