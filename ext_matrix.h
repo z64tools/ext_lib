@@ -22,10 +22,10 @@ typedef float MtxF_t[4][4];
 typedef union {
     MtxF_t mf;
     struct {
-        float xx, yx, zx, wx,
-            xy, yy, zy, wy,
-            xz, yz, zz, wz,
-            xw, yw, zw, ww;
+        float xx, yx, zx, wx;
+        float xy, yy, zy, wy;
+        float xz, yz, zz, wz;
+        float xw, yw, zw, ww;
     };
 } MtxF;
 
@@ -41,6 +41,7 @@ void Matrix_Get(MtxF* dest);
 void Matrix_Put(MtxF* src);
 void Matrix_MultVec3f(Vec3f* src, Vec3f* dest);
 void Matrix_Transpose(MtxF* mf);
+void Matrix_MtxFTranslate(MtxF* cmf, f32 x, f32 y, f32 z, MtxMode mode);
 void Matrix_Translate(f32 x, f32 y, f32 z, MtxMode mode);
 void Matrix_Scale(f32 x, f32 y, f32 z, MtxMode mode);
 void Matrix_RotateX(f32 x, MtxMode mode);
@@ -62,11 +63,12 @@ void Matrix_Projection(MtxF* mtx, f32 fovy, f32 aspect, f32 near, f32 far, f32 s
 void Matrix_Ortho(MtxF* mtx, f32 fovy, f32 aspect, f32 near, f32 far);
 void Matrix_LookAt(MtxF* mf, Vec3f eye, Vec3f at, Vec3f up);
 
+void Matrix_MtxFTranslateRotateZYX(MtxF* cmf, Vec3f* translation, Vec3s* rotation);
 void Matrix_TranslateRotateZYX(Vec3f* translation, Vec3s* rotation);
 void Matrix_RotateAToB(Vec3f* a, Vec3f* b, u8 mode);
 void Matrix_MultVec4f_Ext(Vec4f* src, Vec4f* dest, MtxF* mtx);
 void Matrix_MtxFToYXZRotS(Vec3s* rotDest, s32 flag);
-s32 Matrix_Invert(MtxF* src, MtxF* dest);
+MtxF Matrix_Invert(MtxF* m);
 void Matrix_Unproject(MtxF* modelViewMtx, MtxF* projMtx, Vec3f* src, Vec3f* dest, f32 w, f32 h);
 void Matrix_Project(MtxF* modelViewMtx, MtxF* projMtx, Vec3f* src, Vec3f* dest, f32 w, f32 h);
 

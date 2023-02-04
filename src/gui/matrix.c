@@ -110,8 +110,7 @@ void Matrix_Transpose(MtxF* mf) {
     mf->yz = temp;
 }
 
-void Matrix_Translate(f32 x, f32 y, f32 z, MtxMode mode) {
-    MtxF* cmf = gCurrentMatrix;
+void Matrix_MtxFTranslate(MtxF* cmf, f32 x, f32 y, f32 z, MtxMode mode) {
     f32 tx;
     f32 ty;
     
@@ -146,6 +145,10 @@ void Matrix_Translate(f32 x, f32 y, f32 z, MtxMode mode) {
         cmf->yw = y;
         cmf->zw = z;
     }
+}
+
+void Matrix_Translate(f32 x, f32 y, f32 z, MtxMode mode) {
+    Matrix_MtxFTranslate(gCurrentMatrix, x, y, z, mode);
 }
 
 void Matrix_Scale(f32 x, f32 y, f32 z, MtxMode mode) {
@@ -744,8 +747,7 @@ void Matrix_LookAt(MtxF* mf, Vec3f eye, Vec3f at, Vec3f up) {
     mf->mf[3][3] = 1;
 }
 
-void Matrix_TranslateRotateZYX(Vec3f* translation, Vec3s* rotation) {
-    MtxF* cmf = gCurrentMatrix;
+void Matrix_MtxFTranslateRotateZYX(MtxF* cmf, Vec3f* translation, Vec3s* rotation) {
     f32 sin = SinS(rotation->z);
     f32 cos = CosS(rotation->z);
     f32 temp1;
@@ -824,6 +826,10 @@ void Matrix_TranslateRotateZYX(Vec3f* translation, Vec3s* rotation) {
         cmf->wy = temp1 * cos + temp2 * sin;
         cmf->wz = temp2 * cos - temp1 * sin;
     }
+}
+
+void Matrix_TranslateRotateZYX(Vec3f* translation, Vec3s* rotation) {
+    Matrix_MtxFTranslateRotateZYX(gCurrentMatrix, translation, rotation);
 }
 
 void Matrix_RotateAToB(Vec3f* a, Vec3f* b, u8 mode) {
@@ -1174,6 +1180,38 @@ static int glhUnProjectf(float winx, float winy, float winz, float* modelview, f
     objectCoordinate[2] = out[2] * out[3];
     
     return 1;
+}
+
+MtxF Matrix_Invert(MtxF* m) {
+    float det = m->xx * (m->yy * m->zz - m->zy * m->yz) -
+        m->yx * (m->xy * m->zz - m->zy * m->xz) +
+        m->zx * (m->xy * m->yz - m->yy * m->xz);
+    
+    if (fabs(det) < 1e-6)
+        errr("can't invert");
+    
+    MtxF inv;
+    inv.xx = (m->yy * m->zz - m->yz * m->zy) / det;
+    inv.yx = (m->yx * m->zz - m->yz * m->zx) / det;
+    inv.zx = (m->yx * m->zy - m->yy * m->zx) / det;
+    inv.wx = 0;
+    
+    inv.xy = (m->xy * m->zz - m->xz * m->zy) / det;
+    inv.yy = (m->xx * m->zz - m->xz * m->zx) / det;
+    inv.zy = (m->xx * m->zy - m->xy * m->zx) / det;
+    inv.wy = 0;
+    
+    inv.xz = (m->xy * m->yz - m->xz * m->yy) / det;
+    inv.yz = (m->xx * m->yz - m->xz * m->yx) / det;
+    inv.zz = (m->xx * m->yy - m->xy * m->yx) / det;
+    inv.wz = 0;
+    
+    inv.xw = 0;
+    inv.yw = 0;
+    inv.zw = 0;
+    inv.ww = 1;
+    
+    return inv;
 }
 
 void Matrix_Unproject(MtxF* modelViewMtx, MtxF* projMtx, Vec3f* src, Vec3f* dest, f32 w, f32 h) {

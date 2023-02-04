@@ -27,14 +27,14 @@
 #define CosR(x) cosf(x)
 
 // Trig macros
-#define DegToBin(degreesf) (s16)(degreesf * 182.04167f + .5f)
-#define RadToBin(radf)     (s16)(radf * (32768.0f / M_PI))
+#define DegToBin(degreesf) (s16)(s32)(degreesf * 182.04167f + .5f)
+#define RadToBin(radf)     (s16)(s32)(radf * (32768.0f / M_PI))
 #define RadToDeg(radf)     (radf * (180.0f / M_PI))
 #define DegToRad(degf)     (degf * (M_PI / 180.0f))
 #define BinFlip(angle)     ((s16)(angle - 0x7FFF))
 #define BinSub(a, b)       ((s16)(a - b))
-#define BinToDeg(binang)   ((f32)binang * (360.0001525f / 65535.0f))
-#define BinToRad(binang)   (((f32)binang / 32768.0f) * M_PI)
+#define BinToDeg(binang)   ((f32)(s32)binang * (360.0001525f / 65535.0f))
+#define BinToRad(binang)   (((f32)(s32)binang / 32768.0f) * M_PI)
 
 #define UnfoldRect(rect) (rect).x, (rect).y, (rect).w, (rect).h
 #define UnfoldVec2(vec)  (vec).x, (vec).y

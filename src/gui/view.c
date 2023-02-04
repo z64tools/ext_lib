@@ -434,6 +434,63 @@ RayLine View_GetCursorRayLine(View3D* this) {
     return this->ray = View_GetPointRayLine(this, Math_Vec2f_New(UnfoldVec2(this->split->cursorPos)));
 }
 
+MtxF View_GetOrientedMtxF(View3D* this, f32 dgr) {
+    Camera* curCam = this->currentCamera;
+    MtxF orient;
+    
+    Matrix_Push();
+    Matrix_RotateY_s(curCam->yaw, MTXMODE_NEW);
+    Matrix_RotateX_s(curCam->pitch, MTXMODE_APPLY);
+    
+    Matrix_RotateZ_d(dgr, MTXMODE_APPLY);
+    
+    Matrix_RotateX_s(-curCam->pitch, MTXMODE_APPLY);
+    Matrix_RotateY_s(-curCam->yaw, MTXMODE_APPLY);
+    Matrix_Get(&orient);
+    Matrix_Pop();
+    
+    return orient;
+}
+
+MtxF View_GetLockOrientedMtxF(View3D* this, f32 dgr, int axis_id) {
+    Vec3f proj[3] = {
+        { 1.0f, 0.0f, 0.0f },
+        { 0.0f, 1.0f, 0.0f },
+        { 0.0f, 0.0f, 1.0f },
+    };
+    Vec3f camDir = Math_Vec3f_LineSegDir(this->currentCamera->eye, this->currentCamera->at);
+    
+    camDir = Math_Vec3f_Project(camDir, proj[axis_id]);
+    camDir = Math_Vec3f_Normalize(camDir);
+    dgr = DegToRad(dgr);
+    
+    // if (camDir.axis[axis_id] >= 0.0f)
+    //     dgr = -dgr;
+    
+    MtxF axis[] = {
+        {
+            1.0f,       0.0f,            0.0f,                 0.0f,
+            0.0f,       cosf(dgr),       -sinf(dgr),           0.0f,
+            0.0f,       sinf(dgr),       cosf(dgr),            0.0f,
+            0.0f,       0.0f,            0.0f,                 1.0f,
+        },
+        {
+            cosf(dgr),  0.0f,            sinf(dgr),            0.0f,
+            0.0f,       1.0f,            0.0f,                 0.0f,
+            -sinf(dgr), 0.0f,            cosf(dgr),            0.0f,
+            0.0f,       0.0f,            0.0f,                 1.0f,
+        },
+        {
+            cosf(dgr),  -sinf(dgr),      0.0f,                 0.0f,
+            sinf(dgr),  cosf(dgr),       0.0f,                 0.0f,
+            0.0f,       0.0f,            1.0f,                 0.0f,
+            0.0f,       0.0f,            0.0f,                 1.0f,
+        },
+    };
+    
+    return axis[axis_id];
+}
+
 void View_MoveTo(View3D* this, Vec3f pos) {
     this->targetPos = Math_Vec3f_Sub(pos, this->currentCamera->at);
     this->moveToTarget = true;

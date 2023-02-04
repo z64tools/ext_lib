@@ -294,9 +294,7 @@ typedef struct PropColor {
     };
 } PropColor;
 
-// # # # # # # # # # # # # # # # # # # # #
-// # Elements                            #
-// # # # # # # # # # # # # # # # # # # # #
+/*============================================================================*/
 
 typedef struct {
     Vec2f* pos;
@@ -309,6 +307,8 @@ typedef struct {
     VectorGfx* cross;
     VectorGfx* arrowParent;
 } ElemAssets;
+
+/*============================================================================*/
 
 #ifndef GEO_VECTORGFX_C
 extern const ElemAssets gAssets;
@@ -334,16 +334,16 @@ typedef struct Element {
         bool doFree      : 1;
         u32  toggle      : 2;
     };
-    
-    u32 __pad;
 } Element;
+
+/*============================================================================*/
 
 typedef struct {
     Element    element;
     VectorGfx* icon;
     TextAlign  align;
-    u8 state;
-    u8 autoWidth;
+    s8 state;
+    s8 prevResult;
 } ElButton;
 
 typedef struct {

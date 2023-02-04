@@ -79,6 +79,8 @@ void View_Update(View3D* viewCtx, Input* inputCtx, struct Split* split);
 bool View_CheckControlKeys(Input* input);
 RayLine View_GetPointRayLine(View3D* this, Vec2f point);
 RayLine View_GetCursorRayLine(View3D* this);
+MtxF View_GetOrientedMtxF(View3D* this, f32 dgr);
+MtxF View_GetLockOrientedMtxF(View3D* view, f32 dgr, int axis_id);
 void View_MoveTo(View3D* this, Vec3f pos);
 void View_ZoomTo(View3D* this, f32 zoom);
 void View_RotTo(View3D* this, Vec3s rot);
