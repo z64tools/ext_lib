@@ -63,7 +63,6 @@ UndoEvent* Undo_New() {
         arrmove_l(this->nodes, 0, this->max);
         this->nodes[this->num - 1] = node = new(UndoEvent);
     } else {
-        Undo_FreeEvent(this->nodes[this->num]);
         this->nodes[this->num++] = node = new(UndoEvent);
     }
     
