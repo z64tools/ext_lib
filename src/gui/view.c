@@ -464,8 +464,8 @@ MtxF View_GetLockOrientedMtxF(View3D* this, f32 dgr, int axis_id) {
     camDir = Math_Vec3f_Normalize(camDir);
     dgr = DegToRad(dgr);
     
-    // if (camDir.axis[axis_id] >= 0.0f)
-    //     dgr = -dgr;
+    if (camDir.axis[axis_id] >= 0.0f)
+        dgr = -dgr;
     
     MtxF axis[] = {
         {
