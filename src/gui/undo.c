@@ -35,7 +35,11 @@ static void Undo_Apply(UndoEvent* event) {
 }
 
 void Undo_Update(Input* input) {
-    bool undo = Input_GetShortcut(input, KEY_LEFT_CONTROL, KEY_Z);
+    bool undo = false;
+    
+    if (Input_GetKey(input, KEY_LEFT_CONTROL)->hold)
+        if (Input_GetKey(input, KEY_Z)->press)
+            undo = true;
     
     if (this->num && undo) {
         UndoEvent* event = this->nodes[--this->num];

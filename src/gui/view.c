@@ -363,9 +363,7 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
         camMode[i](this, inputCtx, (this->mode & (1 << i) && !this->interrupt));
     
     if (this->cameraControl && !this->interrupt) {
-        s32 keyList[] = {
-            KEY_W, KEY_A, KEY_S, KEY_D
-        };
+        s32 keyList[] = { KEY_W, KEY_A, KEY_S, KEY_D };
         
         for (int i = 0; i < ArrCount(keyList); i++) {
             if (Input_GetKey(inputCtx, keyList[i])->hold)
@@ -434,7 +432,7 @@ RayLine View_GetCursorRayLine(View3D* this) {
     return this->ray = View_GetPointRayLine(this, Math_Vec2f_New(UnfoldVec2(this->split->cursorPos)));
 }
 
-MtxF View_GetOrientedMtxF(View3D* this, f32 dgr) {
+MtxF View_GetOrientedMtxF(View3D* this, f32 x, f32 y, f32 z) {
     Camera* curCam = this->currentCamera;
     MtxF orient;
     
@@ -442,7 +440,9 @@ MtxF View_GetOrientedMtxF(View3D* this, f32 dgr) {
     Matrix_RotateY_s(curCam->yaw, MTXMODE_NEW);
     Matrix_RotateX_s(curCam->pitch, MTXMODE_APPLY);
     
-    Matrix_RotateZ_d(dgr, MTXMODE_APPLY);
+    Matrix_RotateY_d(x, MTXMODE_APPLY);
+    Matrix_RotateX_d(y, MTXMODE_APPLY);
+    Matrix_RotateZ_d(z, MTXMODE_APPLY);
     
     Matrix_RotateX_s(-curCam->pitch, MTXMODE_APPLY);
     Matrix_RotateY_s(-curCam->yaw, MTXMODE_APPLY);
@@ -452,7 +452,7 @@ MtxF View_GetOrientedMtxF(View3D* this, f32 dgr) {
     return orient;
 }
 
-MtxF View_GetLockOrientedMtxF(View3D* this, f32 dgr, int axis_id) {
+MtxF View_GetLockOrientedMtxF(View3D* this, f32 dgr, int axis_id, bool viewFix) {
     Vec3f proj[3] = {
         { 1.0f, 0.0f, 0.0f },
         { 0.0f, 1.0f, 0.0f },
@@ -464,8 +464,9 @@ MtxF View_GetLockOrientedMtxF(View3D* this, f32 dgr, int axis_id) {
     camDir = Math_Vec3f_Normalize(camDir);
     dgr = DegToRad(dgr);
     
-    if (camDir.axis[axis_id] >= 0.0f)
-        dgr = -dgr;
+    if (viewFix)
+        if (camDir.axis[axis_id] >= 0.0f)
+            dgr = -dgr;
     
     MtxF axis[] = {
         {
