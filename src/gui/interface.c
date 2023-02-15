@@ -565,7 +565,7 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
                 this->doRename = true;
                 this->rename.element.rect = selectedRect;
                 
-                Element_SetActiveTextbox(&this->geo, NULL, &this->rename);
+                Element_SetActiveTextbox(&this->geo, &this->private.split, &this->rename);
             }
         }
     }
@@ -661,10 +661,10 @@ void FileDialog_Draw(void* arg) {
         fpr.y = main.y + hdr.h;
         fpr.h = main.h - hdr.h;
         
-        GeoGrid_Splitless_Start(&this->geo, main);
+        DummySplit_Push(&this->geo, &this->private.split, main);
         FileDialog_FilePanel(this, fpr);
         FileDialog_HeaderPanel(this, hdr);
-        GeoGrid_Splitless_End(&this->geo);
+        DummySplit_Pop(&this->geo, &this->private.split);
         
         _log("OK");
     } nvgEndFrame(vg);

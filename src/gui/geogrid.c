@@ -852,6 +852,7 @@ static void Split_UpdateSplit(GeoGrid* geo, Split* split) {
     
     Element_SetContext(geo, split);
     Element_RowY(SPLIT_ELEM_X_PADDING * 2);
+    Element_ShiftX(0);
     
     if (!split->isHeader) {
         split->id = split->taskList->key;
@@ -1029,13 +1030,14 @@ static void Split_DrawSplit(GeoGrid* geo, Split* split) {
     
     Split_UpdateRect(split);
     
-    glViewportRect(UnfoldRect(split->dispRect));
-    nvgBeginFrame(geo->vg, split->dispRect.w, split->dispRect.h, gPixelRatio); {
-        void* vg = geo->vg;
-        Rect r = split->dispRect;
-        u32 id = split->id;
-        SplitTask** table = geo->taskTable;
-        
+    void* vg = geo->vg;
+    Rect r = split->dispRect;
+    u32 id = split->id;
+    SplitTask** table = geo->taskTable;
+    
+    // Draw Background
+    glViewportRect(UnfoldRect(split->rect));
+    nvgBeginFrame(geo->vg, split->rect.w, split->rect.h, gPixelRatio); {
         r.x = r.y = 0;
         
         nvgBeginPath(vg);
@@ -1049,22 +1051,21 @@ static void Split_DrawSplit(GeoGrid* geo, Split* split) {
         
         else
             nvgFillPaint(vg, nvgBoxGradient(vg, UnfoldRect(r), SPLIT_ROUND_R, 8.0f, Theme_GetColor(THEME_BASE, 255, 1.0f), Theme_GetColor(THEME_BASE, 255, 0.8f)));
-        
         nvgFill(vg);
-        
-        /*
-         * New frame to make it possible to have
-         * something drawn from other sources than nvg
-         */
-        nvgEndFrame(geo->vg);
-        nvgBeginFrame(geo->vg, split->dispRect.w, split->dispRect.h, gPixelRatio);
-        
+    } nvgEndFrame(geo->vg);
+    
+    // Draw Split
+    nvgBeginFrame(geo->vg, split->rect.w, split->rect.h, gPixelRatio); {
         Math_SmoothStepToF(&split->scroll.voffset, split->scroll.offset, 0.25f, fabsf(split->scroll.offset - split->scroll.voffset) * 0.5f, 0.1f);
         if (table[id]->draw)
             table[id]->draw(geo->passArg, split->instance, split);
         Element_Draw(geo, split, false);
         Split_Draw_KillArrow(split, geo->vg);
-        
+    } nvgEndFrame(geo->vg);
+    
+    // Draw Overlays
+    glViewportRect(UnfoldRect(split->dispRect));
+    nvgBeginFrame(geo->vg, split->dispRect.w, split->dispRect.h, gPixelRatio); {
         r = split->dispRect;
         r.x = 4;
         r.y = 4;
@@ -1321,18 +1322,17 @@ void GeoGrid_Draw(GeoGrid* this) {
     DragItem_Draw(this);
 }
 
-void GeoGrid_Splitless_Start(GeoGrid* geo, Rect r) {
-    geo->private.dummySplit.dispRect = r;
-    geo->private.dummySplit.rect = r;
-    geo->private.dummySplit.mouseInSplit = true;
-    geo->private.dummySplit.cursorPos = geo->input->cursor.pos;
-    geo->private.dummySplit.mousePressPos = geo->input->cursor.pressPos;
+void DummySplit_Push(GeoGrid* geo, Split* split, Rect r) {
+    split->dispRect = split->rect = r;
+    split->mouseInSplit = true;
+    split->cursorPos = geo->input->cursor.pos;
+    split->mousePressPos = geo->input->cursor.pressPos;
     
     ElementState_SetElemState(geo->elemState);
-    Element_SetContext(geo, &geo->private.dummySplit);
+    Element_SetContext(geo, split);
 }
 
-void GeoGrid_Splitless_End(GeoGrid* geo) {
+void DummySplit_Pop(GeoGrid* geo, Split* split) {
     Element_UpdateTextbox(geo);
-    Element_Draw(geo, &geo->private.dummySplit, false);
+    Element_Draw(geo, split, false);
 }

@@ -1297,6 +1297,13 @@ static inline Vec3f Math_Vec3f_ClosestPointOnRay(Vec3f rayStart, Vec3f rayEnd, V
     }
 }
 
+static inline Vec3f Math_Vec3f_ProjectAlong(Vec3f point, Vec3f lineA, Vec3f lineB) {
+    Vec3f seg = Math_Vec3f_LineSegDir(lineA, lineB);
+    Vec3f proj = Math_Vec3f_Project(Math_Vec3f_Sub(point, lineA), seg);
+    
+    return Math_Vec3f_Add(lineA, proj);
+}
+
 #pragma GCC diagnostic pop
 
 #endif

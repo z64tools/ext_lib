@@ -4,7 +4,6 @@
 // # PropList                            #
 // # # # # # # # # # # # # # # # # # # # #
 
-#undef PropList_InitList
 #define PROP_ONCHANGE(type, id) this->onChange && !this->onChange(this, type, id)
 
 const char* PropList_Get(PropList* this, s32 i) {
@@ -50,7 +49,7 @@ PropList PropList_Init(s32 defaultVal) {
     return this;
 }
 
-PropList PropList_InitList(s32 def, s32 num, ...) {
+PropList __PropList_InitList(s32 def, s32 num, ...) {
     PropList prop = PropList_Init(def);
     va_list va;
     
@@ -78,7 +77,9 @@ void PropList_Add(PropList* this, const char* item) {
         return;
     
     this->list = realloc(this->list, sizeof(char*) * (this->num + 2));
-    this->list[this->num++] = strdup(item);
+    
+    void* new = item ? strdup(item) : NULL;
+    this->list[this->num++] = new;
     this->list[this->num] = NULL;
 }
 

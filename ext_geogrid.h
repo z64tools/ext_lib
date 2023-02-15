@@ -190,6 +190,18 @@ typedef enum {
     PROP_COLOR,
 } PropType;
 
+typedef struct {
+    int index;
+    const char* item;
+} ContextRow;
+
+typedef struct {
+    int width;
+    
+    ContextRow* row;
+    int numRow;
+} ContextColumn;
+
 typedef struct ContextMenu {
     struct Element* element;
     void*    prop;
@@ -204,6 +216,12 @@ typedef struct ContextMenu {
         s32  up                   : 2;
         s32  side                 : 2;
     } state;
+    
+    void* data;
+    ContextColumn* col;
+    int numCol;
+    
+    Split     split;
 } ContextMenu;
 
 typedef struct GeoGrid {
@@ -237,11 +255,7 @@ typedef struct GeoGrid {
         s32  blockElemInput;
         bool cleanVtx : 1;
     } state;
-    struct ContextMenu dropMenu;
-    
-    struct {
-        Split dummySplit;
-    } private;
+    ContextMenu dropMenu;
 } GeoGrid;
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -425,18 +439,21 @@ typedef struct ElCombo {
 typedef struct {
     Element     element;
     PropList*   prop;
+    PropList*   contextMenu;
     SplitScroll scroll;
     
     struct {
         bool pressed   : 1;
         bool text      : 1;
         bool drag      : 1;
-        bool showIndex : 1;
+        bool showDecID : 1;
+        bool showHexID : 1;
     };
     
     Rect      grabRect;
     ElTextbox textBox;
     
+    s32 contextKey;
     s32 heldKey;
     s32 detachID;
     f32 detachMul;
@@ -470,8 +487,8 @@ void GeoGrid_Destroy(GeoGrid* this);
 void GeoGrid_Update(GeoGrid* geo);
 void GeoGrid_Draw(GeoGrid* geo);
 
-void GeoGrid_Splitless_Start(GeoGrid* geo, Rect r);
-void GeoGrid_Splitless_End(GeoGrid* geo);
+void DummySplit_Push(GeoGrid* geo, Split* split, Rect r);
+void DummySplit_Pop(GeoGrid* geo, Split* split);
 
 void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, Rect rect);
 void ContextMenu_Draw(GeoGrid* geo);
@@ -509,6 +526,7 @@ Element* Element_Disable(Element* element);
 Element* Element_Enable(Element* element);
 Element* Element_Condition(Element* element, s32 condition);
 void Element_RowY(f32 y);
+void Element_ShiftX(f32 x);
 void Element_Row(s32 rectNum, ...);
 void Element_Header(s32 num, ...);
 
@@ -526,7 +544,6 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header);
 const char* PropList_Get(PropList* this, s32 i);
 void PropList_Set(PropList* this, s32 i);
 PropList PropList_Init(s32 defaultVal);
-PropList PropList_InitList(s32 def, s32 num, ...);
 void PropList_SetOnChangeCallback(PropList* this, PropOnChange onChange, void* udata1, void* udata2);
 void PropList_Add(PropList* this, const char* item);
 void PropList_Insert(PropList* this, const char* item, s32 slot);
@@ -536,6 +553,11 @@ void PropList_Retach(PropList* this, s32 slot);
 void PropList_DestroyDetach(PropList* this);
 void PropList_Free(PropList* this);
 
-#define PropList_InitList(default, ...) PropList_InitList(default, NARGS(__VA_ARGS__), __VA_ARGS__)
+#ifndef __clang__
+PropList __PropList_InitList(s32 def, s32 num, ...);
+#define PropList_InitList(default, ...) __PropList_InitList(default, NARGS(__VA_ARGS__), __VA_ARGS__)
+#else
+PropList PropList_InitList(s32 def, ...);
+#endif
 
 #endif

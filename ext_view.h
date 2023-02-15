@@ -77,7 +77,8 @@ void View_InterruptControl(View3D* this);
 void View_Update(View3D* viewCtx, Input* inputCtx, struct Split* split);
 
 bool View_CheckControlKeys(Input* input);
-RayLine View_GetPointRayLine(View3D* this, Vec2f point);
+RayLine View_GetRayLine(View3D* this, Vec2f point);
+Vec3f View_GetProjectPoint(View3D* this, Vec2f point);
 RayLine View_GetCursorRayLine(View3D* this);
 MtxF View_GetOrientedMtxF(View3D* this, f32 x, f32 y, f32 z);
 MtxF View_GetLockOrientedMtxF(View3D* view, f32 dgr, int axis_id, bool viewFix);

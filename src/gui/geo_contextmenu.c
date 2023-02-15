@@ -7,18 +7,61 @@
 
 static void ContextProp_List_Init(GeoGrid* geo, ContextMenu* this) {
     PropList* prop = this->prop;
+    int nullCombo = 0;
     
     nvgFontFace(geo->vg, "default");
     nvgFontSize(geo->vg, SPLIT_TEXT);
     nvgTextAlign(geo->vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
     
-    this->rect.h = SPLIT_ELEM_X_PADDING * 2 + SPLIT_TEXT_H * prop->num;
-    this->rect.w = 0;
+    this->col = new(ContextColumn);
+    this->numCol = 1;
+    
+    warn("new column");
+    for (int i = 0; i < prop->num; i++) {
+        ContextColumn* col = &this->col[this->numCol - 1];
+        
+        renew(col->row, ContextRow[++col->numRow]);
+        col->row[col->numRow - 1] = (ContextRow) {};
+        
+        ContextRow* row = &col->row[col->numRow - 1];
+        
+        row->index = i;
+        row->item = PropList_Get(prop, i);
+        warn("new row: %s", row->item);
+        if (!row->item) nullCombo++;
+        else nullCombo = 0;
+        
+        if (nullCombo == 2) {
+            warn("new column");
+            col->numRow -= 2;
+            renew(this->col, ContextColumn[++this->numCol]);
+            this->col[this->numCol - 1] = (ContextColumn) {};
+        }
+    }
+    
+    this->rect.h = SPLIT_ELEM_X_PADDING;
+    this->rect.w = SPLIT_ELEM_X_PADDING * 4;
     prop->visualKey = prop->key;
     
-    for (int i = 0; i < prop->num; i++) {
-        this->rect.w = Max(this->rect.w, Gfx_TextWidth(geo->vg, PropList_Get(prop, i)));
-        this->rect.w += SPLIT_ELEM_X_PADDING * 2;
+    warn("calc cols and rows");
+    for (int i = 0; i < this->numCol; i++) {
+        int width = 0;
+        int height = 0;
+        
+        for (int j = 0; j < this->col[i].numRow; j++) {
+            warn("column %d num row %d", i, this->col[i].numRow);
+            if (this->col[i].row[j].item) {
+                width = Max(width, Gfx_TextWidth(geo->vg, this->col[i].row[j].item));
+                height += SPLIT_TEXT_H;
+            }
+        }
+        
+        this->col[i].width = width;
+        this->rect.w += width + SPLIT_ELEM_X_PADDING;
+        this->rect.h = Max(this->rect.h, height + SPLIT_ELEM_X_PADDING * 2);
+        
+        if (i + 1 < this->numCol)
+            this->rect.w += SPLIT_ELEM_X_PADDING * 2;
     }
     
     info("" PRNT_YELW "%s", __FUNCTION__);
@@ -32,47 +75,61 @@ static void ContextProp_List_Draw(GeoGrid* geo, ContextMenu* this) {
     PropList* prop = this->prop;
     Input* input = geo->input;
     Cursor* cursor = &input->cursor;
-    f32 height = SPLIT_ELEM_X_PADDING;
     void* vg = geo->vg;
     Rect r = this->rect;
+    int x = SPLIT_ELEM_X_PADDING * 2;
     
-    for (int i = 0; i < prop->num; i++) {
-        const char* item = PropList_Get(prop, i);
-        r = this->rect;
-        
-        r.y = this->rect.y + height;
+    for (int i = 0; i < this->numCol; i++) {
+        ContextColumn* col = &this->col[i];
+        r.x = this->rect.x + x;
+        r.y = this->rect.y + SPLIT_ELEM_X_PADDING;
+        r.w = col->width;
         r.h = SPLIT_TEXT_H;
         
-        if (Rect_PointIntersect(&r, cursor->pos.x, cursor->pos.y) && item) {
-            prop->visualKey = i;
-            
-            if (Input_GetMouse(input, CLICK_L)->release)
-                this->state.setCondition = true;
+        for (int j = 0; j < col->numRow; j++) {
+            if (col->row[j].item) {
+                if (Rect_PointIntersect(&r, cursor->pos.x, cursor->pos.y)) {
+                    prop->visualKey = col->row[j].index;
+                    
+                    r.x -= SPLIT_ELEM_X_PADDING;
+                    r.w += SPLIT_ELEM_X_PADDING * 2;
+                    Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_PRIM, 215, 1.0f));
+                    r.x += SPLIT_ELEM_X_PADDING;
+                    r.w -= SPLIT_ELEM_X_PADDING * 2;
+                    
+                    if (Input_GetMouse(input, CLICK_L)->release)
+                        this->state.setCondition = true;
+                }
+                
+                nvgScissor(vg, UnfoldRect(r));
+                nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
+                nvgFontFace(vg, "default");
+                nvgFontSize(vg, SPLIT_TEXT);
+                nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
+                nvgText(
+                    vg,
+                    r.x,
+                    r.y + SPLIT_ELEM_X_PADDING * 0.5f + 1,
+                    col->row[j].item,
+                    NULL
+                );
+                nvgResetScissor(vg);
+                
+                r.y += SPLIT_TEXT_H;
+            } else {
+                Rect rr = { r.x, r.y, r.w, 1 };
+                Gfx_DrawRounderRect(vg, rr, Theme_GetColor(THEME_TEXT, 120, 1.0f));
+            }
         }
         
-        if (i == prop->visualKey) {
-            r.x += 4;
-            r.w -= 8;
-            Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_PRIM, 215, 1.0f));
-        }
+        x += col->width + SPLIT_ELEM_X_PADDING;
         
-        if (item) {
-            nvgScissor(vg, UnfoldRect(r));
-            nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
-            nvgFontFace(vg, "default");
-            nvgFontSize(vg, SPLIT_TEXT);
-            nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
-            nvgText(
-                vg,
-                this->rect.x + SPLIT_ELEM_X_PADDING,
-                this->rect.y + height + SPLIT_ELEM_X_PADDING * 0.5f + 1,
-                item,
-                NULL
-            );
-            nvgResetScissor(vg);
+        if (i + 1 < this->numCol) {
+            x += SPLIT_ELEM_X_PADDING;
+            Rect rr = { this->rect.x + x, this->rect.y, 1, this->rect.h };
+            Gfx_DrawRounderRect(vg, rr, Theme_GetColor(THEME_TEXT, 120, 1.0f));
+            x += SPLIT_ELEM_X_PADDING * 2;
         }
-        
-        height += SPLIT_TEXT_H;
     }
 }
 
@@ -80,19 +137,22 @@ static void ContextProp_List_Draw(GeoGrid* geo, ContextMenu* this) {
 // # PropColor                           #
 // # # # # # # # # # # # # # # # # # # # #
 
+typedef struct {
+    rgba8_t* c;
+    s32      id;
+} ImgMap;
+
+static struct {
+    ImgMap imgLumSat;
+    ImgMap imgHue;
+} sColorContext;
+
 static void ContextProp_Init_Draw(GeoGrid* geo, ContextMenu* this) {
-    this->rect.h = this->rect.w = 256;
-    this->state.blockWidthAdjustment = true;
+    this->rect.h = this->rect.w = Max(this->rect.w, 128 + 64);
+    this->data = new(ElTextbox);
 }
 
 static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
-    typedef struct {
-        rgba8_t* c;
-        s32    id;
-    } ImgMap;
-    
-    thread_local static ImgMap imgLumSat;
-    thread_local static ImgMap imgHue;
     PropColor* prop = this->prop;
     void* vg = geo->vg;
     Rect r = this->rect;
@@ -106,12 +166,16 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     
     Rect rectLumSat = r;
     Rect rectHue;
+    Rect rectButton;
     hsl_t color;
     
-    rectLumSat.h -= SPLIT_ELEM_Y_PADDING + SPLIT_ELEM_X_PADDING;
+    rectLumSat.h -= SPLIT_ELEM_Y_PADDING + SPLIT_ELEM_X_PADDING + SPLIT_ELEM_Y_PADDING + SPLIT_ELEM_X_PADDING;
     rectHue = rectLumSat;
     rectHue.y += rectHue.h + SPLIT_ELEM_X_PADDING;
     rectHue.h = SPLIT_ELEM_Y_PADDING;
+    
+    rectButton = r;
+    rectButton.h = SPLIT_ELEM_Y_PADDING;
     
     if (this->state.init) {
         color = Color_hsl(unfold_rgb(*prop->rgb8));
@@ -147,7 +211,7 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     nested(void, UpdateImg, ()) {
         for (s32 y = 0; y < rectLumSat.h; y++) {
             for (s32 x = 0; x < rectLumSat.w; x++) {
-                imgLumSat.c[(y * rectLumSat.w) + x] = Color_rgba8(
+                sColorContext.imgLumSat.c[(y * rectLumSat.w) + x] = Color_rgba8(
                     color.h,
                     (f32)x / rectLumSat.w,
                     (f32)y / rectLumSat.h
@@ -155,13 +219,13 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
             }
         }
         
-        nvgUpdateImage(vg, imgLumSat.id, (void*)imgLumSat.c);
+        nvgUpdateImage(vg, sColorContext.imgLumSat.id, (void*)sColorContext.imgLumSat.c);
     };
     
-    if (!imgLumSat.c) {
-        imgLumSat.c = qxf(new(rgba8_t[rectLumSat.w * rectLumSat.h]));
+    if (!sColorContext.imgLumSat.c) {
+        sColorContext.imgLumSat.c = new(rgba8_t[rectLumSat.w * rectLumSat.h]);
         UpdateImg();
-        imgLumSat.id = nvgCreateImageRGBA(vg, rectLumSat.w, rectLumSat.h, NVG_IMAGE_NEAREST | NVG_IMAGE_FLIPY, (void*)imgLumSat.c);
+        sColorContext.imgLumSat.id = nvgCreateImageRGBA(vg, rectLumSat.w, rectLumSat.h, NVG_IMAGE_NEAREST | NVG_IMAGE_FLIPY, (void*)sColorContext.imgLumSat.c);
     }
     
     UpdateImg();
@@ -170,12 +234,11 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     pos = Math_Vec2f_Add(pos, Math_Vec2f_New(rectLumSat.x, rectLumSat.y));
     
     nvgBeginPath(vg);
-    nvgFillPaint(vg, nvgImagePattern(vg, UnfoldRect(rectLumSat), 0, imgLumSat.id, 1.0f));
+    nvgFillPaint(vg, nvgImagePattern(vg, UnfoldRect(rectLumSat), 0, sColorContext.imgLumSat.id, 1.0f));
     nvgRoundedRect(vg, UnfoldRect(rectLumSat), SPLIT_ROUND_R * 2);
     nvgFill(vg);
     
     for (int i = 0; i < 2; i++) {
-        
         nvgBeginPath(vg);
         if (!i) nvgFillColor(vg, Theme_GetColor(THEME_SHADOW, 255, 1.0f));
         else nvgFillColor(vg, Theme_GetColor(THEME_HIGHLIGHT, 255, 1.0f));
@@ -183,12 +246,12 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
         nvgFill(vg);
     }
     
-    if (!imgHue.c) {
-        imgHue.c = qxf(new(rgba8_t[rectHue.w * rectHue.h]));
+    if (!sColorContext.imgHue.c) {
+        sColorContext.imgHue.c = qxf(new(rgba8_t[rectHue.w * rectHue.h]));
         
         for (s32 y = 0; y < rectHue.h; y++) {
             for (s32 x = 0; x < rectHue.w; x++) {
-                imgHue.c[(y * rectHue.w) + x] = Color_rgba8(
+                sColorContext.imgHue.c[(y * rectHue.w) + x] = Color_rgba8(
                     (f32)x / rectHue.w,
                     1.0f,
                     0.5f
@@ -196,11 +259,11 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
             }
         }
         
-        imgHue.id = nvgCreateImageRGBA(vg, rectHue.w, rectHue.h, NVG_IMAGE_NEAREST | NVG_IMAGE_FLIPY, (void*)imgHue.c);
+        sColorContext.imgHue.id = nvgCreateImageRGBA(vg, rectHue.w, rectHue.h, NVG_IMAGE_NEAREST | NVG_IMAGE_FLIPY, (void*)sColorContext.imgHue.c);
     }
     
     nvgBeginPath(vg);
-    nvgFillPaint(vg, nvgImagePattern(vg, UnfoldRect(rectHue), 0, imgHue.id, 0.9f));
+    nvgFillPaint(vg, nvgImagePattern(vg, UnfoldRect(rectHue), 0, sColorContext.imgHue.id, 0.9f));
     nvgRoundedRect(vg, UnfoldRect(rectHue), SPLIT_ROUND_R);
     nvgFill(vg);
     
@@ -212,6 +275,10 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
         Gfx_DrawRounderRect(vg, r, nvgHSL(color.h, 0.8f, 0.8f));
         Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_SHADOW, 255, 1.0f));
     }
+    
+    DummySplit_Push(geo, &this->split, geo->workRect);
+    Element_Textbox(this->data);
+    DummySplit_Pop(geo, &this->split);
 }
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -229,13 +296,14 @@ void (*sContextMenuFuncs[][2])(GeoGrid*, ContextMenu*) = {
 void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, Rect rect) {
     ContextMenu* this = &geo->dropMenu;
     
+    _log("context init");
     _assert(uprop != NULL);
     _assert(type < ArrCount(sContextMenuFuncs));
     
     this->element = element;
     this->prop = uprop;
     this->type = type;
-    this->rectOrigin = rect;
+    this->rect = this->rectOrigin = rect;
     this->pos = geo->input->cursor.pressPos;
     
     geo->state.blockElemInput++;
@@ -245,6 +313,7 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, R
     this->state.side = 1;
     this->state.init = true;
     
+    _log("type %d init func", type);
     sContextMenuFuncs[type][FUNC_INIT](geo, this);
     
     this->rect.y = this->rectOrigin.y + this->rectOrigin.h;
@@ -261,6 +330,8 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, R
         this->rect.x -= this->rect.w - this->rectOrigin.w;
         this->state.side = -1;
     }
+    
+    _log("ok", type);
 }
 
 void ContextMenu_Draw(GeoGrid* geo) {
@@ -273,9 +344,9 @@ void ContextMenu_Draw(GeoGrid* geo) {
     
     nvgBeginFrame(geo->vg, geo->wdim->x, geo->wdim->y, gPixelRatio); {
         Rect r = this->rect;
-        Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_ELEMENT_LIGHT, 215, 1.0f));
-        r.y += this->state.up; r.h++;
-        Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_ELEMENT_DARK, 215, 1.0f));
+        Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_ELEMENT_BASE, 255, 1.5f));
+        // r.y += this->state.up; r.h++;
+        Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_ELEMENT_DARK, 255, 1.0f));
         
         sContextMenuFuncs[this->type][FUNC_DRAW](geo, this);
     } nvgEndFrame(geo->vg);
@@ -311,6 +382,20 @@ void ContextMenu_Draw(GeoGrid* geo) {
 
 void ContextMenu_Close(GeoGrid* geo) {
     ContextMenu* this = &geo->dropMenu;
+    
+    warn("free: %s", addr_name(this->col));
+    for (int i = 0; i < this->numCol; i++)
+        vfree(this->col[i].row);
+    vfree(this->col, this->data);
+    
+    if (sColorContext.imgHue.c) {
+        nvgDeleteImage(geo->vg, sColorContext.imgHue.id);
+        vfree(sColorContext.imgHue.c);
+    }
+    if (sColorContext.imgLumSat.c) {
+        nvgDeleteImage(geo->vg, sColorContext.imgLumSat.id);
+        vfree(sColorContext.imgLumSat.c);
+    }
     
     geo->state.blockElemInput--;
     geo->state.blockSplitting--;

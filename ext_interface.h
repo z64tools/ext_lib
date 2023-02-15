@@ -82,7 +82,7 @@ typedef struct {
     SubWindow window;
     GeoGrid   geo;
     
-    char     path[FILE_DIALOG_BUF];
+    char path[FILE_DIALOG_BUF];
     List files;
     List folders;
     
@@ -110,6 +110,7 @@ typedef struct {
     
     struct {
         const char key[64];
+        Split      split;
     } private;
     
     ElTextbox travel;

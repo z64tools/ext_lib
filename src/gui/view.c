@@ -330,7 +330,7 @@ void View_Init(View3D* this, Input* inputCtx) {
     Camera_CalculateFly(cam);
     Matrix_LookAt(&this->viewMtx, cam->eye, cam->at, cam->up);
     
-    this->fovyTarget = this->fovy = 65;
+    this->fovyTarget = this->fovy = 75;
     this->near = 10.0;
     this->far = 12800.0;
     this->scale = 1;
@@ -352,13 +352,6 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
     this->usePreCalcRay = false;
     this->isControlled = false;
     
-    if (this->ortho)
-        Matrix_Ortho(
-            &this->projMtx, cam->dist, (f32)this->split->rect.w / (f32)this->split->rect.h, this->near, this->far);
-    else
-        Matrix_Projection(
-            &this->projMtx, this->fovy, (f32)this->split->rect.w / (f32)this->split->rect.h, this->near, this->far, this->scale);
-    
     for (int i = 0; i < ArrCount(camMode); i++)
         camMode[i](this, inputCtx, (this->mode & (1 << i) && !this->interrupt));
     
@@ -373,6 +366,13 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
     
     Camera_Update_MoveTo(this, inputCtx);
     Camera_Update_RotTo(this, inputCtx);
+    
+    if (this->ortho)
+        Matrix_Ortho(
+            &this->projMtx, cam->dist, (f32)this->split->rect.w / (f32)this->split->rect.h, this->near, this->far);
+    else
+        Matrix_Projection(
+            &this->projMtx, this->fovy, (f64)this->split->rect.w / (f64)this->split->rect.h, this->near, this->far, this->scale);
     
     Matrix_LookAt(&this->viewMtx, cam->eye, cam->at, cam->up);
     
@@ -411,16 +411,26 @@ bool View_CheckControlKeys(Input* input) {
     return false;
 }
 
-RayLine View_GetPointRayLine(View3D* this, Vec2f point) {
-    Rect dispRect = this->split->dispRect;
+RayLine View_GetRayLine(View3D* this, Vec2f point) {
+    Rect rect = this->split->rect;
     Vec3f projA = Math_Vec3f_New(point.x, point.y, 0.0f);
     Vec3f projB = Math_Vec3f_New(point.x, point.y, 1.0f);
     Vec3f rayA, rayB;
     
-    Matrix_Unproject(&this->viewMtx, &this->projMtx, &projA, &rayA, dispRect.w, dispRect.h);
-    Matrix_Unproject(&this->viewMtx, &this->projMtx, &projB, &rayB, dispRect.w, dispRect.h);
+    Matrix_Unproject(&this->viewMtx, &this->projMtx, &projA, &rayA, rect.w, rect.h);
+    Matrix_Unproject(&this->viewMtx, &this->projMtx, &projB, &rayB, rect.w, rect.h);
     
     return RayLine_New(rayA, rayB);
+}
+
+Vec3f View_GetProjectPoint(View3D* this, Vec2f point) {
+    Rect rect = this->split->rect;
+    Vec3f projA = Math_Vec3f_New(point.x, point.y, 0.0f);
+    Vec3f p;
+    
+    Matrix_Unproject(&this->viewMtx, &this->projMtx, &projA, &p, rect.w, rect.h);
+    
+    return p;
 }
 
 RayLine View_GetCursorRayLine(View3D* this) {
@@ -429,7 +439,7 @@ RayLine View_GetCursorRayLine(View3D* this) {
     
     this->usePreCalcRay = true;
     
-    return this->ray = View_GetPointRayLine(this, Math_Vec2f_New(UnfoldVec2(this->split->cursorPos)));
+    return this->ray = View_GetRayLine(this, Math_Vec2f_New(UnfoldVec2(this->split->cursorPos)));
 }
 
 MtxF View_GetOrientedMtxF(View3D* this, f32 x, f32 y, f32 z) {
@@ -523,8 +533,8 @@ Vec3f View_OrientDirToView(View3D* this, Vec3f dir) {
 }
 
 Vec2f View_GetScreenPos(View3D* this, Vec3f point) {
-    f32 w = this->split->dispRect.w * 0.5f;
-    f32 h = this->split->dispRect.h * 0.5f;
+    f32 w = this->split->rect.w * 0.5f;
+    f32 h = this->split->rect.h * 0.5f;
     Vec4f pos;
     
     Matrix_MultVec3fToVec4f_Ext(&point, &pos, &this->projViewMtx);
@@ -538,11 +548,6 @@ Vec2f View_GetScreenPos(View3D* this, Vec3f point) {
 bool View_PointInScreen(View3D* this, Vec3f point) {
     Vec4f pos;
     
-    // Vec2f p2;
-    // Rect r = {
-    //  0, 0, this->split->dispRect.w, this->split->dispRect.h
-    // };
-    
     if (this->ortho)
         return true;
     
@@ -550,11 +555,6 @@ bool View_PointInScreen(View3D* this, Vec3f point) {
     
     if (pos.z <= 0)
         return false;
-    
-    // p2 = View_GetScreenPos(this, point);
-    //
-    // if (!Rect_PointIntersect(&r, p2.x, p2.y))
-    //  return false;
     
     return true;
 }
