@@ -346,6 +346,10 @@ static Hash Sha_ExtractDigest(u32* hash) {
     return Digest;
 }
 
+Hash HashNew(void) {
+    return (Hash) {};
+}
+
 Hash HashMem(const void* data, size_t size) {
     u32 W[64];
     u32 hash[8] = {
@@ -365,6 +369,16 @@ Hash HashMem(const void* data, size_t size) {
     Hash dst = Sha_ExtractDigest(hash);
     
     return dst;
+}
+
+Hash HashFile(const char* file) {
+    Memfile mem = Memfile_New();
+    
+    Memfile_LoadBin(&mem, file);
+    Hash h = HashMem(mem.data, mem.size);
+    Memfile_Free(&mem);
+    
+    return h;
 }
 
 bool HashCmp(Hash* a, Hash* b) {
@@ -2479,6 +2493,36 @@ const char* sys_env(env_index_t env) {
     }
     
     return NULL;
+}
+
+#include <dirent.h>
+
+int sys_emptydir(const char* path) {
+    DIR* dir;
+    struct dirent* entry;
+    int is_empty = true;
+    
+    dir = opendir(path);
+    
+    if (dir == NULL) {
+        perror("opendir");
+        return false;
+    }
+    
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")) {
+            is_empty = false;
+            
+            break;
+        }
+    }
+    
+    if (closedir(dir) == -1) {
+        perror("closedir");
+        is_empty = false;
+    }
+    
+    return is_empty;
 }
 
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #

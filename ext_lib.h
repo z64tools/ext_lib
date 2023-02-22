@@ -81,7 +81,9 @@ void FreeList_Free(void);
 void bswap(void* src, int size);
 void* alloc(int size);
 
+Hash HashNew(void);
 Hash HashMem(const void* data, size_t size);
+Hash HashFile(const char* file);
 bool HashCmp(Hash* a, Hash* b);
 
 /*============================================================================*/
@@ -469,6 +471,7 @@ date_t sys_timedate(time_t time);
 int sys_getcorenum(void);
 size_t sys_statsize(const char* file);
 const char* sys_env(env_index_t env);
+int sys_emptydir(const char* path);
 
 int sys_exe(const char* cmd);
 void sys_exed(const char* cmd);
