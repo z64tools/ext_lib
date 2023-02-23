@@ -6,9 +6,11 @@
 
 typedef struct {
     char     key[20];
-    int      x, y, cnum;
+    int      x, y;
+    int      channels;
     uint8_t* data;
-    u32   size;
+    u32      size;
+    int      compress;
     
     struct {
         bool throwError : 1;
@@ -21,5 +23,7 @@ void Image_Save(Image* this, const char* file);
 void Image_LoadMem(Image* this, const void* data, size_t size);
 void Image_Alloc(Image* this, int x, int y, int channels);
 void Image_Free(Image* this);
+
+void Image_Downscale(Image* this, int newx, int newy);
 
 #endif
