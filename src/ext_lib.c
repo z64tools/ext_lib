@@ -2334,6 +2334,8 @@ const char* sys_appdir(void) {
 }
 
 int sys_mv(const char* input, const char* output) {
+    if (!sys_stat(input))
+        return 0;
     if (sys_stat(output))
         sys_rm(output);
     
