@@ -34,9 +34,9 @@ static const char* Toml_GetPathStr(const char* path, const char* elem, const cha
 static TravelResult Toml_Travel(Toml* this, const char* field, toml_table_t* tbl, char* path) {
     const char* elem = x_strndup(field, strcspn(field, "."));
     const char* next = elem ? &field[strlen(elem)] : NULL;
-    TravelResult t = {};
+    TravelResult travel = {};
     
-    if (!tbl) return t;
+    if (!tbl) return travel;
     
     strcat(path, elem);
     
@@ -44,8 +44,11 @@ static TravelResult Toml_Travel(Toml* this, const char* field, toml_table_t* tbl
         _log("NewTable: %s", elem);
         
         tbl->tab = realloc(tbl->tab, sizeof(void*) * ++tbl->ntab);
+        _assert(tbl->tab != NULL);
         tbl->tab[tbl->ntab - 1] = new(toml_table_t);
+        _assert(tbl->tab[tbl->ntab - 1] != NULL);
         tbl->tab[tbl->ntab - 1]->key = strdup(elem);
+        _assert(tbl->tab[tbl->ntab - 1]->key != NULL);
     };
     
     nested(void, NewTblArray, (toml_table_t * tbl, const char* elem)) {
@@ -108,28 +111,28 @@ static TravelResult Toml_Travel(Toml* this, const char* field, toml_table_t* tbl
             
             strstr(elem, "[")[0] = '\0';
             
-            t = (TravelResult) {
+            travel = (TravelResult) {
                 .arr = toml_array_in(tbl, elem),
                 .idx = idx,
             };
             
-            if (!t.arr) {
+            if (!travel.arr) {
                 if (this->write) {
                     NewArray(tbl, elem);
-                    t.arr = toml_array_in(tbl, elem);
+                    travel.arr = toml_array_in(tbl, elem);
                 }
                 
-                if (!t.arr)
+                if (!travel.arr)
                     return Error("Variable Array");
             }
             
             if (sidx >= 0) {
-                toml_array_t* arr = toml_array_at(t.arr, sidx);
+                toml_array_t* arr = toml_array_at(travel.arr, sidx);
                 
                 _log("%d", arr ? arr->nitem : -1);
                 if (!arr) {
                     if (this->write) {
-                        toml_array_t* varr = t.arr;
+                        toml_array_t* varr = travel.arr;
                         u32 num = varr->nitem;
                         
                         varr->item = realloc(varr->item, sizeof(toml_arritem_t) * (sidx + 1));
@@ -142,30 +145,30 @@ static TravelResult Toml_Travel(Toml* this, const char* field, toml_table_t* tbl
                         }
                         varr->nitem = sidx + 1;
                         
-                        arr = toml_array_at(t.arr, sidx);
+                        arr = toml_array_at(travel.arr, sidx);
                     }
                     
                     if (!arr)
                         return Error("Sub Array");
                 }
                 
-                t.arr = arr;
+                travel.arr = arr;
                 
-                return t;
+                return travel;
             }
             
-            return t;
+            return travel;
         }
         
-        t =  (TravelResult) {
+        travel =  (TravelResult) {
             .tbl = tbl,
             .item = elem,
         };
         
-        if (!t.tbl)
+        if (!travel.tbl)
             return Error("Variable");
         
-        return t;
+        return travel;
     } else next++;
     
     strcat(path, ".");
@@ -255,7 +258,7 @@ static void Toml_SetVarImpl(Toml* this, const char* item, const char* value) {
     if (t.tbl) {
         toml_table_t* tbl = t.tbl;
         
-        _log("SetValue(Tbl): %s = %s", item, value);
+        _log("SetValue(Tbl) (%08X): %s = %s", t.tbl, item, value);
         
         if (!toml_key_exists(t.tbl, t.item)) {
             tbl->kval = realloc(tbl->kval, sizeof(void*) * ++tbl->nkval);
@@ -310,7 +313,7 @@ static void Toml_SetVarImpl(Toml* this, const char* item, const char* value) {
 }
 
 void Toml_SetVar(Toml* this, const char* item, const char* fmt, ...) {
-    char buffer[512];
+    char buffer[BUFFER_SIZE];
     va_list va;
     
     va_start(va, fmt);

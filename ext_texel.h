@@ -21,6 +21,7 @@ Image Image_New(void);
 void Image_Load(Image* this, const char* file);
 void Image_Save(Image* this, const char* file);
 void Image_LoadMem(Image* this, const void* data, size_t size);
+void Image_FromRaw(Image* this, const void* data, int x, int y, int channels);
 void Image_Alloc(Image* this, int x, int y, int channels);
 void Image_Free(Image* this);
 

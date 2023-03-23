@@ -126,6 +126,7 @@ static void IO_printImpl(int color_id, int is_progress, int is_error, FILE* stre
     
     const size_t bufsize = 2048;
     char buffer[bufsize];
+    int bufpos = 0;
     
     xl_vsnprintf(buffer, bufsize, fmt, va);
     
@@ -133,14 +134,30 @@ static void IO_printImpl(int color_id, int is_progress, int is_error, FILE* stre
     if (is_progress)
         xl_fprintf(stream, "\r");
     
-    forline(line, buffer) {
-        char fmt[64] = { "%." };
+    _log("msg: %s", buffer);
+    while (buffer[bufpos]) {
+        _log("len: %d", linelen(&buffer[bufpos]));
+        char* line = strndup(&buffer[bufpos], linelen(&buffer[bufpos]));
+        
+        if (!line) {
+            if (buffer[bufpos] == '\n') {
+                xl_fprintf(stream, "\n");
+                bufpos++;
+                continue;
+            } else
+                break;
+        }
+        
+        char fmt[128] = { "%." };
         int llen = linelen(line);
         int dlen = digint(llen);
         
         for (int i = dlen; i > 0; i--)
             strcat(fmt, num_map[valdig(llen, i)]);
         strcat(fmt, "s");
+        
+        _log("fmt: %s", fmt);
+        _log("line: %s", line);
         
         xl_fprintf(stream, "%s", color[color_id]);
         if (msg) xl_fprintf(stream, "%-16s " PRNT_RSET, msg);
@@ -149,6 +166,11 @@ static void IO_printImpl(int color_id, int is_progress, int is_error, FILE* stre
             xl_fprintf(stream, "\n");
         
         color_id = 0;
+        
+        if (buffer[(bufpos += strlen(line))] != '\0')
+            bufpos++;
+        
+        _log("ok!");
     }
     
     fflush(stream);

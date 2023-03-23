@@ -67,12 +67,8 @@ Proc* Proc_New(char* fmt, ...) {
     va_end(va);
     
     tok = buffer;
-    
     _assert(this != NULL);
     _assert(tok != NULL);
-    _assert((this->proc = reproc_new()) != NULL);
-    
-    this->localStatus = PROC_NEW;
     
     while (tok) {
         args[this->numArg++] = argtok_cpy(tok);
@@ -83,6 +79,9 @@ Proc* Proc_New(char* fmt, ...) {
     
     for (int i = 0; i < this->numArg; i++)
         this->arg[i] = args[i];
+    
+    _assert((this->proc = reproc_new()) != NULL);
+    this->localStatus = PROC_NEW;
     
     return this;
 }
@@ -155,35 +154,7 @@ static s32 Proc_SysThd(Proc* this) {
     return sys;
 }
 
-static void Proc_Err(Proc* this) {
-    char* msg = "Unknown";
-    
-    _log("ProcError");
-    
-    thd_lock();
-    
-    sys_sleep(0.5);
-    
-    switch (this->localStatus) {
-        case PROC_NEW:
-            msg = "New";
-            break;
-        case PROC_EXEC:
-            msg = "Exec";
-            break;
-        case PROC_KILL:
-            msg = "Kill";
-            break;
-        case PROC_JOIN:
-            msg = "Join";
-            break;
-        case PROC_FREE:
-            msg = "free";
-            break;
-    }
-    
-    warn("Proc Error: %s", msg);
-    
+void Proc_Info(Proc* this) {
     for (int i = 0; i < this->numArg; i++)
         fprintf(stderr, "" PRNT_GRAY "%-6d" PRNT_RSET "%s\n", i, this->arg[i]);
     
@@ -199,10 +170,41 @@ static void Proc_Err(Proc* this) {
     warn("Proc State:");
     fprint_proc_enum(PROC_MUTE_STDOUT);
     fprint_proc_enum(PROC_MUTE_STDERR);
-    fprint_proc_enum(PROC_MUTE_STDIN);
-    fprint_proc_enum(PROC_WRITE_STDIN);
+    fprint_proc_enum(PROC_OPEN_STDIN);
     fprint_proc_enum(PROC_THROW_ERROR);
     fprint_proc_enum(PROC_SYSTEM_EXE);
+}
+
+static void Proc_Err(Proc* this, const char* msg) {
+    _log("ProcError");
+    
+    thd_lock();
+    
+    sys_sleep(0.5);
+    
+    if (!msg) {
+        switch (this->localStatus) {
+            case PROC_NEW:
+                msg = "New";
+                break;
+            case PROC_EXEC:
+                msg = "Exec";
+                break;
+            case PROC_KILL:
+                msg = "Kill";
+                break;
+            case PROC_JOIN:
+                msg = "Join";
+                break;
+            case PROC_FREE:
+                msg = "free";
+                break;
+        }
+    }
+    
+    warn("Proc Error: %s", msg);
+    
+    Proc_Info(this);
     
     warn("Proc Signal: %d\n\n", this->signal);
     if (this->msg)
@@ -219,7 +221,7 @@ int Proc_Exec(Proc* this) {
     reproc_options opt = {
         .redirect.out.type = this->state & PROC_MUTE_STDOUT ? REPROC_REDIRECT_PIPE : REPROC_REDIRECT_PARENT,
         .redirect.err.type = this->state & PROC_MUTE_STDERR ? REPROC_REDIRECT_PIPE : REPROC_REDIRECT_PARENT,
-        .redirect.in.type  = this->state & PROC_MUTE_STDIN ? REPROC_REDIRECT_PIPE : REPROC_REDIRECT_PARENT,
+        .redirect.in.type  = this->state & PROC_OPEN_STDIN ? REPROC_REDIRECT_PIPE : REPROC_REDIRECT_PARENT,
         .working_directory = this->path,
         .env.extra         = this->env,
         .env.behavior      = this->env ? REPROC_ENV_EMPTY : 0,
@@ -236,9 +238,32 @@ int Proc_Exec(Proc* this) {
     exec = reproc_start(this->proc, this->arg, opt) < 0;
     
     if (exec && this->state & PROC_THROW_ERROR)
-        Proc_Err(this);
+        Proc_Err(this, NULL);
     
     return exec;
+}
+
+char* Proc_ReadLine(Proc* this, e_ProcRead target) {
+    REPROC_STREAM s = -1;
+    
+    if (target == READ_STDOUT && this->state & PROC_MUTE_STDOUT)
+        s = REPROC_STREAM_OUT;
+    else if (target == READ_STDERR && this->state & PROC_MUTE_STDERR)
+        s = REPROC_STREAM_ERR;
+    else if (this->state & PROC_THROW_ERROR) {
+        warn("Could not read [%s] because it hasn't been muted!", target == READ_STDOUT ? "stdout" : "stderr");
+        Proc_Err(this, NULL);
+    } else
+        return NULL;
+    
+    u8* line = x_alloc(512 + 1);
+    
+    line[0] = ' ';
+    
+    if (reproc_read(this->proc, s, line, 512) >= 0)
+        return (char*)line;
+    
+    return NULL;
 }
 
 char* Proc_Read(Proc* this, e_ProcRead target) {
@@ -251,7 +276,7 @@ char* Proc_Read(Proc* this, e_ProcRead target) {
         s = REPROC_STREAM_ERR;
     else if (this->state & PROC_THROW_ERROR) {
         warn("Could not read [%s] because it hasn't been muted!", target == READ_STDOUT ? "stdout" : "stderr");
-        Proc_Err(this);
+        Proc_Err(this, NULL);
     } else
         return NULL;
     
@@ -268,7 +293,7 @@ char* Proc_Read(Proc* this, e_ProcRead target) {
         
         if (!Memfile_Write(&mem, buffer, readSize)) {
             warn("Failed to write buffer!");
-            Proc_Err(this);
+            Proc_Err(this, NULL);
         }
     }
     
@@ -278,6 +303,27 @@ char* Proc_Read(Proc* this, e_ProcRead target) {
     this->msg = mem.data;
     
     return mem.data;
+}
+
+int Proc_Write(Proc* this, const char* fmt, ...) {
+    va_list va;
+    char* w;
+    int r;
+    int l;
+    
+    va_start(va, fmt);
+    w = x_vfmt(fmt, va);
+    l = strlen(w);
+    r = reproc_write(this->proc, (u8*)w, l);
+    
+    if (this->state & PROC_THROW_ERROR) {
+        if (r == REPROC_EPIPE)
+            Proc_Err(this, "Pipe Error");
+        else if (r == REPROC_EWOULDBLOCK)
+            Proc_Err(this, "Pipe Block");
+    }
+    
+    return r - l;
 }
 
 static int Proc_Free(Proc* this) {
@@ -292,7 +338,7 @@ static int Proc_Free(Proc* this) {
     }
     
     if (signal && this->state & PROC_THROW_ERROR)
-        Proc_Err(this);
+        Proc_Err(this, NULL);
     
     this->localStatus = PROC_FREE;
     _log("free");

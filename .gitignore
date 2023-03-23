@@ -6,3 +6,4 @@ prvFileList
 !obj.sh
 tools/objectc
 tools/dfc
+._*

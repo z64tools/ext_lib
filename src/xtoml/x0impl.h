@@ -356,8 +356,8 @@ struct context_t {
     
     struct {
         int     top;
-        char*   key[10];
-        token_t tok[10];
+        char*   key[127];
+        token_t tok[127];
     } tpath;
 };
 
@@ -1210,9 +1210,9 @@ static int fill_tabpath(context_t* ctx) {
     ctx->tpath.top = 0;
     
     for (;;) {
-        if (ctx->tpath.top >= 10)
+        if (ctx->tpath.top >= 127)
             return e_syntax(ctx, lineno,
-                       "table path is too deep; max allowed is 10.");
+                       "table path is too deep; max allowed is 127.");
         
         if (ctx->tok.tok != STRING)
             return e_syntax(ctx, lineno, "invalid or missing key");

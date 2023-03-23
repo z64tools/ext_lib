@@ -3,10 +3,8 @@
 typedef enum {
     PROC_MUTE_STDOUT = 1 << 0,
     PROC_MUTE_STDERR = 1 << 1,
-    PROC_MUTE_STDIN  = 1 << 3,
-    PROC_MUTE        = PROC_MUTE_STDOUT | PROC_MUTE_STDERR | PROC_MUTE_STDIN,
-    
-    PROC_WRITE_STDIN = 1 << 6,
+    PROC_OPEN_STDIN  = 1 << 3,
+    PROC_MUTE        = PROC_MUTE_STDOUT | PROC_MUTE_STDERR,
     
     PROC_THROW_ERROR = 1 << 30,
     PROC_SYSTEM_EXE  = 1 << 31,
@@ -35,8 +33,11 @@ void Proc_AddArg(Proc* this, char* fmt, ...);
 void Proc_SetState(Proc* this, e_ProcState state);
 int Proc_SetPath(Proc* this, const char* path);
 void Proc_SetEnv(Proc* this, const char* env);
+void Proc_Info(Proc* this);
 int Proc_Exec(Proc* this);
+char* Proc_ReadLine(Proc* this, e_ProcRead target);
 char* Proc_Read(Proc* this, e_ProcRead);
+int Proc_Write(Proc* this, const char* fmt, ...);
 int Proc_Kill(Proc* this);
 int Proc_Join(Proc* this);
 

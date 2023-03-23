@@ -66,6 +66,13 @@ void Image_LoadMem(Image* this, const void* data, size_t size) {
     if (!this->data && this->throwError) errr("Failed to load texel from memory");
 }
 
+void Image_FromRaw(Image* this, const void* data, int x, int y, int channels) {
+    this->data = (void*)data;
+    this->x = x;
+    this->y = y;
+    this->channels = channels;
+}
+
 void Image_Alloc(Image* this, int x, int y, int channels) {
     this->data = realloc(this->data, x * y * channels * 2);
     this->size = x * y * channels;

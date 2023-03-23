@@ -504,7 +504,7 @@ static char* __impl_strdup(void* (*falloc)(size_t), const char* s) {
 }
 
 static char* __impl_strndup(void* (*falloc)(size_t), const char* s, size_t n) {
-    if (!n || !s) return NULL;
+    if (!n || !s || n < 0) return NULL;
     size_t csz = strnlen(s, n);
     char* new = falloc(n + 1);
     char* res = memcpy (new, s, csz);
@@ -744,6 +744,11 @@ char* x_strndup(const char* s, size_t n) {
 }
 void* x_memdup(const void* d, size_t n) {
     return __impl_memdup(x_alloc, d, n);
+}
+char* x_vfmt(const char* fmt, va_list va) {
+    char* r = __impl_fmt(x_alloc, fmt, va);
+    
+    return r;
 }
 char* x_fmt(const char* fmt, ...) {
     va_list va; va_start(va, fmt);
@@ -1283,6 +1288,38 @@ char* stristr(const char* haystack, const char* needle) {
     return NULL;
 }
 
+char* memistr(const char* haystack, size_t haystacklen, const char* needle) {
+    char* bf = (char*) haystack, * pt = (char*) needle, * p = bf;
+    
+    if (!haystack || !needle)
+        return NULL;
+    
+    u32 needlelen = strlen(needle);
+    
+    while (needlelen <= (haystacklen - (p - bf))) {
+        char* a, * b;
+        
+        a = memchr(p, tolower((int)(*pt)), haystacklen - (p - bf));
+        b = memchr(p, toupper((int)(*pt)), haystacklen - (p - bf));
+        
+        if (a == NULL)
+            p = b;
+        else if (b == NULL)
+            p = a;
+        else
+            p = Min(a, b);
+        
+        if (p) {
+            if (0 == strnicmp(p, needle, needlelen))
+                return p;
+            ++p;
+        } else
+            break;
+    }
+    
+    return NULL;
+}
+
 char* strwstr(const char* hay, const char* nee) {
     char* p = strstr(hay, nee);
     
@@ -1343,7 +1380,7 @@ char* stristart(const char* src, const char* ext) {
     return NULL;
 }
 
-int strarg(const char* args[], const char* arg) {
+int strarg(const char** args, const char* arg) {
     
     for (int i = 1; args[i] != NULL; i++) {
         const char* this = args[i];

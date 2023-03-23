@@ -585,7 +585,6 @@ flags_done:
                     s = "false";
                 
                 l = stbsp__strlen_limited(s, (pr >= 0) ? pr : ~0u);
-                printf("%d\n", l);
                 lead[0] = 0;
                 tail[0] = 0;
                 pr = 0;
