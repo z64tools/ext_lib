@@ -63,15 +63,6 @@ DataFileCompiler := $(PATH_EXTLIB)/tools/dfc.py
 ExtPkg           := $(PATH_EXTLIB)/tools/pkg.py
 XFLAGS            = $(shell $(ExtPkg) $^)
 
-# Make build directories
-$(shell mkdir -p bin/ $(foreach dir, \
-	$(dir $(ReProc_Linux_O)) \
-	$(dir $(ReProc_Win32_O)) \
-	$(dir $(All_Linux_O)) \
-	$(dir $(All_Win32_O)) \
-	\
-	, $(dir)))
-
 CFLAGS += -Wno-missing-braces -Wno-unused-local-typedefs
 
 bin/win32/src/xxm/%.o: CFLAGS += -I$(PATH_EXTLIB)/src/xxm
@@ -88,9 +79,11 @@ bin/win32/reproc/reproc/src/%.o: CFLAGS = -Ofast -Wno-cpp -I $(PATH_EXTLIB)/repr
 bin/linux/reproc/reproc/src/%.o: CFLAGS = -Ofast -Wno-cpp -I $(PATH_EXTLIB)/reproc/reproc/include -I$(PATH_EXTLIB)/reproc/reproc/src
 
 bin/linux/libreproc.a: $(ReProc_Linux_O)
+	@mkdir -p $(dir $@)
 	@echo "$(PRNT_RSET)[$(PRNT_PRPL)$(notdir $@)$(PRNT_RSET)]"
 	@ar rcs $@ $^
 bin/win32/libreproc.a: $(ReProc_Win32_O)
+	@mkdir -p $(dir $@)
 	@echo "$(PRNT_RSET)[$(PRNT_PRPL)$(notdir $@)$(PRNT_RSET)]"
 	@i686-w64-mingw32.static-ar rcs $@ $^
 
@@ -123,43 +116,53 @@ define GD++_LINUX
 endef
 
 bin/win32/src/fonts/%.o: $(PATH_EXTLIB)/src/fonts/%
+	@mkdir -p $(dir $@)
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
 	@$(DataFileCompiler) --cc $(CC_W32) --i $< --o $@
 	
 bin/linux/src/fonts/%.o: $(PATH_EXTLIB)/src/fonts/%
+	@mkdir -p $(dir $@)
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
 	@$(DataFileCompiler) --cc gcc --i $< --o $@
 
 bin/win32/%.o: $(PATH_EXTLIB)/%.c
+	@mkdir -p $(dir $@)
 	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
 	@$(CC_W32) -c -o $@ $< $(CFLAGS) -D_WIN32
 	$(GD_WIN32)
 	
 bin/linux/%.o: $(PATH_EXTLIB)/%.c
+	@mkdir -p $(dir $@)
 	@echo "$(PRNT_RSET)[$(PRNT_BLUE)$(notdir $@)$(PRNT_RSET)]"
 	@gcc -c -o $@ $< $(CFLAGS)
 	$(GD_LINUX)
 		
 bin/linux/%.o: %.c
+	@mkdir -p $(dir $@)
 	@echo "$(PRNT_RSET)[$(PRNT_PRPL)$(notdir $@)$(PRNT_RSET)]"
 	@gcc -c -o $@ $< $(CFLAGS)
 	$(GD_LINUX)
 		
 bin/win32/%.o: %.c
+	@mkdir -p $(dir $@)
 	@echo "$(PRNT_RSET)[$(PRNT_PRPL)$(notdir $@)$(PRNT_RSET)]"
 	@$(CC_W32) -c -o $@ $< $(CFLAGS) -D_WIN32
 	$(GD_WIN32)
 	
 bin/win32/src/data/%.o: src/data/%
+	@mkdir -p $(dir $@)
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
 	@$(DataFileCompiler) --cc $(CC_W32) --i $< --o $@
 	
 bin/linux/src/data/%.o: src/data/%
+	@mkdir -p $(dir $@)
 	@echo "$(PRNT_RSET)[$(PRNT_GREN)g$(ASSET_FILENAME)$(PRNT_RSET)]"
 	@$(DataFileCompiler) --cc gcc --i $< --o $@
 
 bin/win32/icon.o: src/icon.rc src/icon.ico
+	@mkdir -p $(dir $@)
 	@i686-w64-mingw32.static-windres -o $@ $<
 
 bin/win32/info.o: src/info.rc
+	@mkdir -p $(dir $@)
 	@i686-w64-mingw32.static-windres -o $@ $<

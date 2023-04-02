@@ -508,14 +508,17 @@ int qsort_u32(const void* arg_a, const void* arg_b);
 
 Arli Arli_New(size_t element_size);
 #define Arli_New(element) Arli_New(sizeof(element));
+void Arli_Clear(Arli* this);
 void* Arli_At(Arli* this, size_t position);
 int Arli_Alloc(Arli* this, size_t num);
 void* Arli_Insert(Arli* this, size_t position, size_t num, const void* data);
 void* Arli_Append(Arli* this, size_t num, const void* data);
+void* Arli_Add(Arli* this, const void* data);
+void Arli_AddToBuf(Arli* this, const void* data);
 int Arli_Remove(Arli* this, size_t position, size_t num);
 int Arli_Shrink(Arli* this);
-void Arli_Clear(Arli* this);
-void Arli_Destroy(Arli* this);
+void Arli_Free(Arli* this);
+void* Arli_Head(Arli* this);
 
 #ifndef EXT_BAREBONES
 
@@ -564,10 +567,10 @@ static inline int thd_join(thread_t* thread) {
 }
 
 #define mutex_scope(mutex_var, ...) do { \
-    mutex_lock(&mutex_var); \
-    { __VA_ARGS__ } \
-    mutex_unlock(&mutex_var); \
-} while(0)
+        mutex_lock(&mutex_var);          \
+        { __VA_ARGS__ }                  \
+        mutex_unlock(&mutex_var);        \
+} while (0)
 
 #pragma GCC diagnostic pop
 

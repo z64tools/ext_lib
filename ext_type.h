@@ -286,12 +286,14 @@ typedef struct Toml {
 
 typedef struct Arli {
     size_t element_size;
-    size_t size;
+    size_t num;
     size_t capacity;
-    u8*  begin;
-    u8*  end;
-    u8*  rbegin;
-    u8*  rend;
+    u8*    begin;
+    u8*    end;
+    u8*    rbegin;
+    u8*    rend;
+    
+    u8* copybuf;
 } Arli;
 
 #endif

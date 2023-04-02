@@ -221,7 +221,7 @@ typedef struct ContextMenu {
     ContextColumn* col;
     int numCol;
     
-    Split     split;
+    Split split;
 } ContextMenu;
 
 typedef struct GeoGrid {
@@ -289,8 +289,8 @@ typedef struct PropList {
     bool   copy;
     
     PropOnChange onChange;
-    void* udata1;
-    void* udata2;
+    void*  udata1;
+    void*  udata2;
 } PropList;
 
 typedef struct PropColor {

@@ -77,9 +77,7 @@ void PropList_Add(PropList* this, const char* item) {
         return;
     
     this->list = realloc(this->list, sizeof(char*) * (this->num + 2));
-    
-    void* new = item ? strdup(item) : NULL;
-    this->list[this->num++] = new;
+    this->list[this->num++] = item ? strdup(item) : NULL;
     this->list[this->num] = NULL;
 }
 
