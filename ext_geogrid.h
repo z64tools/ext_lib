@@ -427,6 +427,7 @@ typedef struct {
     struct {
         bool pressed   : 1;
         bool text      : 1;
+        bool beingSet  : 1;
         bool drag      : 1;
         bool showDecID : 1;
         bool showHexID : 1;

@@ -19,6 +19,18 @@
 #define PRNT_RNL  PRNT_RSET PRNT_NL
 #define PRNT_TODO "\e[91;2m" "TODO"
 
+#define FpsLock(fps) ({                        \
+        static f64 ptime;                      \
+        f64 ctime = sys_ftime();               \
+        int r = true;                          \
+        if ((ctime - ptime) < (1.0 / (fps))) { \
+            r = false;                         \
+        } else {                               \
+            ptime = ctime;                     \
+        }                                      \
+        r;                                     \
+    })
+
 #define catprintf(dest, ...) sprintf(dest + strlen(dest), __VA_ARGS__)
 
 #define Node_Add(head, node) do {               \

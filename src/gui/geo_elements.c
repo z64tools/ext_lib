@@ -239,6 +239,7 @@ f32 Gfx_TextWidth(void* vg, const char* txt) {
     f32 bounds[4];
     
     Gfx_SetDefaultTextParams(vg);
+    nvgTextAlign(vg, NVG_ALIGN_MIDDLE | NVG_ALIGN_LEFT);
     nvgTextBounds(vg, 0, 0, txt, 0, bounds);
     
     return bounds[2];
@@ -484,8 +485,12 @@ static void Textbox_Clear(GeoGrid* geo) {
     sElemState->textbox = NULL;
     
     if (this->doBlock) {
+        if (Input_ClearState(geo->input, INPUT_BLOCK)) {
+            warn("Duplicate Clear on INPUT_BLOCK, press enter");
+            cli_getc();
+        }
+        
         sElemState->blockerTextbox--;
-        geo->input->state.block--;
         this->doBlock = false;
         this->ret = true;
     }
@@ -553,8 +558,12 @@ void Element_UpdateTextbox(GeoGrid* geo) {
         }
         
         if (!this->doBlock) {
+            if (Input_SetState(geo->input, INPUT_BLOCK)) {
+                warn("Duplicate Set on INPUT_BLOCK, press enter");
+                cli_getc();
+            }
+            
             sElemState->blockerTextbox++;
-            geo->input->state.block++;
             this->doBlock = true;
             return;
         } else if (Textbox_GetKey(geo, KEY_ENTER)->press
@@ -1398,7 +1407,12 @@ s32 Element_Container(ElContainer* this) {
             this->detachID = this->heldKey - 1;
             this->detachMul = 1.0f;
             
-            Arli_RemoveToBuf(list, this->heldKey - 1);
+            if (Input_GetKey(input, KEY_LEFT_SHIFT)->hold) {
+                Arli_CopyToBuf(list, this->heldKey - 1);
+                this->detach.key = list->num;
+            } else
+                Arli_RemoveToBuf(list, this->heldKey - 1);
+            
             this->heldKey = 0;
         }
         
@@ -1513,17 +1527,19 @@ s32 Element_Container(ElContainer* this) {
         Arli* list = this->list;
         
         this->textBox.element.rect = Element_Container_GetListElemRect(this, list->cur);
-        strncpy(Arli_At(list, list->cur), this->textBox.txt, list->elemSize);
         Element_Textbox(&this->textBox);
+        this->beingSet = true;
         
-        return list->cur;
+        return -2;
     }
     
-    if (this->list)
+    if (this->beingSet) {
+        this->beingSet = false;
+        
         return this->list->cur;
+    }
     
-    else
-        return 0;
+    return -1;
 }
 
 /*============================================================================*/
@@ -1635,8 +1651,16 @@ void Element_DisplayName(Element* this, f32 lerp) {
     this->posTxt.x = this->rect.x;
     this->posTxt.y = this->rect.y + SPLIT_TEXT_PADDING - 1;
     
-    this->rect.x += w + SPLIT_ELEM_X_PADDING * lerp;
-    this->rect.w -= w + SPLIT_ELEM_X_PADDING * lerp;
+    if (lerp >= 0.0f && lerp < 1.0f) {
+        this->rect.x += w + SPLIT_ELEM_X_PADDING * lerp;
+        this->rect.w -= w + SPLIT_ELEM_X_PADDING * lerp;
+    } else {
+        void* vg = sElemState->geo->vg;
+        f32 w = Gfx_TextWidth(vg, this->name);
+        
+        this->rect.x += w + SPLIT_ELEM_X_PADDING;
+        this->rect.w -= w + SPLIT_ELEM_X_PADDING;
+    }
     
     this->dispText = true;
     
@@ -1875,6 +1899,13 @@ static bool Element_DisableDraw(Element* element, Split* split) {
     return false;
 }
 
+static void Element_DrawInstance(ElementQueCall* elem, Element* this) {
+    elem->func(elem);
+    
+    if (this)
+        this->dispText = false;
+}
+
 void Element_Draw(GeoGrid* geo, Split* split, bool header) {
     ElementQueCall* elem = sElemState->head;
     Element* this;
@@ -1890,7 +1921,7 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
                 Element_UpdateElement(elem);
             
             if (header || !Element_DisableDraw(elem->arg, elem->split))
-                elem->func(elem);
+                Element_DrawInstance(elem, this);
             
             if (this->doFree)
                 vfree(this);

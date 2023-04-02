@@ -174,18 +174,21 @@ typedef struct {
     f64   scrollY;
     Vec2s pos;
     Vec2s pressPos;
+    f32   dragDist;
     Vec2s vel;
 } Cursor;
+
+typedef enum {
+    INPUT_BLOCK = 1 << 0,
+} InputState;
 
 typedef struct {
     struct AppInfo* app;
     Cursor     cursor;
-    InputType       key[KEY_MAX];
-    bool keyAction;
-    struct {
-        s32 block;
-    } state;
-    char buffer[512];
+    InputType  key[KEY_MAX];
+    bool       keyAction;
+    InputState state;
+    char       buffer[512];
 } Input;
 
 #define MOUSE_KEEP_AXIS 0xD0D0CAFE
@@ -201,6 +204,10 @@ f32 Input_GetScroll(Input* this);
 s32 Input_GetShortcut(Input* input, KeyMap mod, KeyMap key);
 void Input_SetMousePos(Input* input, s32 x, s32 y);
 f32 Input_GetPressPosDist(Input* input);
+int Input_SelectClick(Input* this, CursorClick type);
+
+int Input_SetState(Input* this, InputState state);
+int Input_ClearState(Input* this, InputState state);
 
 void InputCallback_Key(GLFWwindow* window, s32 key, s32 scancode, s32 action, s32 mods);
 void InputCallback_Text(GLFWwindow* window, u32 scancode);

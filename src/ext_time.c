@@ -27,6 +27,14 @@ f32 time_get(u8 slot) {
     return (sTimeStop.tv_sec - sTimeStart[slot].tv_sec) + (f32)(sTimeStop.tv_usec - sTimeStart[slot].tv_usec) / 1000000;
 }
 
+f64 sys_ftime() {
+    struct timeval sTime;
+    
+    gettimeofday(&sTime, NULL);
+    
+    return sTime.tv_sec + ((f64)sTime.tv_usec) / 1000000.0;
+}
+
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 void profi_start(u8 s) {

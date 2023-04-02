@@ -56,9 +56,14 @@ void Input_Update(Input* this) {
     if (cursor->clickAny.press) {
         cursor->pressPos.x = cursor->pos.x;
         cursor->pressPos.y = cursor->pos.y;
+        cursor->dragDist = 0;
     }
     
-    cursor->cursorAction = (cursor->clickAny.press || cursor->clickAny.hold || cursor->scrollY) && !this->state.block;
+    if (cursor->clickAny.hold)
+        cursor->dragDist += Math_Vec2s_DistXZ((Vec2s) {}, cursor->vel);
+    
+    cursor->cursorAction =
+        (cursor->clickAny.press || cursor->clickAny.hold || cursor->scrollY) && !(this->state & INPUT_BLOCK);
     
     for (int i = 0; i < CLICK_ANY; i++) {
         InputType* click = &this->cursor.clickList[i];
@@ -107,7 +112,7 @@ void Input_SetClipboardStr(Input* this, const char* str) {
 InputType* Input_GetKey(Input* this, KeyMap key) {
     static InputType zero;
     
-    if (this->state.block)
+    if (this->state & INPUT_BLOCK)
         return &zero;
     
     return &this->key[key];
@@ -116,14 +121,14 @@ InputType* Input_GetKey(Input* this, KeyMap key) {
 InputType* Input_GetMouse(Input* this, CursorClick type) {
     static InputType zero;
     
-    if (this->state.block)
+    if (this->state & INPUT_BLOCK)
         return &zero;
     
     return &this->cursor.clickList[type];
 }
 
 f32 Input_GetScroll(Input* this) {
-    if (this->state.block)
+    if (this->state & INPUT_BLOCK)
         return 0;
     
     return this->cursor.scrollY;
@@ -152,6 +157,31 @@ void Input_SetMousePos(Input* this, s32 x, s32 y) {
 
 f32 Input_GetPressPosDist(Input* this) {
     return Math_Vec2s_DistXZ(this->cursor.pos, this->cursor.pressPos);
+}
+
+int Input_SetState(Input* this, InputState state) {
+    int s = (this->state & state);
+    
+    this->state |= state;
+    
+    return s ? EXIT_FAILURE : 0;
+}
+
+int Input_ClearState(Input* this, InputState state) {
+    int s = (this->state & state);
+    
+    this->state &= ~state;
+    
+    return !s ? EXIT_FAILURE : 0;
+}
+
+int Input_SelectClick(Input* this, CursorClick type) {
+    if (!Input_GetMouse(this, type)->release)
+        return false;
+    if (this->cursor.dragDist > 3)
+        return false;
+    
+    return true;
 }
 
 // # # # # # # # # # # # # # # # # # # # #

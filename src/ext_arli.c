@@ -107,12 +107,16 @@ void* Arli_Add(Arli* this, const void* data) {
     return Arli_Insert(this, this->num, 1, data);
 }
 
-void Arli_CopyToBuf(Arli* this, const void* data) {
+void Arli_ToBuf(Arli* this, const void* data) {
     memcpy(this->copybuf, data, this->elemSize);
 }
 
+void Arli_CopyToBuf(Arli* this, size_t position) {
+    Arli_ToBuf(this, Arli_At(this, position));
+}
+
 void Arli_RemoveToBuf(Arli* this, size_t position) {
-    Arli_CopyToBuf(this, Arli_At(this, position));
+    Arli_ToBuf(this, Arli_At(this, position));
     Arli_Remove(this, position, 1);
 }
 
