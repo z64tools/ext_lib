@@ -1,141 +1,7 @@
 #include <ext_geogrid.h>
 #include <ext_theme.h>
 
-// # # # # # # # # # # # # # # # # # # # #
-// # PropList                            #
-// # # # # # # # # # # # # # # # # # # # #
-
-static void ContextProp_List_Init(GeoGrid* geo, ContextMenu* this) {
-    PropList* prop = this->prop;
-    int nullCombo = 0;
-    
-    nvgFontFace(geo->vg, "default");
-    nvgFontSize(geo->vg, SPLIT_TEXT);
-    nvgTextAlign(geo->vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
-    
-    this->col = new(ContextColumn);
-    this->numCol = 1;
-    
-    warn("new column");
-    for (int i = 0; i < prop->num; i++) {
-        ContextColumn* col = &this->col[this->numCol - 1];
-        
-        renew(col->row, ContextRow[++col->numRow]);
-        col->row[col->numRow - 1] = (ContextRow) {};
-        
-        ContextRow* row = &col->row[col->numRow - 1];
-        
-        row->index = i;
-        row->item = PropList_Get(prop, i);
-        warn("new row: %s", row->item);
-        if (!row->item) nullCombo++;
-        else nullCombo = 0;
-        
-        if (nullCombo == 2) {
-            warn("new column");
-            col->numRow -= 2;
-            renew(this->col, ContextColumn[++this->numCol]);
-            this->col[this->numCol - 1] = (ContextColumn) {};
-        }
-    }
-    
-    this->rect.h = SPLIT_ELEM_X_PADDING;
-    this->rect.w = SPLIT_ELEM_X_PADDING * 4;
-    prop->visualKey = prop->key;
-    
-    warn("calc cols and rows");
-    for (int i = 0; i < this->numCol; i++) {
-        int width = 0;
-        int height = 0;
-        
-        for (int j = 0; j < this->col[i].numRow; j++) {
-            warn("column %d num row %d", i, this->col[i].numRow);
-            if (this->col[i].row[j].item) {
-                width = Max(width, Gfx_TextWidth(geo->vg, this->col[i].row[j].item));
-                height += SPLIT_TEXT_H;
-            }
-        }
-        
-        this->col[i].width = width;
-        this->rect.w += width + SPLIT_ELEM_X_PADDING;
-        this->rect.h = Max(this->rect.h, height + SPLIT_ELEM_X_PADDING * 2);
-        
-        if (i + 1 < this->numCol)
-            this->rect.w += SPLIT_ELEM_X_PADDING * 2;
-    }
-    
-    info("" PRNT_YELW "%s", __FUNCTION__);
-    info("prop->key = %d", prop->key);
-    info("prop->num = %d", prop->num);
-    
-    this->state.setCondition = false;
-};
-
-static void ContextProp_List_Draw(GeoGrid* geo, ContextMenu* this) {
-    PropList* prop = this->prop;
-    Input* input = geo->input;
-    Cursor* cursor = &input->cursor;
-    void* vg = geo->vg;
-    Rect r = this->rect;
-    int x = SPLIT_ELEM_X_PADDING * 2;
-    
-    for (int i = 0; i < this->numCol; i++) {
-        ContextColumn* col = &this->col[i];
-        r.x = this->rect.x + x;
-        r.y = this->rect.y + SPLIT_ELEM_X_PADDING;
-        r.w = col->width;
-        r.h = SPLIT_TEXT_H;
-        
-        for (int j = 0; j < col->numRow; j++) {
-            if (col->row[j].item) {
-                if (Rect_PointIntersect(&r, cursor->pos.x, cursor->pos.y)) {
-                    prop->visualKey = col->row[j].index;
-                    
-                    r.x -= SPLIT_ELEM_X_PADDING;
-                    r.w += SPLIT_ELEM_X_PADDING * 2;
-                    Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_PRIM, 215, 1.0f));
-                    r.x += SPLIT_ELEM_X_PADDING;
-                    r.w -= SPLIT_ELEM_X_PADDING * 2;
-                    
-                    if (Input_GetMouse(input, CLICK_L)->release)
-                        this->state.setCondition = true;
-                }
-                
-                nvgScissor(vg, UnfoldRect(r));
-                nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
-                nvgFontFace(vg, "default");
-                nvgFontSize(vg, SPLIT_TEXT);
-                nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
-                nvgText(
-                    vg,
-                    r.x,
-                    r.y + SPLIT_ELEM_X_PADDING * 0.5f + 1,
-                    col->row[j].item,
-                    NULL
-                );
-                nvgResetScissor(vg);
-                
-                r.y += SPLIT_TEXT_H;
-            } else {
-                Rect rr = { r.x, r.y, r.w, 1 };
-                Gfx_DrawRounderRect(vg, rr, Theme_GetColor(THEME_TEXT, 120, 1.0f));
-            }
-        }
-        
-        x += col->width + SPLIT_ELEM_X_PADDING;
-        
-        if (i + 1 < this->numCol) {
-            x += SPLIT_ELEM_X_PADDING;
-            Rect rr = { this->rect.x + x, this->rect.y, 1, this->rect.h };
-            Gfx_DrawRounderRect(vg, rr, Theme_GetColor(THEME_TEXT, 120, 1.0f));
-            x += SPLIT_ELEM_X_PADDING * 2;
-        }
-    }
-}
-
-// # # # # # # # # # # # # # # # # # # # #
-// # PropColor                           #
-// # # # # # # # # # # # # # # # # # # # #
+////////////////////////////////////////////////////////////////////////////////
 
 typedef struct {
     rgba8_t* c;
@@ -147,7 +13,7 @@ static struct {
     ImgMap imgHue;
 } sColorContext;
 
-static void ContextProp_Init_Draw(GeoGrid* geo, ContextMenu* this) {
+static void ContextProp_Color_Init(GeoGrid* geo, ContextMenu* this) {
     this->rect.h = this->rect.w = Max(this->rect.w, 128 + 64);
     this->data = new(ElTextbox);
 }
@@ -281,19 +147,140 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     DummySplit_Pop(geo, &this->split);
 }
 
-// # # # # # # # # # # # # # # # # # # # #
-// # ContextMenu                         #
-// # # # # # # # # # # # # # # # # # # # #
+////////////////////////////////////////////////////////////////////////////////
+
+static void ContextProp_Arli_Init(GeoGrid* geo, ContextMenu* this) {
+    Arli* list = this->prop;
+    int nullCombo = 0;
+    
+    nvgFontFace(geo->vg, "default");
+    nvgFontSize(geo->vg, SPLIT_TEXT);
+    nvgTextAlign(geo->vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
+    
+    this->col = new(ContextColumn);
+    this->numCol = 1;
+    
+    warn("new column");
+    for (int i = 0; i < list->num; i++) {
+        ContextColumn* col = &this->col[this->numCol - 1];
+        
+        renew(col->row, ContextRow[++col->numRow]);
+        col->row[col->numRow - 1] = (ContextRow) {};
+        
+        ContextRow* row = &col->row[col->numRow - 1];
+        
+        row->index = i;
+        row->item = list->elemName(list, i);
+        warn("new row: %s", row->item);
+        if (!row->item) nullCombo++;
+        else nullCombo = 0;
+        
+        if (nullCombo == 2) {
+            warn("new column");
+            col->numRow -= 2;
+            renew(this->col, ContextColumn[++this->numCol]);
+            this->col[this->numCol - 1] = (ContextColumn) {};
+        }
+    }
+    
+    this->rect.h = SPLIT_ELEM_X_PADDING;
+    this->rect.w = SPLIT_ELEM_X_PADDING * 4;
+    this->visualKey = list->cur;
+    
+    warn("calc cols and rows");
+    for (int i = 0; i < this->numCol; i++) {
+        int width = 0;
+        int height = 0;
+        
+        for (int j = 0; j < this->col[i].numRow; j++) {
+            warn("column %d num row %d", i, this->col[i].numRow);
+            if (this->col[i].row[j].item) {
+                width = Max(width, Gfx_TextWidth(geo->vg, this->col[i].row[j].item));
+                height += SPLIT_TEXT_H;
+            }
+        }
+        
+        this->col[i].width = width;
+        this->rect.w += width + SPLIT_ELEM_X_PADDING;
+        this->rect.h = Max(this->rect.h, height + SPLIT_ELEM_X_PADDING * 2);
+        
+        if (i + 1 < this->numCol)
+            this->rect.w += SPLIT_ELEM_X_PADDING * 2;
+    }
+    
+    info("" PRNT_YELW "%s", __FUNCTION__);
+    info("list->cur = %d", list->cur);
+    info("list->num = %d", list->num);
+    
+    this->state.setCondition = false;
+};
+
+static void ContextProp_Arli_Draw(GeoGrid* geo, ContextMenu* this) {
+    Input* input = geo->input;
+    Cursor* cursor = &input->cursor;
+    void* vg = geo->vg;
+    Rect r = this->rect;
+    int x = SPLIT_ELEM_X_PADDING * 2;
+    
+    for (int i = 0; i < this->numCol; i++) {
+        ContextColumn* col = &this->col[i];
+        r.x = this->rect.x + x;
+        r.y = this->rect.y + SPLIT_ELEM_X_PADDING;
+        r.w = col->width;
+        r.h = SPLIT_TEXT_H;
+        
+        for (int j = 0; j < col->numRow; j++) {
+            if (col->row[j].item) {
+                if (Rect_PointIntersect(&r, cursor->pos.x, cursor->pos.y)) {
+                    this->visualKey = col->row[j].index;
+                    
+                    r.x -= SPLIT_ELEM_X_PADDING;
+                    r.w += SPLIT_ELEM_X_PADDING * 2;
+                    Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_PRIM, 215, 1.0f));
+                    r.x += SPLIT_ELEM_X_PADDING;
+                    r.w -= SPLIT_ELEM_X_PADDING * 2;
+                    
+                    if (Input_GetMouse(input, CLICK_L)->release)
+                        this->state.setCondition = true;
+                }
+                
+                nvgScissor(vg, UnfoldRect(r));
+                nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
+                nvgFontFace(vg, "default");
+                nvgFontSize(vg, SPLIT_TEXT);
+                nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
+                nvgText(vg, r.x, r.y + SPLIT_ELEM_X_PADDING * 0.5f + 1, col->row[j].item, NULL);
+                nvgResetScissor(vg);
+                
+                r.y += SPLIT_TEXT_H;
+            } else {
+                Rect rr = { r.x, r.y, r.w, 1 };
+                Gfx_DrawRounderRect(vg, rr, Theme_GetColor(THEME_TEXT, 120, 1.0f));
+            }
+        }
+        
+        x += col->width + SPLIT_ELEM_X_PADDING;
+        
+        if (i + 1 < this->numCol) {
+            x += SPLIT_ELEM_X_PADDING;
+            Rect rr = { this->rect.x + x, this->rect.y, 1, this->rect.h };
+            Gfx_DrawRounderRect(vg, rr, Theme_GetColor(THEME_TEXT, 120, 1.0f));
+            x += SPLIT_ELEM_X_PADDING * 2;
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 #define FUNC_INIT 0
 #define FUNC_DRAW 1
 
 void (*sContextMenuFuncs[][2])(GeoGrid*, ContextMenu*) = {
-    [PROP_ENUM] =  { ContextProp_List_Init, ContextProp_List_Draw  },
-    [PROP_COLOR] = { ContextProp_Init_Draw, ContextProp_Color_Draw },
+    [CONTEXT_PROP_COLOR] = { ContextProp_Color_Init, ContextProp_Color_Draw },
+    [CONTEXT_ARLI] =       { ContextProp_Arli_Init,  ContextProp_Arli_Draw  },
 };
 
-void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, Rect rect) {
+void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType type, Rect rect) {
     ContextMenu* this = &geo->dropMenu;
     
     _log("context init");
@@ -345,7 +332,6 @@ void ContextMenu_Draw(GeoGrid* geo) {
     nvgBeginFrame(geo->vg, geo->wdim->x, geo->wdim->y, gPixelRatio); {
         Rect r = this->rect;
         Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_ELEMENT_BASE, 255, 1.5f));
-        // r.y += this->state.up; r.h++;
         Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_ELEMENT_DARK, 255, 1.0f));
         
         sContextMenuFuncs[this->type][FUNC_DRAW](geo, this);
@@ -357,21 +343,21 @@ void ContextMenu_Draw(GeoGrid* geo) {
         return;
     }
     
-    if (Rect_PointDistance(&this->rect, cursor->pos.x, cursor->pos.y) > 0 &&
-        Input_GetMouse(geo->input, CLICK_ANY)->press) {
+    if (Rect_PointDistance(&this->rect, cursor->pos.x, cursor->pos.y) > 0 && Input_GetMouse(geo->input, CLICK_ANY)->press) {
         ContextMenu_Close(geo);
+        
         return;
     }
     
     if (this->state.setCondition || Rect_PointDistance(&this->rect, cursor->pos.x, cursor->pos.y) > 64) {
         if (this->state.setCondition) {
+            this->element->contextSet = true;
+            
             switch (this->type) {
-                case PROP_ENUM: (void)0;
-                    PropList* enm = this->prop;
-                    
-                    PropList_Set(enm, enm->visualKey);
+                case CONTEXT_PROP_COLOR: (void)0;
                     break;
-                case PROP_COLOR: (void)0;
+                case CONTEXT_ARLI: (void)0;
+                    Arli_Set(this->prop, this->visualKey);
                     break;
             }
         }

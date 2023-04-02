@@ -285,15 +285,19 @@ typedef struct Toml {
 } Toml;
 
 typedef struct Arli {
-    size_t element_size;
+    size_t elemSize;
     size_t num;
-    size_t capacity;
+    size_t max;
     u8*    begin;
     u8*    end;
     u8*    rbegin;
     u8*    rend;
     
-    u8* copybuf;
+    const char* (*elemName)(struct Arli*, size_t);
+    u8*    copybuf;
+    size_t cur;
+    
+    char type[64];
 } Arli;
 
 #endif

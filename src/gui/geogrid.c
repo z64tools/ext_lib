@@ -193,17 +193,25 @@ static SplitState Split_GetCursorPosState(Split* split, s32 range) {
     return SPLIT_POINT_NONE;
 }
 
+static const char* Split_TaskListElemName(Arli* list, size_t pos) {
+    return *((char**)Arli_At(list, pos));
+}
+
 static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
-    this->taskList = new(PropList);
-    *this->taskList = PropList_Init(this->id);
+    this->taskList = new(Arli);
+    *this->taskList = Arli_New(void*);
     this->taskCombo = new(ElCombo);
     
     _assert(this->taskList != NULL);
     _assert(this->taskCombo != NULL);
     
     for (int i = 0; i < geo->numTaskTable; i++)
-        PropList_Add(this->taskList, geo->taskTable[i]->taskName);
-    Element_Combo_SetPropList(this->taskCombo, this->taskList);
+        Arli_Add(this->taskList, &geo->taskTable[i]->taskName);
+    
+    Arli_Set(this->taskList, this->id);
+    Arli_SetElemNameCallback(this->taskList, Split_TaskListElemName);
+    
+    Element_Combo_SetArli(this->taskCombo, this->taskList);
 }
 
 static Split* Split_Alloc(GeoGrid* geo, s32 id) {
@@ -364,7 +372,7 @@ static void Split_Split(GeoGrid* geo, Split* split, SplitDir dir) {
 
 static void Split_Free(Split* this) {
     info("Kill Split: %s", addr_name(this));
-    PropList_Free(this->taskList);
+    Arli_Free(this->taskList);
     vfree(this->taskList, this->taskCombo, this->instance);
 }
 
@@ -855,7 +863,7 @@ static void Split_UpdateSplit(GeoGrid* geo, Split* split) {
     Element_ShiftX(0);
     
     if (!split->isHeader) {
-        split->id = split->taskList->key;
+        split->id = split->taskList->cur;
         
         if (split->id != split->prevId)
             Split_SwapInstance(geo, split);

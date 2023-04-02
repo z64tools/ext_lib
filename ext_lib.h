@@ -507,18 +507,33 @@ int qsort_u32(const void* arg_a, const void* arg_b);
 /*============================================================================*/
 
 Arli Arli_New(size_t element_size);
-#define Arli_New(element) Arli_New(sizeof(element));
+#define Arli_New(element)                          \
+    ({                                             \
+        Arli a = Arli_New(sizeof(element));        \
+        strncpy(a.type, #element, sizeof(a.type)); \
+        a;                                         \
+    })
+void Arli_SetElemNameCallback(Arli* this, const char* (*callback)(Arli*, size_t));
 void Arli_Clear(Arli* this);
 void* Arli_At(Arli* this, size_t position);
+void* Arli_Set(Arli* this, size_t position);
+void* Arli_Get(Arli* this);
 int Arli_Alloc(Arli* this, size_t num);
 void* Arli_Insert(Arli* this, size_t position, size_t num, const void* data);
-void* Arli_Append(Arli* this, size_t num, const void* data);
+void* Arli_AddX(Arli* this, size_t num, const void* data);
 void* Arli_Add(Arli* this, const void* data);
-void Arli_AddToBuf(Arli* this, const void* data);
+void Arli_CopyToBuf(Arli* this, const void* data);
+void Arli_RemoveToBuf(Arli* this, size_t position);
 int Arli_Remove(Arli* this, size_t position, size_t num);
 int Arli_Shrink(Arli* this);
 void Arli_Free(Arli* this);
 void* Arli_Head(Arli* this);
+size_t Arli_IndexOf(Arli* this, void* elem);
+
+#define Arli_AddVar(this, ...) do { \
+        var v = __VA_ARGS__;        \
+        Arli_Add(this, &v);         \
+} while (0)
 
 #ifndef EXT_BAREBONES
 

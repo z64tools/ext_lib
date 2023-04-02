@@ -24,9 +24,9 @@ extern f32 gPixelRatio;
 #define SPLIT_ELEM_Y_PADDING (SPLIT_TEXT_H + SPLIT_ELEM_X_PADDING)
 
 typedef enum {
-    ALIGN_LEFT,
-    ALIGN_CENTER,
-    ALIGN_RIGHT
+    ALIGN_LEFT   = 1 << 0,
+    ALIGN_CENTER = 1 << 1,
+    ALIGN_RIGHT  = 1 << 2,
 } TextAlign;
 
 typedef enum {
@@ -135,9 +135,9 @@ typedef struct {
 } SplitScroll;
 
 typedef struct Split {
-    struct Split*    next;
-    struct PropList* taskList;
-    struct ElCombo*  taskCombo;
+    struct Split*   next;
+    struct ElCombo* taskCombo;
+    Arli* taskList;
     
     u32 id;
     u32 prevId;
@@ -186,9 +186,9 @@ typedef struct {
 } SplitTask;
 
 typedef enum {
-    PROP_ENUM,
-    PROP_COLOR,
-} PropType;
+    CONTEXT_PROP_COLOR,
+    CONTEXT_ARLI,
+} ContextDataType;
 
 typedef struct {
     int index;
@@ -204,11 +204,11 @@ typedef struct {
 
 typedef struct ContextMenu {
     struct Element* element;
-    void*    prop;
-    PropType type;
-    Rect     rectOrigin;
-    Rect     rect;
-    Vec2s    pos;
+    void* prop;
+    ContextDataType type;
+    Rect  rectOrigin;
+    Rect  rect;
+    Vec2s pos;
     struct {
         bool init                 : 1;
         bool setCondition         : 1;
@@ -220,6 +220,7 @@ typedef struct ContextMenu {
     void* data;
     ContextColumn* col;
     int numCol;
+    int visualKey;
     
     Split split;
 } ContextMenu;
@@ -272,26 +273,6 @@ typedef enum {
     PROP_RETACH,
     PROP_DESTROY_DETACH,
 } PropListChange;
-
-struct PropList;
-typedef bool (*PropOnChange)(struct PropList*, PropListChange, s32);
-
-typedef struct PropList {
-    void*  argument;
-    char** list;
-    char*  detach;
-    s32    max;
-    s32    num;
-    s32    key;
-    s32    visualKey;
-    s32    detachKey;
-    s32    copyKey;
-    bool   copy;
-    
-    PropOnChange onChange;
-    void*  udata1;
-    void*  udata2;
-} PropList;
 
 typedef struct PropColor {
     void* argument;
@@ -346,6 +327,7 @@ typedef struct Element {
         bool dispText    : 1;
         bool header      : 1;
         bool doFree      : 1;
+        bool contextSet  : 1;
         u32  toggle      : 2;
     };
 } Element;
@@ -432,14 +414,14 @@ typedef struct {
 } ElSlider;
 
 typedef struct ElCombo {
-    Element   element;
-    PropList* prop;
+    Element element;
+    Arli*   arlist;
 } ElCombo;
 
 typedef struct {
     Element     element;
-    PropList*   prop;
-    PropList*   contextMenu;
+    Arli*       list;
+    Arli*       contextList;
     SplitScroll scroll;
     
     struct {
@@ -458,6 +440,11 @@ typedef struct {
     s32 detachID;
     f32 detachMul;
     f32 copyLerp;
+    
+    struct {
+        bool state;
+        int  key;
+    } detach;
 } ElContainer;
 
 extern Vec2f gZeroVec2f;
@@ -490,7 +477,7 @@ void GeoGrid_Draw(GeoGrid* geo);
 void DummySplit_Push(GeoGrid* geo, Split* split, Rect r);
 void DummySplit_Pop(GeoGrid* geo, Split* split);
 
-void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, PropType type, Rect rect);
+void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType type, Rect rect);
 void ContextMenu_Draw(GeoGrid* geo);
 void ContextMenu_Close(GeoGrid* geo);
 
@@ -517,9 +504,10 @@ void Element_DisplayName(Element* this, f32 lerp);
 void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type);
 void Element_Slider_SetValue(ElSlider* this, f64 val);
 void Element_Button_SetValue(ElButton* this, bool toggle, bool state);
-void Element_Combo_SetPropList(ElCombo* this, PropList* prop);
+void Element_Combo_SetArli(ElCombo* this, Arli* arlist);
 void Element_Color_SetColor(ElColor* this, void* color);
-void Element_Container_SetPropList(ElContainer* this, PropList* prop, u32 num);
+void Element_Container_SetArli(ElContainer* this, Arli* prop, u32 num);
+bool Element_Textbox_SetText(ElTextbox* this, const char* txt);
 
 void Element_Name(Element* this, const char* name);
 Element* Element_Disable(Element* element);
@@ -540,24 +528,5 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header);
 #define Element_DisplayName(this, lerp) Element_DisplayName(&(this)->element, lerp)
 #define Element_Row(...)                Element_Row(NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
 #define Element_Header(...)             Element_Header(NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
-
-const char* PropList_Get(PropList* this, s32 i);
-void PropList_Set(PropList* this, s32 i);
-PropList PropList_Init(s32 defaultVal);
-void PropList_SetOnChangeCallback(PropList* this, PropOnChange onChange, void* udata1, void* udata2);
-void PropList_Add(PropList* this, const char* item);
-void PropList_Insert(PropList* this, const char* item, s32 slot);
-void PropList_Remove(PropList* this, s32 key);
-void PropList_Detach(PropList* this, s32 slot, bool copy);
-void PropList_Retach(PropList* this, s32 slot);
-void PropList_DestroyDetach(PropList* this);
-void PropList_Free(PropList* this);
-
-#ifndef __clang__
-PropList __PropList_InitList(s32 def, s32 num, ...);
-#define PropList_InitList(default, ...) __PropList_InitList(default, NARGS(__VA_ARGS__), __VA_ARGS__)
-#else
-PropList PropList_InitList(s32 def, ...);
-#endif
 
 #endif
