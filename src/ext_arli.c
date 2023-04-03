@@ -28,60 +28,57 @@ void Arli_Clear(Arli* this) {
     this->end = this->rend = this->rbegin = this->begin;
 }
 
-void* Arli_At(Arli* this, size_t position) {
+void* Arli_At(Arli* this, off_t position) {
     if (!this->begin || position >= this->num)
         return NULL;
     
-    return this->begin + this->elemSize * position;
+    return this->begin + (this->elemSize * position);
 }
 
-void* Arli_Set(Arli* this, size_t position) {
-    void* r = Arli_At(this, position);
+void* Arli_Set(Arli* this, off_t position) {
+    if (this->num)
+        this->cur = clamp(position, 0, this->num - 1);
+    else
+        this->cur = 0;
     
-    if (r) this->cur = position;
-    
-    return r;
-}
-
-void* Arli_Get(Arli* this) {
     return Arli_At(this, this->cur);
 }
 
 int Arli_Alloc(Arli* this, size_t num) {
-    size_t new_cap = this->num + num;
+    size_t new_max = this->num + num;
     
-    if (new_cap <= this->max) return 1;
-    u8* new_data = realloc(this->begin, this->elemSize * new_cap);
+    if (new_max <= this->max) return 1;
+    u8* new_data = realloc(this->begin, this->elemSize * new_max);
     if (!new_data) return 0;
     
     this->begin = new_data;
     this->rend = new_data - this->elemSize;
     this->end = this->begin + this->elemSize * this->num;
     this->rbegin = this->end - this->elemSize;
-    this->max = new_cap;
+    this->max = new_max;
     return 1;
 }
 
-void* Arli_Insert(Arli* this, size_t position, size_t num, const void* data) {
+void* Arli_Insert(Arli* this, off_t position, size_t num, const void* data) {
     if (num == 0) return this->begin ? this->begin : NULL;
     if (position > this->num) return NULL;
     
-    size_t new_cap = this->max;
+    size_t new_max = this->max;
     
-    if (new_cap == 0) new_cap = num;
+    if (new_max == 0) new_max = num;
     else {
-        if (new_cap < this->num + num)
-            new_cap *= 2;
-        if (new_cap < this->num + num)
-            new_cap = this->num + num;
+        if (new_max < this->num + num)
+            new_max *= 2;
+        if (new_max < this->num + num)
+            new_max = this->num + num;
     }
     
-    if (new_cap != this->max) {
-        u8* new_data = realloc(this->begin, this->elemSize * new_cap);
+    if (new_max != this->max) {
+        u8* new_data = realloc(this->begin, this->elemSize * new_max);
         if (!new_data) return NULL;
         this->begin = new_data;
         this->rend = new_data - this->elemSize;
-        this->max = new_cap;
+        this->max = new_max;
     }
     
     memmove(this->begin + this->elemSize * (position + num),
@@ -90,7 +87,8 @@ void* Arli_Insert(Arli* this, size_t position, size_t num, const void* data) {
     
     if (data) memcpy(
             this->begin + this->elemSize * position,
-            data, this->elemSize * num);
+            data,
+            this->elemSize * num);
     
     this->num += num;
     this->end = this->begin + this->elemSize * this->num;
@@ -111,45 +109,49 @@ void Arli_ToBuf(Arli* this, const void* data) {
     memcpy(this->copybuf, data, this->elemSize);
 }
 
-void Arli_CopyToBuf(Arli* this, size_t position) {
+void Arli_CopyToBuf(Arli* this, off_t position) {
     Arli_ToBuf(this, Arli_At(this, position));
 }
 
-void Arli_RemoveToBuf(Arli* this, size_t position) {
+void Arli_RemoveToBuf(Arli* this, off_t position) {
     Arli_ToBuf(this, Arli_At(this, position));
     Arli_Remove(this, position, 1);
 }
 
-int Arli_Remove(Arli* this, size_t position, size_t num) {
+int Arli_Remove(Arli* this, off_t position, size_t num) {
     if (!this->begin || num > this->num || position >= this->num)
         return 0;
+    
     if (num == this->num) {
         Arli_Clear(this);
         return 1;
     }
-    memmove(this->begin + this->elemSize * position,
-        this->begin + this->elemSize * (position + num),
-        this->elemSize * (this->num - position - num));
+    
+    if (position + num != this->num)
+        memmove(this->begin + this->elemSize * position,
+            this->begin + this->elemSize * (position + num),
+            this->elemSize * (this->num - position - num));
+    
     this->num -= num;
     this->end = this->begin + this->elemSize * this->num;
     this->rbegin = this->end - this->elemSize;
     
-    this->cur = clamp(this->cur - num, 0, this->num);
+    Arli_Set(this, this->cur);
     
     return 1;
 }
 
 int Arli_Shrink(Arli* this) {
-    size_t new_cap = this->num;
-    u8* new_data = realloc(this->begin, this->elemSize * new_cap);
+    size_t new_max = this->num;
+    u8* new_data = realloc(this->begin, this->elemSize * new_max);
     
-    if (new_cap > 0 && !new_data) return 0;
+    if (new_max > 0 && !new_data) return 0;
     
     this->begin = new_data;
     this->rend = new_data - this->elemSize;
     this->end = this->begin + this->elemSize * this->num;
     this->rbegin = this->end - this->elemSize;
-    this->max = new_cap;
+    this->max = new_max;
     return 1;
 }
 
@@ -162,8 +164,8 @@ void* Arli_Head(Arli* this) {
     return this->begin;
 }
 
-size_t Arli_IndexOf(Arli* this, void* elem) {
-    _assert(elem >= (void*)(this->begin) && elem < (void*)(this->begin + this->elemSize * this->num));
-    
-    return (off_t)(elem - (void*)this->begin) / this->elemSize;
+off_t Arli_IndexOf(Arli* this, void* elem) {
+    if (elem >= (void*)(this->begin) && elem < (void*)(this->begin + this->elemSize * this->num))
+        return (off_t)(elem - (void*)this->begin) / this->elemSize;
+    return -1;
 }

@@ -32,9 +32,11 @@ static const char* Toml_GetPathStr(const char* path, const char* elem, const cha
 }
 
 static TravelResult Toml_Travel(Toml* this, const char* field, toml_table_t* tbl, char* path) {
-    const char* elem = x_strndup(field, strcspn(field, "."));
+    const char* elem = x_strcdup(field, ".");
     const char* next = elem ? &field[strlen(elem)] : NULL;
     TravelResult travel = {};
+    
+    _log("elem: " PRNT_REDD "%s" PRNT_RSET "\n\tnext: " PRNT_YELW "%s", elem, next);
     
     if (!tbl) return travel;
     
@@ -99,15 +101,19 @@ static TravelResult Toml_Travel(Toml* this, const char* field, toml_table_t* tbl
     if (!next || *next == '\0') {
         if (strend(elem, "]")) {
             const char* arv = strstr(elem, "[") + 1;
-            s32 idx = sint(arv);
+            s32 idx = arv[0] == ']' ? -1 : sint(arv);
             s32 sidx = -1;
             
             if ((arv = strstr(arv, "["))) {
                 arv++;
                 sidx = sint(arv);
                 
-                Swap(idx, sidx);
             }
+            
+            _log("[%d][%d]", idx, sidx);
+            
+            if (sidx > -1)
+                Swap(idx, sidx);
             
             strstr(elem, "[")[0] = '\0';
             
@@ -127,6 +133,9 @@ static TravelResult Toml_Travel(Toml* this, const char* field, toml_table_t* tbl
             }
             
             if (sidx >= 0) {
+                if (this->write)
+                    travel.arr->kind = 'a';
+                
                 toml_array_t* arr = toml_array_at(travel.arr, sidx);
                 
                 _log("%d", arr ? arr->nitem : -1);
@@ -366,12 +375,11 @@ static bool Toml_Remove(Toml* this, enum Remove rem, const char* item, va_list v
     }
     
     this->silence = true;
-    TravelResult t = Toml_Travel(this, item, this->root, path);
+    TravelResult t = Toml_Travel(this, value, this->root, path);
     this->silence = false;
     
     toml_table_t* tbl = t.tbl;
-    
-    if (!tbl) return false;
+    toml_array_t* arr = t.arr;
     
     #define TOML_REMOVE(TYPE)                                  \
         for (var i = 0; i < tbl->n ## TYPE; i++) {             \
@@ -385,21 +393,36 @@ static bool Toml_Remove(Toml* this, enum Remove rem, const char* item, va_list v
             }                                                  \
         }
     
-    switch (rem) {
-        case RM_VAR:
-            TOML_REMOVE(kval);
-            break;
+    if (tbl) {
+        switch (rem) {
+            case RM_VAR:
+                TOML_REMOVE(kval);
+                break;
+                
+            case RM_TAB:
+                TOML_REMOVE(arr);
+                break;
+                
+            default:
+                break;
+        }
+    }
+    
+    if (arr) {
+        if (rem == RM_ARR) {
+            _log("%s", arr->key);
             
-        case RM_ARR:
-            TOML_REMOVE(arr);
-            break;
+            for (int i = 0; i < arr->nitem; i++) {
+                xfree_arr(arr->item[i].arr);
+                xfree_tab(arr->item[i].tab);
+                xfree(arr->item[i].val);
+            }
+            xfree(arr->item);
             
-        case RM_TAB:
-            TOML_REMOVE(tab);
-            break;
+            arr->nitem = 0;
             
-        default:
-            break;
+            return true;
+        }
     }
     
     return false;
@@ -481,103 +504,98 @@ void Toml_Free(Toml* this) {
 
 void Toml_Print(Toml* this, void* d, void (*PRINT)(void*, const char*, ...)) {
     nested(void, Parse, (toml_table_t * tbl, char* path, u32 indent)) {
-        int nkval = toml_table_nkval(tbl);
-        int narr = toml_table_narr(tbl);
-        int ntab = toml_table_ntab(tbl);
-        char* nd = "";
+        _log("[%s%s]:\n\tnkval: %d\n\tnarr: %d\n\tntab: %d\n", path, tbl->key, tbl->nkval, tbl->narr, tbl->ntab);
         
-        _log("%08X [%s]: %d / %d / %d", tbl, path, tbl->nkval, tbl->narr, tbl->ntab);
+        nested(char*, Indent, ()) {
+            return memset(x_alloc(indent + 1), '\t', indent);
+        };
         
-        if (indent) {
-            nd = x_alloc(indent + 1);
-            memset(nd, '\t', indent);
+        for (var i = 0; i < tbl->nkval; i++) {
+            toml_keyval_t* kval = tbl->kval[i];
+            _log("kval: %s", kval->key);
+            
+            PRINT(d, "%s%s = %s\n", Indent(), kval->key, kval->val);
         }
         
-        for (var i = 0; i < nkval; i++) {
-            _log("Value: %s", toml_key_in(tbl, i));
+        for (var i = 0; i < tbl->narr; i++) {
+            toml_array_t* arr = tbl->arr[i];
+            _log("arr: %s", arr->key);
             
-            PRINT(d, "%s%s = ", nd, toml_key_in(tbl, i));
-            PRINT(d, "%s\n", toml_raw_in(tbl, toml_key_in(tbl, i)));
-        }
-        
-        for (var i = nkval; i < narr + nkval; i++) {
-            _log("Array: %s", toml_key_in(tbl, i));
+            if (arr->kind == 't')
+                continue;
             
-            toml_array_t* arr = toml_array_in(tbl, toml_key_in(tbl, i));
-            const char* val;
-            var j = 0;
-            var k = 0;
-            toml_array_t* ar = arr;
-            
-            switch (toml_array_kind(arr)) {
-                case 'a':
-                    PRINT(d, "%s%s = [\n", nd, toml_key_in(tbl, i));
-                    
-                    ar = toml_array_at(arr, k++);
-                    
-                    while (ar) {
-                        j = 0;
-                        PRINT(d, "\t%s[\n", nd);
-                        
-                        val = toml_raw_at(ar, j++);
-                        while (val) {
-                            PRINT(d, "%s", val);
-                            
-                            val = toml_raw_at(ar, j++);
-                            if (val)
-                                PRINT(d, ", ");
-                        }
-                        PRINT(d, " ]");
-                        ar = toml_array_at(arr, k++);
-                        if (ar)
-                            PRINT(d, ",");
-                        PRINT(d, "\n");
-                    }
-                    
-                    PRINT(d, "%s]\n", nd);
-                    
-                    break;
-                case 'v':
-                    PRINT(d, "%s%s = [\n%s\t", nd, toml_key_in(tbl, i), nd);
-                    
-                    j = k = 0;
-                    
-                    val = toml_raw_at(arr, j++);
-                    while (val) {
-                        PRINT(d, "%s", val);
-                        val = toml_raw_at(arr, j++);
-                        if (val)
-                            PRINT(d, ",\n%s\t", nd);
-                    }
-                    PRINT(d, "\n%s]\n", nd);
-                    break;
-            }
-        }
-        
-        for (var i = nkval; i < narr + nkval; i++) {
-            _log("Array: %s", toml_key_in(tbl, i));
-            
-            toml_array_t* arr = toml_array_in(tbl, toml_key_in(tbl, i));
-            var k = 0;
-            toml_table_t* tb;
-            
-            switch (toml_array_kind(arr)) {
-                case 't':
+            nested(void, ParseArray, (toml_array_t * arr, bool brk)) {
+                nested_var(indent);
                 
-                    while ((tb = toml_table_at(arr, k++))) {
-                        PRINT(d, "%s[[%s%s]]\n", nd, path, toml_key_in(tbl, i));
-                        Parse(tb, x_fmt("%s%s.", path, toml_key_in(tbl, i)), indent + 1);
+                int f = 0;
+                
+                for (var j = 0; j < arr->nitem; j++) {
+                    _log("%d / %d (%c)", j + 1, arr->nitem, arr->kind);
+                    
+                    if (arr->kind == 'v') {
+                        if (brk) {
+                            if (f == 0)
+                                PRINT(d, "%s", Indent());
+                            else if (f && (f % 4) == 0)
+                                PRINT(d, ",\n%s", Indent());
+                            else if (f)
+                                PRINT(d, ", ");
+                        } else if (f)
+                            PRINT(d, ", ");
+                        
+                        PRINT(d, "%s", arr->item[j].val);
+                        f++;
                     }
                     
-                    break;
+                    if (arr->kind == 'a') {
+                        indent++;
+                        
+                        if (f)
+                            PRINT(d, ",\n");
+                        
+                        PRINT(d, "%s[ ", Indent());
+                        ParseArray(arr->item[j].arr, false);
+                        PRINT(d, " ]");
+                        indent--;
+                        f++;
+                    }
+                    
+                }
+                
+                if (f && brk)
+                    PRINT(d, ",\n");
+                
+            };
+            
+            PRINT(d, "%s%s = [\n", Indent(), arr->key);
+            ParseArray(arr, true);
+            PRINT(d, "%s]\n", Indent(), arr->key);
+        }
+        
+        for (var i = 0; i < tbl->narr; i++) {
+            toml_array_t* arr = tbl->arr[i];
+            _log("arr: %s", arr->key);
+            
+            if (arr->kind != 't')
+                continue;
+            
+            for (var j = 0; j < arr->nitem; j++) {
+                switch (arr->kind) {
+                    case 't':
+                        PRINT(d, "%s[[%s%s]]\n", Indent(), path, arr->key);
+                        Parse(arr->item[j].tab, x_fmt("%s%s.", path, arr->key), indent + 1);
+                        
+                        break;
+                }
             }
         }
         
-        for (var i = nkval + narr; i < nkval + narr + ntab; i++) {
-            _log("Table: %s", toml_key_in(tbl, i));
-            PRINT(d, "%s[%s%s]\n", nd, path, toml_key_in(tbl, i));
+        for (var i = 0; i < tbl->ntab; i++) {
+            toml_table_t* tab = tbl->tab[i];
+            _log("Table: %s", tab->key);
             
-            Parse(toml_table_in(tbl, toml_key_in(tbl, i)), x_fmt("%s%s.", path, toml_key_in(tbl, i)), indent + 1);
+            PRINT(d, "%s[%s%s]\n", Indent(), path, tab->key);
+            Parse(tab, x_fmt("%s%s.", path, tab->key), indent + 1);
         }
     };
     

@@ -319,7 +319,6 @@ static s32 FileDialog_PathRead(FileDialog* this, const char* travel) {
     List_FreeItems(&this->files);
     List_FreeItems(&this->folders);
     
-    this->scroll = 0;
     this->selected = -1;
     
     List_Walk(&this->folders, this->path, 0, LIST_FOLDERS | LIST_RELATIVE);
@@ -334,7 +333,7 @@ static s32 FileDialog_PathRead(FileDialog* this, const char* travel) {
         strrep(this->folders.item[i], "/", "");
     }
     
-    this->slot = this->files.num + this->folders.num;
+    ScrollBar_Init(&this->scroll, this->files.num + this->folders.num, SPLIT_ELEM_Y_PADDING);
     
     _log("Ok");
     
@@ -371,75 +370,6 @@ static void FileDialog_PathAppend(FileDialog* this, const char* dst) {
         
         FileDialog_PathRead(this, path);
     }
-}
-
-static void FileDialog_FilePanel_ScrollUpdate(FileDialog* this, Rect r) {
-    Input* input = &this->window.input;
-    InputType* click = Input_GetMouse(input, CLICK_L);
-    const f32 visibleSlots = (f32)r.h / SPLIT_ELEM_Y_PADDING;
-    
-    if (Rect_PointIntersect(&r, UnfoldVec2(input->cursor.pos)))
-        this->scroll -= Input_GetScroll(input);
-    this->scrollMax = clamp_min(this->slot - visibleSlots, 0);
-    
-    if (this->holdSlider) {
-        if (click->release)
-            this->holdSlider = false;
-        else {
-            f32 y = input->cursor.pos.y + this->sliderHoldOffset;
-            
-            this->scroll = ((y - r.y) / (r.h * (this->scrollMax / this->slot))) * (this->slot - visibleSlots);
-        }
-    }
-    
-    this->scroll = clamp(this->scroll, 0, this->scrollMax);
-    
-    Math_SmoothStepToF(&this->vscroll, this->scroll, 0.25f, 500.0f, 0.001f);
-}
-
-static s32 FileDialog_FilePanel_ScrollDraw(FileDialog* this, Rect r) {
-    const f32 visibleSlots = (f32)r.h / SPLIT_ELEM_Y_PADDING;
-    Input* input = &this->window.input;
-    InputType* click = Input_GetMouse(input, CLICK_L);
-    void* vg = this->window.app.vg;
-    Rect slider = Rect_New(
-        r.x + r.w - 14,
-        lerpf(this->vscroll / this->slot, r.y, r.y + r.h),
-        12,
-        lerpf((this->vscroll + visibleSlots) / this->slot, r.y, r.y + r.h));
-    
-    slider.y = clamp(slider.y, r.y, r.y + r.h - 8);
-    slider.h = clamp(slider.h - slider.y, 16, r.h);
-    
-    if (Rect_PointIntersect(&slider, UnfoldVec2(input->cursor.pos))) {
-        if (click->press) {
-            this->holdSlider = true;
-            this->sliderHoldOffset = slider.y - input->cursor.pos.y;
-        }
-        
-        if (!this->holdSlider)
-            Theme_SmoothStepToCol(&this->sliderColor, Theme_GetColor(THEME_HIGHLIGHT, 220, 1.0f), 0.5f, 1.0f, 0.01f);
-    } else if (!this->holdSlider)
-        Theme_SmoothStepToCol(&this->sliderColor, Theme_GetColor(THEME_HIGHLIGHT, 125, 1.0f), 0.5f, 1.0f, 0.01f);
-    
-    if (this->holdSlider)
-        Theme_SmoothStepToCol(&this->sliderColor, Theme_GetColor(THEME_PRIM, 220, 1.0f), 0.5f, 1.0f, 0.01f);
-    
-    NVGcolor slcol = this->sliderColor;
-    
-    if (visibleSlots > this->slot) {
-        NVGcolor al = slcol;
-        f32 remap = remapf(visibleSlots / this->slot, 1.0f, 1.0f + (2.0f / this->slot), 0.0f, 1.0f);
-        
-        al.a = 0;
-        remap = clamp(remap, 0.0f, 1.0f);
-        
-        slcol = Theme_Mix(remap, slcol, al);
-    }
-    
-    Gfx_DrawRounderRect(vg, slider, slcol);
-    
-    return !this->holdSlider;
 }
 
 static const char* FileDialog_GetSelectedItem(FileDialog* this) {
@@ -479,16 +409,15 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
     
     Gfx_DrawRounderRect(vg, mainr, Theme_GetColor(THEME_SPLIT, 255, 1.0f));
     
-    FileDialog_FilePanel_ScrollUpdate(this, r);
+    ScrollBar_Update(&this->scroll, input, input->cursor.pos, r);
     
     nvgScissor(vg, UnfoldRect(mainr));
     
-    this->slot = 0;
-    r.h = SPLIT_ELEM_Y_PADDING;
-    r.y -= this->vscroll * SPLIT_ELEM_Y_PADDING;
-    
+    int index = 0;
     foreach(i, list) {
         for (int j = 0; j < list[i]->num; j++) {
+            r = ScrollBar_GetRect(&this->scroll, index);
+            
             if (IsBetween(r.y, mainr.y - r.h, mainr.y + mainr.h)) {
                 const char* item = list[i]->item[j];
                 NVGcolor color;
@@ -501,14 +430,14 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
                 if (cursorInPanel) {
                     if (Rect_PointIntersect(&r, UnfoldVec2(input->cursor.pos))) {
                         if (click->press) {
-                            pressSlot = (this->slot + 1) * (i == 0 ? -1 : 1);
+                            pressSlot = (index + 1) * (i == 0 ? -1 : 1);
                             info("Click Slot: %d", pressSlot);
                         }
                     }
                 }
                 
-                if (this->slot != this->selected) {
-                    if (this->slot % 2) color = Theme_GetColor(THEME_BASE, 255, 0.85f);
+                if (index != this->selected) {
+                    if (index % 2) color = Theme_GetColor(THEME_BASE, 255, 0.85f);
                     else color = Theme_GetColor(THEME_BASE, 255, 0.75f);
                 } else color = Theme_Mix(0.75f,
                             Theme_GetColor(THEME_BASE, 255, 1.0f),
@@ -531,11 +460,9 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
                 Gfx_Text(vg, txr, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE, Theme_GetColor(THEME_TEXT, 255, 1.0f), item);
             }
             
-            if (this->slot == this->selected)
+            if (index == this->selected)
                 selectedRect = r;
-            
-            this->slot++;
-            r.y += SPLIT_ELEM_Y_PADDING;
+            index++;
         }
     }
     
@@ -553,7 +480,7 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
                 if (strcspn(this->rename.txt, "\\/:*?\"<>|") == strlen(this->rename.txt)) {
                     sys_mv(input, output);
                     FileDialog_PathRead(this, NULL);
-                } // else Sys_Sound("error");
+                }
             }
             
             info("%d", ret);
@@ -570,7 +497,7 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
         }
     }
     
-    if (FileDialog_FilePanel_ScrollDraw(this, mainr)) {
+    if (!ScrollBar_Draw(&this->scroll, vg)) {
         if (pressSlot) {
             u32 slot = abs(pressSlot) - 1;
             
@@ -620,7 +547,7 @@ static void FileDialog_HeaderPanel(FileDialog* this, Rect r) {
     
     Element_Textbox(&this->search);
     if (this->search.modified)
-        this->vscroll = this->scroll = 0;
+        this->scroll.vcur = this->scroll.cur = 0;
 }
 
 void FileDialog_Init(FileDialog* this) {

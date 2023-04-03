@@ -775,7 +775,7 @@ static void Split_UpdateRect(Split* split) {
 }
 
 static void Split_SwapInstance(GeoGrid* geo, Split* split) {
-    SplitScroll* scroll = &split->scroll;
+    SplitScrollBar* scroll = &split->scroll;
     
     if (split->instance) {
         _log("" PRNT_REDD "SplitSwapInstance" PRNT_RSET "( %d -> %d )", split->prevId, split->id);
@@ -791,8 +791,11 @@ static void Split_SwapInstance(GeoGrid* geo, Split* split) {
         geo->taskTable[split->id]->init(geo->passArg, split->instance, split);
 }
 
-static void Split_UpdateScroll(Split* split, Input* input) {
-    SplitScroll* scroll = &split->scroll;
+static void Split_UpdateScroll(GeoGrid* geo, Split* split, Input* input) {
+    SplitScrollBar* scroll = &split->scroll;
+    
+    if (geo->state.blockElemInput)
+        return;
     
     if (split->scroll.enabled) {
         if (split->mouseInSplit && !split->splitBlockScroll) {
@@ -822,7 +825,7 @@ static void Split_UpdateSplit(GeoGrid* geo, Split* split) {
     split->mouseInDispRect = Rect_PointIntersect(&split->dispRect, cursor->pos.x, cursor->pos.y);
     split->mouseInHeader = Rect_PointIntersect(&split->headRect, cursor->pos.x, cursor->pos.y);
     split->blockMouse = false;
-    Split_UpdateScroll(split, geo->input);
+    Split_UpdateScroll(geo, split, geo->input);
     
     if (Input_GetMouse(geo->input, CLICK_ANY)->press)
         split->mousePressPos = split->cursorPos;

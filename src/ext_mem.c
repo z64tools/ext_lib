@@ -206,7 +206,6 @@ int Memfile_Fmt(Memfile* this, const char* fmt, ...) {
     va_list args;
     size_t size;
     
-    _log("form");
     va_start(args, fmt);
     size = xl_vsnprintf(
         buffer,
@@ -216,7 +215,6 @@ int Memfile_Fmt(Memfile* this, const char* fmt, ...) {
     );
     va_end(args);
     
-    _log("write");
     size = Memfile_Write(this, buffer, size + 1);
     this->seekPoint--;
     this->size--;

@@ -292,6 +292,7 @@ void* x_alloc(size_t size);
 
 char* x_strdup(const char* s);
 char* x_strndup(const char* s, size_t n);
+char* x_strcdup(const char* s, const char* reject);
 void* x_memdup(const void* d, size_t n);
 char* x_vfmt(const char* fmt, va_list va);
 char* x_fmt(const char* fmt, ...);
@@ -313,6 +314,7 @@ char* x_dirabs(const char* item);
 
 char* strdup(const char* s);
 char* strndup(const char* s, size_t n);
+char* strcdup(const char* s, const char* reject);
 void* memdup(const void* d, size_t n);
 char* fmt(const char* fmt, ...);
 char* rep(const char* s, const char* a, const char* b);
@@ -516,21 +518,20 @@ Arli Arli_New(size_t element_size);
     })
 void Arli_SetElemNameCallback(Arli* this, const char* (*callback)(Arli*, size_t));
 void Arli_Clear(Arli* this);
-void* Arli_At(Arli* this, size_t position);
-void* Arli_Set(Arli* this, size_t position);
-void* Arli_Get(Arli* this);
+void* Arli_At(Arli* this, off_t position);
+void* Arli_Set(Arli* this, off_t position);
 int Arli_Alloc(Arli* this, size_t num);
-void* Arli_Insert(Arli* this, size_t position, size_t num, const void* data);
+void* Arli_Insert(Arli* this, off_t position, size_t num, const void* data);
 void* Arli_AddX(Arli* this, size_t num, const void* data);
 void* Arli_Add(Arli* this, const void* data);
 void Arli_ToBuf(Arli* this, const void* data);
-void Arli_CopyToBuf(Arli* this, size_t position);
-void Arli_RemoveToBuf(Arli* this, size_t position);
-int Arli_Remove(Arli* this, size_t position, size_t num);
+void Arli_CopyToBuf(Arli* this, off_t position);
+void Arli_RemoveToBuf(Arli* this, off_t position);
+int Arli_Remove(Arli* this, off_t position, size_t num);
 int Arli_Shrink(Arli* this);
 void Arli_Free(Arli* this);
 void* Arli_Head(Arli* this);
-size_t Arli_IndexOf(Arli* this, void* elem);
+off_t Arli_IndexOf(Arli* this, void* elem);
 
 #define Arli_AddVar(this, ...) do { \
         var v = __VA_ARGS__;        \

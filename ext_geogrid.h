@@ -132,7 +132,7 @@ typedef struct {
     f32  voffset;
     s32  offset;
     s32  max;
-} SplitScroll;
+} SplitScrollBar;
 
 typedef struct Split {
     struct Split*   next;
@@ -141,10 +141,10 @@ typedef struct Split {
     
     u32 id;
     u32 prevId;
-    SplitState  state;
-    SplitScroll scroll;
-    SplitEdge*  edge[4];
-    SplitVtx*   vtx[4];
+    SplitState     state;
+    SplitScrollBar scroll;
+    SplitEdge*     edge[4];
+    SplitVtx*      vtx[4];
     
     Rect  rect;                // Absolute XY, relative WH
     Rect  headRect;
@@ -185,22 +185,32 @@ typedef struct {
     s32       size;
 } SplitTask;
 
+typedef struct {
+    f32      cur;
+    f32      vcur;
+    NVGcolor color;
+    Rect     mrect;
+    Rect     rect;
+    Rect     srect;
+    Vec2s    cursorPos;
+    
+    f32  slotHeight;
+    f32  max;
+    f32  visMax;
+    s32  holdOffset;
+    int  hold;
+    bool disabled;
+} ScrollBar;
+
+void ScrollBar_Init(ScrollBar* this, int max, f32 height);
+Rect ScrollBar_GetRect(ScrollBar* this, int slot);
+bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r);
+bool ScrollBar_Draw(ScrollBar* this, void* vg);
+
 typedef enum {
     CONTEXT_PROP_COLOR,
     CONTEXT_ARLI,
 } ContextDataType;
-
-typedef struct {
-    int index;
-    const char* item;
-} ContextRow;
-
-typedef struct {
-    int width;
-    
-    ContextRow* row;
-    int numRow;
-} ContextColumn;
 
 typedef struct ContextMenu {
     struct Element* element;
@@ -218,11 +228,10 @@ typedef struct ContextMenu {
     } state;
     
     void* data;
-    ContextColumn* col;
-    int numCol;
-    int visualKey;
+    int   visualKey;
     
-    Split split;
+    Split     split;
+    ScrollBar scroll;
 } ContextMenu;
 
 typedef struct GeoGrid {
@@ -419,10 +428,10 @@ typedef struct ElCombo {
 } ElCombo;
 
 typedef struct {
-    Element     element;
-    Arli*       list;
-    Arli*       contextList;
-    SplitScroll scroll;
+    Element   element;
+    Arli*     list;
+    Arli*     contextList;
+    ScrollBar scroll;
     
     struct {
         bool pressed   : 1;
@@ -455,6 +464,7 @@ extern Rect gZeroRect;
 VectorGfx VectorGfx_New(VectorGfx* this, const void* data, f32 fidelity);
 void VectorGfx_Free(VectorGfx* this);
 
+void Gfx_SetDefaultTextParams(void* vg);
 void Gfx_Shape(void* vg, Vec2f center, f32 scale, s16 rot, const Vec2f* p, u32 num);
 void Gfx_Vector(void* vg, Vec2f center, f32 scale, s16 rot, const VectorGfx* gfx);
 void Gfx_DrawRounderOutline(void* vg, Rect rect, NVGcolor color);

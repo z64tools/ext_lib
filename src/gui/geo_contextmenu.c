@@ -151,123 +151,55 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
 
 static void ContextProp_Arli_Init(GeoGrid* geo, ContextMenu* this) {
     Arli* list = this->prop;
-    int nullCombo = 0;
     
     nvgFontFace(geo->vg, "default");
     nvgFontSize(geo->vg, SPLIT_TEXT);
     nvgTextAlign(geo->vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
     
-    this->col = new(ContextColumn);
-    this->numCol = 1;
-    
-    warn("new column");
-    for (int i = 0; i < list->num; i++) {
-        ContextColumn* col = &this->col[this->numCol - 1];
-        
-        renew(col->row, ContextRow[++col->numRow]);
-        col->row[col->numRow - 1] = (ContextRow) {};
-        
-        ContextRow* row = &col->row[col->numRow - 1];
-        
-        row->index = i;
-        row->item = list->elemName(list, i);
-        warn("new row: %s", row->item);
-        if (!row->item) nullCombo++;
-        else nullCombo = 0;
-        
-        if (nullCombo == 2) {
-            warn("new column");
-            col->numRow -= 2;
-            renew(this->col, ContextColumn[++this->numCol]);
-            this->col[this->numCol - 1] = (ContextColumn) {};
-        }
-    }
-    
-    this->rect.h = SPLIT_ELEM_X_PADDING;
-    this->rect.w = SPLIT_ELEM_X_PADDING * 4;
+    this->rect.h = 0;
+    this->rect.w = 0;
     this->visualKey = list->cur;
     
-    warn("calc cols and rows");
-    for (int i = 0; i < this->numCol; i++) {
-        int width = 0;
-        int height = 0;
-        
-        for (int j = 0; j < this->col[i].numRow; j++) {
-            warn("column %d num row %d", i, this->col[i].numRow);
-            if (this->col[i].row[j].item) {
-                width = Max(width, Gfx_TextWidth(geo->vg, this->col[i].row[j].item));
-                height += SPLIT_TEXT_H;
-            }
-        }
-        
-        this->col[i].width = width;
-        this->rect.w += width + SPLIT_ELEM_X_PADDING;
-        this->rect.h = Max(this->rect.h, height + SPLIT_ELEM_X_PADDING * 2);
-        
-        if (i + 1 < this->numCol)
-            this->rect.w += SPLIT_ELEM_X_PADDING * 2;
+    for (int i = 0; i < list->num; i++) {
+        this->rect.w = Max(this->rect.w, Gfx_TextWidth(geo->vg, list->elemName(list, i)));
+        this->rect.h += SPLIT_TEXT_H;
     }
+    
+    this->rect.w += 24;
+    
+    ScrollBar_Init(&this->scroll, list->num, SPLIT_TEXT_H);
     
     info("" PRNT_YELW "%s", __FUNCTION__);
     info("list->cur = %d", list->cur);
     info("list->num = %d", list->num);
-    
-    this->state.setCondition = false;
 };
 
 static void ContextProp_Arli_Draw(GeoGrid* geo, ContextMenu* this) {
     Input* input = geo->input;
-    Cursor* cursor = &input->cursor;
+    Arli* list = this->prop;
     void* vg = geo->vg;
-    Rect r = this->rect;
-    int x = SPLIT_ELEM_X_PADDING * 2;
+    bool hold = ScrollBar_Update(&this->scroll, input, input->cursor.pos, this->rect);
     
-    for (int i = 0; i < this->numCol; i++) {
-        ContextColumn* col = &this->col[i];
-        r.x = this->rect.x + x;
-        r.y = this->rect.y + SPLIT_ELEM_X_PADDING;
-        r.w = col->width;
-        r.h = SPLIT_TEXT_H;
+    Gfx_SetDefaultTextParams(vg);
+    for (int i = 0; i < list->num; i++) {
+        Rect r = ScrollBar_GetRect(&this->scroll, i);
         
-        for (int j = 0; j < col->numRow; j++) {
-            if (col->row[j].item) {
-                if (Rect_PointIntersect(&r, cursor->pos.x, cursor->pos.y)) {
-                    this->visualKey = col->row[j].index;
-                    
-                    r.x -= SPLIT_ELEM_X_PADDING;
-                    r.w += SPLIT_ELEM_X_PADDING * 2;
-                    Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_PRIM, 215, 1.0f));
-                    r.x += SPLIT_ELEM_X_PADDING;
-                    r.w -= SPLIT_ELEM_X_PADDING * 2;
-                    
-                    if (Input_GetMouse(input, CLICK_L)->release)
-                        this->state.setCondition = true;
-                }
+        if (Rect_PointIntersect(&this->rect, UnfoldVec2(input->cursor.pos))) {
+            if (!hold && Rect_PointIntersect(&r, UnfoldVec2(input->cursor.pos))) {
+                this->visualKey = i;
                 
-                nvgScissor(vg, UnfoldRect(r));
-                nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
-                nvgFontFace(vg, "default");
-                nvgFontSize(vg, SPLIT_TEXT);
-                nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
-                nvgText(vg, r.x, r.y + SPLIT_ELEM_X_PADDING * 0.5f + 1, col->row[j].item, NULL);
-                nvgResetScissor(vg);
-                
-                r.y += SPLIT_TEXT_H;
-            } else {
-                Rect rr = { r.x, r.y, r.w, 1 };
-                Gfx_DrawRounderRect(vg, rr, Theme_GetColor(THEME_TEXT, 120, 1.0f));
+                if (Input_SelectClick(input, CLICK_L))
+                    this->state.setCondition = true;
             }
         }
         
-        x += col->width + SPLIT_ELEM_X_PADDING;
+        if (this->visualKey == i)
+            Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_PRIM, 255, 1.0f));
         
-        if (i + 1 < this->numCol) {
-            x += SPLIT_ELEM_X_PADDING;
-            Rect rr = { this->rect.x + x, this->rect.y, 1, this->rect.h };
-            Gfx_DrawRounderRect(vg, rr, Theme_GetColor(THEME_TEXT, 120, 1.0f));
-            x += SPLIT_ELEM_X_PADDING * 2;
-        }
+        Gfx_Text(vg, r, NVG_ALIGN_MIDDLE | NVG_ALIGN_LEFT, Theme_GetColor(THEME_TEXT, 255, 1.0f), list->elemName(list, i));
     }
+    
+    ScrollBar_Draw(&this->scroll, vg);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -299,6 +231,8 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType 
     this->state.up = -1;
     this->state.side = 1;
     this->state.init = true;
+    this->state.setCondition = false;
+    this->visualKey = -1;
     
     _log("type %d init func", type);
     sContextMenuFuncs[type][FUNC_INIT](geo, this);
@@ -318,6 +252,18 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType 
         this->state.side = -1;
     }
     
+    Rect cr = {
+        SPLIT_ELEM_Y_PADDING,
+        SPLIT_ELEM_Y_PADDING,
+        geo->wdim->x - SPLIT_ELEM_Y_PADDING * 2,
+        geo->wdim->y - SPLIT_ELEM_Y_PADDING * 2
+    };
+    
+    info("%4d,%4d\n%4d,%4d", this->rect.x, RectW(this->rect), this->rect.y, RectH(this->rect));
+    info("%4d,%4d\n%4d,%4d", cr.x, RectW(cr), cr.y, RectH(cr));
+    this->rect = Rect_Clamp(this->rect, cr);
+    info("%4d,%4d\n%4d,%4d", this->rect.x, RectW(this->rect), this->rect.y, RectH(this->rect));
+    
     _log("ok", type);
 }
 
@@ -329,19 +275,21 @@ void ContextMenu_Draw(GeoGrid* geo) {
     if (this->prop == NULL)
         return;
     
-    nvgBeginFrame(geo->vg, geo->wdim->x, geo->wdim->y, gPixelRatio); {
-        Rect r = this->rect;
-        Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_ELEMENT_BASE, 255, 1.5f));
-        Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_ELEMENT_DARK, 255, 1.0f));
-        
-        sContextMenuFuncs[this->type][FUNC_DRAW](geo, this);
-    } nvgEndFrame(geo->vg);
-    
     if (this->state.init == true) {
         this->state.init = false;
         
         return;
     }
+    
+    nvgBeginFrame(geo->vg, geo->wdim->x, geo->wdim->y, gPixelRatio); {
+        Rect r = this->rect;
+        Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_ELEMENT_BASE, 255, 1.5f));
+        Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_ELEMENT_DARK, 255, 1.0f));
+        
+        nvgScissor(vg, UnfoldRect(r));
+        sContextMenuFuncs[this->type][FUNC_DRAW](geo, this);
+        nvgResetScissor(vg);
+    } nvgEndFrame(geo->vg);
     
     if (Rect_PointDistance(&this->rect, cursor->pos.x, cursor->pos.y) > 0 && Input_GetMouse(geo->input, CLICK_ANY)->press) {
         ContextMenu_Close(geo);
@@ -368,11 +316,6 @@ void ContextMenu_Draw(GeoGrid* geo) {
 
 void ContextMenu_Close(GeoGrid* geo) {
     ContextMenu* this = &geo->dropMenu;
-    
-    warn("free: %s", addr_name(this->col));
-    for (int i = 0; i < this->numCol; i++)
-        vfree(this->col[i].row);
-    vfree(this->col, this->data);
     
     if (sColorContext.imgHue.c) {
         nvgDeleteImage(geo->vg, sColorContext.imgHue.id);

@@ -742,6 +742,9 @@ char* x_strdup(const char* s) {
 char* x_strndup(const char* s, size_t n) {
     return __impl_strndup(x_alloc, s, n);
 }
+char* x_strcdup(const char* s, const char* reject) {
+    return __impl_strndup(x_alloc, s, strcspn(s, reject));
+}
 void* x_memdup(const void* d, size_t n) {
     return __impl_memdup(x_alloc, d, n);
 }
@@ -810,6 +813,9 @@ char* strdup(const char* s) {
 }
 char* strndup(const char* s, size_t n) {
     return __impl_strndup(m_alloc, s, n);
+}
+char* strcdup(const char* s, const char* reject) {
+    return __impl_strndup(m_alloc, s, strcspn(s, reject));
 }
 void* memdup(const void* d, size_t n) {
     return __impl_memdup(m_alloc, d, n);

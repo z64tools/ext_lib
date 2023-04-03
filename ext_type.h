@@ -294,8 +294,8 @@ typedef struct Arli {
     u8*    rend;
     
     const char* (*elemName)(struct Arli*, size_t);
-    u8*    copybuf;
-    size_t cur;
+    u8*   copybuf;
+    off_t cur;
     
     char type[64];
 } Arli;

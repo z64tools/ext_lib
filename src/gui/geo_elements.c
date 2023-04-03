@@ -117,6 +117,111 @@ static bool DragItem_Release(GeoGrid* geo, void* src) {
 
 /*============================================================================*/
 
+void ScrollBar_Init(ScrollBar* this, int max, f32 height) {
+    this->max = max;
+    this->slotHeight = height;
+}
+
+Rect ScrollBar_GetRect(ScrollBar* this, int slot) {
+    Rect r = {
+        this->rect.x,
+        this->rect.y + this->slotHeight * slot,
+        this->rect.w,
+        this->rect.h,
+    };
+    
+    return r;
+}
+
+bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r) {
+    const f32 visibleSlots = (f32)r.h / this->slotHeight;
+    InputType* click = NULL;
+    
+    this->disabled = input == NULL;
+    
+    if (input) {
+        click = Input_GetMouse(input, CLICK_L);
+        
+        if (Rect_PointIntersect(&r, UnfoldVec2(cursorPos)))
+            this->cur -= Input_GetScroll(input);
+    }
+    
+    this->visMax = clamp_min(this->max - visibleSlots, 0);
+    
+    if (this->hold) {
+        if (!click || !click->hold)
+            this->hold--;
+        
+        else {
+            f32 y = cursorPos.y + this->holdOffset;
+            
+            this->cur = ((y - r.y) / (r.h * (this->visMax / this->max))) * (this->max - visibleSlots);
+        }
+    }
+    
+    this->cur = clamp(this->cur, 0, this->visMax);
+    Math_SmoothStepToF(&this->vcur, this->cur, 0.25f, 500.0f, 0.001f);
+    
+    this->mrect = this->rect = r;
+    this->rect.h = this->slotHeight;
+    this->rect.y -= this->vcur * this->slotHeight;
+    this->cursorPos = cursorPos;
+    
+    this->srect = Rect_New(r.x + r.w - 14, lerpf(this->vcur / this->max, r.y, r.y + r.h), 12, lerpf((this->vcur + visibleSlots) / this->max, r.y, r.y + r.h));
+    this->srect.y = clamp(this->srect.y, r.y, r.y + r.h - 8);
+    this->srect.h = clamp(this->srect.h - this->srect.y, 16, r.h);
+    
+    if (Rect_PointIntersect(&this->srect, UnfoldVec2(cursorPos))) {
+        if (click && click->press) {
+            this->hold = 2;
+            this->holdOffset = this->srect.y - cursorPos.y;
+        }
+    }
+    
+    return this->hold;
+}
+
+bool ScrollBar_Draw(ScrollBar* this, void* vg) {
+    Vec2s cursorPos = this->cursorPos;
+    Rect r = this->mrect;
+    const f32 visibleSlots = (f32)r.h / this->slotHeight;
+    
+    if (this->disabled)
+        Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_HIGHLIGHT, 0, 1.0f), 0.5f, 1.0f, 0.01f);
+    
+    else if (this->hold)
+        Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_PRIM, 220, 1.0f), 0.5f, 1.0f, 0.01f);
+    
+    else {
+        if (Rect_PointIntersect(&this->mrect, UnfoldVec2(cursorPos))) {
+            if (Rect_PointIntersect(&this->srect, UnfoldVec2(cursorPos))) {
+                Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_HIGHLIGHT, 220, 1.0f), 0.5f, 1.0f, 0.01f);
+                
+            } else
+                Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_HIGHLIGHT, 125, 1.0f), 0.5f, 1.0f, 0.01f);
+        } else
+            Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_HIGHLIGHT, 0, 1.0f), 0.5f, 1.0f, 0.01f);
+    }
+    
+    NVGcolor color = this->color;
+    
+    if (visibleSlots > this->max) {
+        NVGcolor al = color;
+        f32 remap = remapf(visibleSlots / this->max, 1.0f, 1.0f + (2.0f / this->max), 0.0f, 1.0f);
+        
+        remap = clamp(remap, 0.0f, 1.0f);
+        al.a = 0;
+        
+        color = Theme_Mix(remap, color, al);
+    }
+    
+    Gfx_DrawRounderRect(vg, this->srect, color);
+    
+    return this->hold;
+}
+
+/*============================================================================*/
+
 void Gfx_SetDefaultTextParams(void* vg) {
     nvgFontFace(vg, "default");
     nvgFontSize(vg, SPLIT_TEXT);
@@ -316,10 +421,12 @@ void Element_SetContext(GeoGrid* setGeo, Split* setSplit) {
 
 /*============================================================================*/
 
-#define ELEMENT_QUEUE_CHECK() if (this->element.disabled || GEO->state.blockElemInput) \
-    goto queue_element;
-#define ELEMENT_QUEUE(draw)   goto queue_element; queue_element: \
-    Element_QueueElement(sElemState->geo, sElemState->split,     \
+#define ELEMENT_QUEUE_CHECK(...) if (this->element.disabled || GEO->state.blockElemInput) { \
+        __VA_ARGS__                                                                         \
+        goto queue_element;                                                                 \
+}
+#define ELEMENT_QUEUE(draw)      goto queue_element; queue_element: \
+    Element_QueueElement(sElemState->geo, sElemState->split,        \
         draw, this, __FUNCTION__);
 
 #define SPLIT sElemState->split
@@ -1236,20 +1343,12 @@ s32 Element_Combo(ElCombo* this) {
 /*============================================================================*/
 
 static Rect Element_Container_GetListElemRect(ElContainer* this, s32 i) {
-    Rect r = this->element.rect;
-    f32 yOffset = 0;
     Arli* list = this->list;
     
-    if (list && this->detach.state && i >= this->detach.key) {
-        yOffset = SPLIT_TEXT_H * this->detachMul;
-        yOffset -= SPLIT_TEXT_H;
-    }
+    if (list && this->detach.state && i >= this->detach.key)
+        i--;
     
-    return Rect_New(
-        r.x,
-        r.y + SPLIT_TEXT_H * i - rint(this->scroll.voffset) + yOffset,
-        r.w, SPLIT_TEXT_H
-    );
+    return ScrollBar_GetRect(&this->scroll, i);
 }
 
 static Rect Element_Container_GetDragRect(ElContainer* this, s32 i) {
@@ -1268,20 +1367,10 @@ static void Element_ContainerDraw(ElementQueCall* call) {
     Rect r = this->element.rect;
     Rect scissor = this->element.rect;
     NVGcolor cornerCol = this->element.shadow;
-    SplitScroll* scroll = &this->scroll;
     
     cornerCol.a = 2.5f;
     Gfx_DrawRounderOutline(vg, r, cornerCol);
     Gfx_DrawRounderRect(vg, r, this->element.shadow);
-    
-    Math_SmoothStepToF(
-        &scroll->voffset, scroll->offset,
-        0.25f, fabsf(scroll->offset - scroll->voffset) * 0.5f, 0.1f
-    );
-    
-    Math_SmoothStepToF(&this->detachMul, 0.0f,
-        0.25f,
-        0.75f, 0.01f);
     
     if (!list)
         return;
@@ -1373,10 +1462,11 @@ static void Element_ContainerDraw(ElementQueCall* call) {
             Math_SmoothStepToF(&drag->colorLerp, 0.5f, 0.25f, 0.25f, 0.001f);
     }
     
+    ScrollBar_Draw(&this->scroll, vg);
 }
 
 s32 Element_Container(ElContainer* this) {
-    SplitScroll* scroll = &this->scroll;
+    ScrollBar* scroll = &this->scroll;
     
     _assert(GEO && SPLIT);
     
@@ -1384,7 +1474,6 @@ s32 Element_Container(ElContainer* this) {
         Arli* list = this->list;
         Input* input = GEO->input;
         Cursor* cursor = &GEO->input->cursor;
-        s32 val = clamp(cursor->scrollY, -1, 1);
         DragItem* drag = &sElemState->dragItem;
         
         if (this->text) {
@@ -1394,10 +1483,14 @@ s32 Element_Container(ElContainer* this) {
             this->text = false;
         }
         
-        scroll->max = SPLIT_TEXT_H * list->num - this->element.rect.h;
-        scroll->max = clamp_min(scroll->max, 0);
+        ScrollBar_Init(scroll, list->num, SPLIT_TEXT_H);
         
-        ELEMENT_QUEUE_CHECK();
+        ELEMENT_QUEUE_CHECK(
+            ScrollBar_Update(scroll, NULL, SPLIT->cursorPos, this->element.rect);
+        );
+        
+        if (ScrollBar_Update(scroll, input, SPLIT->cursorPos, this->element.rect))
+            goto queue_element;
         
         if (this->drag && this->heldKey > 0 && Math_Vec2s_DistXZ(cursor->pos, cursor->pressPos) > 8) {
             _log("Drag Item Init");
@@ -1405,7 +1498,6 @@ s32 Element_Container(ElContainer* this) {
             DragItem_Init(GEO, this, this->grabRect, list->elemName(list, this->heldKey - 1), this->list);
             
             this->detachID = this->heldKey - 1;
-            this->detachMul = 1.0f;
             
             if (Input_GetKey(input, KEY_LEFT_SHIFT)->hold) {
                 Arli_CopyToBuf(list, this->heldKey - 1);
@@ -1423,7 +1515,6 @@ s32 Element_Container(ElContainer* this) {
         }
         
         SPLIT->splitBlockScroll++;
-        scroll->offset += (SPLIT_TEXT_H) *-val;
         
         if (Input_GetMouse(input, CLICK_R)->press) {
             if (this->contextList) {
@@ -1451,9 +1542,10 @@ s32 Element_Container(ElContainer* this) {
             goto queue_element;
         }
         
-        if (!Input_GetMouse(input, CLICK_L)->press)
+        if (!Input_GetMouse(input, CLICK_L)->press) {
             if (!this->pressed)
                 goto queue_element;
+        }
         
         if (ELEM_PRESS_CONDITION(this)) {
             if (Input_GetMouse(input, CLICK_L)->dual && list->num) {
@@ -1516,11 +1608,9 @@ s32 Element_Container(ElContainer* this) {
                     Arli_Set(list, i);
             }
         }
-        
     }
     
     ELEMENT_QUEUE(Element_ContainerDraw);
-    scroll->offset = clamp(scroll->offset, 0, scroll->max);
     
     if (this->text) {
         (void)0;

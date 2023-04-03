@@ -466,6 +466,38 @@ static inline f32 Rect_PointDistance(Rect* rect, s32 x, s32 y) {
     return Math_Vec2s_DistXZ(r, p);
 }
 
+static inline int RectW(Rect r) {
+    return r.x + r.w;
+}
+
+static inline int RectH(Rect r) {
+    return r.y + r.h;
+}
+
+static inline Rect Rect_Clamp(Rect r, Rect l) {
+    int diff;
+    
+    if ((diff = l.x - r.x) > 0) {
+        r.x += diff;
+        r.w -= diff;
+    }
+    
+    if ((diff = l.y - r.y) > 0) {
+        r.y += diff;
+        r.h -= diff;
+    }
+    
+    if ((diff = RectW(r) - RectW(l)) > 0) {
+        r.w -= diff;
+    }
+    
+    if ((diff = RectH(r) - RectH(l)) > 0) {
+        r.h -= diff;
+    }
+    
+    return r;
+}
+
 static inline BoundBox BoundBox_New3F(Vec3f point) {
     BoundBox this;
     

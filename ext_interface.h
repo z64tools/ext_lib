@@ -89,18 +89,10 @@ typedef struct {
     s32 split;
     s32 selected;
     
-    f32 scroll;
-    f32 vscroll;
-    f32 scrollMax;
-    s32 sliderHoldOffset;
-    
-    s32 slot;
-    
-    NVGcolor sliderColor;
+    ScrollBar scroll;
     
     struct {
-        bool holdSlider : 1;
-        bool doRename   : 1;
+        bool doRename : 1;
     };
     
     struct {
