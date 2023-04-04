@@ -590,6 +590,23 @@ static inline int thd_join(thread_t* thread) {
         mutex_unlock(&mutex_var);        \
 } while (0)
 
+static u32 rmask(u32 value, u32 mask) {
+    u32 shift = __builtin_ctz(mask);
+    
+    value >>= shift;
+    mask >>= shift;
+    
+    return value & mask;
+}
+
+static u32 wmask(u32 value, u32 mask) {
+    u32 shift = __builtin_ctz(mask);
+    
+    value <<= shift;
+    
+    return value & mask;
+}
+
 #pragma GCC diagnostic pop
 
 #endif // EXT_BAREBONES

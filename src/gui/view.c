@@ -233,9 +233,9 @@ static void Camera_Update_RotTo(View3D* this, Input* input) {
             KEY_KP_7,
         };
         Vec3f target[] = {
-            { 0,  0,   0   },
-            { 0,  90,  0   },
-            { 90, 0,   0   },
+            { 0,  180,       0       },
+            { 0,  90 + 180,  0       },
+            { 90, 180,       0       },
         };
         
         for (int i = 0; i < ArrCount(key); i++) {
