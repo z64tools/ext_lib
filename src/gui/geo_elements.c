@@ -372,9 +372,9 @@ static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, v
 static s32 Element_PressCondition(GeoGrid* geo, Split* split, Element* this) {
     if (
         !geo->state.blockElemInput &
-        (split->mouseInSplit || this->header) &&
-        !split->blockMouse &&
-        !split->elemBlockMouse &&
+        (split->cursorInSplit || this->header) &&
+        !split->blockCursor &&
+        !split->elemBlockCursor &&
         fabsf(split->scroll.voffset - split->scroll.offset) < 5
     ) {
         if (this->header) {
@@ -703,7 +703,7 @@ void Element_UpdateTextbox(GeoGrid* geo) {
             s32 id = 0;
             f32 dist = FLT_MAX;
             
-            if (this->isClicked && Math_Vec2s_DistXZ(split->mousePressPos, split->cursorPos) < 2)
+            if (this->isClicked && Math_Vec2s_DistXZ(split->cursorPressPos, split->cursorPos) < 2)
                 return;
             
             Gfx_SetDefaultTextParams(vg);
@@ -1161,12 +1161,12 @@ f32 Element_Slider(ElSlider* this) {
     
     nested(void, SetHold, ()) {
         this->holdState = true;
-        SPLIT->elemBlockMouse++;
+        SPLIT->elemBlockCursor++;
     };
     
     nested(void, UnsetHold, ()) {
         if (this->holdState)
-            SPLIT->elemBlockMouse--;
+            SPLIT->elemBlockCursor--;
         this->holdState = false;
     };
     

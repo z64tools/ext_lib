@@ -146,11 +146,11 @@ typedef struct Split {
     SplitEdge*     edge[4];
     SplitVtx*      vtx[4];
     
-    Rect  rect;                // Absolute XY, relative WH
+    Rect  rect; // Absolute XY, relative WH
     Rect  headRect;
     Rect  dispRect;
-    Vec2s cursorPos;           // relative
-    Vec2s mousePressPos;
+    Vec2s cursorPos; // relative
+    Vec2s cursorPressPos;
     
     struct {
         bool     useCustomColor : 1;
@@ -162,14 +162,14 @@ typedef struct Split {
     void* instance;
     
     // Incrementable blocker
-    s32 elemBlockMouse;
+    s32 elemBlockCursor;
     s32 splitBlockScroll;
     struct {
-        bool mouseInSplit    : 1;
-        bool mouseInHeader   : 1;
-        bool mouseInDispRect : 1;
-        bool inputAccess     : 1;
-        bool blockMouse      : 1;
+        bool cursorInSplit  : 1;
+        bool cursorInHeader : 1;
+        bool cursorInDisp   : 1;
+        bool inputAccess    : 1;
+        bool blockCursor    : 1;
     };
     
     u32       isHeader;
@@ -265,8 +265,9 @@ typedef struct GeoGrid {
     struct {
         s32  blockSplitting;
         s32  blockElemInput;
-        bool cleanVtx : 1;
-        bool first    : 1;
+        bool cleanVtx     : 1;
+        bool first        : 1;
+        bool splittedHold : 1;
     } state;
     ContextMenu dropMenu;
 } GeoGrid;

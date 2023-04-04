@@ -14,6 +14,7 @@ enum Remove {
 typedef struct {
     toml_table_t* tbl;
     toml_array_t* arr;
+    toml_table_t* par;
     const char*   item;
     s32 idx;
 } TravelResult;
@@ -118,6 +119,7 @@ static TravelResult Toml_Travel(Toml* this, const char* field, toml_table_t* tbl
             strstr(elem, "[")[0] = '\0';
             
             travel = (TravelResult) {
+                .par = tbl,
                 .arr = toml_array_in(tbl, elem),
                 .idx = idx,
             };
@@ -410,16 +412,20 @@ static bool Toml_Remove(Toml* this, enum Remove rem, const char* item, va_list v
     
     if (arr) {
         if (rem == RM_ARR) {
+            int i = 0;
+            tbl = t.par;
+            
+            for (; i < tbl->narr; i++)
+                if (tbl->arr[i] == arr)
+                    break;
+            
             _log("%s", arr->key);
+            _assert(i < tbl->narr);
             
-            for (int i = 0; i < arr->nitem; i++) {
-                xfree_arr(arr->item[i].arr);
-                xfree_tab(arr->item[i].tab);
-                xfree(arr->item[i].val);
-            }
-            xfree(arr->item);
+            arrmove_l(tbl->arr, i, tbl->narr);
+            tbl->narr--;
             
-            arr->nitem = 0;
+            xfree_arr(arr);
             
             return true;
         }
