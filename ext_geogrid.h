@@ -182,7 +182,9 @@ typedef struct {
     SplitFunc destroy;
     SplitFunc update;
     SplitFunc draw;
-    s32       size;
+    void (*saveConfig)(void*, Split*, Toml*, const char*);
+    void (*loadConfig)(void*, Split*, Toml*, const char*);
+    s32 size;
 } SplitTask;
 
 typedef struct {
@@ -264,6 +266,7 @@ typedef struct GeoGrid {
         s32  blockSplitting;
         s32  blockElemInput;
         bool cleanVtx : 1;
+        bool first    : 1;
     } state;
     ContextMenu dropMenu;
 } GeoGrid;
@@ -457,6 +460,13 @@ typedef struct {
     } detach;
 } ElContainer;
 
+typedef struct {
+    Element      element;
+    int          index;
+    const char** name;
+    int          num;
+} ElTab;
+
 extern Vec2f gZeroVec2f;
 extern Vec2s gZeroVec2s;
 extern Rect gZeroRect;
@@ -487,6 +497,9 @@ void GeoGrid_Draw(GeoGrid* geo);
 
 void DummySplit_Push(GeoGrid* geo, Split* split, Rect r);
 void DummySplit_Pop(GeoGrid* geo, Split* split);
+
+void GeoGrid_SaveLayout(GeoGrid* geo, Toml* toml, const char* file);
+int GeoGrid_LoadLayout(GeoGrid* this, Toml* toml);
 
 void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType type, Rect rect);
 void ContextMenu_Draw(GeoGrid* geo);

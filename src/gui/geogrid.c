@@ -774,7 +774,7 @@ static void Split_UpdateRect(Split* split) {
     split->headRect.w = split->rect.w;
 }
 
-static void Split_SwapInstance(GeoGrid* geo, Split* split) {
+static void Split_InitOrSwap(GeoGrid* geo, Split* split) {
     SplitScrollBar* scroll = &split->scroll;
     
     if (split->instance) {
@@ -869,7 +869,7 @@ static void Split_UpdateSplit(GeoGrid* geo, Split* split) {
         split->id = split->taskList->cur;
         
         if (split->id != split->prevId)
-            Split_SwapInstance(geo, split);
+            Split_InitOrSwap(geo, split);
         
         _log("SplitUpdate( %d %s )", split->id, geo->taskTable[split->id]->taskName);
         _assert(table[split->id]->update != NULL);
@@ -1292,22 +1292,23 @@ void GeoGrid_Destroy(GeoGrid* this) {
     vfree(this->elemState);
 }
 
-void GeoGrid_Update(GeoGrid* geo) {
-    GeoGrid_SetTopBarHeight(geo, geo->bar[BAR_TOP].rect.h);
-    GeoGrid_SetBotBarHeight(geo, geo->bar[BAR_BOT].rect.h);
+void GeoGrid_Update(GeoGrid* this) {
+    GeoGrid_SetTopBarHeight(this, this->bar[BAR_TOP].rect.h);
+    GeoGrid_SetBotBarHeight(this, this->bar[BAR_BOT].rect.h);
     
-    Vtx_Update(geo);
-    Edge_Update(geo);
+    Vtx_Update(this);
+    Edge_Update(this);
     
-    geo->prevWorkRect = geo->workRect;
-}
-
-void GeoGrid_Draw(GeoGrid* this) {
+    this->prevWorkRect = this->workRect;
+    
     ElementState_SetElemState(this->elemState);
     Element_Flush();
     
     Element_UpdateTextbox(this);
     Split_Update(this);
+}
+
+void GeoGrid_Draw(GeoGrid* this) {
     
     // Draw Bars
     for (int i = 0; i < 2; i++) {
@@ -1346,4 +1347,64 @@ void DummySplit_Push(GeoGrid* geo, Split* split, Rect r) {
 void DummySplit_Pop(GeoGrid* geo, Split* split) {
     Element_UpdateTextbox(geo);
     Element_Draw(geo, split, false);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void GeoGrid_SaveLayout(GeoGrid* this, Toml* toml, const char* file) {
+    Split* split = this->splitHead;
+    
+    #define SplitSaveConfFunc this->taskTable[split->id]->saveConfig
+    
+    for (int i = 0; split; split = split->next, i++) {
+        Toml_SetVar(toml, x_fmt("geo_grid.split[%d].index", i), "%d", split->id);
+        
+        Rectf32 r = {
+            split->vtx[VTX_TOP_L]->pos.x,
+            split->vtx[VTX_TOP_L]->pos.y,
+            split->vtx[VTX_BOT_R]->pos.x - split->vtx[VTX_TOP_L]->pos.x,
+            split->vtx[VTX_BOT_R]->pos.y - split->vtx[VTX_TOP_L]->pos.y,
+        };
+        
+        for (int k = 0; k < 4; k++) {
+            Toml_SetVar(toml,
+                x_fmt("geo_grid.split[%d].vtx[%d]", i, k),
+                "%g",
+                ((f32*)(&r.x))[k]
+            );
+        }
+        
+        if (SplitSaveConfFunc)
+            SplitSaveConfFunc(split->instance, split, toml, x_fmt("geo_grid.split[%d]", i));
+    }
+    
+    Toml_Save(toml, file);
+#undef SplitSaveConfFunc
+}
+
+int GeoGrid_LoadLayout(GeoGrid* this, Toml* toml) {
+    int arrNum = Toml_ArrCount(toml, "geo_grid.split[]");
+    
+    for (int i = 0; i < arrNum; i++) {
+        Rectf32 r;
+        int id = Toml_GetInt(toml, "geo_grid.split[%d].index", i);
+        f32* f = (f32*)(&r);
+        
+        for (int k = 0; k < 4; k++)
+            f[k] = Toml_GetFloat(toml, "geo_grid.split[%d].vtx[%d]", i, k);
+        
+        GeoGrid_AddSplit(this, &r, id);
+    }
+    
+    if (!arrNum) return 0;
+    
+    int id = 0;
+    for (Split* split = this->splitHead; split; split = split->next, id++) {
+        Split_InitOrSwap(this, split);
+        
+        if (this->taskTable[split->id]->loadConfig)
+            this->taskTable[split->id]->loadConfig(split->instance, split, toml, x_fmt("geo_grid.split[%d]", id));
+    }
+    
+    return arrNum;
 }

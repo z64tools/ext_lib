@@ -673,8 +673,7 @@ void Element_UpdateTextbox(GeoGrid* geo) {
             sElemState->blockerTextbox++;
             this->doBlock = true;
             return;
-        } else if (Textbox_GetKey(geo, KEY_ENTER)->press
-            || (!Rect_PointIntersect(&this->element.rect, UnfoldVec2(split->cursorPos)) && cPress)) {
+        } else if (Textbox_GetKey(geo, KEY_ENTER)->press || (!Rect_PointIntersect(&this->element.rect, UnfoldVec2(split->cursorPos)) && cPress)) {
             Textbox_Clear(geo);
             return;
         }
@@ -809,7 +808,7 @@ void Element_UpdateTextbox(GeoGrid* geo) {
                 if (paste) origin = Input_GetClipboardStr(geo->input);
                 if (this->selA != this->selB) Remove();
                 
-                strnins(this->txt, origin, this->selA, maxSize);
+                strnins(this->txt, origin, this->selA, maxSize + 1);
                 
                 this->selPos = this->selPivot = this->selB = this->selA = clamp_max(this->selA + 1, maxSize);
                 this->modified = true;
@@ -944,8 +943,9 @@ s32 Element_Textbox(ElTextbox* this) {
     ELEMENT_QUEUE(Element_TextboxDraw);
     
     s32 ret = this->ret;
+    this->ret = 0;
     
-    return (this->ret = 0, ret);
+    return ret;
 }
 
 /*============================================================================*/
@@ -1335,9 +1335,55 @@ s32 Element_Combo(ElCombo* this) {
     ELEMENT_QUEUE(Element_ComboDraw);
     
     if (list)
-        return index - list->cur + this->element.contextSet;
+        return (index - list->cur) | this->element.contextSet;
     
     return 0;
+}
+
+/*============================================================================*/
+
+Rect Element_Tab_GetRect(ElTab* this, int index) {
+    f32 w = this->element.rect.w / (f32)this->num;
+    
+    return Rect_New(
+        this->element.rect.x + w * index,
+        this->element.rect.y,
+        w,
+        SPLIT_TEXT_H
+    );
+}
+
+static void Element_TabDraw(ElementQueCall* call) {
+    ElTab* this = call->arg;
+    void* vg = GEO->vg;
+}
+
+int Element_Tab(ElTab* this) {
+    int id = this->index;
+    
+    _assert(GEO && SPLIT);
+    
+    ELEMENT_QUEUE_CHECK();
+    
+    if (ELEM_PRESS_CONDITION(this)) {
+        
+        if (!Input_SelectClick(GEO->input, CLICK_L))
+            goto queue_element;
+        
+        for (int i = 0; i < this->num; i++) {
+            Rect r = Element_Tab_GetRect(this, i);
+            
+            if (Split_CursorInRect(SPLIT, &r)) {
+                this->index = i;
+                
+                break;
+            }
+        }
+    }
+    
+    ELEMENT_QUEUE(Element_TabDraw);
+    
+    return id - this->index;
 }
 
 /*============================================================================*/

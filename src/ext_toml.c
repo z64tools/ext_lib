@@ -533,6 +533,7 @@ void Toml_Print(Toml* this, void* d, void (*PRINT)(void*, const char*, ...)) {
                     _log("%d / %d (%c)", j + 1, arr->nitem, arr->kind);
                     
                     if (arr->kind == 'v') {
+                        indent++;
                         if (brk) {
                             if (f == 0)
                                 PRINT(d, "%s", Indent());
@@ -545,6 +546,7 @@ void Toml_Print(Toml* this, void* d, void (*PRINT)(void*, const char*, ...)) {
                         
                         PRINT(d, "%s", arr->item[j].val);
                         f++;
+                        indent--;
                     }
                     
                     if (arr->kind == 'a') {

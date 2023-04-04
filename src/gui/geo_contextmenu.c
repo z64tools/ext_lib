@@ -160,7 +160,11 @@ static void ContextProp_Arli_Init(GeoGrid* geo, ContextMenu* this) {
     this->rect.w = 0;
     this->visualKey = list->cur;
     
+    info("" PRNT_YELW "%s", __FUNCTION__);
+    info("list->cur = %d", list->cur);
+    _log("list->num = %d", list->num);
     for (int i = 0; i < list->num; i++) {
+        _log("%-*d: %s", digint(list->num), i, list->elemName(list, i));
         this->rect.w = Max(this->rect.w, Gfx_TextWidth(geo->vg, list->elemName(list, i)));
         this->rect.h += SPLIT_TEXT_H;
     }
@@ -168,11 +172,7 @@ static void ContextProp_Arli_Init(GeoGrid* geo, ContextMenu* this) {
     this->rect.w += 24;
     
     ScrollBar_Init(&this->scroll, list->num, SPLIT_TEXT_H);
-    
-    info("" PRNT_YELW "%s", __FUNCTION__);
-    info("list->cur = %d", list->cur);
-    info("list->num = %d", list->num);
-};
+}
 
 static void ContextProp_Arli_Draw(GeoGrid* geo, ContextMenu* this) {
     Input* input = geo->input;

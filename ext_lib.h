@@ -607,6 +607,14 @@ static u32 wmask(u32 value, u32 mask) {
     return value & mask;
 }
 
+static u32 pmask(u32 mask) {
+    u32 shift = __builtin_ctz(mask);
+    
+    mask >>= shift;
+    
+    return dighex(mask);
+}
+
 #pragma GCC diagnostic pop
 
 #endif // EXT_BAREBONES
