@@ -220,6 +220,15 @@ bool ScrollBar_Draw(ScrollBar* this, void* vg) {
     return this->hold;
 }
 
+void ScrollBar_FocusSlot(ScrollBar* this, Rect r, int slot) {
+    const f32 visibleSlots = (f32)r.h / this->slotHeight;
+    
+    this->visMax = clamp_min(this->max - visibleSlots, 0);
+    this->cur = slot - visibleSlots * 0.5f;
+    this->cur = clamp(this->cur, 0, this->visMax);
+    this->vcur = this->cur;
+}
+
 /*============================================================================*/
 
 void Gfx_SetDefaultTextParams(void* vg) {
@@ -288,6 +297,30 @@ void Gfx_DrawRounderOutline(void* vg, Rect rect, NVGcolor color) {
     nvgFill(vg);
 }
 
+void Gfx_DrawRounderOutlineWidth(void* vg, Rect rect, NVGcolor color, int width) {
+    nvgBeginPath(vg);
+    nvgFillColor(vg, color);
+    nvgRoundedRect(
+        vg,
+        rect.x - width,
+        rect.y - width,
+        rect.w + width * 2,
+        rect.h + width * 2,
+        SPLIT_ROUND_R
+    );
+    nvgRoundedRect(
+        vg,
+        rect.x,
+        rect.y,
+        rect.w,
+        rect.h,
+        SPLIT_ROUND_R
+    );
+    
+    nvgPathWinding(vg, NVG_HOLE);
+    nvgFill(vg);
+}
+
 void Gfx_DrawRounderRect(void* vg, Rect rect, NVGcolor color) {
     nvgBeginPath(vg);
     nvgFillColor(vg, color);
@@ -320,13 +353,56 @@ void Gfx_DrawStripes(void* vg, Rect rect) {
     nvgResetScissor(vg);
 }
 
-void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* txt) {
-    if (align & ALIGN_CENTER)
-        r.x += r.w * 0.5f;
-    else if (align & ALIGN_RIGHT)
-        r.x += r.w - SPLIT_ELEM_X_PADDING;
-    else
+f32 Gfx_TextWidth(void* vg, const char* txt) {
+    f32 bounds[4];
+    
+    nvgSave(vg);
+    Gfx_SetDefaultTextParams(vg);
+    nvgTextAlign(vg, NVG_ALIGN_MIDDLE | NVG_ALIGN_LEFT);
+    nvgTextBounds(vg, 0, 0, txt, 0, bounds);
+    nvgRestore(vg);
+    
+    return bounds[2];
+}
+
+Rect Gfx_TextRect(void* vg, Rect r, enum NVGalign align, const char* txt) {
+    f32 width = Gfx_TextWidth(vg, txt);
+    
+    if (align & NVG_ALIGN_CENTER) {
+        r.x += r.w * 0.5f - width * 0.5f;
+        r.w = width;
+    } else if (align & NVG_ALIGN_LEFT) {
         r.x += SPLIT_ELEM_X_PADDING;
+        r.w = width;
+    } else {
+        r.x += r.w - SPLIT_ELEM_X_PADDING - width;
+        r.w = width;
+    }
+    
+    return r;
+}
+
+Rect Gfx_TextRectMinMax(void* vg, Rect r, enum NVGalign align, const char* txt, int min, int max) {
+    r = Gfx_TextRect(vg, r, align, txt);
+    
+    f32 wmin = 0;
+    f32 wmax = 0;
+    
+    if (min) wmin = Gfx_TextWidth(vg, x_strndup(txt, min));
+    if (max) wmax = Gfx_TextWidth(vg, x_strndup(txt, max));
+    
+    r.x += wmin;
+    r.w = wmax - wmin;
+    
+    return r;
+}
+
+void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* txt) {
+    Rect nr = Gfx_TextRect(vg, r, align, txt);
+    
+    r = Rect_Clamp(nr, r);
+    
+    align = NVG_ALIGN_MIDDLE | NVG_ALIGN_LEFT;
     
     Gfx_SetDefaultTextParams(vg);
     nvgTextAlign(vg, align);
@@ -338,16 +414,6 @@ void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* t
         txt,
         NULL
     );
-}
-
-f32 Gfx_TextWidth(void* vg, const char* txt) {
-    f32 bounds[4];
-    
-    Gfx_SetDefaultTextParams(vg);
-    nvgTextAlign(vg, NVG_ALIGN_MIDDLE | NVG_ALIGN_LEFT);
-    nvgTextBounds(vg, 0, 0, txt, 0, bounds);
-    
-    return bounds[2];
 }
 
 /*============================================================================*/
@@ -402,7 +468,7 @@ static void Element_Slider_SetTextbox(Split* split, ElSlider* this) {
         this->isTextbox = true;
         
         this->textBox.element.rect = this->element.rect;
-        this->textBox.align = ALIGN_CENTER;
+        this->textBox.align = NVG_ALIGN_CENTER;
         this->textBox.size = 32;
         
         this->textBox.type = this->isInt ? TEXTBOX_INT : TEXTBOX_F32;
@@ -461,11 +527,9 @@ static void Element_ButtonDraw(ElementQueCall* call) {
     }
     
     if (name && this->element.rect.w > 8) {
-        enum NVGalign align = NVG_ALIGN_MIDDLE | this->align;
-        
         nvgScissor(vg, UnfoldRect(this->element.rect));
         Gfx_SetDefaultTextParams(vg);
-        Gfx_Text(vg, r, align, this->element.texcol, this->element.name);
+        Gfx_Text(vg, r, this->align, this->element.texcol, this->element.name);
         nvgResetScissor(vg);
     }
 }
@@ -706,16 +770,13 @@ void Element_UpdateTextbox(GeoGrid* geo) {
             if (this->isClicked && Math_Vec2s_DistXZ(split->cursorPressPos, split->cursorPos) < 2)
                 return;
             
-            Gfx_SetDefaultTextParams(vg);
-            nvgTextAlign(vg, NVG_ALIGN_MIDDLE | NVG_ALIGN_LEFT);
-            
             for (char* end = this->txt; ; end++) {
-                f32 b[4];
                 Vec2s p;
                 f32 ndist;
                 
-                nvgTextBounds(vg, 0, 0, this->txt, end, b);
-                p.x = r.x + SPLIT_ELEM_X_PADDING + b[2] - 2;
+                Rect tr = Gfx_TextRectMinMax(vg, r, this->align, this->txt, 0, end - this->txt);
+                
+                p.x = RectW(tr) - 2;
                 p.y = split->cursorPos.y;
                 
                 if ((ndist = Math_Vec2s_DistXZ(p, split->cursorPos)) < dist) {
@@ -787,10 +848,10 @@ void Element_UpdateTextbox(GeoGrid* geo) {
                 bool shiftMul = this->selA == this->selB;
                 
                 //crustify
-                if (kHome)        val = 0;
-                else if (kEnd)    val = LEN;
-                else if (kShift)  val = Shift(this->selPos, dir);
-                else              val = Shift(dirPoint[clamp_min(dir, 0)], dir * shiftMul);
+ if (kHome) val = 0;
+ else if (kEnd) val = LEN;
+ else if (kShift) val = Shift(this->selPos, dir);
+ else val = Shift(dirPoint[clamp_min(dir, 0)], dir * shiftMul);
                 //uncrustify
                 val = clamp(val, 0, LEN);
                 
@@ -825,7 +886,6 @@ void Element_UpdateTextbox(GeoGrid* geo) {
 static void Element_TextboxDraw(ElementQueCall* call) {
     void* vg = call->geo->vg;
     ElTextbox* this = call->arg;
-    enum NVGalign align = NVG_ALIGN_MIDDLE + this->align;
     
     Gfx_DrawRounderRect(vg, this->boxRect, this->element.base);
     
@@ -838,54 +898,36 @@ static void Element_TextboxDraw(ElementQueCall* call) {
     nvgScissor(vg, UnfoldRect(this->boxRect));
     
     if (sElemState->textbox == this) {
-        Rect r = this->boxRect;
-        char str[sizeof(this->txt)];
-        
-        align = NVG_ALIGN_MIDDLE | ALIGN_LEFT;
-        nvgTextAlign(vg, align);
-        
-        r.y++;
-        r.h -= 2;
         
         if (this->selA == this->selB) {
-            memset(str, 0, sizeof(str));
-            strncpy(str, this->txt, sElemState->textbox->selA + 1);
-            strrep(str, " ", "-");
-            r.x += Gfx_TextWidth(vg, str) + SPLIT_ELEM_X_PADDING;
+            Rect r = this->boxRect;
+            s32 min = this->selA;
+            s32 max = this->selB;
             
-            r.x -= 2;
+            r = Gfx_TextRectMinMax(vg, r, this->align, this->txt, min, max);
+            r.y++;
+            r.h -= 2;
             r.w = 2;
+            
             Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_DELETE, 255, 1.0f));
         }
     }
     
-    Gfx_Text(vg, this->boxRect, align, this->element.texcol, this->txt);
+    Gfx_Text(vg, this->boxRect, this->align, this->element.texcol, this->txt);
     nvgResetScissor(vg);
     
     if (sElemState->textbox == this) {
-        Rect r = this->boxRect;
-        char str[sizeof(this->txt)];
         
         if (this->selA != this->selB) {
+            Rect r = this->boxRect;
             s32 min = this->selA;
             s32 max = this->selB;
-            s32 start;
             
-            memset(str, 0, sizeof(str));
-            _log("cpymin: %d", min);
-            strncpy(str, this->txt, min + 1);
-            strrep(str, " ", "-");
-            r.x += clamp((start = Gfx_TextWidth(vg, str)) + SPLIT_ELEM_X_PADDING, 0, this->boxRect.w);
-            
-            memset(str, 0, sizeof(str));
-            _log("cpymax: %d", max);
-            strncpy(str, this->txt, max + 1);
-            strrep(str, " ", "-");
-            r.w = clamp(Gfx_TextWidth(vg, str) - start, 0, this->boxRect.w);
+            r = Gfx_TextRectMinMax(vg, r, this->align, this->txt, min, max);
             
             nvgScissor(vg, UnfoldRect(r));
             Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_TEXT, 255, 1.0f));
-            Gfx_Text(vg, this->boxRect, align, this->element.shadow, this->txt);
+            Gfx_Text(vg, this->boxRect, this->align, this->element.shadow, this->txt);
             nvgResetScissor(vg);
         }
     }
@@ -960,7 +1002,7 @@ static void Element_TextDraw(ElementQueCall* call) {
     if (this->element.disabled == false)
         nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
     else
-        nvgFillColor(vg, Theme_Mix(0.45, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_TEXT, 255, 1.15f)));
+        nvgFillColor(vg, Theme_Mix(0.45, Theme_GetColor(THEME_ELEMENT_BASE, 255, 1.00f), Theme_GetColor(THEME_TEXT, 255, 1.15f)));
     
     if (this->element.dispText == true) {
         Rect r = this->element.rect;
@@ -999,14 +1041,14 @@ static void Element_CheckboxDraw(ElementQueCall* call) {
     ElCheckbox* this = call->arg;
     Vec2f center;
     const Vec2f sVector_Cross[] = {
-        { .x = -10, .y =  10 }, { .x =  -7, .y =  10 },
-        { .x =   0, .y =   3 }, { .x =   7, .y =  10 },
-        { .x =  10, .y =  10 }, { .x =  10, .y =   7 },
-        { .x =   3, .y =   0 }, { .x =  10, .y =  -7 },
-        { .x =  10, .y = -10 }, { .x =   7, .y = -10 },
-        { .x =   0, .y =  -3 }, { .x =  -7, .y = -10 },
-        { .x = -10, .y = -10 }, { .x = -10, .y =  -7 },
-        { .x =  -3, .y =   0 }, { .x = -10, .y =   7 },
+        { .x = -10, .y                                                 = 10  }, { .x = -7,  .y                                                 = 10  },
+        { .x = 0,   .y                                                 = 3   }, { .x = 7,   .y                                                 = 10  },
+        { .x = 10,  .y                                                 = 10  }, { .x = 10,  .y                                                 = 7   },
+        { .x = 3,   .y                                                 = 0   }, { .x = 10,  .y                                                 = -7  },
+        { .x = 10,  .y                                                 = -10 }, { .x = 7,   .y                                                 = -10 },
+        { .x = 0,   .y                                                 = -3  }, { .x = -7,  .y                                                 = -10 },
+        { .x = -10, .y                                                 = -10 }, { .x = -10, .y                                                 = -7  },
+        { .x = -3,  .y                                                 = 0   }, { .x = -10, .y                                                 = 7   },
     };
     Rect r = this->element.rect;
     
@@ -1283,22 +1325,45 @@ static void Element_ComboDraw(ElementQueCall* call) {
     r = this->element.rect;
     
     if (list && list->num) {
-        nvgScissor(vg, UnfoldRect(this->element.rect));
-        Gfx_SetDefaultTextParams(vg);
-        nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+        Rect sr = r;
+        NVGcolor color;
+        
+        f32 width = 0;
+        const char* text = NULL;
+        
+        if (this->showDecID)
+            text = x_fmt("%d:--", list->cur);
+        
+        else if (this->showHexID)
+            text = x_fmt("%X:--", list->cur);
+        
+        if (text) {
+            width += Gfx_TextWidth(vg, text);
+            while (strend(text, "-"))
+                strend(text, "-")[0] = '\0';
+            Gfx_Text(
+                vg, r, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE,
+                this->element.texcol,
+                text
+            );
+        }
+        
+        sr.x += width;
+        sr.w -= 10 + SPLIT_ELEM_X_PADDING + width;
+        nvgScissor(vg, UnfoldRect(sr));
         
         if (geo->dropMenu.element == (void*)this)
-            nvgFillColor(vg, this->element.light);
+            color = this->element.light;
         
         else
-            nvgFillColor(vg, this->element.texcol);
+            color = this->element.texcol;
         
-        nvgText(vg, r.x + SPLIT_ELEM_X_PADDING, r.y + r.h * 0.5 + 1, list->elemName(list, list->cur), NULL);
+        Gfx_Text(vg, sr, this->align, color, list->elemName(list, list->cur));
         nvgResetScissor(vg);
     } else
         Gfx_DrawStripes(vg, this->element.rect);
     
-    center.x = r.x + r.w - 5 - 5;
+    center.x = r.x + r.w - 10;
     center.y = r.y + r.h * 0.5f;
     
     nvgBeginPath(vg);
@@ -1326,6 +1391,7 @@ s32 Element_Combo(ElCombo* this) {
                 Rect* rect[] = { &SPLIT->rect, &SPLIT->headRect };
                 
                 ContextMenu_Init(GEO, this->arlist, this, CONTEXT_ARLI, Rect_AddPos(this->element.rect, *rect[this->element.header]));
+                ScrollBar_FocusSlot(&GEO->dropMenu.scroll, GEO->dropMenu.rect, list->cur);
             } else if (scrollY)
                 Arli_Set(list, list->cur - scrollY);
         }
@@ -1334,8 +1400,13 @@ s32 Element_Combo(ElCombo* this) {
     
     ELEMENT_QUEUE(Element_ComboDraw);
     
-    if (list)
+    if (list) {
+        this->element.faulty = (list->cur < 0 || list->cur >= list->num);
+        
         return (index - list->cur) | this->element.contextSet;
+    }
+    
+    this->element.faulty = false;
     
     return 0;
 }
@@ -1389,11 +1460,6 @@ int Element_Tab(ElTab* this) {
 /*============================================================================*/
 
 static Rect Element_Container_GetListElemRect(ElContainer* this, s32 i) {
-    Arli* list = this->list;
-    
-    if (list && this->detach.state && i >= this->detach.key)
-        i--;
-    
     return ScrollBar_GetRect(&this->scroll, i);
 }
 
@@ -1435,25 +1501,21 @@ static void Element_ContainerDraw(ElementQueCall* call) {
     
     for (int i = 0; i < list->num; i++) {
         Rect tr = Element_Container_GetListElemRect(this, i);
-        const char* item;
         
-        if (this->detach.state && this->detach.key == i)
-            continue;
-        
-        if (list->cur == i) {
-            Rect vt = tr;
-            NVGcolor col = this->element.prim;
+        if (this != sElemState->dragItem.src) {
+            if (list->cur == i) {
+                Rect vt = tr;
+                NVGcolor col = this->element.prim;
+                
+                vt.x += 1; vt.w -= 2;
+                vt.y += 1; vt.h -= 2;
+                col.a = 0.85f;
+                
+                Gfx_DrawRounderRect(
+                    vg, vt, col
+                );
+            }
             
-            vt.x += 1; vt.w -= 2;
-            vt.y += 1; vt.h -= 2;
-            col.a = 0.85f;
-            
-            Gfx_DrawRounderRect(
-                vg, vt, col
-            );
-        }
-        
-        if (!this->detach.state) {
             if (Split_CursorInRect(SPLIT, &tr) && this->copyLerp > EPSILON) {
                 Rect vt = tr;
                 vt.x += 1; vt.w -= 2;
@@ -1463,18 +1525,36 @@ static void Element_ContainerDraw(ElementQueCall* call) {
             }
         }
         
-        if (this->showDecID)
-            item = x_fmt("%d: %s", i, list->elemName(list, i));
-        else if (this->showHexID)
-            item = x_fmt("%X: %s", i, list->elemName(list, i));
-        else
-            item = list->elemName(list, i);
+        f32 width = 0;
+        const char* text = NULL;
         
+        if (this->showDecID)
+            text = x_fmt("%d:--", i);
+        
+        else if (this->showHexID)
+            text = x_fmt("%X:--", i);
+        
+        if (text) {
+            width += Gfx_TextWidth(vg, text);
+            while (strend(text, "-"))
+                strend(text, "-")[0] = '\0';
+            Gfx_Text(
+                vg, tr, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE,
+                this->element.texcol,
+                text
+            );
+        }
+        
+        tr.x += width;
+        tr.w -= width;
+        
+        nvgScissor(vg, UnfoldRect(tr));
         Gfx_Text(
-            vg, tr, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE,
+            vg, tr, this->align,
             this->element.texcol,
-            item
+            list->elemName(list, i)
         );
+        nvgResetScissor(vg);
     }
     nvgResetScissor(vg);
     
@@ -1492,8 +1572,8 @@ static void Element_ContainerDraw(ElementQueCall* call) {
             for (int i = 0; i < list->num + 1; i++) {
                 Rect r = Element_Container_GetDragRect(this, i);
                 
-                if (i == this->detach.key)
-                    continue;
+                // if (i == this->detach.key)
+                // continue;
                 
                 if (Rect_PointIntersect(&r, UnfoldVec2(SPLIT->cursorPos)) || list->num == i) {
                     r.y += r.h / 2;
@@ -1543,11 +1623,9 @@ s32 Element_Container(ElContainer* this) {
             
             DragItem_Init(GEO, this, this->grabRect, list->elemName(list, this->heldKey - 1), this->list);
             
-            this->detachID = this->heldKey - 1;
-            
             if (Input_GetKey(input, KEY_LEFT_SHIFT)->hold) {
                 Arli_CopyToBuf(list, this->heldKey - 1);
-                this->detach.key = list->num;
+                // this->detach.key = list->num;
             } else
                 Arli_RemoveToBuf(list, this->heldKey - 1);
             
@@ -1597,7 +1675,6 @@ s32 Element_Container(ElContainer* this) {
             if (Input_GetMouse(input, CLICK_L)->dual && list->num) {
                 _log("Rename");
                 this->text = true;
-                this->textBox.size = 32;
                 strncpy(this->textBox.txt, list->elemName(list, list->cur), sizeof(this->textBox.txt));
                 
                 goto queue_element;
@@ -1636,8 +1713,8 @@ s32 Element_Container(ElContainer* this) {
                 for (; i < list->num; i++) {
                     Rect r = Element_Container_GetDragRect(this, i);
                     
-                    if (i == this->detach.key)
-                        continue;
+                    // if (i == this->detach.key)
+                    // continue;
                     
                     if (Rect_PointIntersect(&r, UnfoldVec2(SPLIT->cursorPos)))
                         break;
@@ -1645,6 +1722,7 @@ s32 Element_Container(ElContainer* this) {
                 }
                 
                 Arli_Insert(list, id, 1, list->copybuf);
+                Arli_Set(list, id);
             }
         } else {
             for (int i = 0; i < list->num; i++) {
@@ -1983,40 +2061,83 @@ static void Element_UpdateElement(ElementQueCall* call) {
     if (this->press && !disabled)
         press = 1.2f;
     
+    int colPrim = this->colOvrdPrim ? this->colOvrdPrim : THEME_PRIM;
+    int colShadow = this->colOvrdShadow ? this->colOvrdShadow : THEME_ELEMENT_DARK;
+    int colBase = this->colOvrdBase ? this->colOvrdBase : THEME_ELEMENT_BASE;
+    int colLight = this->colOvrdLight ? this->colOvrdLight : THEME_ELEMENT_LIGHT;
+    int colTexcol = this->colOvrdTexcol ? this->colOvrdTexcol : THEME_TEXT;
+    
     if (disabled) {
-        const f32 mix = 0.5;
+        const f32 mix = 0.5f;
+        NVGcolor base = Theme_GetColor(THEME_ELEMENT_BASE, 255, 1.25f);
         
-        this->prim = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_PRIM,          255, 1.00f * press));
-        this->shadow = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.00f + toggle) * press));
-        this->light = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (0.50f + toggle) * press));
-        this->texcol = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_TEXT,          255, 1.00f * press));
+        this->prim = Theme_Mix(mix, base, Theme_GetColor(colPrim, 255, 1.00f * press));
+        this->shadow = Theme_Mix(mix, base, Theme_GetColor(colShadow, 255, (1.00f + toggle) * press));
+        this->light = Theme_Mix(mix, base, Theme_GetColor(colLight, 255, (0.50f + toggle) * press));
+        this->texcol = Theme_Mix(mix, base, Theme_GetColor(colTexcol, 255, 1.00f * press));
         
-        if (this->toggle < 3)
-            this->base = Theme_Mix(mix, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.00f + toggle) * press));
-        
-        if (this->toggle == 3)
-            this->base = Theme_Mix(0.75, Theme_GetColor(THEME_ELEMENT_BASE,  255, 1.00f), Theme_GetColor(THEME_PRIM,  255, 0.95f * press));
+        if (this->toggle < 3) this->base = Theme_Mix(mix, base, Theme_GetColor(colBase, 255, (1.00f + toggle) * press));
+        if (this->toggle == 3) this->base = Theme_Mix(0.75, base, Theme_GetColor(colPrim, 255, 0.95f * press));
     } else {
         if (this->hover) {
-            Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 1.10f * press),            0.25f, 0.35f, 0.001f);
-            Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
-            Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
-            Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 1.15f * press),            0.25f, 0.35f, 0.001f);
+            Theme_SmoothStepToCol(
+                &this->prim,
+                Theme_GetColor(colPrim, 255, 1.10f * press),
+                0.25f, 0.35f, 0.001f);
+            Theme_SmoothStepToCol(
+                &this->shadow,
+                Theme_GetColor(colShadow, 255, (1.07f + toggle) * press),
+                0.25f, 0.35f, 0.001f);
+            Theme_SmoothStepToCol(
+                &this->light,
+                Theme_GetColor(colLight, 255, (1.07f + toggle) * press),
+                0.25f, 0.35f, 0.001f);
+            Theme_SmoothStepToCol(
+                &this->texcol,
+                Theme_GetColor(colTexcol, 255, 1.15f * press),
+                0.25f, 0.35f, 0.001f);
             
             if (this->toggle < 3)
-                Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
+                Theme_SmoothStepToCol(&this->base, Theme_GetColor(colBase, 255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
         } else {
-            Theme_SmoothStepToCol(&this->prim,   Theme_GetColor(THEME_PRIM,          255, 1.00f * press),            0.25f, 0.35f, 0.001f);
-            Theme_SmoothStepToCol(&this->shadow, Theme_GetColor(THEME_ELEMENT_DARK,  255, (1.00f + toggle) * press), 0.25f, 0.35f, 0.001f);
-            Theme_SmoothStepToCol(&this->light,  Theme_GetColor(THEME_ELEMENT_LIGHT, 255, (0.50f + toggle) * press), 0.25f, 0.35f, 0.001f);
-            Theme_SmoothStepToCol(&this->texcol, Theme_GetColor(THEME_TEXT,          255, 1.00f * press),            0.25f, 0.35f, 0.001f);
+            Theme_SmoothStepToCol(
+                &this->prim,
+                Theme_GetColor(colPrim, 255, 1.00f * press),
+                0.25f, 0.35f, 0.001f);
+            
+            Theme_SmoothStepToCol(
+                &this->shadow,
+                Theme_GetColor(colShadow, 255, (1.00f + toggle) * press),
+                0.25f, 0.35f, 0.001f);
+            
+            Theme_SmoothStepToCol(
+                &this->light,
+                Theme_GetColor(colLight, 255, (0.50f + toggle) * press),
+                0.25f, 0.35f, 0.001f);
+            
+            Theme_SmoothStepToCol(
+                &this->texcol,
+                Theme_GetColor(colTexcol, 255, 1.00f * press),
+                0.25f, 0.35f, 0.001f);
             
             if (this->toggle < 3)
-                Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_ELEMENT_BASE,  255, (1.00f + toggle) * press), 0.25f, 0.35f, 0.001f);
+                Theme_SmoothStepToCol(
+                    &this->base,
+                    Theme_GetColor(colBase, 255, (1.00f + toggle) * press),
+                    0.25f, 0.35f, 0.001f);
         }
         
         if (this->toggle == 3)
-            Theme_SmoothStepToCol(&this->base,   Theme_GetColor(THEME_PRIM,  255, 0.95f * press), 0.25f, 8.85f, 0.001f);
+            Theme_SmoothStepToCol(
+                &this->base,
+                Theme_GetColor(colPrim, 255, 0.95f * press),
+                0.25f, 8.85f, 0.001f);
+    }
+    
+    if (this->faulty || this->visFaultMix > EPSILON) {
+        Math_SmoothStepToF(&this->visFaultMix, this->faulty ? 1.0f : 0.0f, 0.25f, 0.25f, 0.01f);
+        
+        this->light = Theme_Mix(this->visFaultMix, this->light, Theme_GetColor(THEME_DELETE, 255, 1.0f));
     }
 }
 
@@ -2123,6 +2244,7 @@ void DragItem_Draw(GeoGrid* geo) {
             outc = Theme_Mix(this->colorLerp + 0.5f, nvgHSLA(0.33f, 1.0f, 0.5f, this->alpha), outc);
             inc = Theme_Mix(this->colorLerp + 0.5f, nvgHSLA(0.33f, 1.0f, 0.5f, this->alpha), inc);
         }
+        nvgSave(vg);
         
         f32 scale = lerpf(0.5f, this->alpha / 200.0f, 1.0f - (fabsf(this->swing) / 1.85f));
         nvgTranslate(vg,
@@ -2133,14 +2255,16 @@ void DragItem_Draw(GeoGrid* geo) {
         Gfx_DrawRounderOutline(vg, r, outc);
         Gfx_DrawRounderRect(vg, r, inc);
         Gfx_Text(
-            vg, r, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE,
+            vg, r, NVG_ALIGN_RIGHT | NVG_ALIGN_MIDDLE,
             Theme_GetColor(THEME_TEXT, this->alpha, 1.0f),
             this->item
         );
+        nvgRestore(vg);
     } nvgEndFrame(vg);
     
     if (this->alpha <= EPSILON && this->item) {
         this->alpha = 0.0f;
         vfree(this->item);
     }
+    
 }

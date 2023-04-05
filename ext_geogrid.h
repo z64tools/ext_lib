@@ -24,12 +24,6 @@ extern f32 gPixelRatio;
 #define SPLIT_ELEM_Y_PADDING (SPLIT_TEXT_H + SPLIT_ELEM_X_PADDING)
 
 typedef enum {
-    ALIGN_LEFT   = 1 << 0,
-    ALIGN_CENTER = 1 << 1,
-    ALIGN_RIGHT  = 1 << 2,
-} TextAlign;
-
-typedef enum {
     BAR_TOP,
     BAR_BOT
 } GuiBarIndex;
@@ -208,6 +202,7 @@ void ScrollBar_Init(ScrollBar* this, int max, f32 height);
 Rect ScrollBar_GetRect(ScrollBar* this, int slot);
 bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r);
 bool ScrollBar_Draw(ScrollBar* this, void* vg);
+void ScrollBar_FocusSlot(ScrollBar* this, Rect r, int slot);
 
 typedef enum {
     CONTEXT_PROP_COLOR,
@@ -332,6 +327,7 @@ typedef struct Element {
     NVGcolor    light;
     NVGcolor    texcol;
     u32 heightAdd;
+    f32 visFaultMix;
     struct {
         bool disabled    : 1;
         bool disableTemp : 1;
@@ -341,8 +337,15 @@ typedef struct Element {
         bool header      : 1;
         bool doFree      : 1;
         bool contextSet  : 1;
+        bool faulty      : 1;
         u32  toggle      : 2;
     };
+    
+    int colOvrdPrim;
+    int colOvrdShadow;
+    int colOvrdBase;
+    int colOvrdLight;
+    int colOvrdTexcol;
 } Element;
 
 /*============================================================================*/
@@ -350,7 +353,7 @@ typedef struct Element {
 typedef struct {
     Element    element;
     VectorGfx* icon;
-    TextAlign  align;
+    enum NVGalign align;
     s8 state;
     s8 prevResult;
 } ElButton;
@@ -368,11 +371,11 @@ typedef enum {
 } TextboxType;
 
 typedef struct {
-    Element     element;
-    char        txt[256];
-    s32         size;
-    TextboxType type;
-    TextAlign   align;
+    Element       element;
+    char          txt[256];
+    s32           size;
+    TextboxType   type;
+    enum NVGalign align;
     
     struct {
         u8  update;
@@ -428,7 +431,10 @@ typedef struct {
 
 typedef struct ElCombo {
     Element element;
-    Arli*   arlist;
+    enum NVGalign align;
+    Arli* arlist;
+    bool  showDecID : 1;
+    bool  showHexID : 1;
 } ElCombo;
 
 typedef struct {
@@ -451,14 +457,11 @@ typedef struct {
     
     s32 contextKey;
     s32 heldKey;
-    s32 detachID;
     f32 detachMul;
     f32 copyLerp;
     
-    struct {
-        bool state;
-        int  key;
-    } detach;
+    bool detached;
+    enum NVGalign align;
 } ElContainer;
 
 typedef struct {
@@ -479,6 +482,7 @@ void Gfx_SetDefaultTextParams(void* vg);
 void Gfx_Shape(void* vg, Vec2f center, f32 scale, s16 rot, const Vec2f* p, u32 num);
 void Gfx_Vector(void* vg, Vec2f center, f32 scale, s16 rot, const VectorGfx* gfx);
 void Gfx_DrawRounderOutline(void* vg, Rect rect, NVGcolor color);
+void Gfx_DrawRounderOutlineWidth(void* vg, Rect rect, NVGcolor color, int width);
 void Gfx_DrawRounderRect(void* vg, Rect rect, NVGcolor color);
 void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* txt);
 f32 Gfx_TextWidth(void* vg, const char* txt);

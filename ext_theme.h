@@ -7,6 +7,7 @@
 #include "ext_vector.h"
 
 typedef enum {
+    THEME_NONE,
     THEME_BASE,
     THEME_SPLIT,
     THEME_SHADOW,
@@ -17,6 +18,7 @@ typedef enum {
     THEME_ELEMENT_DARK,
     
     THEME_PRIM,
+    THEME_NEW,
     THEME_DELETE,
     THEME_TEXT,
     

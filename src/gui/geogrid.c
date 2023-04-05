@@ -506,10 +506,11 @@ static void Vtx_Update(GeoGrid* geo) {
             }
             
             if (vtx->killFlag == true) {
-                SplitVtx* killVtx = vtx;
-                vtx = geo->vtxHead;
                 info("Kill Vtx: %s", addr_name(vtx));
-                Node_Kill(geo->vtxHead, killVtx);
+                
+                Node_Kill(geo->vtxHead, vtx);
+                vtx = geo->vtxHead;
+                _log("next vtx");
                 continue;
             }
         }

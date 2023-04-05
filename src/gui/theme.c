@@ -39,6 +39,7 @@ void Theme_Init(u32 themeId) {
         sDarkTheme[THEME_ELEMENT_DARK] =     (hsl_t) { 000.0 / 360, 0.0, 0.10 };
         
         sDarkTheme[THEME_PRIM] =             (hsl_t) { 220.0 / 360, 0.7, 0.60 };
+        sDarkTheme[THEME_NEW] =              (hsl_t) { 100.0 / 360, 0.7, 0.60 };
         sDarkTheme[THEME_DELETE] =           (hsl_t) { 0.0 / 360, 0.7, 0.60 };
         sDarkTheme[THEME_TEXT] =             (hsl_t) { 000.0 / 360, 0.0, 0.90 };
     }
@@ -53,6 +54,7 @@ void Theme_Init(u32 themeId) {
         sLightTheme[THEME_ELEMENT_DARK] =    (hsl_t) { 000.0 / 360, 0.0, 1.0f - 0.10 };
         
         sLightTheme[THEME_PRIM] =            (hsl_t) { 10.0 / 360, 0.7, 1.0f - 0.60 };
+        sLightTheme[THEME_NEW] =             (hsl_t) { 100.0 / 360, 0.7, 0.60 };
         sLightTheme[THEME_DELETE] =          (hsl_t) { 0.0 / 360, 0.7, 0.60 };
         sLightTheme[THEME_TEXT] =            (hsl_t) { 000.0 / 360, 0.0, 1.0f - 0.90 };
     }
@@ -67,6 +69,7 @@ void Theme_Init(u32 themeId) {
         sSpecialTheme[THEME_ELEMENT_DARK] =  (hsl_t) { 000.0 / 360, 0.0, 0.10f };
         
         sSpecialTheme[THEME_PRIM] =          (hsl_t) { 070.0 / 360, 0.3, 0.5f };
+        sSpecialTheme[THEME_NEW] =           (hsl_t) { 100.0 / 360, 0.7, 0.60 };
         sSpecialTheme[THEME_DELETE] =        (hsl_t) { 0.0 / 360, 0.7, 0.60 };
         sSpecialTheme[THEME_TEXT] =          (hsl_t) { 070.0 / 360, 0.1, 0.9f };
     }

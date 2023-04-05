@@ -181,6 +181,7 @@ static void ContextProp_Arli_Draw(GeoGrid* geo, ContextMenu* this) {
     bool hold = ScrollBar_Update(&this->scroll, input, input->cursor.pos, this->rect);
     
     Gfx_SetDefaultTextParams(vg);
+    nvgScissor(vg, UnfoldRect(this->rect));
     for (int i = 0; i < list->num; i++) {
         Rect r = ScrollBar_GetRect(&this->scroll, i);
         
@@ -195,9 +196,17 @@ static void ContextProp_Arli_Draw(GeoGrid* geo, ContextMenu* this) {
         
         if (this->visualKey == i)
             Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_PRIM, 255, 1.0f));
+        else if (i % 2) {
+            Rect tr = r;
+            
+            tr.x -= 2;
+            tr.w += 4;
+            Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_ELEMENT_DARK, 255, 1.35f));
+        }
         
         Gfx_Text(vg, r, NVG_ALIGN_MIDDLE | NVG_ALIGN_LEFT, Theme_GetColor(THEME_TEXT, 255, 1.0f), list->elemName(list, i));
     }
+    nvgResetScissor(vg);
     
     ScrollBar_Draw(&this->scroll, vg);
 }
@@ -283,7 +292,7 @@ void ContextMenu_Draw(GeoGrid* geo) {
     
     nvgBeginFrame(geo->vg, geo->wdim->x, geo->wdim->y, gPixelRatio); {
         Rect r = this->rect;
-        Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_ELEMENT_BASE, 255, 1.5f));
+        Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_PRIM, 255, 1.0f));
         Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_ELEMENT_DARK, 255, 1.0f));
         
         nvgScissor(vg, UnfoldRect(r));
