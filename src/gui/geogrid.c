@@ -654,7 +654,7 @@ static void Edge_SetSlide(GeoGrid* geo) {
 static void Edge_Update(GeoGrid* geo) {
     SplitEdge* edge = geo->edgeHead;
     
-    if (!Input_GetMouse(geo->input, CLICK_ANY)->hold)
+    if (! Input_GetCursor(geo->input, CLICK_ANY)->hold)
         geo->actionEdge = NULL;
     
     while (edge) {
@@ -685,7 +685,7 @@ static void Edge_Update(GeoGrid* geo) {
 static void Split_UpdateActionSplit(GeoGrid* geo) {
     Split* split = geo->actionSplit;
     
-    if (Input_GetMouse(geo->input, CLICK_ANY)->press) {
+    if ( Input_GetCursor(geo->input, CLICK_ANY)->press) {
         SplitState tempStateA = Split_GetCursorPosState(split, SPLIT_GRAB_DIST);
         SplitState tempStateB = Split_GetCursorPosState(split, SPLIT_GRAB_DIST * 3);
         
@@ -710,7 +710,7 @@ static void Split_UpdateActionSplit(GeoGrid* geo) {
         }
     }
     
-    if (Input_GetMouse(geo->input, CLICK_ANY)->hold) {
+    if ( Input_GetCursor(geo->input, CLICK_ANY)->hold) {
         if (split->state & SPLIT_POINTS) {
             s32 dist = Math_Vec2s_DistXZ(split->cursorPos, split->cursorPressPos);
             SplitDir dir = GeoGrid_GetDir_MouseToPressPos(split);
@@ -831,7 +831,7 @@ static void Split_UpdateSplit(GeoGrid* geo, Split* split) {
     split->blockCursor = false;
     Split_UpdateScroll(geo, split, geo->input);
     
-    if (Input_GetMouse(geo->input, CLICK_ANY)->press)
+    if ( Input_GetCursor(geo->input, CLICK_ANY)->press)
         split->cursorPressPos = split->cursorPos;
     
     if (!geo->state.blockSplitting && !split->isHeader) {
@@ -1313,7 +1313,7 @@ void GeoGrid_Update(GeoGrid* this) {
     Element_UpdateTextbox(this);
     Split_Update(this);
     
-    if (this->state.splittedHold && Input_GetMouse(this->input, CLICK_L)->release) {
+    if (this->state.splittedHold &&  Input_GetCursor(this->input, CLICK_L)->release) {
         this->state.splittedHold = false;
         this->state.blockElemInput--;
     }

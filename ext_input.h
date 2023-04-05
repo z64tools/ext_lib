@@ -199,7 +199,7 @@ void Input_End(Input* input);
 const char* Input_GetClipboardStr(Input* input);
 void Input_SetClipboardStr(Input* input, const char* str);
 InputType* Input_GetKey(Input* input, KeyMap key);
-InputType* Input_GetMouse(Input* input, CursorClick type);
+InputType*  Input_GetCursor(Input* input, CursorClick type);
 f32 Input_GetScroll(Input* this);
 s32 Input_GetShortcut(Input* input, KeyMap mod, KeyMap key);
 void Input_SetMousePos(Input* input, s32 x, s32 y);

@@ -52,22 +52,22 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     } else {
         if ((
                 Rect_PointIntersect(&rectLumSat, cursor->pos.x, cursor->pos.y) &&
-                Input_GetMouse(input, CLICK_L)->press
+                 Input_GetCursor(input, CLICK_L)->press
             ) || ( prop->holdLumSat )) {
             Vec2s relPos = Math_Vec2s_Sub(cursor->pos, (Vec2s) { rectLumSat.x, rectLumSat.y });
             
             prop->pos.x = clamp((f32)relPos.x / rectLumSat.w, 0, 1);
             prop->pos.y = clamp((f32)relPos.y / rectLumSat.h, 0, 1);
-            prop->holdLumSat = Input_GetMouse(input, CLICK_L)->hold;
+            prop->holdLumSat =  Input_GetCursor(input, CLICK_L)->hold;
         }
         if ((
                 Rect_PointIntersect(&rectHue, cursor->pos.x, cursor->pos.y) &&
-                Input_GetMouse(input, CLICK_L)->press
+                 Input_GetCursor(input, CLICK_L)->press
             ) || ( prop->holdHue )) {
             Vec2s relPos = Math_Vec2s_Sub(cursor->pos, (Vec2s) { rectHue.x, rectHue.y });
             
             prop->hue = clamp((f32)relPos.x / rectHue.w, 0, 1);
-            prop->holdHue = Input_GetMouse(input, CLICK_L)->hold;
+            prop->holdHue =  Input_GetCursor(input, CLICK_L)->hold;
         }
     }
     
@@ -300,7 +300,7 @@ void ContextMenu_Draw(GeoGrid* geo) {
         nvgResetScissor(vg);
     } nvgEndFrame(geo->vg);
     
-    if (Rect_PointDistance(&this->rect, cursor->pos.x, cursor->pos.y) > 0 && Input_GetMouse(geo->input, CLICK_ANY)->press) {
+    if (Rect_PointDistance(&this->rect, cursor->pos.x, cursor->pos.y) > 0 &&  Input_GetCursor(geo->input, CLICK_ANY)->press) {
         ContextMenu_Close(geo);
         
         return;

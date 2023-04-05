@@ -403,7 +403,7 @@ static void FileDialog_FilePanel(FileDialog* this, Rect r) {
     };
     Rect mainr = r;
     s32 pressSlot = 0;
-    InputType* click = Input_GetMouse(input, CLICK_L);
+    InputType* click =  Input_GetCursor(input, CLICK_L);
     bool cursorInPanel = Rect_PointIntersect(&mainr, UnfoldVec2(input->cursor.pos));
     Rect selectedRect;
     

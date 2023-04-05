@@ -140,7 +140,7 @@ bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r) {
     this->disabled = input == NULL;
     
     if (input) {
-        click = Input_GetMouse(input, CLICK_L);
+        click =  Input_GetCursor(input, CLICK_L);
         
         if (Rect_PointIntersect(&r, UnfoldVec2(cursorPos)))
             this->cur -= Input_GetScroll(input);
@@ -543,7 +543,7 @@ s32 Element_Button(ElButton* this) {
     ELEMENT_QUEUE_CHECK();
     
     if (ELEM_PRESS_CONDITION(this)) {
-        if (Input_GetMouse(GEO->input, CLICK_L)->press) {
+        if ( Input_GetCursor(GEO->input, CLICK_L)->press) {
             this->state ^= 1;
             if (this->element.toggle)
                 this->element.toggle ^= 0b10;
@@ -582,7 +582,7 @@ void Element_Color(ElColor* this) {
     
     if (this->prop.rgb8) {
         if (ELEM_PRESS_CONDITION(this)) {
-            if (Input_GetMouse(GEO->input, CLICK_L)->press) {
+            if ( Input_GetCursor(GEO->input, CLICK_L)->press) {
                 Rect* rect[] = { &SPLIT->rect, &SPLIT->headRect };
                 
                 ContextMenu_Init(GEO, &this->prop, this, CONTEXT_PROP_COLOR,
@@ -965,7 +965,7 @@ s32 Element_Textbox(ElTextbox* this) {
     }
     
     if (ELEM_PRESS_CONDITION(this)) {
-        if (Input_GetMouse(GEO->input, CLICK_L)->press) {
+        if ( Input_GetCursor(GEO->input, CLICK_L)->press) {
             if (this->clearIcon) {
                 if (Split_CursorInRect(SPLIT, &this->clearRect)) {
                     arrzero(this->txt);
@@ -1108,7 +1108,7 @@ s32 Element_Checkbox(ElCheckbox* this) {
     ELEMENT_QUEUE_CHECK();
     
     if (ELEM_PRESS_CONDITION(this)) {
-        if (Input_GetMouse(GEO->input, CLICK_L)->press) {
+        if ( Input_GetCursor(GEO->input, CLICK_L)->press) {
             this->element.toggle ^= 1;
         }
     }
@@ -1237,10 +1237,10 @@ f32 Element_Slider(ElSlider* this) {
             }
         }
         
-        if (Input_GetMouse(GEO->input, CLICK_L)->press)
+        if ( Input_GetCursor(GEO->input, CLICK_L)->press)
             SetHold();
         
-        else if (Input_GetMouse(GEO->input, CLICK_L)->hold && this->holdState) {
+        else if ( Input_GetCursor(GEO->input, CLICK_L)->hold && this->holdState) {
             if (GEO->input->cursor.vel.x) {
                 if (this->isSliding == false) {
                     Element_Slider_SetCursorToVal(GEO, SPLIT, this);
@@ -1257,7 +1257,7 @@ f32 Element_Slider(ElSlider* this) {
                 
                 this->isSliding = true;
             }
-        } else if (Input_GetMouse(GEO->input, CLICK_L)->release && this->holdState) {
+        } else if ( Input_GetCursor(GEO->input, CLICK_L)->release && this->holdState) {
             if (this->isSliding == false && Split_CursorInRect(SPLIT, &this->element.rect))
                 Element_Slider_SetTextbox(SPLIT, this);
             
@@ -1387,7 +1387,7 @@ s32 Element_Combo(ElCombo* this) {
             SPLIT->splitBlockScroll++;
             s32 scrollY = clamp(Input_GetScroll(GEO->input), -1, 1);
             
-            if (Input_GetMouse(GEO->input, CLICK_L)->release) {
+            if ( Input_GetCursor(GEO->input, CLICK_L)->release) {
                 Rect* rect[] = { &SPLIT->rect, &SPLIT->headRect };
                 
                 ContextMenu_Init(GEO, this->arlist, this, CONTEXT_ARLI, Rect_AddPos(this->element.rect, *rect[this->element.header]));
@@ -1640,7 +1640,7 @@ s32 Element_Container(ElContainer* this) {
         
         SPLIT->splitBlockScroll++;
         
-        if (Input_GetMouse(input, CLICK_R)->press) {
+        if ( Input_GetCursor(input, CLICK_R)->press) {
             if (this->contextList) {
                 Rect cr;
                 this->contextKey = -1;
@@ -1666,13 +1666,13 @@ s32 Element_Container(ElContainer* this) {
             goto queue_element;
         }
         
-        if (!Input_GetMouse(input, CLICK_L)->press) {
+        if (! Input_GetCursor(input, CLICK_L)->press) {
             if (!this->pressed)
                 goto queue_element;
         }
         
         if (ELEM_PRESS_CONDITION(this)) {
-            if (Input_GetMouse(input, CLICK_L)->dual && list->num) {
+            if ( Input_GetCursor(input, CLICK_L)->dual && list->num) {
                 _log("Rename");
                 this->text = true;
                 strncpy(this->textBox.txt, list->elemName(list, list->cur), sizeof(this->textBox.txt));
@@ -1694,7 +1694,7 @@ s32 Element_Container(ElContainer* this) {
         
         this->pressed = true;
         
-        if (!Input_GetMouse(input, CLICK_L)->release)
+        if (! Input_GetCursor(input, CLICK_L)->release)
             goto queue_element;
         
         this->pressed = false;
@@ -2051,7 +2051,7 @@ static void Element_UpdateElement(ElementQueCall* call) {
     if (Element_PressCondition(geo, split, this)) {
         this->hover = true;
         
-        if (Input_GetMouse(geo->input, CLICK_L)->hold)
+        if ( Input_GetCursor(geo->input, CLICK_L)->hold)
             this->press = true;
     }
     

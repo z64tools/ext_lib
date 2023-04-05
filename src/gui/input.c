@@ -118,7 +118,7 @@ InputType* Input_GetKey(Input* this, KeyMap key) {
     return &this->key[key];
 }
 
-InputType* Input_GetMouse(Input* this, CursorClick type) {
+InputType*  Input_GetCursor(Input* this, CursorClick type) {
     static InputType zero;
     
     if (this->state & INPUT_BLOCK)
@@ -176,7 +176,7 @@ int Input_ClearState(Input* this, InputState state) {
 }
 
 int Input_SelectClick(Input* this, CursorClick type) {
-    if (!Input_GetMouse(this, type)->release)
+    if (! Input_GetCursor(this, type)->release)
         return false;
     if (this->cursor.dragDist > 3)
         return false;

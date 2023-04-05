@@ -73,7 +73,7 @@ static void Camera_FlyMode(View3D* this, Input* inputCtx, bool update) {
             Math_DelSmoothStepToF(&cam->vel.y, 0, 0.25f, step, min);
         }
         
-        if (Input_GetMouse(inputCtx, CLICK_L)->hold) {
+        if ( Input_GetCursor(inputCtx, CLICK_L)->hold) {
             const Vec3f up = { 0, 1, 0 };
             f32 dot = Math_Vec3f_Dot(cam->up, up);
             s32 s = dot >= 0.0f ? 1 : -1;
@@ -386,9 +386,9 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
 /*============================================================================*/
 
 bool View_CheckControlKeys(Input* input) {
-    if (Input_GetMouse(input, CLICK_L)->hold)
+    if ( Input_GetCursor(input, CLICK_L)->hold)
         return true;
-    if (Input_GetMouse(input, CLICK_M)->hold)
+    if ( Input_GetCursor(input, CLICK_M)->hold)
         return true;
     if (Input_GetKey(input, KEY_W)->hold)
         return true;
