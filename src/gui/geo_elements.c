@@ -375,8 +375,15 @@ Rect Gfx_TextRect(void* vg, Rect r, enum NVGalign align, const char* txt) {
         r.x += SPLIT_ELEM_X_PADDING;
         r.w = width;
     } else {
+        Rect c = r;
+        
+        c.x += SPLIT_ELEM_X_PADDING;
+        c.w -= SPLIT_ELEM_X_PADDING * 2;
+        
         r.x += r.w - SPLIT_ELEM_X_PADDING - width;
         r.w = width;
+        
+        r = Rect_Clamp(r, c);
     }
     
     return r;
@@ -430,7 +437,7 @@ static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, v
     node->update = true;
     
     if (sElemState->forceDisable)
-        ((Element*)arg)->disabled = true;
+        ((Element*)arg)->disableTemp = true;
     
     node->elemFunc = elemFunc;
 }
@@ -916,6 +923,9 @@ static void Element_TextboxDraw(ElementQueCall* call) {
     Gfx_Text(vg, this->boxRect, this->align, this->element.texcol, this->txt);
     nvgResetScissor(vg);
     
+    if (this->element.disableTemp || this->element.disabled)
+        Gfx_DrawStripes(vg, this->boxRect);
+    
     if (sElemState->textbox == this) {
         
         if (this->selA != this->selB) {
@@ -948,12 +958,12 @@ static void Element_TextboxDraw(ElementQueCall* call) {
 s32 Element_Textbox(ElTextbox* this) {
     _assert(GEO && SPLIT);
     
-    ELEMENT_QUEUE_CHECK();
-    
     if (this != sElemState->textbox)
         this->modified = false;
     
     this->boxRect = this->element.rect;
+    
+    ELEMENT_QUEUE_CHECK();
     
     if (this->clearIcon) {
         this->clearRect.x = this->element.rect.x + this->element.rect.w - this->element.rect.h;
@@ -999,12 +1009,12 @@ static void Element_TextDraw(ElementQueCall* call) {
     
     Gfx_SetDefaultTextParams(vg);
     
-    if (this->element.disabled == false)
+    if (!this->element.disabled)
         nvgFillColor(vg, Theme_GetColor(THEME_TEXT, 255, 1.0f));
     else
         nvgFillColor(vg, Theme_Mix(0.45, Theme_GetColor(THEME_ELEMENT_BASE, 255, 1.00f), Theme_GetColor(THEME_TEXT, 255, 1.15f)));
     
-    if (this->element.dispText == true) {
+    if (this->element.dispText) {
         Rect r = this->element.rect;
         
         r.x = this->element.posTxt.x;
@@ -1041,14 +1051,16 @@ static void Element_CheckboxDraw(ElementQueCall* call) {
     ElCheckbox* this = call->arg;
     Vec2f center;
     const Vec2f sVector_Cross[] = {
-        { .x = -10, .y                                                 = 10  }, { .x = -7,  .y                                                 = 10  },
-        { .x = 0,   .y                                                 = 3   }, { .x = 7,   .y                                                 = 10  },
-        { .x = 10,  .y                                                 = 10  }, { .x = 10,  .y                                                 = 7   },
-        { .x = 3,   .y                                                 = 0   }, { .x = 10,  .y                                                 = -7  },
-        { .x = 10,  .y                                                 = -10 }, { .x = 7,   .y                                                 = -10 },
-        { .x = 0,   .y                                                 = -3  }, { .x = -7,  .y                                                 = -10 },
-        { .x = -10, .y                                                 = -10 }, { .x = -10, .y                                                 = -7  },
-        { .x = -3,  .y                                                 = 0   }, { .x = -10, .y                                                 = 7   },
+        //crustify
+        { .x = -10, .y = 10  }, { .x = -7,  .y = 10  },
+        { .x = 0,   .y = 3   }, { .x = 7,   .y = 10  },
+        { .x = 10,  .y = 10  }, { .x = 10,  .y = 7   },
+        { .x = 3,   .y = 0   }, { .x = 10,  .y = -7  },
+        { .x = 10,  .y = -10 }, { .x = 7,   .y = -10 },
+        { .x = 0,   .y = -3  }, { .x = -7,  .y = -10 },
+        { .x = -10, .y = -10 }, { .x = -10, .y = -7  },
+        { .x = -3,  .y = 0   }, { .x = -10, .y = 7   },
+        //uncrustify
     };
     Rect r = this->element.rect;
     
@@ -1062,7 +1074,7 @@ static void Element_CheckboxDraw(ElementQueCall* call) {
     Gfx_DrawRounderOutline(vg, r, this->element.light);
     Gfx_DrawRounderRect(vg, r, this->element.base);
     
-    NVGcolor col = this->element.prim;
+    NVGcolor col = Theme_Mix(this->lerp, this->element.shadow, this->element.prim);
     f32 flipLerp = 1.0f - this->lerp;
     
     flipLerp = (1.0f - powf(flipLerp, 1.6));
@@ -1071,9 +1083,6 @@ static void Element_CheckboxDraw(ElementQueCall* call) {
     
     col.a = flipLerp * 1.67;
     col.a = clamp_min(col.a, 0.80);
-    
-    if (this->element.disabled)
-        col = this->element.light;
     
     nvgBeginPath(vg);
     nvgFillColor(vg, col);
@@ -1103,6 +1112,8 @@ static void Element_CheckboxDraw(ElementQueCall* call) {
 }
 
 s32 Element_Checkbox(ElCheckbox* this) {
+    int tog = this->element.toggle;
+    
     _assert(GEO && SPLIT);
     
     ELEMENT_QUEUE_CHECK();
@@ -1115,7 +1126,7 @@ s32 Element_Checkbox(ElCheckbox* this) {
     
     ELEMENT_QUEUE(Element_CheckboxDraw);
     
-    return this->element.toggle;
+    return tog - this->element.toggle;
 }
 
 /*============================================================================*/
@@ -1666,7 +1677,7 @@ s32 Element_Container(ElContainer* this) {
             goto queue_element;
         }
         
-        if (! Input_GetCursor(input, CLICK_L)->press) {
+        if (!Input_GetCursor(input, CLICK_L)->press) {
             if (!this->pressed)
                 goto queue_element;
         }
@@ -1694,7 +1705,7 @@ s32 Element_Container(ElContainer* this) {
         
         this->pressed = true;
         
-        if (! Input_GetCursor(input, CLICK_L)->release)
+        if (!Input_GetCursor(input, CLICK_L)->release)
             goto queue_element;
         
         this->pressed = false;
@@ -2077,7 +2088,7 @@ static void Element_UpdateElement(ElementQueCall* call) {
         this->texcol = Theme_Mix(mix, base, Theme_GetColor(colTexcol, 255, 1.00f * press));
         
         if (this->toggle < 3) this->base = Theme_Mix(mix, base, Theme_GetColor(colBase, 255, (1.00f + toggle) * press));
-        if (this->toggle == 3) this->base = Theme_Mix(0.75, base, Theme_GetColor(colPrim, 255, 0.95f * press));
+        else this->base = Theme_Mix(0.75, base, Theme_GetColor(colPrim, 255, 0.95f * press));
     } else {
         if (this->hover) {
             Theme_SmoothStepToCol(
