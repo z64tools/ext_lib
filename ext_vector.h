@@ -346,6 +346,34 @@ static inline s16 Math_SmoothStepToS(s16* pValue, s16 target, s16 scale, s16 ste
     return diff;
 }
 
+static inline int Math_SmoothStepToI(int* pValue, int target, int scale, int step, int minStep) {
+    int stepSize = 0;
+    int diff = target - *pValue;
+    
+    if (*pValue != target) {
+        stepSize = diff / scale;
+        
+        if ((stepSize > minStep) || (stepSize < -minStep))
+            *pValue += clamp(stepSize, -step, step);
+        
+        else {
+            if (diff >= 0) {
+                *pValue += minStep;
+                
+                if ((s16)(target - *pValue) <= 0)
+                    *pValue = target;
+            } else {
+                *pValue -= minStep;
+                
+                if ((s16)(target - *pValue) >= 0)
+                    *pValue = target;
+            }
+        }
+    }
+    
+    return diff;
+}
+
 // # # # # # # # # # # # # # # # # # # # #
 // # Rect                                #
 // # # # # # # # # # # # # # # # # # # # #

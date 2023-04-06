@@ -128,6 +128,8 @@ typedef struct {
     s32  max;
 } SplitScrollBar;
 
+struct BoxContext;
+
 typedef struct Split {
     struct Split*   next;
     struct ElCombo* taskCombo;
@@ -168,6 +170,7 @@ typedef struct Split {
     
     u32       isHeader;
     SplitFunc headerFunc;
+    struct BoxContext* boxContext;
 } Split;
 
 typedef struct {
@@ -325,20 +328,22 @@ typedef struct Element {
     NVGcolor    shadow;
     NVGcolor    base;
     NVGcolor    light;
+    NVGcolor    constlight; // no hover light
     NVGcolor    texcol;
     u32 heightAdd;
     f32 visFaultMix;
     struct {
-        bool disabled    : 1;
-        bool disableTemp : 1;
-        bool hover       : 1;
-        bool press       : 1;
-        bool dispText    : 1;
-        bool header      : 1;
-        bool doFree      : 1;
-        bool contextSet  : 1;
-        bool faulty      : 1;
-        u32  toggle      : 2;
+        bool disabled     : 1;
+        bool disableTemp  : 1;
+        bool hover        : 1;
+        bool press        : 1;
+        bool dispText     : 1;
+        bool header       : 1;
+        bool doFree       : 1;
+        bool contextSet   : 1;
+        bool faulty       : 1;
+        u32  toggle       : 2;
+        bool instantColor : 1;
     };
     
     int colOvrdPrim;
@@ -349,6 +354,13 @@ typedef struct Element {
 } Element;
 
 /*============================================================================*/
+
+typedef struct {
+    const char* name;
+    Rect rect;
+    bool state;
+    s16  yaw;
+} ElPanel;
 
 typedef struct {
     Element    element;
@@ -399,7 +411,7 @@ typedef struct {
     s32  selPos;
     s32  runVal;
     Rect clearRect;
-    Rect boxRect;
+    // Rect boxRect;
 } ElTextbox;
 
 typedef struct {
@@ -522,13 +534,20 @@ s32 Element_Combo(ElCombo* this);
 s32 Element_Container(ElContainer* this);
 
 void Element_Separator(bool drawLine);
+
 typedef enum {
-    BOX_START,
-    BOX_END,
-    BOX_GET_NUM,
-} BoxInit;
-s32 Element_Box(BoxInit io);
+    BOX_START   = 0,
+    BOX_END     = 1,
+    BOX_MASK_IO = 1 << 0,
+    BOX_INDEX   = 1 << 1,
+} BoxState;
+
+int Element_Box(BoxState io, ...);
 void Element_DisplayName(Element* this, f32 lerp);
+
+#ifndef __clang__
+#define Element_Box(...) Element_Box(__VA_ARGS__, NULL, NULL)
+#endif
 
 void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type);
 void Element_Slider_SetValue(ElSlider* this, f64 val);

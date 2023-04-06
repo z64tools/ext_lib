@@ -27,7 +27,7 @@ typedef struct ElementQueCall {
     u32 update : 1;
 } ElementQueCall;
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 typedef struct {
     const char* item;
@@ -68,7 +68,7 @@ typedef struct {
 
 thread_local ElementState* sElemState = NULL;
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 void* ElementState_New(void) {
     ElementState* elemState;
@@ -115,7 +115,7 @@ static bool DragItem_Release(GeoGrid* geo, void* src) {
     return true;
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 void ScrollBar_Init(ScrollBar* this, int max, f32 height) {
     this->max = max;
@@ -229,7 +229,7 @@ void ScrollBar_FocusSlot(ScrollBar* this, Rect r, int slot) {
     this->vcur = this->cur;
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 void Gfx_SetDefaultTextParams(void* vg) {
     nvgFontFace(vg, "default");
@@ -423,9 +423,9 @@ void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* t
     );
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
-static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, void* arg, const char* elemFunc) {
+static ElementQueCall* Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, void* arg, const char* elemFunc) {
     ElementQueCall* node;
     
     node = new(ElementQueCall);
@@ -440,6 +440,8 @@ static void Element_QueueElement(GeoGrid* geo, Split* split, ElementFunc func, v
         ((Element*)arg)->disableTemp = true;
     
     node->elemFunc = elemFunc;
+    
+    return node;
 }
 
 static s32 Element_PressCondition(GeoGrid* geo, Split* split, Element* this) {
@@ -492,7 +494,7 @@ void Element_SetContext(GeoGrid* setGeo, Split* setSplit) {
     sElemState->geo = setGeo;
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 #define ELEMENT_QUEUE_CHECK(...) if (this->element.disabled || GEO->state.blockElemInput) { \
         __VA_ARGS__                                                                         \
@@ -507,7 +509,7 @@ void Element_SetContext(GeoGrid* setGeo, Split* setSplit) {
 
 #define Element_Action(func) if (this->element.func) this->element.func()
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 static void Element_ButtonDraw(ElementQueCall* call) {
     void* vg = call->geo->vg;
@@ -562,7 +564,7 @@ s32 Element_Button(ElButton* this) {
     return this->state;
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 static void Element_ColorBoxDraw(ElementQueCall* call) {
     void* vg = call->geo->vg;
@@ -601,7 +603,7 @@ void Element_Color(ElColor* this) {
     ELEMENT_QUEUE(Element_ColorBoxDraw);
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 static void Textbox_SetValue(ElTextbox* this) {
     if (this->type != TEXTBOX_STR) {
@@ -770,7 +772,7 @@ void Element_UpdateTextbox(GeoGrid* geo) {
         }
         
         if (cPress || cHold) {
-            Rect r = this->boxRect;
+            Rect r = this->element.rect;
             s32 id = 0;
             f32 dist = FLT_MAX;
             
@@ -894,20 +896,20 @@ static void Element_TextboxDraw(ElementQueCall* call) {
     void* vg = call->geo->vg;
     ElTextbox* this = call->arg;
     
-    Gfx_DrawRounderRect(vg, this->boxRect, this->element.base);
+    Gfx_DrawRounderRect(vg, this->element.rect, this->element.base);
     
     if (sElemState->textbox == this)
-        Gfx_DrawRounderOutline(vg, this->boxRect, Theme_GetColor(THEME_ELEMENT_LIGHT, 255, 1.0f));
+        Gfx_DrawRounderOutline(vg, this->element.rect, Theme_GetColor(THEME_ELEMENT_LIGHT, 255, 1.0f));
     else
-        Gfx_DrawRounderOutline(vg, this->boxRect, this->element.light);
+        Gfx_DrawRounderOutline(vg, this->element.rect, this->element.light);
     
     nvgFillColor(vg, this->element.texcol);
-    nvgScissor(vg, UnfoldRect(this->boxRect));
+    nvgScissor(vg, UnfoldRect(this->element.rect));
     
     if (sElemState->textbox == this) {
         
         if (this->selA == this->selB) {
-            Rect r = this->boxRect;
+            Rect r = this->element.rect;
             s32 min = this->selA;
             s32 max = this->selB;
             
@@ -920,16 +922,16 @@ static void Element_TextboxDraw(ElementQueCall* call) {
         }
     }
     
-    Gfx_Text(vg, this->boxRect, this->align, this->element.texcol, this->txt);
+    Gfx_Text(vg, this->element.rect, this->align, this->element.texcol, this->txt);
     nvgResetScissor(vg);
     
     if (this->element.disableTemp || this->element.disabled)
-        Gfx_DrawStripes(vg, this->boxRect);
+        Gfx_DrawStripes(vg, this->element.rect);
     
     if (sElemState->textbox == this) {
         
         if (this->selA != this->selB) {
-            Rect r = this->boxRect;
+            Rect r = this->element.rect;
             s32 min = this->selA;
             s32 max = this->selB;
             
@@ -937,7 +939,7 @@ static void Element_TextboxDraw(ElementQueCall* call) {
             
             nvgScissor(vg, UnfoldRect(r));
             Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_TEXT, 255, 1.0f));
-            Gfx_Text(vg, this->boxRect, this->align, this->element.shadow, this->txt);
+            Gfx_Text(vg, this->element.rect, this->align, this->element.shadow, this->txt);
             nvgResetScissor(vg);
         }
     }
@@ -961,8 +963,6 @@ s32 Element_Textbox(ElTextbox* this) {
     if (this != sElemState->textbox)
         this->modified = false;
     
-    this->boxRect = this->element.rect;
-    
     ELEMENT_QUEUE_CHECK();
     
     if (this->clearIcon) {
@@ -971,7 +971,7 @@ s32 Element_Textbox(ElTextbox* this) {
         this->clearRect.y = this->element.rect.y;
         this->clearRect.h = this->element.rect.h;
         
-        this->boxRect.w -= this->clearRect.w;
+        this->element.rect.w -= this->clearRect.w;
     }
     
     if (ELEM_PRESS_CONDITION(this)) {
@@ -1000,7 +1000,7 @@ s32 Element_Textbox(ElTextbox* this) {
     return ret;
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 static void Element_TextDraw(ElementQueCall* call) {
     void* vg = call->geo->vg;
@@ -1021,14 +1021,13 @@ static void Element_TextDraw(ElementQueCall* call) {
         r.w = this->element.rect.x - r.x - SPLIT_ELEM_X_PADDING;
         
         nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
-        nvgScissor(vg, UnfoldRect(r));
         nvgText(vg, this->element.posTxt.x, this->element.posTxt.y, this->element.name, NULL);
     } else {
         nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
         nvgScissor(vg, UnfoldRect(this->element.rect));
         nvgText(vg, this->element.rect.x, this->element.rect.y + this->element.rect.h * 0.5 + 1, this->element.name, NULL);
+        nvgResetScissor(vg);
     }
-    nvgResetScissor(vg);
 }
 
 ElText* Element_Text(const char* txt) {
@@ -1043,7 +1042,7 @@ ElText* Element_Text(const char* txt) {
     return this;
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 static void Element_CheckboxDraw(ElementQueCall* call) {
     void* vg = call->geo->vg;
@@ -1129,7 +1128,7 @@ s32 Element_Checkbox(ElCheckbox* this) {
     return tog - this->element.toggle;
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 static void Element_SliderDraw(ElementQueCall* call) {
     void* vg = call->geo->vg;
@@ -1314,7 +1313,14 @@ f32 Element_Slider(ElSlider* this) {
         return lerpf(this->value, this->min, this->max);
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
+
+Vec2f sShapeArrow[] = {
+    { -5.0f, -2.5f  },
+    { 0.0f,  2.5f   },
+    { 5.0f,  -2.5f  },
+    { -5.0f, -2.5f  },
+};
 
 static void Element_ComboDraw(ElementQueCall* call) {
     ElCombo* this = call->arg;
@@ -1323,12 +1329,6 @@ static void Element_ComboDraw(ElementQueCall* call) {
     Arli* list = this->arlist;
     Rect r = this->element.rect;
     Vec2f center;
-    Vec2f arrow[] = {
-        { -5.0f, -2.5f  },
-        { 0.0f,  2.5f   },
-        { 5.0f,  -2.5f  },
-        { -5.0f, -2.5f  },
-    };
     
     Gfx_DrawRounderOutline(vg, r, this->element.light);
     Gfx_DrawRounderRect(vg, r, this->element.shadow);
@@ -1379,7 +1379,7 @@ static void Element_ComboDraw(ElementQueCall* call) {
     
     nvgBeginPath(vg);
     nvgFillColor(vg, this->element.light);
-    Gfx_Shape(vg, center, 0.95, 0, arrow, ArrCount(arrow));
+    Gfx_Shape(vg, center, 0.95, 0, sShapeArrow, ArrCount(sShapeArrow));
     nvgFill(vg);
 }
 
@@ -1422,7 +1422,7 @@ s32 Element_Combo(ElCombo* this) {
     return 0;
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 Rect Element_Tab_GetRect(ElTab* this, int index) {
     f32 w = this->element.rect.w / (f32)this->num;
@@ -1468,7 +1468,7 @@ int Element_Tab(ElTab* this) {
     return id - this->index;
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 static Rect Element_Container_GetListElemRect(ElContainer* this, s32 i) {
     return ScrollBar_GetRect(&this->scroll, i);
@@ -1767,7 +1767,7 @@ s32 Element_Container(ElContainer* this) {
     return -1;
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 static void Element_SeparatorDraw(ElementQueCall* call) {
     Element* this = call->arg;
@@ -1806,66 +1806,148 @@ void Element_Separator(bool drawLine) {
     }
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
+
+typedef struct ElBox {
+    Element  element;
+    ElPanel* panel;
+    Rect     headRect;
+    f32      rowY;
+} ElBox;
+
+typedef struct BoxContext {
+    ElBox* list[16];
+    int    index;
+} BoxContext;
+
+void* Element_AllocBoxContext() {
+    return new(BoxContext);
+}
 
 static void Element_BoxDraw(ElementQueCall* call) {
-    Element* this = call->arg;
+    ElBox* this = call->arg;
+    Rect r = this->element.rect;
+    void* vg = GEO->vg;
+    ElPanel* panel = this->panel;
     
-    Gfx_DrawRounderOutline(call->geo->vg, this->rect, Theme_GetColor(THEME_HIGHLIGHT, 45, 1.0f));
-    Gfx_DrawRounderRect(call->geo->vg, this->rect, Theme_GetColor(THEME_SHADOW, 45, 1.0f));
+    if (panel)
+        r = panel->rect;
+    
+    this->element.shadow.a = 0.5f;
+    
+    Gfx_DrawRounderOutline(vg, r, this->element.constlight);
+    Gfx_DrawRounderRect(vg, r, this->element.shadow);
+    
+    if (panel) {
+        r.h = SPLIT_TEXT_H;
+        if (panel->name)
+            Gfx_Text(vg, r, NVG_ALIGN_CENTER, this->element.texcol, panel->name);
+        
+        Vec2f center = {
+            r.x + SPLIT_TEXT_H * 0.5,
+            r.y + SPLIT_TEXT_H * 0.5,
+        };
+        
+        Math_SmoothStepToS(
+            &panel->yaw,
+            panel->state ? DegToBin(90) : 0,
+            4, DegToBin(25), 1);
+        
+        nvgBeginPath(vg);
+        nvgFillColor(vg, this->element.light);
+        Gfx_Shape(vg, center, 0.95, panel->yaw, sShapeArrow, ArrCount(sShapeArrow));
+        nvgFill(vg);
+    }
 }
 
-s32 Element_Box(BoxInit io) {
-    thread_local static Element* boxElemList[42];
-    thread_local static f32 boxRowY[42];
-    thread_local static s32 r;
+static ElBox* BoxPush() {
+    BoxContext* ctx = SPLIT->boxContext;
     
-    if (io == BOX_GET_NUM)
-        return r;
+    return ctx->list[ctx->index++] = new(ElBox);
+}
+
+static ElBox* BoxPop() {
+    BoxContext* ctx = SPLIT->boxContext;
     
-    #define BOX_PUSH() r++
-    #define BOX_POP()  r--
-    #define THIS  boxElemList[r]
-    #define ROW_Y boxRowY[r]
+    return ctx->list[--ctx->index];
+}
+
+#undef Element_Box
+int Element_Box(BoxState state, ...) {
+    BoxContext* ctx = SPLIT->boxContext;
+    va_list va;
     
-    _assert(GEO && SPLIT);
-    _assert(r < ArrCount(boxElemList));
+    va_start(va, state);
+    ElPanel* panel = va_arg(va, ElPanel*);
+    const char* name = va_arg(va, char*);
+    va_end(va);
     
-    if (io == BOX_START) {
-        ROW_Y = sElemState->rowY;
+    if (state & BOX_INDEX)
+        return ctx->index;
+    
+    if ((state & BOX_MASK_IO) == BOX_START) {
+        ElBox* this = BoxPush();
         
-        THIS = new(*THIS);
-        THIS->doFree = true;
-        Element_Row(1, THIS, 1.0);
-        sElemState->rowY = ROW_Y + SPLIT_ELEM_X_PADDING;
+        this->element.instantColor = true;
+        this->element.doFree = true;
+        this->rowY = sElemState->rowY;
+        this->panel = panel;
         
-        // Shrink Split Rect
+        Element_Row(1, this, 1.0);
+        
+        sElemState->rowY = this->rowY + SPLIT_ELEM_X_PADDING;
         sElemState->rowX += SPLIT_ELEM_X_PADDING;
         
-        Element_QueueElement(GEO, SPLIT,
-            Element_BoxDraw, THIS, __FUNCTION__);
+        if (panel) {
+            sElemState->rowY += SPLIT_TEXT_H;
+            this->headRect = this->element.rect;
+            this->headRect.h = SPLIT_TEXT_H;
+            panel->name = name;
+            panel->rect.x = this->element.rect.x;
+            panel->rect.y = this->element.rect.y;
+        }
         
-        BOX_PUSH();
+        Element_QueueElement(GEO, SPLIT, Element_BoxDraw, this, __FUNCTION__);
+        
+        return panel ? !panel->state : 1;
     }
     
-    if (io == BOX_END) {
-        BOX_POP();
+    if ((state & BOX_MASK_IO) == BOX_END) {
+        ElBox* this = BoxPop();
         
-        THIS->rect.h = sElemState->rowY - ROW_Y;
-        sElemState->rowY += SPLIT_ELEM_X_PADDING;
+        if (panel && RectH(this->element.rect) == sElemState->rowY - SPLIT_ELEM_X_PADDING)
+            sElemState->rowY -= SPLIT_ELEM_X_PADDING;
         
-        // Expand Split Rect
+        if (!panel || (panel && !panel->state)) {
+            this->element.rect.h = sElemState->rowY - this->rowY;
+            sElemState->rowY += SPLIT_ELEM_X_PADDING;
+            
+            if (panel)
+                panel->rect = this->element.rect;
+        } else {
+            Math_SmoothStepToI(&panel->rect.h, SPLIT_TEXT_H, 2, SPLIT_TEXT_H, 1);
+            sElemState->rowY = RectH(panel->rect) + SPLIT_ELEM_X_PADDING;
+        }
+        
+        if (panel) {
+            this->element.rect.h = SPLIT_TEXT_H;
+            
+            if (!GEO->state.blockElemInput && ELEM_PRESS_CONDITION(this)) {
+                Input* input = GEO->input;
+                
+                if (Split_CursorInRect(SPLIT, &this->element.rect))
+                    if (Input_SelectClick(input, CLICK_L))
+                        panel->state ^= 1;
+            }
+        }
+        
         sElemState->rowX -= SPLIT_ELEM_X_PADDING;
     }
-#undef BOX_PUSH
-#undef BOX_POP
-#undef THIS
-#undef ROW_Y
     
-    return 0;
+    return ctx->index;
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 void Element_DisplayName(Element* this, f32 lerp) {
     ElementQueCall* node;
@@ -1899,7 +1981,7 @@ void Element_DisplayName(Element* this, f32 lerp) {
     node->update = false;
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
 
 void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type) {
     this->min = min;
@@ -2044,7 +2126,14 @@ void Element_Header(s32 num, ...) {
     va_end(va);
 }
 
-/*============================================================================*/
+////////////////////////////////////////////////////////////////////////////////
+
+static void Element_SetColor(Element* this, NVGcolor* source, NVGcolor target) {
+    if (this->instantColor)
+        *source = target;
+    else
+        Theme_SmoothStepToCol(source, target, 0.25f, 0.35f, 0.001f);
+}
 
 static void Element_UpdateElement(ElementQueCall* call) {
     GeoGrid* geo = call->geo;
@@ -2062,7 +2151,7 @@ static void Element_UpdateElement(ElementQueCall* call) {
     if (Element_PressCondition(geo, split, this)) {
         this->hover = true;
         
-        if ( Input_GetCursor(geo->input, CLICK_L)->hold)
+        if (Input_GetCursor(geo->input, CLICK_L)->hold)
             this->press = true;
     }
     
@@ -2085,70 +2174,41 @@ static void Element_UpdateElement(ElementQueCall* call) {
         this->prim = Theme_Mix(mix, base, Theme_GetColor(colPrim, 255, 1.00f * press));
         this->shadow = Theme_Mix(mix, base, Theme_GetColor(colShadow, 255, (1.00f + toggle) * press));
         this->light = Theme_Mix(mix, base, Theme_GetColor(colLight, 255, (0.50f + toggle) * press));
+        this->constlight = Theme_Mix(mix, base, Theme_GetColor(colLight, 255, (0.50f + toggle)));
         this->texcol = Theme_Mix(mix, base, Theme_GetColor(colTexcol, 255, 1.00f * press));
         
         if (this->toggle < 3) this->base = Theme_Mix(mix, base, Theme_GetColor(colBase, 255, (1.00f + toggle) * press));
         else this->base = Theme_Mix(0.75, base, Theme_GetColor(colPrim, 255, 0.95f * press));
     } else {
         if (this->hover) {
-            Theme_SmoothStepToCol(
-                &this->prim,
-                Theme_GetColor(colPrim, 255, 1.10f * press),
-                0.25f, 0.35f, 0.001f);
-            Theme_SmoothStepToCol(
-                &this->shadow,
-                Theme_GetColor(colShadow, 255, (1.07f + toggle) * press),
-                0.25f, 0.35f, 0.001f);
-            Theme_SmoothStepToCol(
-                &this->light,
-                Theme_GetColor(colLight, 255, (1.07f + toggle) * press),
-                0.25f, 0.35f, 0.001f);
-            Theme_SmoothStepToCol(
-                &this->texcol,
-                Theme_GetColor(colTexcol, 255, 1.15f * press),
-                0.25f, 0.35f, 0.001f);
+            Element_SetColor(this, &this->prim, Theme_GetColor(colPrim, 255, 1.10f * press));
+            Element_SetColor(this, &this->shadow, Theme_GetColor(colShadow, 255, (1.07f + toggle) * press));
+            Element_SetColor(this, &this->light, Theme_GetColor(colLight, 255, (1.07f + toggle) * press));
+            Element_SetColor(this, &this->texcol, Theme_GetColor(colTexcol, 255, 1.15f * press));
             
             if (this->toggle < 3)
                 Theme_SmoothStepToCol(&this->base, Theme_GetColor(colBase, 255, (1.07f + toggle) * press), 0.25f, 0.35f, 0.001f);
         } else {
-            Theme_SmoothStepToCol(
-                &this->prim,
-                Theme_GetColor(colPrim, 255, 1.00f * press),
-                0.25f, 0.35f, 0.001f);
-            
-            Theme_SmoothStepToCol(
-                &this->shadow,
-                Theme_GetColor(colShadow, 255, (1.00f + toggle) * press),
-                0.25f, 0.35f, 0.001f);
-            
-            Theme_SmoothStepToCol(
-                &this->light,
-                Theme_GetColor(colLight, 255, (0.50f + toggle) * press),
-                0.25f, 0.35f, 0.001f);
-            
-            Theme_SmoothStepToCol(
-                &this->texcol,
-                Theme_GetColor(colTexcol, 255, 1.00f * press),
-                0.25f, 0.35f, 0.001f);
+            Element_SetColor(this, &this->prim, Theme_GetColor(colPrim, 255, 1.00f * press));
+            Element_SetColor(this, &this->shadow, Theme_GetColor(colShadow, 255, (1.00f + toggle) * press));
+            Element_SetColor(this, &this->light, Theme_GetColor(colLight, 255, (0.50f + toggle) * press));
+            Element_SetColor(this, &this->texcol, Theme_GetColor(colTexcol, 255, 1.00f * press));
             
             if (this->toggle < 3)
-                Theme_SmoothStepToCol(
-                    &this->base,
-                    Theme_GetColor(colBase, 255, (1.00f + toggle) * press),
-                    0.25f, 0.35f, 0.001f);
+                Element_SetColor(this, &this->base, Theme_GetColor(colBase, 255, (1.00f + toggle) * press));
         }
         
+        Element_SetColor(this, &this->constlight, Theme_GetColor(colLight, 255, (0.50f + toggle)));
+        
         if (this->toggle == 3)
-            Theme_SmoothStepToCol(
-                &this->base,
-                Theme_GetColor(colPrim, 255, 0.95f * press),
-                0.25f, 8.85f, 0.001f);
+            Element_SetColor(this, &this->base, Theme_GetColor(colPrim, 255, 0.95f * press));
     }
     
     if (this->faulty || this->visFaultMix > EPSILON) {
         Math_SmoothStepToF(&this->visFaultMix, this->faulty ? 1.0f : 0.0f, 0.25f, 0.25f, 0.01f);
         
         this->light = Theme_Mix(this->visFaultMix, this->light, Theme_GetColor(THEME_DELETE, 255, 1.0f));
+        this->constlight = Theme_Mix(this->visFaultMix, this->constlight, Theme_GetColor(THEME_DELETE, 255, 1.0f));
     }
 }
 

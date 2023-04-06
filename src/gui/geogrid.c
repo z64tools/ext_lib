@@ -215,9 +215,10 @@ static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
 }
 
 static Split* Split_Alloc(GeoGrid* geo, s32 id) {
-    Split* split;
+    Split* split = new(Split);
     
-    split = new(Split);
+    void* Element_AllocBoxContext();
+    split->boxContext = Element_AllocBoxContext();
     split->prevId = -1; // Forces init
     split->id = id;
     
@@ -373,7 +374,7 @@ static void Split_Split(GeoGrid* geo, Split* split, SplitDir dir) {
 static void Split_Free(Split* this) {
     info("Kill Split: %s", addr_name(this));
     Arli_Free(this->taskList);
-    vfree(this->taskList, this->taskCombo, this->instance);
+    vfree(this->taskList, this->taskCombo, this->instance, this->boxContext);
 }
 
 static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
@@ -654,7 +655,7 @@ static void Edge_SetSlide(GeoGrid* geo) {
 static void Edge_Update(GeoGrid* geo) {
     SplitEdge* edge = geo->edgeHead;
     
-    if (! Input_GetCursor(geo->input, CLICK_ANY)->hold)
+    if (!Input_GetCursor(geo->input, CLICK_ANY)->hold)
         geo->actionEdge = NULL;
     
     while (edge) {
@@ -879,7 +880,7 @@ static void Split_UpdateSplit(GeoGrid* geo, Split* split) {
         _assert(table[split->id]->update != NULL);
         table[split->id]->update(geo->passArg, split->instance, split);
         
-        if (Element_Box(BOX_GET_NUM) != 0)
+        if (Element_Box(BOX_INDEX) != 0)
             errr("" PRNT_YELW "Element_Box Overflow" PRNT_RSET "( %d %s )", split->id, table[split->id]->taskName);
         
         for (int i = 0; i < 4; i++) {
