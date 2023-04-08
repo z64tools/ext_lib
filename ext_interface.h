@@ -43,10 +43,10 @@ typedef struct AppInfo {
 } AppInfo;
 
 typedef struct SubWindow {
-    AppInfo         app;
-    AppInfo*        parent;
-    Input           input;
-    WindowFunction  destroyCall;
+    AppInfo        app;
+    AppInfo*       parent;
+    Input          input;
+    WindowFunction destroyCall;
     struct {
         bool noDestroy;
     } settings;
@@ -77,44 +77,6 @@ void Interface_SetParam(AppInfo* app, u32 num, ...);
 
 void Interface_CreateSubWindow(SubWindow* window, AppInfo* app, s32 x, s32 y, const char* title);
 int Interface_Closed(SubWindow* window);
-
-#define FILE_DIALOG_BUF 256
-
-typedef struct {
-    SubWindow window;
-    GeoGrid   geo;
-    
-    char path[FILE_DIALOG_BUF];
-    List files;
-    List folders;
-    
-    s32 split;
-    s32 selected;
-    
-    ScrollBar scroll;
-    
-    struct {
-        bool doRename : 1;
-    };
-    
-    struct {
-        bool multiSelect : 1;
-        bool dispSplit   : 1;
-    } settings;
-    
-    struct {
-        const char key[64];
-        Split      split;
-    } private;
-    
-    ElTextbox travel;
-    ElTextbox search;
-    ElButton  backButton;
-    ElTextbox rename;
-} FileDialog;
-
-void FileDialog_New(FileDialog* this, AppInfo* parentApp, const char* title);
-void FileDialog_Free(FileDialog* this);
 
 #define GUI_INITIALIZE(                             \
         mainContext, title,                         \

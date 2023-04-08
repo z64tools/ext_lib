@@ -1289,7 +1289,8 @@ void GeoGrid_TaskTable(GeoGrid* geo, SplitTask** taskTable, u32 num) {
 }
 
 extern void* ElementState_New(void);
-extern void ElementState_SetElemState(void* elemState);
+extern void ElementState_Set(void* elemState);
+extern void* ElementState_Get();
 extern void Element_Flush(GeoGrid* geo);
 extern void VectorGfx_InitCommon();
 
@@ -1347,7 +1348,7 @@ void GeoGrid_Update(GeoGrid* this) {
     
     this->prevWorkRect = this->workRect;
     
-    ElementState_SetElemState(this->elemState);
+    ElementState_Set(this->elemState);
     Element_Flush(this);
     
     Element_UpdateTextbox(this);
@@ -1388,13 +1389,14 @@ void GeoGrid_Draw(GeoGrid* this) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void DummySplit_Push(GeoGrid* this, Split* split, Rect r) {
+    this->swapState = ElementState_Get();
     split->dispRect = split->rect = r;
     split->cursorInSplit = true;
     split->cursorPos = this->input->cursor.pos;
     split->cursorPressPos = this->input->cursor.pressPos;
     split->dummy = true;
     
-    ElementState_SetElemState(this->elemState);
+    ElementState_Set(this->elemState);
     Element_Flush(this);
     Element_SetContext(this, split);
     Element_UpdateTextbox(this);
@@ -1402,6 +1404,7 @@ void DummySplit_Push(GeoGrid* this, Split* split, Rect r) {
 
 void DummySplit_Pop(GeoGrid* this, Split* split) {
     Element_Draw(this, split, false);
+    ElementState_Set(this->swapState);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

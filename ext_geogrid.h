@@ -227,21 +227,22 @@ typedef enum {
 
 typedef struct ContextMenu {
     struct Element* element;
-    void* prop;
+    void* udata;
     ContextDataType type;
     Rect  rectOrigin;
     Rect  rect;
     Vec2s pos;
     struct {
-        bool init                 : 1;
-        bool setCondition         : 1;
-        bool blockWidthAdjustment : 1;
-        bool rectClamp            : 1;
-        s32  up                   : 2;
-        s32  side                 : 2;
+        bool init             : 1;
+        bool setCondition     : 1;
+        bool widthAdjustment  : 1;
+        bool offsetOriginRect : 1;
+        bool rectClamp        : 1;
+        s32  up               : 2;
+        s32  side             : 2;
     } state;
     
-    void* data;
+    void* temp;
     int   visualKey;
     
     Split     split;
@@ -274,6 +275,7 @@ typedef struct GeoGrid {
     void*       vg;
     void*       passArg;
     void*       elemState;
+    void*       swapState;
     ContextMenu dropMenu;
     
     struct {
@@ -462,9 +464,10 @@ typedef struct {
 typedef struct ElCombo {
     Element element;
     enum NVGalign align;
-    Arli* arlist;
-    bool  showDecID : 1;
-    bool  showHexID : 1;
+    Arli*       arlist;
+    bool        showDecID : 1;
+    bool        showHexID : 1;
+    const char* menu;
 } ElCombo;
 
 typedef struct {
@@ -515,6 +518,7 @@ void Gfx_DrawRounderOutline(void* vg, Rect rect, NVGcolor color);
 void Gfx_DrawRounderOutlineWidth(void* vg, Rect rect, NVGcolor color, int width);
 void Gfx_DrawRounderRect(void* vg, Rect rect, NVGcolor color);
 void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* txt);
+void Gfx_TextShadow(void* vg);
 f32 Gfx_TextWidth(void* vg, const char* txt);
 
 bool Split_CursorInRect(Split* split, Rect* rect);
@@ -537,7 +541,7 @@ void GeoGrid_SaveLayout(GeoGrid* geo, Toml* toml, const char* file);
 int GeoGrid_LoadLayout(GeoGrid* this, Toml* toml);
 
 void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType type, Rect rect);
-void ContextMenu_Custom(GeoGrid* geo, void* context, void* element, void (*init)(GeoGrid*, ContextMenu*), void (*draw)(GeoGrid*, ContextMenu*), void (*dest)(GeoGrid*, ContextMenu*), Rect rect);
+void ContextMenu_Custom(GeoGrid* geo, void* context, void* element, void init(GeoGrid*, ContextMenu*), void draw(GeoGrid*, ContextMenu*), void dest(GeoGrid*, ContextMenu*), Rect rect);
 void ContextMenu_Draw(GeoGrid* geo);
 void ContextMenu_Close(GeoGrid* geo);
 

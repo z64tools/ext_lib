@@ -15,11 +15,11 @@ static struct {
 
 static void ContextProp_Color_Init(GeoGrid* geo, ContextMenu* this) {
     this->rect.h = this->rect.w = Max(this->rect.w, 128 + 64);
-    this->data = new(ElTextbox);
+    this->temp = new(ElTextbox);
 }
 
 static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
-    PropColor* prop = this->prop;
+    PropColor* prop = this->udata;
     void* vg = geo->vg;
     Rect r = this->rect;
     Input* input = geo->input;
@@ -143,14 +143,14 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     }
     
     DummySplit_Push(geo, &this->split, geo->workRect);
-    Element_Textbox(this->data);
+    Element_Textbox(this->temp);
     DummySplit_Pop(geo, &this->split);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 static void ContextProp_Arli_Init(GeoGrid* geo, ContextMenu* this) {
-    Arli* list = this->prop;
+    Arli* list = this->udata;
     
     nvgFontFace(geo->vg, "default");
     nvgFontSize(geo->vg, SPLIT_TEXT);
@@ -169,14 +169,15 @@ static void ContextProp_Arli_Init(GeoGrid* geo, ContextMenu* this) {
         this->rect.h += SPLIT_TEXT_H;
     }
     
-    this->rect.w += 24;
+    this->rect.w += SPLIT_ELEM_X_PADDING * 8;
+    this->rect.h += SPLIT_ELEM_X_PADDING * 4;
     
     ScrollBar_Init(&this->scroll, list->num, SPLIT_TEXT_H);
 }
 
 static void ContextProp_Arli_Draw(GeoGrid* geo, ContextMenu* this) {
     Input* input = geo->input;
-    Arli* list = this->prop;
+    Arli* list = this->udata;
     void* vg = geo->vg;
     bool hold = ScrollBar_Update(&this->scroll, input, input->cursor.pos, this->rect);
     
@@ -184,6 +185,8 @@ static void ContextProp_Arli_Draw(GeoGrid* geo, ContextMenu* this) {
     nvgScissor(vg, UnfoldRect(this->rect));
     for (int i = 0; i < list->num; i++) {
         Rect r = ScrollBar_GetRect(&this->scroll, i);
+        
+        r.y += SPLIT_ELEM_X_PADDING * 2;
         
         if (Rect_PointIntersect(&this->rect, UnfoldVec2(input->cursor.pos))) {
             if (!hold && Rect_PointIntersect(&r, UnfoldVec2(input->cursor.pos))) {
@@ -194,17 +197,18 @@ static void ContextProp_Arli_Draw(GeoGrid* geo, ContextMenu* this) {
             }
         }
         
-        if (this->visualKey == i)
-            Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_PRIM, 255, 1.0f));
-        else if (i % 2) {
-            Rect tr = r;
+        if (this->visualKey == i) {
+            Rect rr = r;
             
-            tr.x -= 2;
-            tr.w += 4;
-            Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_ELEMENT_DARK, 255, 1.35f));
+            rr.x += SPLIT_ELEM_X_PADDING;
+            rr.w -= SPLIT_ELEM_X_PADDING * 2;
+            Gfx_DrawRounderRect(vg, rr, Theme_GetColor(THEME_PRIM, 255, 1.0f));
+            Gfx_TextShadow(vg);
         }
         
+        r.x += SPLIT_ELEM_X_PADDING * 2;
         Gfx_Text(vg, r, NVG_ALIGN_MIDDLE | NVG_ALIGN_LEFT, Theme_GetColor(THEME_TEXT, 255, 1.0f), list->elemName(list, i));
+        
     }
     nvgResetScissor(vg);
     
@@ -215,6 +219,7 @@ static void ContextProp_Arli_Draw(GeoGrid* geo, ContextMenu* this) {
 
 #define FUNC_INIT 0
 #define FUNC_DRAW 1
+#define FUNC_DEST 2
 
 void (*sContextMenuFuncs[][3])(GeoGrid*, ContextMenu*) = {
     [CONTEXT_PROP_COLOR] =   { ContextProp_Color_Init, ContextProp_Color_Draw },
@@ -230,7 +235,7 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType 
     _assert(type < ArrCount(sContextMenuFuncs));
     
     this->element = element;
-    this->prop = uprop;
+    this->udata = uprop;
     this->type = type;
     this->rect = this->rectOrigin = rect;
     this->pos = geo->input->cursor.pressPos;
@@ -242,15 +247,20 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType 
     this->state.side = 1;
     this->state.init = true;
     this->state.setCondition = false;
+    this->state.widthAdjustment = true;
+    this->state.offsetOriginRect = true;
     this->visualKey = -1;
     this->state.rectClamp = true;
     
     _log("type %d init func", type);
     sContextMenuFuncs[type][FUNC_INIT](geo, this);
     
-    this->rect.y = this->rectOrigin.y + this->rectOrigin.h;
-    this->rect.x = this->rectOrigin.x;
-    if (!this->state.blockWidthAdjustment)
+    if (this->state.offsetOriginRect) {
+        this->rect.y = this->rectOrigin.y + this->rectOrigin.h;
+        this->rect.x = this->rectOrigin.x;
+    }
+    
+    if (this->state.widthAdjustment)
         this->rect.w = Max(this->rect.w, this->rectOrigin.w);
     
     if (this->pos.y > geo->wdim->y * 0.5) {
@@ -276,7 +286,7 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType 
     _log("ok", type);
 }
 
-void ContextMenu_Custom(GeoGrid* geo, void* context, void* element, void (*init)(GeoGrid*, ContextMenu*), void (*draw)(GeoGrid*, ContextMenu*), void (*dest)(GeoGrid*, ContextMenu*), Rect rect) {
+void ContextMenu_Custom(GeoGrid* geo, void* context, void* element, void init(GeoGrid*, ContextMenu*), void draw(GeoGrid*, ContextMenu*), void dest(GeoGrid*, ContextMenu*), Rect rect) {
     sContextMenuFuncs[CONTEXT_CUSTOM][0] = init;
     sContextMenuFuncs[CONTEXT_CUSTOM][1] = draw;
     sContextMenuFuncs[CONTEXT_CUSTOM][2] = dest;
@@ -288,7 +298,7 @@ void ContextMenu_Draw(GeoGrid* geo) {
     Cursor* cursor = &geo->input->cursor;
     void* vg = geo->vg;
     
-    if (this->prop == NULL)
+    if (this->udata == NULL)
         return;
     
     if (this->state.init == true) {
@@ -299,7 +309,7 @@ void ContextMenu_Draw(GeoGrid* geo) {
     
     nvgBeginFrame(geo->vg, geo->wdim->x, geo->wdim->y, gPixelRatio); {
         Rect r = this->rect;
-        Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_PRIM, 255, 1.0f));
+        Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_ELEMENT_BASE, 255, 1.25f));
         Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_ELEMENT_DARK, 255, 1.0f));
         
         nvgScissor(vg, UnfoldRect(r));
@@ -322,11 +332,11 @@ void ContextMenu_Draw(GeoGrid* geo) {
                 case CONTEXT_PROP_COLOR: (void)0;
                     break;
                 case CONTEXT_ARLI: (void)0;
-                    Arli_Set(this->prop, this->visualKey);
+                    Arli_Set(this->udata, this->visualKey);
                     break;
                 case CONTEXT_CUSTOM: (void)0;
-                    if (sContextMenuFuncs[CONTEXT_CUSTOM][2])
-                        sContextMenuFuncs[CONTEXT_CUSTOM][2](geo, this);
+                    if (sContextMenuFuncs[CONTEXT_CUSTOM][FUNC_DEST])
+                        sContextMenuFuncs[CONTEXT_CUSTOM][FUNC_DEST](geo, this);
                     
                     break;
             }

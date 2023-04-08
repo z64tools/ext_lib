@@ -79,8 +79,12 @@ void* ElementState_New(void) {
     return elemState;
 }
 
-void ElementState_SetElemState(void* elemState) {
+void ElementState_Set(void* elemState) {
     sElemState = elemState;
+}
+
+void* ElementState_Get() {
+    return sElemState;
 }
 
 static const char* sFmt[] = {
@@ -151,7 +155,7 @@ bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r) {
         }
     }
     
-    this->visNum = this->baseRect.h / this->slotHeight;
+    this->visNum = this->baseRect.h / this->slotHeight - 1;
     this->visMax = clamp_min(this->max - this->visNum, 0);
     barHeight = this->baseRect.h * clamp(this->visNum / this->visMax, 0, 1);
     if (barHeight < 16) barHeight = 16;
@@ -412,15 +416,39 @@ Rect Gfx_TextRectMinMax(void* vg, Rect r, enum NVGalign align, const char* txt, 
     return r;
 }
 
+static bool sShadow;
+
 void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* txt) {
     Rect nr = Gfx_TextRect(vg, r, align, txt);
     
     r = Rect_Clamp(nr, r);
-    
     align = NVG_ALIGN_MIDDLE | NVG_ALIGN_LEFT;
     
     Gfx_SetDefaultTextParams(vg);
     nvgTextAlign(vg, align);
+    
+    if (sShadow) {
+        sShadow = false;
+        nvgSave(vg);
+        nvgFontBlur(vg, 1.0f);
+        nvgFillColor(vg, Theme_GetColor(THEME_SHADOW, 255, 1.0f));
+        nvgText(
+            vg,
+            r.x,
+            r.y + r.h * 0.5 + 1,
+            txt,
+            NULL
+        );
+        nvgText(
+            vg,
+            r.x,
+            r.y + r.h * 0.5 + 1,
+            txt,
+            NULL
+        );
+        nvgRestore(vg);
+    }
+    
     nvgFillColor(vg, col);
     nvgText(
         vg,
@@ -429,6 +457,10 @@ void Gfx_Text(void* vg, Rect r, enum NVGalign align, NVGcolor col, const char* t
         txt,
         NULL
     );
+}
+
+void Gfx_TextShadow(void* vg) {
+    sShadow = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1349,12 +1381,22 @@ static void Element_ComboDraw(ElementQueCall* call) {
     Rect r = this->element.rect;
     Vec2f center;
     
-    Gfx_DrawRounderOutline(vg, r, this->element.light);
-    Gfx_DrawRounderRect(vg, r, this->element.shadow);
+    if (!this->menu) {
+        Gfx_DrawRounderOutline(vg, r, this->element.light);
+        Gfx_DrawRounderRect(vg, r, this->element.shadow);
+    } else {
+        Gfx_DrawRounderRect(vg, r, Theme_Mix(0.2f, this->element.base, this->element.light));
+    }
     
     r = this->element.rect;
     
-    if (list && list->num) {
+    if (this->menu) {
+        nvgScissor(vg, UnfoldRect(r));
+        Gfx_Text(vg, r, this->align, this->element.texcol, this->menu);
+        nvgResetScissor(vg);
+        
+        return;
+    } else if (list && list->num) {
         Rect sr = r;
         NVGcolor color;
         
@@ -2167,14 +2209,16 @@ void Element_Header(s32 num, ...) {
         Rect* rect = &this->rect;
         s32 w = va_arg(va, s32);
         
-        this->header = true;
-        
-        if (rect) {
-            Element_SetRectImpl(rect, x + SPLIT_ELEM_X_PADDING, 4, w, 0);
-            if (this->name)
-                Element_DisplayName(this);
+        if (this) {
+            this->header = true;
+            
+            if (rect) {
+                Element_SetRectImpl(rect, x + SPLIT_ELEM_X_PADDING, 4, w, 0);
+                if (this->name)
+                    Element_DisplayName(this);
+            }
         }
-        x += w + SPLIT_ELEM_X_PADDING * 2;
+        x += w + SPLIT_ELEM_X_PADDING;
     }
     
     va_end(va);
