@@ -433,8 +433,10 @@ static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
         return;
     }
     
-    split->edge[oppositeDir]->vtx[0]->killFlag = true;
-    split->edge[oppositeDir]->vtx[1]->killFlag = true;
+    split->edge[oppositeDir]->vtx[0]->killFlag = 5;
+    split->edge[oppositeDir]->vtx[1]->killFlag = 5;
+    split->edge[dir]->vtx[0]->killFlag = 5;
+    split->edge[dir]->vtx[1]->killFlag = 5;
     
     if (dir == DIR_L) {
         _log("Kill DIR_L");
@@ -535,26 +537,27 @@ static void Vtx_Update(GeoGrid* geo) {
             Vtx_RemoveDuplicates(geo, vtx);
         
         if (vtx->killFlag) {
-            
-            fornode(s, geo->splitHead) {
-                for (int i = 0; i < 4; i++)
-                    if (s->vtx[i] == vtx)
-                        vtx->killFlag = false;
-            }
-            
-            fornode(e, geo->edgeHead) {
-                for (int i = 0; i < 2; i++)
-                    if (e->vtx[i] == vtx)
-                        vtx->killFlag = false;
-            }
-            
-            if (vtx->killFlag) {
-                info("Kill Vtx: %s", addr_name(vtx));
+            if (vtx->killFlag == 1) {
+                fornode(s, geo->splitHead) {
+                    for (int i = 0; i < 4; i++)
+                        if (s->vtx[i] == vtx)
+                            vtx->killFlag = false;
+                }
                 
-                Node_Kill(geo->vtxHead, vtx);
-                vtx = geo->vtxHead;
-                continue;
-            }
+                fornode(e, geo->edgeHead) {
+                    for (int i = 0; i < 2; i++)
+                        if (e->vtx[i] == vtx)
+                            vtx->killFlag = false;
+                }
+                
+                if (vtx->killFlag) {
+                    info("Kill Vtx: %s", addr_name(vtx));
+                    
+                    Node_Kill(geo->vtxHead, vtx);
+                    vtx = geo->vtxHead;
+                    continue;
+                }
+            } else Decr(vtx->killFlag);
         }
         
         vtx = vtx->next;
