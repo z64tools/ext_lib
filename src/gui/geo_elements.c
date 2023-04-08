@@ -1823,7 +1823,7 @@ void Element_Separator(bool drawLine) {
     _assert(GEO && SPLIT);
     
     if (drawLine) {
-        this = calloc(sizeof(*this));
+        this = new(Element);
         
         sElemState->rowY += SPLIT_ELEM_X_PADDING;
         
