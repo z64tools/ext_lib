@@ -2306,6 +2306,11 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
         ElementQueCall* next = elem->next;
         Element* this = elem->arg;
         
+        if (elem->split == geo->killSplit) {
+            elem = next;
+            continue;
+        }
+        
         if (this && this->header == header && elem->split == split) {
             _log("ElemDraw%s: " PRNT_PRPL "%sDraw", header ? "Header" : "Split", elem->elemFunc);
             

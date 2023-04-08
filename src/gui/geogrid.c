@@ -413,10 +413,7 @@ static void Split_Split(GeoGrid* geo, Split* split, SplitDir dir) {
 static void Split_Free(Split* this) {
     info("Kill Split: %s", addr_name(this));
     Arli_Free(this->taskList);
-    vfree(this->taskList);
-    vfree(this->taskCombo);
-    vfree(this->instance);
-    vfree(this->boxContext);
+    vfree(this->taskList, this->taskCombo, this->instance, this->boxContext);
 }
 
 static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
@@ -1386,6 +1383,7 @@ void GeoGrid_Draw(GeoGrid* this) {
     glViewport(0, 0, this->wdim->x, this->wdim->y);
     DragItem_Draw(this);
     ContextMenu_Draw(this);
+    this->killSplit = NULL;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
