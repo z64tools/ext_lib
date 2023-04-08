@@ -58,8 +58,9 @@ typedef struct {
     f32 rowX;
     f32 shiftX;
     
-    s32 timerTextbox;
-    s32 blockerTextbox;
+    int timerTextbox;
+    int blockerTextbox;
+    int blockerTemp;
     
     bool pushToHeader : 1;
     bool forceDisable : 1;
@@ -490,6 +491,7 @@ static s32 Element_PressCondition(GeoGrid* geo, Split* split, Element* this) {
         (split->cursorInSplit || this->header) &&
         !split->blockCursor &&
         !split->elemBlockCursor &&
+        (!sElemState->blockerTemp || this->type != ELEM_TYPE_BOX) &&
         fabsf(split->scroll.voffset - split->scroll.offset) < 5
     ) {
         if (this->header) {
@@ -512,7 +514,7 @@ void Element_SetContext(GeoGrid* setGeo, Split* setSplit) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define ELEMENT_QUEUE_CHECK(...) if (this->element.disabled || GEO->state.blockElemInput) { \
+#define ELEMENT_QUEUE_CHECK(...) if (this->element.disabled || this->element.disableTemp) { \
         __VA_ARGS__                                                                         \
         goto queue_element;                                                                 \
 }
@@ -570,7 +572,7 @@ s32 Element_Button(ElButton* this) {
     ELEMENT_QUEUE_CHECK();
     
     if (ELEM_PRESS_CONDITION(this)) {
-        if (Input_GetCursor(GEO->input, CLICK_L)->press) {
+        if (Input_SelectClick(GEO->input, CLICK_L)) {
             change = true;
             
             this->state ^= 1;
@@ -679,8 +681,7 @@ void Element_ClearActiveTextbox(GeoGrid* geo) {
     ElementState* state = geo->elemState;
     ElTextbox* this = state->textbox;
     
-    if (!this)
-        return;
+    if (!this) return;
     
     Textbox_SetValue(this);
     state->textbox = NULL;
@@ -692,8 +693,9 @@ void Element_ClearActiveTextbox(GeoGrid* geo) {
         }
         
         state->blockerTextbox--;
-        this->doBlock = false;
+        state->blockerTemp = 2;
         this->ret = true;
+        this->doBlock = false;
     }
     
     warn("Textbox: Clear");
@@ -730,187 +732,189 @@ void Element_UpdateTextbox(GeoGrid* geo) {
     bool cPress = Textbox_GetMouse(geo, CLICK_L)->press;
     bool cHold = Textbox_GetMouse(geo, CLICK_L)->hold;
     
+    if (!cHold) Decr(sElemState->blockerTemp);
     sElemState->breathYaw += DegToBin(3);
     sElemState->breath = (SinS(sElemState->breathYaw) + 1.0f) * 0.5;
     
-    if (this) {
-        #define HOLDREPKEY(key) (Textbox_GetKey(geo, key)->press || Textbox_GetKey(geo, key)->dual)
-        Split* split = this->split;
-        this->modified = false;
-        this->editing = true;
-        
-        if (this->clearIcon) {
-            if (Textbox_GetMouse(geo, CLICK_L)->press) {
-                if (Split_CursorInRect(split, &this->clearRect)) {
-                    arrzero(this->txt);
-                    this->modified = true;
-                    Element_ClearActiveTextbox(geo);
-                    return;
-                }
-            }
-        }
-        
-        if (Textbox_GetKey(geo, KEY_ESCAPE)->press) {
-            arrzero(this->txt);
-            this->modified = true;
-            Element_ClearActiveTextbox(geo);
-            this->ret = -1;
-            
-            return;
-        }
-        
-        if (!this->doBlock) {
-            if (Input_SetState(geo->input, INPUT_BLOCK)) {
-                warn("Duplicate Set on INPUT_BLOCK, press enter");
-                cli_getc();
-            }
-            
-            sElemState->blockerTextbox++;
-            this->doBlock = true;
-            return;
-        } else if (Textbox_GetKey(geo, KEY_ENTER)->press || (!Rect_PointIntersect(&this->element.rect, UnfoldVec2(split->cursorPos)) && cPress)) {
-            Element_ClearActiveTextbox(geo);
-            return;
-        }
-        
-        void* vg = geo->vg;
-        Input* input = geo->input;
-        bool ctrl = Textbox_GetKey(geo, KEY_LEFT_CONTROL)->hold;
-        bool paste = Textbox_GetKey(geo, KEY_LEFT_CONTROL)->hold && Textbox_GetKey(geo, KEY_V)->press;
-        bool copy = Textbox_GetKey(geo, KEY_LEFT_CONTROL)->hold && Textbox_GetKey(geo, KEY_C)->press;
-        bool kShift = Textbox_GetKey(geo, KEY_LEFT_SHIFT)->hold;
-        bool kEnd = Textbox_GetKey(geo, KEY_END)->press;
-        bool kHome = Textbox_GetKey(geo, KEY_HOME)->press;
-        bool kRem = Textbox_GetKey(geo, KEY_BACKSPACE)->press || Textbox_GetKey(geo, KEY_BACKSPACE)->dual;
-        s32 dir = HOLDREPKEY(KEY_RIGHT) - HOLDREPKEY(KEY_LEFT);
-        s32 maxSize = this->size ? this->size : sizeof(this->txt);
-        const s32 LEN = strlen(this->txt);
-        
-        if (ctrl && Textbox_GetKey(geo, KEY_A)->press) {
-            this->selPivot = this->selA = 0;
-            this->selPos = this->selB = LEN;
-            
-            return;
-        }
-        
-        if (cPress || cHold) {
-            Rect r = this->element.rect;
-            s32 id = 0;
-            f32 dist = FLT_MAX;
-            
-            if (this->isClicked && Math_Vec2s_DistXZ(split->cursorPressPos, split->cursorPos) < 2)
-                return;
-            
-            for (char* end = this->txt; ; end++) {
-                Vec2s p;
-                f32 ndist;
-                
-                Rect tr = Gfx_TextRectMinMax(vg, r, this->align, this->txt, 0, end - this->txt);
-                
-                p.x = RectW(tr) - 2;
-                p.y = split->cursorPos.y;
-                
-                if ((ndist = Math_Vec2s_DistXZ(p, split->cursorPos)) < dist) {
-                    dist = ndist;
-                    
-                    id = end - this->txt;
-                }
-                
-                if (*end == '\0')
-                    break;
-            }
-            
-            if (cPress && Rect_PointIntersect(&r, UnfoldVec2(split->cursorPos))) {
-                if (Textbox_GetMouse(geo, CLICK_L)->dual) {
-                    if (this->selA == this->selB) {
-                        for (; this->selA > 0; this->selA--)
-                            if (ispunct(this->txt[this->selA - 1]))
-                                break;
-                        for (; this->selB < strlen(this->txt); this->selB++)
-                            if (ispunct(this->txt[this->selB]))
-                                break;
-                    } else {
-                        this->selA = 0;
-                        this->selB = strlen(this->txt);
-                    }
-                    return;
-                }
-                this->selPos = this->selPivot = this->selA = this->selB = id;
-                this->isClicked = true;
-                warn("Textbox: Select %d", id);
-            } else if (cHold && this->isClicked && split->cursorPos.x >= r.x && split->cursorPos.x < r.x + r.w) {
-                this->selA = Min(this->selPivot, id );
-                this->selPos = this->selB = Max(this->selPivot, id );
-            }
-        } else {
-            this->isClicked = false;
-            
-            nested(void, Remove, ()) {
-                s32 min = this->selA;
-                s32 max = this->selB - min;
-                
-                if (this->selA == this->selB) {
-                    min = clamp_min(min - 1, 0);
-                    max = 1;
-                }
-                
-                strrem(&this->txt[min], max);
-                this->selA = this->selB = min;
+    if (!this) return;
+    
+    #define HOLDREPKEY(key) (Textbox_GetKey(geo, key)->press || Textbox_GetKey(geo, key)->dual)
+    Split* split = this->split;
+    this->modified = false;
+    this->editing = true;
+    
+    if (this->clearIcon) {
+        if (Textbox_GetMouse(geo, CLICK_L)->press) {
+            if (Split_CursorInRect(split, &this->clearRect)) {
+                arrzero(this->txt);
                 this->modified = true;
+                Element_ClearActiveTextbox(geo);
+                return;
+            }
+        }
+    }
+    
+    if (Textbox_GetKey(geo, KEY_ESCAPE)->press) {
+        arrzero(this->txt);
+        this->modified = true;
+        Element_ClearActiveTextbox(geo);
+        this->ret = -1;
+        
+        return;
+    }
+    
+    if (!this->doBlock) {
+        if (Input_SetState(geo->input, INPUT_BLOCK)) {
+            warn("Duplicate Set on INPUT_BLOCK, press enter");
+            cli_getc();
+        }
+        
+        sElemState->blockerTextbox++;
+        this->doBlock = true;
+        return;
+    } else if (Textbox_GetKey(geo, KEY_ENTER)->press || (!Rect_PointIntersect(&this->element.rect, UnfoldVec2(split->cursorPos)) && cPress)) {
+        Element_ClearActiveTextbox(geo);
+        return;
+    }
+    
+    void* vg = geo->vg;
+    Input* input = geo->input;
+    bool ctrl = Textbox_GetKey(geo, KEY_LEFT_CONTROL)->hold;
+    bool paste = Textbox_GetKey(geo, KEY_LEFT_CONTROL)->hold && Textbox_GetKey(geo, KEY_V)->press;
+    bool copy = Textbox_GetKey(geo, KEY_LEFT_CONTROL)->hold && Textbox_GetKey(geo, KEY_C)->press;
+    bool kShift = Textbox_GetKey(geo, KEY_LEFT_SHIFT)->hold;
+    bool kEnd = Textbox_GetKey(geo, KEY_END)->press;
+    bool kHome = Textbox_GetKey(geo, KEY_HOME)->press;
+    bool kRem = Textbox_GetKey(geo, KEY_BACKSPACE)->press || Textbox_GetKey(geo, KEY_BACKSPACE)->dual;
+    s32 dir = HOLDREPKEY(KEY_RIGHT) - HOLDREPKEY(KEY_LEFT);
+    s32 maxSize = this->size ? this->size : sizeof(this->txt);
+    const s32 LEN = strlen(this->txt);
+    
+    if (ctrl && Textbox_GetKey(geo, KEY_A)->press) {
+        this->selPivot = this->selA = 0;
+        this->selPos = this->selB = LEN;
+        
+        return;
+    }
+    
+    if (cPress || cHold) {
+        Rect r = this->element.rect;
+        s32 id = 0;
+        f32 dist = FLT_MAX;
+        
+        if (this->isClicked && Math_Vec2s_DistXZ(split->cursorPressPos, split->cursorPos) < 2)
+            return;
+        
+        for (char* end = this->txt; ; end++) {
+            Vec2s p;
+            f32 ndist;
+            
+            Rect tr = Gfx_TextRectMinMax(vg, r, this->align, this->txt, 0, end - this->txt);
+            
+            p.x = RectW(tr) - 2;
+            p.y = split->cursorPos.y;
+            
+            if ((ndist = Math_Vec2s_DistXZ(p, split->cursorPos)) < dist) {
+                dist = ndist;
+                
+                id = end - this->txt;
+            }
+            
+            if (*end == '\0')
+                break;
+        }
+        
+        if (cPress && Rect_PointIntersect(&r, UnfoldVec2(split->cursorPos))) {
+            if (Textbox_GetMouse(geo, CLICK_L)->dual) {
+                if (this->selA == this->selB) {
+                    for (; this->selA > 0; this->selA--)
+                        if (ispunct(this->txt[this->selA - 1]))
+                            break;
+                    for (; this->selB < strlen(this->txt); this->selB++)
+                        if (ispunct(this->txt[this->selB]))
+                            break;
+                } else {
+                    this->selA = 0;
+                    this->selB = strlen(this->txt);
+                }
+                return;
+            }
+            this->selPos = this->selPivot = this->selA = this->selB = id;
+            this->isClicked = true;
+            warn("Textbox: Select %d", id);
+        } else if (cHold && this->isClicked && split->cursorPos.x >= r.x && split->cursorPos.x < r.x + r.w) {
+            this->selA = Min(this->selPivot, id );
+            this->selPos = this->selB = Max(this->selPivot, id );
+        }
+    } else {
+        this->isClicked = false;
+        
+        nested(void, Remove, ()) {
+            s32 min = this->selA;
+            s32 max = this->selB - min;
+            
+            if (this->selA == this->selB) {
+                min = clamp_min(min - 1, 0);
+                max = 1;
+            }
+            
+            strrem(&this->txt[min], max);
+            this->selA = this->selB = min;
+            this->modified = true;
+        };
+        
+        if (kRem)
+            Remove();
+        
+        if (dir || kEnd || kHome) {
+            nested(s32, Shift, (s32 cur, s32 dir)) {
+                if (ctrl && dir) {
+                    for (var i = cur + dir; i > 0 && i < LEN; i += dir) {
+                        if (ispunct(this->txt[i]) != ispunct(this->txt[i + dir]))
+                            return i + Max(0, dir);
+                    }
+                }
+                
+                return cur + dir;
             };
             
-            if (kRem)
-                Remove();
+            s32 val = 0;
+            s32 dirPoint[] = { this->selA, this->selB };
+            bool shiftMul = this->selA == this->selB;
             
-            if (dir || kEnd || kHome) {
-                nested(s32, Shift, (s32 cur, s32 dir)) {
-                    if (ctrl && dir) {
-                        for (var i = cur + dir; i > 0 && i < LEN; i += dir) {
-                            if (ispunct(this->txt[i]) != ispunct(this->txt[i + dir]))
-                                return i + Max(0, dir);
-                        }
-                    }
-                    
-                    return cur + dir;
-                };
-                
-                s32 val = 0;
-                s32 dirPoint[] = { this->selA, this->selB };
-                bool shiftMul = this->selA == this->selB;
-                
-                //crustify
+            //crustify
                 if (kHome)       val = 0;
                 else if (kEnd)   val = LEN;
                 else if (kShift) val = Shift(this->selPos, dir);
                 else             val = Shift(dirPoint[clamp_min(dir, 0)], dir * shiftMul);
-                //uncrustify
-                val = clamp(val, 0, LEN);
-                
-                if (kShift) {
-                    this->selPos = val;
-                    this->selA = Min(this->selPos, this->selPivot);
-                    this->selB = Max(this->selPos, this->selPivot);
-                } else
-                    this->selPos = this->selPivot = this->selA = this->selB = val;
-            }
+            //uncrustify
+            val = clamp(val, 0, LEN);
             
-            if (input->buffer[0] || paste) {
-                const char* origin = input->buffer;
-                
-                if (paste) origin = Input_GetClipboardStr(geo->input);
-                if (this->selA != this->selB) Remove();
-                
-                strnins(this->txt, origin, this->selA, maxSize + 1);
-                this->modified = true;
-                
-                this->selPos = this->selPivot = this->selB = this->selA = clamp_max(this->selA + 1, maxSize);
-            }
-            
-            if (copy)
-                Input_SetClipboardStr(geo->input, x_strndup(&this->txt[this->selA], this->selB - this->selA));
-            
+            if (kShift) {
+                this->selPos = val;
+                this->selA = Min(this->selPos, this->selPivot);
+                this->selB = Max(this->selPos, this->selPivot);
+            } else
+                this->selPos = this->selPivot = this->selA = this->selB = val;
         }
+        
+        if (input->buffer[0] || paste) {
+            const char* origin = input->buffer;
+            
+            if (paste) origin = Input_GetClipboardStr(geo->input);
+            if (this->selA != this->selB) Remove();
+            
+            strnins(this->txt, origin, this->selA, maxSize + 1);
+            this->modified = true;
+            
+            this->selPos = this->selPivot = this->selB = this->selA = clamp_max(this->selA + 1, maxSize);
+        }
+        
+        if (copy)
+            Input_SetClipboardStr(geo->input, x_strndup(&this->txt[this->selA], this->selB - this->selA));
+        
     }
+    
 #undef HOLDREPKEY
 }
 
@@ -918,7 +922,10 @@ static void Element_TextboxDraw(ElementQueCall* call) {
     void* vg = call->geo->vg;
     ElTextbox* this = call->arg;
     
-    Gfx_DrawRounderRect(vg, this->element.rect, this->element.base);
+    if (sElemState->textbox == this)
+        Gfx_DrawRounderRect(vg, this->element.rect, this->element.shadow);
+    else
+        Gfx_DrawRounderRect(vg, this->element.rect, this->element.base);
     
     if (sElemState->textbox == this)
         Gfx_DrawRounderOutline(vg, this->element.rect, Theme_GetColor(THEME_ELEMENT_LIGHT, 255, 1.0f));
@@ -982,6 +989,8 @@ static void Element_TextboxDraw(ElementQueCall* call) {
 s32 Element_Textbox(ElTextbox* this) {
     int ret = 0;
     
+    this->element.type = ELEM_TYPE_TEXTBOX;
+    
     _assert(GEO && SPLIT);
     
     if (this != sElemState->textbox) {
@@ -990,9 +999,9 @@ s32 Element_Textbox(ElTextbox* this) {
         else
             this->modified = false;
         this->editing = false;
-    } else
         
         ELEMENT_QUEUE_CHECK();
+    }
     
     if (this->clearIcon) {
         this->clearRect.x = this->element.rect.x + this->element.rect.w - this->element.rect.h;
@@ -1964,6 +1973,7 @@ int Element_Box(BoxState state, ...) {
     if ((state & BOX_MASK_IO) == BOX_START) {
         ElBox* this = BoxPush();
         
+        this->element.type = ELEM_TYPE_BOX;
         this->element.instantColor = true;
         this->element.doFree = true;
         this->rowY = sElemState->rowY;
@@ -2023,8 +2033,6 @@ int Element_Box(BoxState state, ...) {
     
     return ctx->index;
 }
-
-////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
 

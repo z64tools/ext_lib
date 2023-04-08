@@ -369,6 +369,11 @@ typedef struct Element {
     int colOvrdBase;
     int colOvrdLight;
     int colOvrdTexcol;
+    enum {
+        ELEM_TYPE_NONE,
+        ELEM_TYPE_TEXTBOX,
+        ELEM_TYPE_BOX,
+    } type;
 } Element;
 
 /*============================================================================*/
