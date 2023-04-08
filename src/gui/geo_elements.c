@@ -2336,12 +2336,17 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
     _log("ElemDraw%s: Done", header ? "Header" : "Split");
 }
 
-void Element_Flush() {
+void Element_Flush(GeoGrid* geo) {
     while (sElemState->head) {
         Element* this = sElemState->head->arg;
-        if (this->doFree) vfree(this);
+        
+        if (sElemState->head->split != geo->killSplit)
+            if (this->doFree) vfree(this);
+        
         Node_Kill(sElemState->head, sElemState->head);
     }
+    
+    geo->killSplit = NULL;
 }
 
 void DragItem_Draw(GeoGrid* geo) {
