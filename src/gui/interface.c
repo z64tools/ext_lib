@@ -81,8 +81,6 @@ void* Interface_Init(const char* title, AppInfo* app, Input* input, void* contex
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     
-    info(glfwGetVersionString());
-    
     if (samples)
         glfwWindowHint(GLFW_SAMPLES, samples);
     
@@ -222,7 +220,6 @@ void Interface_Main(AppInfo* app) {
         
         glfwPollEvents();
         gDeltaTime = time_get(0xF0) / (1.0 / gNativeFPS);
-        info ("Delta: %g", gDeltaTime);
     }
     
     _log("Clear Sub Windows");

@@ -7,6 +7,8 @@
 #include "ext_vector.h"
 #include "ext_input.h"
 
+extern f32 gPixelRatio;
+
 #if !GEOGRID_C
 #ifndef __clang__
 #define __SPLIT_SPECIFIER__ f32
@@ -14,7 +16,6 @@
 #define __SPLIT_SPECIFIER__ const f32
 #endif
 
-extern __SPLIT_SPECIFIER__ gPixelRatio;
 extern __SPLIT_SPECIFIER__ SPLIT_GRAB_DIST;
 extern __SPLIT_SPECIFIER__ SPLIT_CTXM_DIST;
 extern __SPLIT_SPECIFIER__ SPLIT_BAR_HEIGHT;
