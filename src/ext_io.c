@@ -135,7 +135,7 @@ static void IO_printImpl(int color_id, int is_progress, int is_error, FILE* stre
         xl_fprintf(stream, "\r");
     
     while (buffer[bufpos]) {
-        char* line = strndup(&buffer[bufpos], linelen(&buffer[bufpos]));
+        char* line = x_strndup(&buffer[bufpos], linelen(&buffer[bufpos]));
         
         if (!line) {
             if (buffer[bufpos] == '\n') {
