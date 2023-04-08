@@ -433,8 +433,8 @@ static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
         return;
     }
     
-    split->edge[dir]->vtx[0]->killFlag = true;
-    split->edge[dir]->vtx[1]->killFlag = true;
+    split->edge[oppositeDir]->vtx[0]->killFlag = true;
+    split->edge[oppositeDir]->vtx[1]->killFlag = true;
     
     if (dir == DIR_L) {
         _log("Kill DIR_L");
@@ -534,23 +534,25 @@ static void Vtx_Update(GeoGrid* geo) {
         if (geo->state.cleanVtx == true && geo->actionEdge == NULL)
             Vtx_RemoveDuplicates(geo, vtx);
         
-        if (vtx->killFlag == true) {
-            Split* s = geo->splitHead;
+        if (vtx->killFlag) {
             
-            while (s) {
+            fornode(s, geo->splitHead) {
                 for (int i = 0; i < 4; i++)
                     if (s->vtx[i] == vtx)
                         vtx->killFlag = false;
-                
-                s = s->next;
             }
             
-            if (vtx->killFlag == true) {
+            fornode(e, geo->edgeHead) {
+                for (int i = 0; i < 2; i++)
+                    if (e->vtx[i] == vtx)
+                        vtx->killFlag = false;
+            }
+            
+            if (vtx->killFlag) {
                 info("Kill Vtx: %s", addr_name(vtx));
                 
                 Node_Kill(geo->vtxHead, vtx);
                 vtx = geo->vtxHead;
-                _log("next vtx");
                 continue;
             }
         }
@@ -707,9 +709,8 @@ static void Edge_Update(GeoGrid* geo) {
         } else {
             edge->killFlag = true;
             
-            if (geo->actionEdge == NULL) {
+            if (geo->actionEdge == NULL)
                 edge->state &= ~EDGE_EDIT;
-            }
             
             Edge_RemoveDuplicates(geo, edge);
         }
