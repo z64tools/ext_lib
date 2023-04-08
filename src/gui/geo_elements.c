@@ -172,7 +172,7 @@ bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r) {
             this->cur =
             clamp(this->focusSlot - this->visNum / 2,
                 0, this->visMax);
-                
+        
         this->focusSlot = -1;
     }
     
@@ -1928,7 +1928,7 @@ int Element_Box(BoxState state, ...) {
         this->rowY = sElemState->rowY;
         this->panel = panel;
         
-        Element_Row(1, this, 1.0);
+        Element_Row(1, this, 1.0f);
         
         sElemState->rowY = this->rowY + SPLIT_ELEM_X_PADDING;
         sElemState->rowX += SPLIT_ELEM_X_PADDING;
@@ -2311,19 +2311,33 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
         if (this->header == header && elem->split == split) {
             _log("ElemDraw%s: " PRNT_PRPL "%sDraw", header ? "Header" : "Split", elem->elemFunc);
             
+            _log("Update Element");
             if (elem->update)
                 Element_UpdateElement(elem);
             
+            _log("Draw Instance");
             if (split->dummy || header || !Element_DisableDraw(elem->arg, elem->split))
                 Element_DrawInstance(elem, this);
-            
-            if (this->doFree)
-                vfree(this);
-            
-            Node_Kill(sElemState->head, elem);
         }
         
         elem = next;
+    }
+    
+    elem = sElemState->head;
+    
+    _log("Flush Split");
+    while (elem) {
+        if (this->header == header && elem->split == split) {
+            _log("Free");
+            if (this->doFree)
+                vfree(this);
+            
+            _log("Kill Node");
+            Node_Kill(sElemState->head, elem);
+            elem = sElemState->head;
+        }
+        
+        elem = elem->next;
     }
     
     _log("ElemDraw%s: Done", header ? "Header" : "Split");

@@ -357,8 +357,8 @@ typedef struct Element {
         bool doFree       : 1;
         bool contextSet   : 1;
         bool faulty       : 1;
-        u32  toggle       : 2;
         bool instantColor : 1;
+        u32  toggle       : 2;
     };
     
     int colOvrdPrim;
@@ -590,13 +590,13 @@ int Element_Operatable(Element* this);
 void Element_UpdateTextbox(GeoGrid* geo);
 void Element_Draw(GeoGrid* geo, Split* split, bool header);
 
-#define Element_Name(this, name)        Element_Name(&(this)->element, name)
-#define Element_Disable(this)           Element_Disable(&(this)->element)
-#define Element_Enable(this)            Element_Enable(&(this)->element)
-#define Element_Condition(this, cond)   Element_Condition(&(this)->element, cond)
-#define Element_SetNameLerp(this, lerp) Element_SetNameLerp(&(this)->element, lerp)
-#define Element_Operatable(this)        Element_Operatable(&(this)->element)
-#define Element_Row(...)                Element_Row(NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
-#define Element_Header(...)             Element_Header(NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
+#define Element_Name(this, name)        ({ _log("Element_Name"); Element_Name(&(this)->element, name); })
+#define Element_Disable(this)           ({ _log("Element_Disable"); Element_Disable(&(this)->element); })
+#define Element_Enable(this)            ({ _log("Element_Enable"); Element_Enable(&(this)->element); })
+#define Element_Condition(this, cond)   ({ _log("Element_Condition"); Element_Condition(&(this)->element, cond); })
+#define Element_SetNameLerp(this, lerp) ({ _log("Element_SetNameLerp"); Element_SetNameLerp(&(this)->element, lerp); })
+#define Element_Operatable(this)        ({ _log("Element_Operatable"); Element_Operatable(&(this)->element); })
+#define Element_Row(...)                ({ _log("Element_Row"); Element_Row(NARGS(__VA_ARGS__) / 2, __VA_ARGS__); })
+#define Element_Header(...)             ({ _log("Element_Header"); Element_Header(NARGS(__VA_ARGS__) / 2, __VA_ARGS__); })
 
 #endif
