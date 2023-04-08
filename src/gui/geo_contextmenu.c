@@ -243,6 +243,7 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType 
     this->state.init = true;
     this->state.setCondition = false;
     this->visualKey = -1;
+    this->state.rectClamp = true;
     
     _log("type %d init func", type);
     sContextMenuFuncs[type][FUNC_INIT](geo, this);
@@ -269,10 +270,8 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType 
         geo->wdim->y - SPLIT_ELEM_Y_PADDING * 2
     };
     
-    info("%4d,%4d\n%4d,%4d", this->rect.x, RectW(this->rect), this->rect.y, RectH(this->rect));
-    info("%4d,%4d\n%4d,%4d", cr.x, RectW(cr), cr.y, RectH(cr));
-    this->rect = Rect_Clamp(this->rect, cr);
-    info("%4d,%4d\n%4d,%4d", this->rect.x, RectW(this->rect), this->rect.y, RectH(this->rect));
+    if (this->state.rectClamp)
+        this->rect = Rect_Clamp(this->rect, cr);
     
     _log("ok", type);
 }

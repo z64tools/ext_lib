@@ -16,6 +16,7 @@ void Input_Update(Input* this) {
     cursor->pos.y = y;
     
     this->keyAction = false;
+    
     for (int i = 0; i < KEY_MAX; i++) {
         this->key[i].dual = false;
         this->key[i].press = (this->key[i].prev == 0 && this->key[i].hold);
@@ -70,13 +71,13 @@ void Input_Update(Input* this) {
         
         click->dual = false;
         if (Decr(click->__timer) > 0) {
-            if (Math_Vec2s_DistXZ(cursor->pos, cursor->pressPos) > 4) {
+            if (cursor->dragDist > 2) {
                 click->__timer = 0;
-            } else if (click->press) {
+            } else if (click->release) {
                 click->dual = true;
                 click->__timer = 0;
             }
-        } else if (click->press)
+        } else if (click->release && cursor->dragDist < 3)
             click->__timer = 30;
     }
     
@@ -118,7 +119,7 @@ InputType* Input_GetKey(Input* this, KeyMap key) {
     return &this->key[key];
 }
 
-InputType*  Input_GetCursor(Input* this, CursorClick type) {
+InputType* Input_GetCursor(Input* this, CursorClick type) {
     static InputType zero;
     
     if (this->state & INPUT_BLOCK)
@@ -176,7 +177,7 @@ int Input_ClearState(Input* this, InputState state) {
 }
 
 int Input_SelectClick(Input* this, CursorClick type) {
-    if (! Input_GetCursor(this, type)->release)
+    if (!Input_GetCursor(this, type)->release)
         return false;
     if (this->cursor.dragDist > 3)
         return false;

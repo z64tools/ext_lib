@@ -168,9 +168,14 @@ bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r) {
     this->rect.y -= this->vcur * this->slotHeight;
     this->cursorPos = cursorPos;
     
-    this->srect = Rect_New(r.x + r.w - 14, lerpf(this->vcur / this->max, r.y, r.y + r.h), 12, lerpf((this->vcur + visibleSlots) / this->max, r.y, r.y + r.h));
+    this->srect = Rect_New(
+        r.x + r.w - 14,
+        lerpf(this->vcur / this->max, r.y, r.y + r.h),
+        12,
+        lerpf((this->vcur + visibleSlots) / this->max, r.y, r.y + r.h));
     this->srect.y = clamp(this->srect.y, r.y, r.y + r.h - 8);
     this->srect.h = clamp(this->srect.h - this->srect.y, 16, r.h);
+    this->srect = Rect_Clamp(this->srect, this->mrect);
     
     if (Rect_PointIntersect(&this->srect, UnfoldVec2(cursorPos))) {
         if (click && click->press) {

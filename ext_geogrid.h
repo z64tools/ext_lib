@@ -225,6 +225,7 @@ typedef struct ContextMenu {
         bool init                 : 1;
         bool setCondition         : 1;
         bool blockWidthAdjustment : 1;
+        bool rectClamp            : 1;
         s32  up                   : 2;
         s32  side                 : 2;
     } state;
