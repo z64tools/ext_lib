@@ -121,66 +121,75 @@ static bool DragItem_Release(GeoGrid* geo, void* src) {
 void ScrollBar_Init(ScrollBar* this, int max, f32 height) {
     this->max = max;
     this->slotHeight = height;
+    this->focusSlot = -1;
 }
 
 Rect ScrollBar_GetRect(ScrollBar* this, int slot) {
     Rect r = {
-        this->rect.x,
-        this->rect.y + this->slotHeight * slot,
-        this->rect.w,
-        this->rect.h,
+        this->workRect.x,
+        this->workRect.y + this->slotHeight * slot,
+        this->workRect.w,
+        this->workRect.h,
     };
     
     return r;
 }
 
 bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r) {
-    const f32 visibleSlots = (f32)r.h / this->slotHeight;
     InputType* click = NULL;
+    f64 barHeight;
     
-    this->disabled = input == NULL;
+    this->baseRect = this->workRect = r;
+    this->cursorPos = cursorPos;
+    this->disabled = !!!input;
     
     if (input) {
         click =  Input_GetCursor(input, CLICK_L);
         
-        if (Rect_PointIntersect(&r, UnfoldVec2(cursorPos)))
+        if (Rect_PointIntersect(&this->baseRect, UnfoldVec2(cursorPos))) {
             this->cur -= Input_GetScroll(input);
+        }
     }
     
-    this->visMax = clamp_min(this->max - visibleSlots, 0);
+    this->visNum = this->baseRect.h / this->slotHeight;
+    this->visMax = clamp_min(this->max - this->visNum, 0);
+    barHeight = this->baseRect.h * clamp(this->visNum / this->visMax, 0, 1);
+    if (barHeight < 16) barHeight = 16;
     
     if (this->hold) {
         if (!click || !click->hold)
             this->hold--;
         
         else {
-            f32 y = cursorPos.y + this->holdOffset;
+            int heldPosY = this->cursorPos.y - this->holdOffset;
+            f64 cur = (heldPosY - this->baseRect.y) / (this->baseRect.h - barHeight);
             
-            this->cur = ((y - r.y) / (r.h * (this->visMax / this->max))) * (this->max - visibleSlots);
+            this->cur = rint(cur * this->visMax);
         }
+        
+    } else if (this->focusSlot > -1) {
+        this->vcur =
+            this->cur =
+            clamp(this->focusSlot - this->visNum / 2,
+                0, this->visMax);
+                
+        this->focusSlot = -1;
     }
     
     this->cur = clamp(this->cur, 0, this->visMax);
-    Math_SmoothStepToF(&this->vcur, this->cur, 0.25f, 500.0f, 0.001f);
+    Math_DelSmoothStepToD(&this->vcur, this->cur, 0.25, this->visMax / 4, 0.01);
     
-    this->mrect = this->rect = r;
-    this->rect.h = this->slotHeight;
-    this->rect.y -= this->vcur * this->slotHeight;
-    this->cursorPos = cursorPos;
+    f64 vslot = this->vcur;
+    f64 vmod = normd(this->vcur, 0, this->visMax);
     
-    this->srect = Rect_New(
-        r.x + r.w - 14,
-        lerpf(this->vcur / this->max, r.y, r.y + r.h),
-        12,
-        lerpf((this->vcur + visibleSlots) / this->max, r.y, r.y + r.h));
-    this->srect.y = clamp(this->srect.y, r.y, r.y + r.h - 8);
-    this->srect.h = clamp(this->srect.h - this->srect.y, 16, r.h);
-    this->srect = Rect_Clamp(this->srect, this->mrect);
+    this->barRect = Rect_New(RectW(this->baseRect) - (12 + 2), lerpd(vmod, r.y, RectH(this->baseRect) - barHeight), 12, barHeight);
+    this->workRect.y -= vslot * this->slotHeight;
+    this->workRect.h = this->slotHeight;
     
-    if (Rect_PointIntersect(&this->srect, UnfoldVec2(cursorPos))) {
+    if (Rect_PointIntersect(&this->barRect, UnfoldVec2(this->cursorPos))) {
         if (click && click->press) {
             this->hold = 2;
-            this->holdOffset = this->srect.y - cursorPos.y;
+            this->holdOffset = this->cursorPos.y - this->barRect.y;
         }
     }
     
@@ -189,8 +198,6 @@ bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r) {
 
 bool ScrollBar_Draw(ScrollBar* this, void* vg) {
     Vec2s cursorPos = this->cursorPos;
-    Rect r = this->mrect;
-    const f32 visibleSlots = (f32)r.h / this->slotHeight;
     
     if (this->disabled)
         Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_HIGHLIGHT, 0, 1.0f), 0.5f, 1.0f, 0.01f);
@@ -199,8 +206,8 @@ bool ScrollBar_Draw(ScrollBar* this, void* vg) {
         Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_PRIM, 220, 1.0f), 0.5f, 1.0f, 0.01f);
     
     else {
-        if (Rect_PointIntersect(&this->mrect, UnfoldVec2(cursorPos))) {
-            if (Rect_PointIntersect(&this->srect, UnfoldVec2(cursorPos))) {
+        if (Rect_PointIntersect(&this->baseRect, UnfoldVec2(cursorPos))) {
+            if (Rect_PointIntersect(&this->barRect, UnfoldVec2(cursorPos))) {
                 Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_HIGHLIGHT, 220, 1.0f), 0.5f, 1.0f, 0.01f);
                 
             } else
@@ -211,9 +218,9 @@ bool ScrollBar_Draw(ScrollBar* this, void* vg) {
     
     NVGcolor color = this->color;
     
-    if (visibleSlots > this->max) {
+    if (this->visNum > this->max) {
         NVGcolor al = color;
-        f32 remap = remapf(visibleSlots / this->max, 1.0f, 1.0f + (2.0f / this->max), 0.0f, 1.0f);
+        f32 remap = remapf(this->visNum / this->max, 1.0f, 1.0f + (2.0f / this->max), 0.0f, 1.0f);
         
         remap = clamp(remap, 0.0f, 1.0f);
         al.a = 0;
@@ -221,18 +228,13 @@ bool ScrollBar_Draw(ScrollBar* this, void* vg) {
         color = Theme_Mix(remap, color, al);
     }
     
-    Gfx_DrawRounderRect(vg, this->srect, color);
+    Gfx_DrawRounderRect(vg, this->barRect, color);
     
     return this->hold;
 }
 
-void ScrollBar_FocusSlot(ScrollBar* this, Rect r, int slot) {
-    const f32 visibleSlots = (f32)r.h / this->slotHeight;
-    
-    this->visMax = clamp_min(this->max - visibleSlots, 0);
-    this->cur = slot - visibleSlots * 0.5f;
-    this->cur = clamp(this->cur, 0, this->visMax);
-    this->vcur = this->cur;
+void ScrollBar_FocusSlot(ScrollBar* this, int slot) {
+    this->focusSlot = slot;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1419,7 +1421,7 @@ s32 Element_Combo(ElCombo* this) {
                 Rect* rect[] = { &SPLIT->rect, &SPLIT->headRect };
                 
                 ContextMenu_Init(GEO, this->arlist, this, CONTEXT_ARLI, Rect_AddPos(this->element.rect, *rect[this->element.header]));
-                ScrollBar_FocusSlot(&GEO->dropMenu.scroll, GEO->dropMenu.rect, list->cur);
+                ScrollBar_FocusSlot(&GEO->dropMenu.scroll, list->cur);
             } else if (scrollY)
                 Arli_Set(list, list->cur - scrollY);
         }
@@ -1453,8 +1455,8 @@ Rect Element_Tab_GetRect(ElTab* this, int index) {
 }
 
 static void Element_TabDraw(ElementQueCall* call) {
-    ElTab* this = call->arg;
-    void* vg = GEO->vg;
+    // ElTab* this = call->arg;
+    // void* vg = GEO->vg;
 }
 
 int Element_Tab(ElTab* this) {
@@ -2110,7 +2112,9 @@ static void Element_DisplayName(Element* this) {
 }
 
 void Element_Row(s32 rectNum, ...) {
-    f32 x = SPLIT_ELEM_X_PADDING + sElemState->rowX + sElemState->shiftX;
+    f32 shiftX = clamp_min(sElemState->shiftX, 0);
+    f32 widthX = clamp_min(-sElemState->shiftX, 0);
+    f32 x = SPLIT_ELEM_X_PADDING + sElemState->rowX + shiftX;
     f32 yadd = 0;
     f32 width;
     va_list va;
@@ -2121,7 +2125,7 @@ void Element_Row(s32 rectNum, ...) {
         Element* this = va_arg(va, void*);
         f64 a = va_arg(va, f64);
         
-        width = (f32)((SPLIT->rect.w - sElemState->rowX * 2 - sElemState->shiftX) - SPLIT_ELEM_X_PADDING * 3) * a;
+        width = (f32)(((SPLIT->rect.w - widthX) - sElemState->rowX * 2 - shiftX) - SPLIT_ELEM_X_PADDING * 3) * a;
         
         if (this) {
             Rect* rect = &this->rect;
@@ -2133,8 +2137,7 @@ void Element_Row(s32 rectNum, ...) {
                 Element_SetRectImpl(
                     rect,
                     x + SPLIT_ELEM_X_PADDING, rint(sElemState->rowY - SPLIT->scroll.voffset),
-                    width - SPLIT_ELEM_X_PADDING, yadd
-                );
+                    width - SPLIT_ELEM_X_PADDING, yadd);
                 if (this->name)
                     Element_DisplayName(this);
             }

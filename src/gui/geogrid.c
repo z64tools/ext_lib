@@ -1,7 +1,46 @@
+#define GEOGRID_C 1
 #include "ext_geogrid.h"
 #include "ext_interface.h"
 
 f32 gPixelRatio = 1.0f;
+
+#if GEOGRID_C
+#define __SPLIT_GRAB_DIST__      4
+#define __SPLIT_CTXM_DIST__      32
+#define __SPLIT_BAR_HEIGHT__     26
+#define __SPLIT_SPLIT_W__        2.0
+#define __SPLIT_ROUND_R__        2.0
+#define __SPLIT_CLAMP__          ((__SPLIT_BAR_HEIGHT__ + __SPLIT_SPLIT_W__ * 1.25) * 2)
+#define __SPLIT_TEXT_PADDING__   4
+#define __SPLIT_TEXT__           12
+#define __SPLIT_TEXT_H__         (__SPLIT_TEXT_PADDING__ + 2 + __SPLIT_TEXT__)
+#define __SPLIT_ELEM_X_PADDING__ (__SPLIT_TEXT__ * 0.5f)
+#define __SPLIT_ELEM_Y_PADDING__ (__SPLIT_TEXT_H__ + __SPLIT_ELEM_X_PADDING__)
+
+f32 SPLIT_GRAB_DIST = __SPLIT_GRAB_DIST__;
+f32 SPLIT_CTXM_DIST = __SPLIT_CTXM_DIST__;
+f32 SPLIT_BAR_HEIGHT = __SPLIT_BAR_HEIGHT__;
+f32 SPLIT_SPLIT_W = __SPLIT_SPLIT_W__;
+f32 SPLIT_ROUND_R = __SPLIT_ROUND_R__;
+f32 SPLIT_CLAMP = __SPLIT_CLAMP__;
+f32 SPLIT_TEXT_PADDING = __SPLIT_TEXT_PADDING__;
+f32 SPLIT_TEXT = __SPLIT_TEXT__;
+f32 SPLIT_TEXT_H = __SPLIT_TEXT_H__;
+f32 SPLIT_ELEM_X_PADDING = __SPLIT_ELEM_X_PADDING__;
+f32 SPLIT_ELEM_Y_PADDING = __SPLIT_ELEM_Y_PADDING__;
+
+#undef __SPLIT_GRAB_DIST__
+#undef __SPLIT_CTXM_DIST__
+#undef __SPLIT_BAR_HEIGHT__
+#undef __SPLIT_SPLIT_W__
+#undef __SPLIT_ROUND_R__
+#undef __SPLIT_CLAMP__
+#undef __SPLIT_TEXT_PADDING__
+#undef __SPLIT_TEXT__
+#undef __SPLIT_TEXT_H__
+#undef __SPLIT_ELEM_X_PADDING__
+#undef __SPLIT_ELEM_Y_PADDING__
+#endif
 
 static void GeoGrid_RemoveDuplicates(GeoGrid* geo);
 static void Split_UpdateRect(Split* split);

@@ -220,8 +220,9 @@ void Interface_Main(AppInfo* app) {
         Interface_Update_SubWindows(app);
         Interface_Update_AppInfo(app);
         
-        gDeltaTime = time_get(0xF0) / (1.0 / gNativeFPS);
         glfwPollEvents();
+        gDeltaTime = time_get(0xF0) / (1.0 / gNativeFPS);
+        info ("Delta: %g", gDeltaTime);
     }
     
     _log("Clear Sub Windows");

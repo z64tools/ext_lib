@@ -16,6 +16,14 @@ static inline f32 normf(f32 v, f32 min, f32 max) {
     return (v - min) / (max - min);
 }
 
+static inline f64 lerpd(f64 x, f64 min, f64 max) {
+    return min + (max - min) * x;
+}
+
+static inline f64 normd(f64 v, f64 min, f64 max) {
+    return (v - min) / (max - min);
+}
+
 static inline s32 wrapi(s32 x, s32 min, s32 max) {
     s32 range = max - min;
     
@@ -59,6 +67,10 @@ static inline f32 Closest(f32 sample, f32 x, f32 y) {
 
 static inline f32 remapf(f32 v, f32 iMin, f32 iMax, f32 oMin, f32 oMax) {
     return lerpf(normf(v, iMin, iMax), oMin, oMax);
+}
+
+static inline f64 remapd(f64 v, f64 iMin, f64 iMax, f64 oMin, f64 oMax) {
+    return lerpd(normd(v, iMin, iMax), oMin, oMax);
 }
 
 static inline f32 AccuracyF(f32 v, f32 mod) {

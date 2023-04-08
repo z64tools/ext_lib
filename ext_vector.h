@@ -526,6 +526,29 @@ static inline Rect Rect_Clamp(Rect r, Rect l) {
     return r;
 }
 
+static inline Rect Rect_FlipHori(Rect r, Rect p) {
+    r = Rect_SubPos(r, p);
+    r.x = remapf(r.x, 0, p.w, p.w, 0) - r.w;
+    return Rect_AddPos(r, p);
+}
+
+static inline Rect Rect_FlipVerti(Rect r, Rect p) {
+    r = Rect_SubPos(r, p);
+    r.y = remapf(r.y, 0, p.h, p.h, 0) - r.h;
+    return Rect_AddPos(r, p);
+}
+
+static inline Rect Rect_WidenTo(Rect r, int amount) {
+    if (amount < 0) {
+        r.x -= -amount;
+        r.w += -amount;
+    } else {
+        r.w += amount;
+    }
+    
+    return r;
+}
+
 static inline BoundBox BoundBox_New3F(Vec3f point) {
     BoundBox this;
     

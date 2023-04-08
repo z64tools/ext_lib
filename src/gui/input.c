@@ -58,10 +58,14 @@ void Input_Update(Input* this) {
         cursor->pressPos.x = cursor->pos.x;
         cursor->pressPos.y = cursor->pos.y;
         cursor->dragDist = 0;
+        cursor->postPressMoveDist = 0;
     }
     
+    f32 vel = Math_Vec2s_DistXZ((Vec2s) {}, cursor->vel);
+    
     if (cursor->clickAny.hold)
-        cursor->dragDist += Math_Vec2s_DistXZ((Vec2s) {}, cursor->vel);
+        cursor->dragDist += vel;
+    cursor->postPressMoveDist += vel;
     
     cursor->cursorAction =
         (cursor->clickAny.press || cursor->clickAny.hold || cursor->scrollY) && !(this->state & INPUT_BLOCK);
@@ -71,14 +75,14 @@ void Input_Update(Input* this) {
         
         click->dual = false;
         if (Decr(click->__timer) > 0) {
-            if (cursor->dragDist > 2) {
+            if (cursor->postPressMoveDist  > 3) {
                 click->__timer = 0;
             } else if (click->release) {
                 click->dual = true;
                 click->__timer = 0;
             }
-        } else if (click->release && cursor->dragDist < 3)
-            click->__timer = 30;
+        } else if (click->release && cursor->postPressMoveDist < 4)
+            click->__timer = 20;
     }
     
     cursor->clickAny.dual = (

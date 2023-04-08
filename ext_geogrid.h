@@ -7,21 +7,28 @@
 #include "ext_vector.h"
 #include "ext_input.h"
 
-extern f32 gPixelRatio;
+#if !GEOGRID_C
+#ifndef __clang__
+#define __SPLIT_SPECIFIER__ f32
+#else
+#define __SPLIT_SPECIFIER__ const f32
+#endif
 
-#define SPLIT_GRAB_DIST  4
-#define SPLIT_CTXM_DIST  32
-#define SPLIT_BAR_HEIGHT 26
-#define SPLIT_SPLIT_W    2.0
-#define SPLIT_ROUND_R    2.0
-#define SPLIT_CLAMP      ((SPLIT_BAR_HEIGHT + SPLIT_SPLIT_W * 1.25) * 2)
+extern __SPLIT_SPECIFIER__ gPixelRatio;
+extern __SPLIT_SPECIFIER__ SPLIT_GRAB_DIST;
+extern __SPLIT_SPECIFIER__ SPLIT_CTXM_DIST;
+extern __SPLIT_SPECIFIER__ SPLIT_BAR_HEIGHT;
+extern __SPLIT_SPECIFIER__ SPLIT_SPLIT_W;
+extern __SPLIT_SPECIFIER__ SPLIT_ROUND_R;
+extern __SPLIT_SPECIFIER__ SPLIT_CLAMP;
+extern __SPLIT_SPECIFIER__ SPLIT_TEXT_PADDING;
+extern __SPLIT_SPECIFIER__ SPLIT_TEXT;
+extern __SPLIT_SPECIFIER__ SPLIT_TEXT_H;
+extern __SPLIT_SPECIFIER__ SPLIT_ELEM_X_PADDING;
+extern __SPLIT_SPECIFIER__ SPLIT_ELEM_Y_PADDING;
 
-#define SPLIT_TEXT_PADDING 4
-#define SPLIT_TEXT         12
-
-#define SPLIT_TEXT_H         (SPLIT_TEXT_PADDING + 2 + SPLIT_TEXT)
-#define SPLIT_ELEM_X_PADDING (SPLIT_TEXT * 0.5f)
-#define SPLIT_ELEM_Y_PADDING (SPLIT_TEXT_H + SPLIT_ELEM_X_PADDING)
+#undef __SPLIT_SPECIFIER__
+#endif
 
 typedef enum {
     BAR_TOP,
@@ -186,17 +193,20 @@ typedef struct {
 } SplitTask;
 
 typedef struct {
-    f32      cur;
-    f32      vcur;
+    int cur;
+    f64 vcur;
+    f64 slotHeight;
+    f64 max;
+    f64 visMax;
+    f64 visNum;
+    int focusSlot;
+    
     NVGcolor color;
-    Rect     mrect;
-    Rect     rect;
-    Rect     srect;
+    Rect     baseRect;
+    Rect     barRect;
+    Rect     workRect;
     Vec2s    cursorPos;
     
-    f32  slotHeight;
-    f32  max;
-    f32  visMax;
     s32  holdOffset;
     int  hold;
     bool disabled;
@@ -206,7 +216,7 @@ void ScrollBar_Init(ScrollBar* this, int max, f32 height);
 Rect ScrollBar_GetRect(ScrollBar* this, int slot);
 bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r);
 bool ScrollBar_Draw(ScrollBar* this, void* vg);
-void ScrollBar_FocusSlot(ScrollBar* this, Rect r, int slot);
+void ScrollBar_FocusSlot(ScrollBar* this, int slot);
 
 typedef enum {
     CONTEXT_PROP_COLOR,
