@@ -2318,26 +2318,16 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
             _log("Draw Instance");
             if (split->dummy || header || !Element_DisableDraw(elem->arg, elem->split))
                 Element_DrawInstance(elem, this);
-        }
-        
-        elem = next;
-    }
-    
-    elem = sElemState->head;
-    
-    _log("Flush Split");
-    while (elem) {
-        if (this->header == header && elem->split == split) {
+            
             _log("Free");
             if (this->doFree)
                 vfree(this);
             
             _log("Kill Node");
             Node_Kill(sElemState->head, elem);
-            elem = sElemState->head;
         }
         
-        elem = elem->next;
+        elem = next;
     }
     
     _log("ElemDraw%s: Done", header ? "Header" : "Split");
