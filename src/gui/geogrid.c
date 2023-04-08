@@ -413,7 +413,10 @@ static void Split_Split(GeoGrid* geo, Split* split, SplitDir dir) {
 static void Split_Free(Split* this) {
     info("Kill Split: %s", addr_name(this));
     Arli_Free(this->taskList);
-    vfree(this->taskList, this->taskCombo, this->instance, this->boxContext);
+    vfree(this->taskList);
+    vfree(this->taskCombo);
+    vfree(this->instance);
+    vfree(this->boxContext);
 }
 
 static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
@@ -429,9 +432,8 @@ static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
         killSplit = killSplit->next;
     }
     
-    if (killSplit == NULL) {
+    if (killSplit == NULL)
         return;
-    }
     
     split->edge[oppositeDir]->vtx[0]->killFlag = 5;
     split->edge[oppositeDir]->vtx[1]->killFlag = 5;
@@ -474,13 +476,10 @@ static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
     if (geo->taskTable[killSplit->id]->destroy)
         geo->taskTable[killSplit->id]->destroy(geo->passArg, killSplit->instance, killSplit);
     
+    geo->killSplit = killSplit;
     Split_Free(killSplit);
     Node_Kill(geo->splitHead, killSplit);
     GeoGrid_RemoveDuplicates(geo);
-#if 0
-    // @notice: Possibly not needed but might be something required
-    Split_UpdateRect(split);
-#endif
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */
@@ -858,7 +857,7 @@ static void Split_UpdateScroll(GeoGrid* geo, Split* split, Input* input) {
     split->splitBlockScroll = 0;
 }
 
-static void Split_UpdateSplit(GeoGrid* geo, Split* split) {
+static void Split_UpdateInstance(GeoGrid* geo, Split* split) {
     Cursor* cursor = &geo->input->cursor;
     
     _log("Split %s", addr_name(split));
@@ -945,10 +944,10 @@ static void Split_Update(GeoGrid* geo) {
         Split_ClearActionSplit(geo);
     
     for (; split != NULL; split = split->next)
-        Split_UpdateSplit(geo, split);
+        Split_UpdateInstance(geo, split);
     
-    Split_UpdateSplit(geo, &geo->bar[0]);
-    Split_UpdateSplit(geo, &geo->bar[1]);
+    Split_UpdateInstance(geo, &geo->bar[0]);
+    Split_UpdateInstance(geo, &geo->bar[1]);
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */

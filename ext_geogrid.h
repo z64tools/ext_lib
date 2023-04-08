@@ -264,6 +264,7 @@ typedef struct GeoGrid {
     SplitTask** taskTable;
     u32 numTaskTable;
     
+    Split*     killSplit;
     Split*     splitHead;
     SplitVtx*  vtxHead;
     SplitEdge* edgeHead;

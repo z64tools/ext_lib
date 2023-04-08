@@ -2301,11 +2301,10 @@ static void Element_DrawInstance(ElementQueCall* elem, Element* this) {
 
 void Element_Draw(GeoGrid* geo, Split* split, bool header) {
     ElementQueCall* elem = sElemState->head;
-    Element* this;
     
     while (elem) {
         ElementQueCall* next = elem->next;
-        this = elem->arg;
+        Element* this = elem->arg;
         
         if (this && this->header == header && elem->split == split) {
             _log("ElemDraw%s: " PRNT_PRPL "%sDraw", header ? "Header" : "Split", elem->elemFunc);
