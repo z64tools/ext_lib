@@ -1815,8 +1815,6 @@ static void Element_SeparatorDraw(ElementQueCall* call) {
     nvgMoveTo(vg, this->rect.x, this->rect.y);
     nvgLineTo(vg, this->rect.x + this->rect.w, this->rect.y);
     nvgFill(vg);
-    
-    vfree(this);
 }
 
 void Element_Separator(bool drawLine) {
@@ -1833,6 +1831,7 @@ void Element_Separator(bool drawLine) {
         this->rect.w = SPLIT->rect.w - SPLIT_ELEM_X_PADDING * 4 - sElemState->shiftX;
         this->rect.y = sElemState->rowY - SPLIT_ELEM_X_PADDING * 0.5;
         this->rect.h = 1;
+        this->doFree = true;
         
         sElemState->rowY += SPLIT_ELEM_X_PADDING;
         
@@ -2321,7 +2320,7 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header) {
             
             _log("Free");
             if (this->doFree)
-                vfree(this);
+                vfree(elem->arg);
             
             _log("Kill Node");
             Node_Kill(sElemState->head, elem);
