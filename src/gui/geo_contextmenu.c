@@ -52,7 +52,7 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     } else {
         if ((
                 Rect_PointIntersect(&rectLumSat, cursor->pos.x, cursor->pos.y) &&
-                 Input_GetCursor(input, CLICK_L)->press
+                Input_GetCursor(input, CLICK_L)->press
             ) || ( prop->holdLumSat )) {
             Vec2s relPos = Math_Vec2s_Sub(cursor->pos, (Vec2s) { rectLumSat.x, rectLumSat.y });
             
@@ -62,7 +62,7 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
         }
         if ((
                 Rect_PointIntersect(&rectHue, cursor->pos.x, cursor->pos.y) &&
-                 Input_GetCursor(input, CLICK_L)->press
+                Input_GetCursor(input, CLICK_L)->press
             ) || ( prop->holdHue )) {
             Vec2s relPos = Math_Vec2s_Sub(cursor->pos, (Vec2s) { rectHue.x, rectHue.y });
             
@@ -216,9 +216,10 @@ static void ContextProp_Arli_Draw(GeoGrid* geo, ContextMenu* this) {
 #define FUNC_INIT 0
 #define FUNC_DRAW 1
 
-void (*sContextMenuFuncs[][2])(GeoGrid*, ContextMenu*) = {
-    [CONTEXT_PROP_COLOR] = { ContextProp_Color_Init, ContextProp_Color_Draw },
-    [CONTEXT_ARLI] =       { ContextProp_Arli_Init,  ContextProp_Arli_Draw  },
+void (*sContextMenuFuncs[][3])(GeoGrid*, ContextMenu*) = {
+    [CONTEXT_PROP_COLOR] =   { ContextProp_Color_Init, ContextProp_Color_Draw },
+    [CONTEXT_ARLI] =         { ContextProp_Arli_Init,  ContextProp_Arli_Draw  },
+    [CONTEXT_CUSTOM] =       {},
 };
 
 void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType type, Rect rect) {
@@ -276,6 +277,13 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType 
     _log("ok", type);
 }
 
+void ContextMenu_Custom(GeoGrid* geo, void* context, void* element, void (*init)(GeoGrid*, ContextMenu*), void (*draw)(GeoGrid*, ContextMenu*), void (*dest)(GeoGrid*, ContextMenu*), Rect rect) {
+    sContextMenuFuncs[CONTEXT_CUSTOM][0] = init;
+    sContextMenuFuncs[CONTEXT_CUSTOM][1] = draw;
+    sContextMenuFuncs[CONTEXT_CUSTOM][2] = dest;
+    ContextMenu_Init(geo, context, element, CONTEXT_CUSTOM, rect);
+}
+
 void ContextMenu_Draw(GeoGrid* geo) {
     ContextMenu* this = &geo->dropMenu;
     Cursor* cursor = &geo->input->cursor;
@@ -308,13 +316,19 @@ void ContextMenu_Draw(GeoGrid* geo) {
     
     if (this->state.setCondition || Rect_PointDistance(&this->rect, cursor->pos.x, cursor->pos.y) > 64) {
         if (this->state.setCondition) {
-            this->element->contextSet = true;
+            if (this->element)
+                this->element->contextSet = true;
             
             switch (this->type) {
                 case CONTEXT_PROP_COLOR: (void)0;
                     break;
                 case CONTEXT_ARLI: (void)0;
                     Arli_Set(this->prop, this->visualKey);
+                    break;
+                case CONTEXT_CUSTOM: (void)0;
+                    if (sContextMenuFuncs[CONTEXT_CUSTOM][2])
+                        sContextMenuFuncs[CONTEXT_CUSTOM][2](geo, this);
+                    
                     break;
             }
         }

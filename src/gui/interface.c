@@ -209,6 +209,10 @@ static void Interface_Update_SubWindows(AppInfo* app) {
     }
 }
 
+void Interface_Close(AppInfo* app) {
+    glfwSetWindowShouldClose(app->window, GLFW_TRUE);
+}
+
 void Interface_Main(AppInfo* app) {
     while (!(app->state & APP_CLOSED)) {
         time_start(0xF0);
@@ -239,8 +243,6 @@ typedef struct {
     bool  disp_split;
     char  path[FILE_DIALOG_BUF];
 } FileDialogConfig;
-
-const s32 sFileMagicValue = -23406137;
 
 static FileDialogConfig FileDialog_LoadConfig(const char* title) {
     FileDialogConfig config;
@@ -560,6 +562,8 @@ void FileDialog_Init(FileDialog* this) {
     
     this->search.clearIcon = true;
     this->backButton.icon = gAssets.arrowParent;
+    this->rename.align = NVG_ALIGN_LEFT;
+    this->travel.align = NVG_ALIGN_LEFT;
 }
 
 void FileDialog_Update(void* arg) {
@@ -603,7 +607,7 @@ void FileDialog_Draw(void* arg) {
 
 const char sFileDialogKey[64] = "8ACwdYwKKKpV1A3qFIOgFQFJnVPgKh3l1d0ywNNsnKrbZ4yTfUFbFVEXsfB3HCMA";
 
-void Interface_CreateSubWindow(SubWindow* window, AppInfo* app, s32 x, s32 y, const char* title) {
+void Interface_CreateSubWindow(SubWindow* window, AppInfo* parentApp, s32 x, s32 y, const char* title) {
     if (!(window->app.window = glfwCreateWindow(x, y, title, NULL, NULL)))
         errr("Failed to create window [%s], [%d, %d]", title, x, y);
     
@@ -617,13 +621,21 @@ void Interface_CreateSubWindow(SubWindow* window, AppInfo* app, s32 x, s32 y, co
     glfwSetScrollCallback(window->app.window, InputCallback_Scroll);
     
     Input_Init(&window->input, &window->app);
-    Node_Add(app->subWinHead, window);
+    Node_Add(parentApp->subWinHead, window);
     
     window->app.wdim = Math_Vec2s_New(x, y);
     window->app.vg = Interface_AllocVG();
-    window->parent = app;
+    window->parent = parentApp;
     strncpy(window->app.title, title, sizeof(window->app.title));
+    
+    glfwMakeContextCurrent(parentApp->window);
 }
+
+int Interface_Closed(SubWindow* window) {
+    return (window->app.state & APP_CLOSED);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 void FileDialog_New(FileDialog* this, AppInfo* app, const char* title) {
     const s32 minX = 1920 / 4, maxX = 1920 / 1.5;
@@ -658,10 +670,6 @@ void FileDialog_New(FileDialog* this, AppInfo* app, const char* title) {
     glfwMakeContextCurrent(app->window);
 }
 
-s32 FileDialog_Closed(FileDialog* this) {
-    return (this->window.app.state & APP_CLOSED);
-}
-
 void FileDialog_Free(FileDialog* this) {
     FileDialog_SaveConfig(this);
     
@@ -683,14 +691,16 @@ void FileDialog_Free(FileDialog* this) {
 #undef Interface_SetParam
 void Interface_SetParam(AppInfo* app, u32 num, ...) {
     va_list va;
+    GLFWwindow* original = glfwGetCurrentContext();
+    
+    glfwMakeContextCurrent(app->window);
     
     va_start(va, num);
-    
     _assert(num % 2 == 0);
-    num /= 2;
-    for (var i = 0; i < num; i++) {
-        WinParam flag = va_arg(va, s32);
-        s32 value = va_arg(va, s32);
+    
+    for (var i = 0; i < num; i += 2) {
+        WinParam flag = va_arg(va, WinParam);
+        int value = va_arg(va, int);
         
 #ifdef _WIN32
         HWND win = glfwGetWin32Window(app->window);
@@ -714,14 +724,15 @@ void Interface_SetParam(AppInfo* app, u32 num, ...) {
         switch (flag) {
             case WIN_MAXIMIZE:
                 break;
+                
             case WIN_MINIMIZE:
                 break;
         }
         
-        // Fool the compiler, fun
-        value = value * 2;
 #endif
     }
     
     va_end(va);
+    
+    glfwMakeContextCurrent(original);
 }

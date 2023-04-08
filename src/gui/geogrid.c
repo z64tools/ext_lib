@@ -1342,22 +1342,26 @@ void GeoGrid_Draw(GeoGrid* this) {
     if (sDebugMode) Split_DrawDebug(this);
     
     glViewport(0, 0, this->wdim->x, this->wdim->y);
-    ContextMenu_Draw(this);
     DragItem_Draw(this);
+    ContextMenu_Draw(this);
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 void DummySplit_Push(GeoGrid* geo, Split* split, Rect r) {
     split->dispRect = split->rect = r;
     split->cursorInSplit = true;
     split->cursorPos = geo->input->cursor.pos;
     split->cursorPressPos = geo->input->cursor.pressPos;
+    split->dummy = true;
     
     ElementState_SetElemState(geo->elemState);
+    Element_Flush();
     Element_SetContext(geo, split);
+    Element_UpdateTextbox(geo);
 }
 
 void DummySplit_Pop(GeoGrid* geo, Split* split) {
-    Element_UpdateTextbox(geo);
     Element_Draw(geo, split, false);
 }
 

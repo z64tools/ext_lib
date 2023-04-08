@@ -43,10 +43,10 @@ typedef struct AppInfo {
 } AppInfo;
 
 typedef struct SubWindow {
-    AppInfo        app;
-    AppInfo*       parent;
-    Input          input;
-    WindowFunction destroyCall;
+    AppInfo         app;
+    AppInfo*        parent;
+    Input           input;
+    WindowFunction  destroyCall;
     struct {
         bool noDestroy;
     } settings;
@@ -71,10 +71,12 @@ void* Interface_Init(
     u32 x, u32 y,
     u32 samples
 );
+void Interface_Close(AppInfo* app);
 void Interface_Main(AppInfo* app);
 void Interface_SetParam(AppInfo* app, u32 num, ...);
 
 void Interface_CreateSubWindow(SubWindow* window, AppInfo* app, s32 x, s32 y, const char* title);
+int Interface_Closed(SubWindow* window);
 
 #define FILE_DIALOG_BUF 256
 
@@ -111,8 +113,7 @@ typedef struct {
     ElTextbox rename;
 } FileDialog;
 
-void FileDialog_New(FileDialog* this, AppInfo* app, const char* title);
-s32 FileDialog_Closed(FileDialog* this);
+void FileDialog_New(FileDialog* this, AppInfo* parentApp, const char* title);
 void FileDialog_Free(FileDialog* this);
 
 #define GUI_INITIALIZE(                             \

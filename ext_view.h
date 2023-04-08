@@ -14,6 +14,9 @@ typedef struct {
     Vec3f up;
     Vec3f right;
     
+    f32 fovy;
+    f32 fovyTarget;
+    
     Vec3f vel;
     Vec3f offset;
     f32   dist;
@@ -38,8 +41,6 @@ typedef enum {
 } CamMode;
 
 typedef struct View3D {
-    f32  fovy;
-    f32  fovyTarget;
     f32  near;
     f32  far;
     f32  scale;
@@ -62,6 +63,7 @@ typedef struct View3D {
         bool interrupt     : 1;
         bool rotToAngle    : 1;
         bool moveToTarget  : 1;
+        bool noSmooth      : 1;
     };
     
     Vec3s targetRot;
@@ -86,6 +88,7 @@ void View_MoveTo(View3D* this, Vec3f pos);
 void View_ZoomTo(View3D* this, f32 zoom);
 void View_RotTo(View3D* this, Vec3s rot);
 Vec3f View_OrientDirToView(View3D* this, Vec3f dir);
+Vec2f View_GetLocalScreenPos(View3D* this, Vec3f point);
 Vec2f View_GetScreenPos(View3D* this, Vec3f point);
 bool View_PointInScreen(View3D* this, Vec3f point);
 f32 View_DepthFactor(View3D* this, Vec3f point);

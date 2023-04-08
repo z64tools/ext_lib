@@ -127,7 +127,7 @@ static void Camera_OrbitMode(View3D* this, Input* inputCtx, bool update) {
     Camera* cam = this->currentCamera;
     f32 distMult = (cam->dist * 0.2);
     f32 disdiff = fabsf(cam->dist - cam->targetDist);
-    f32 fovDiff = fabsf(this->fovy - this->fovyTarget);
+    f32 fovDiff = fabsf(cam->fovy - cam->fovyTarget);
     
     if (this->cameraControl && update) {
         if (inputCtx->key[KEY_LEFT_CONTROL].hold && inputCtx->cursor.clickMid.hold && Input_GetScroll(inputCtx) == 0)
@@ -136,14 +136,15 @@ static void Camera_OrbitMode(View3D* this, Input* inputCtx, bool update) {
         if (inputCtx->cursor.clickMid.hold || Input_GetScroll(inputCtx) || disdiff || fovDiff) {
             if (inputCtx->key[KEY_LEFT_CONTROL].hold && Input_GetScroll(inputCtx)) {
                 cam->targetDist = cam->dist;
-                this->fovyTarget = clamp(this->fovyTarget * (1.0 + (Input_GetScroll(inputCtx) / 20)), 10, 130);
-                fovDiff = -this->fovy;
+                cam->fovyTarget = clamp(cam->fovyTarget * (1.0 + (Input_GetScroll(inputCtx) / 20)), 10, 130);
+                fovDiff = -cam->fovy;
             } else {
                 if (Input_GetScroll(inputCtx)) {
-                    cam->targetDist -= Input_GetScroll(inputCtx) * distMult * 0.75f;
+                    f32 m = lerpf(normf(cam->targetDist, 5, 10000.0f), 0.1, 4000.0f);
+                    cam->targetDist -= Input_GetScroll(inputCtx) * m * 0.75f;
                 }
                 
-                cam->targetDist = clamp_min(cam->targetDist, 1.0f);
+                cam->targetDist = clamp(cam->targetDist, 5.0f, 10000.0f);
             }
             
             if (inputCtx->cursor.clickMid.hold) {
@@ -158,13 +159,22 @@ static void Camera_OrbitMode(View3D* this, Input* inputCtx, bool update) {
         }
     }
     
-    Math_DelSmoothStepToF(&cam->dist, cam->targetDist, 0.25f, 5.0f * distMult, 0.01f * distMult);
+    if (!this->noSmooth)
+        Math_DelSmoothStepToF(&cam->dist, cam->targetDist, 0.25f, 5.0f * distMult, 0.01f * distMult);
+    else
+        cam->dist = cam->targetDist;
+    
     if (fovDiff) {
-        f32 f = -this->fovy;
-        Math_DelSmoothStepToF(&this->fovy, this->fovyTarget, 0.25, 5.25f, 0.0f);
-        f += this->fovy;
+        f32 f = -cam->fovy;
         
-        cam->offset.z += f * 8.f * (1.0f - this->fovy / 150);
+        if (!this->noSmooth)
+            Math_DelSmoothStepToF(&cam->fovy, cam->fovyTarget, 0.25, 15.25f, 0.0f);
+        else
+            cam->fovy = cam->fovyTarget;
+        
+        f += cam->fovy;
+        
+        cam->offset.z += f * 8.f * (1.0f - cam->fovy / 150);
     }
     
     Camera_CalculateOrbit(cam);
@@ -330,7 +340,7 @@ void View_Init(View3D* this, Input* inputCtx) {
     Camera_CalculateFly(cam);
     Matrix_LookAt(&this->viewMtx, cam->eye, cam->at, cam->up);
     
-    this->fovyTarget = this->fovy = 75;
+    this->currentCamera->fovyTarget = this->currentCamera->fovy = 75;
     this->near = 10.0;
     this->far = 12800.0;
     this->scale = 1;
@@ -372,7 +382,7 @@ void View_Update(View3D* this, Input* inputCtx, Split* split) {
             &this->projMtx, cam->dist, (f32)this->split->rect.w / (f32)this->split->rect.h, this->near, this->far);
     else
         Matrix_Projection(
-            &this->projMtx, this->fovy, (f64)this->split->rect.w / (f64)this->split->rect.h, this->near, this->far, this->scale);
+            &this->projMtx, cam->fovy, (f64)this->split->rect.w / (f64)this->split->rect.h, this->near, this->far, this->scale);
     
     Matrix_LookAt(&this->viewMtx, cam->eye, cam->at, cam->up);
     
@@ -532,7 +542,7 @@ Vec3f View_OrientDirToView(View3D* this, Vec3f dir) {
     return pos;
 }
 
-Vec2f View_GetScreenPos(View3D* this, Vec3f point) {
+Vec2f View_GetLocalScreenPos(View3D* this, Vec3f point) {
     f32 w = this->split->rect.w * 0.5f;
     f32 h = this->split->rect.h * 0.5f;
     Vec4f pos;
@@ -542,6 +552,19 @@ Vec2f View_GetScreenPos(View3D* this, Vec3f point) {
     return Math_Vec2f_New(
         w + (pos.x / pos.w) * w,
         h - (pos.y / pos.w) * h
+    );
+}
+
+Vec2f View_GetScreenPos(View3D* this, Vec3f point) {
+    f32 w = this->split->rect.w * 0.5f;
+    f32 h = this->split->rect.h * 0.5f;
+    Vec4f pos;
+    
+    Matrix_MultVec3fToVec4f_Ext(&point, &pos, &this->projViewMtx);
+    
+    return Math_Vec2f_New(
+        this->split->rect.x + w + (pos.x / pos.w) * w,
+        this->split->rect.y + h - (pos.y / pos.w) * h
     );
 }
 

@@ -166,6 +166,7 @@ typedef struct Split {
         bool cursorInDisp   : 1;
         bool inputAccess    : 1;
         bool blockCursor    : 1;
+        bool dummy          : 1;
     };
     
     u32       isHeader;
@@ -210,6 +211,7 @@ void ScrollBar_FocusSlot(ScrollBar* this, Rect r, int slot);
 typedef enum {
     CONTEXT_PROP_COLOR,
     CONTEXT_ARLI,
+    CONTEXT_CUSTOM,
 } ContextDataType;
 
 typedef struct ContextMenu {
@@ -254,20 +256,19 @@ typedef struct GeoGrid {
     SplitVtx*  vtxHead;
     SplitEdge* edgeHead;
     
-    Input* input;
-    Vec2s* wdim;
-    void*  vg;
-    void*  passArg;
-    void*  elemState;
+    Input*      input;
+    Vec2s*      wdim;
+    void*       vg;
+    void*       passArg;
+    void*       elemState;
+    ContextMenu dropMenu;
     
     struct {
         s32  blockSplitting;
         s32  blockElemInput;
         bool cleanVtx     : 1;
-        bool first        : 1;
         bool splittedHold : 1;
     } state;
-    ContextMenu dropMenu;
 } GeoGrid;
 
 // # # # # # # # # # # # # # # # # # # # #
@@ -332,6 +333,8 @@ typedef struct Element {
     NVGcolor    texcol;
     u32 heightAdd;
     f32 visFaultMix;
+    f32 nameLerp;
+    
     struct {
         bool disabled     : 1;
         bool disableTemp  : 1;
@@ -363,8 +366,9 @@ typedef struct {
 } ElPanel;
 
 typedef struct {
-    Element    element;
-    VectorGfx* icon;
+    Element     element;
+    const char* text;
+    VectorGfx*  icon;
     enum NVGalign align;
     s8 state;
     s8 prevResult;
@@ -402,6 +406,7 @@ typedef struct {
         bool doBlock   : 1;
         bool isClicked : 1;
         bool modified  : 1;
+        bool editing   : 1;
         bool clearIcon : 1;
     };
     s32  ret;
@@ -519,17 +524,19 @@ void GeoGrid_SaveLayout(GeoGrid* geo, Toml* toml, const char* file);
 int GeoGrid_LoadLayout(GeoGrid* this, Toml* toml);
 
 void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType type, Rect rect);
+void ContextMenu_Custom(GeoGrid* geo, void* context, void* element, void (*init)(GeoGrid*, ContextMenu*), void (*draw)(GeoGrid*, ContextMenu*), void (*dest)(GeoGrid*, ContextMenu*), Rect rect);
 void ContextMenu_Draw(GeoGrid* geo);
 void ContextMenu_Close(GeoGrid* geo);
 
 void Element_SetActiveTextbox(GeoGrid* geo, Split* split, ElTextbox* this);
+void Element_ClearActiveTextbox(GeoGrid* geo);
 
 s32 Element_Button(ElButton* this);
 void Element_Color(ElColor* this);
 s32 Element_Textbox(ElTextbox* this);
 ElText* Element_Text(const char* txt);
 s32 Element_Checkbox(ElCheckbox* this);
-f32 Element_Slider(ElSlider* this);
+int Element_Slider(ElSlider* this);
 s32 Element_Combo(ElCombo* this);
 s32 Element_Container(ElContainer* this);
 
@@ -543,15 +550,15 @@ typedef enum {
 } BoxState;
 
 int Element_Box(BoxState io, ...);
-void Element_DisplayName(Element* this, f32 lerp);
 
 #ifndef __clang__
 #define Element_Box(...) Element_Box(__VA_ARGS__, NULL, NULL)
 #endif
 
 void Element_Slider_SetParams(ElSlider* this, f32 min, f32 max, char* type);
-void Element_Slider_SetValue(ElSlider* this, f64 val);
-void Element_Button_SetValue(ElButton* this, bool toggle, bool state);
+void Element_Slider_SetValue(ElSlider* this, f32 val);
+f32 Element_Slider_GetValue(ElSlider* this);
+void Element_Button_SetProperties(ElButton* this, const char* text, bool toggle, bool state);
 void Element_Combo_SetArli(ElCombo* this, Arli* arlist);
 void Element_Color_SetColor(ElColor* this, void* color);
 void Element_Container_SetArli(ElContainer* this, Arli* prop, u32 num);
@@ -561,10 +568,12 @@ void Element_Name(Element* this, const char* name);
 Element* Element_Disable(Element* element);
 Element* Element_Enable(Element* element);
 Element* Element_Condition(Element* element, s32 condition);
+void Element_SetNameLerp(Element* this, f32 lerp);
 void Element_RowY(f32 y);
 void Element_ShiftX(f32 x);
 void Element_Row(s32 rectNum, ...);
 void Element_Header(s32 num, ...);
+int Element_Operatable(Element* this);
 
 void Element_UpdateTextbox(GeoGrid* geo);
 void Element_Draw(GeoGrid* geo, Split* split, bool header);
@@ -573,7 +582,8 @@ void Element_Draw(GeoGrid* geo, Split* split, bool header);
 #define Element_Disable(this)           Element_Disable(&(this)->element)
 #define Element_Enable(this)            Element_Enable(&(this)->element)
 #define Element_Condition(this, cond)   Element_Condition(&(this)->element, cond)
-#define Element_DisplayName(this, lerp) Element_DisplayName(&(this)->element, lerp)
+#define Element_SetNameLerp(this, lerp) Element_SetNameLerp(&(this)->element, lerp)
+#define Element_Operatable(this)        Element_Operatable(&(this)->element)
 #define Element_Row(...)                Element_Row(NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
 #define Element_Header(...)             Element_Header(NARGS(__VA_ARGS__) / 2, __VA_ARGS__)
 

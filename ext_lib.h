@@ -607,12 +607,20 @@ static u32 wmask(u32 value, u32 mask) {
     return value & mask;
 }
 
-static u32 pmask(u32 mask) {
+static u32 smask_byte(u32 mask) {
     u32 shift = __builtin_ctz(mask);
     
     mask >>= shift;
     
     return dighex(mask);
+}
+
+static u32 smask_bit(u32 mask) {
+    u32 shift = __builtin_ctz(mask);
+    
+    mask >>= shift;
+    
+    return __builtin_popcount(mask);
 }
 
 #pragma GCC diagnostic pop
