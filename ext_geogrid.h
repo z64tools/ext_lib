@@ -27,6 +27,8 @@ extern __SPLIT_SPECIFIER__ SPLIT_TEXT;
 extern __SPLIT_SPECIFIER__ SPLIT_TEXT_H;
 extern __SPLIT_SPECIFIER__ SPLIT_ELEM_X_PADDING;
 extern __SPLIT_SPECIFIER__ SPLIT_ELEM_Y_PADDING;
+extern __SPLIT_SPECIFIER__ SPLIT_SCROLL_WIDTH;
+extern __SPLIT_SPECIFIER__ SPLIT_SCROLL_PAD;
 
 #undef __SPLIT_SPECIFIER__
 #endif
@@ -136,8 +138,6 @@ typedef struct {
     s32  max;
 } SplitScrollBar;
 
-struct BoxContext;
-
 typedef struct Split {
     struct Split*   next;
     struct ElCombo* taskCombo;
@@ -179,7 +179,6 @@ typedef struct Split {
     
     u32       isHeader;
     SplitFunc headerFunc;
-    struct BoxContext* boxContext;
 } Split;
 
 typedef struct {
@@ -194,16 +193,18 @@ typedef struct {
 } SplitTask;
 
 typedef struct {
-    int cur;
-    f64 vcur;
-    f64 slotHeight;
-    f64 max;
-    f64 visMax;
-    f64 visNum;
-    int focusSlot;
+    f64  cur;
+    f64  slotHeight;
+    f64  vcur;
+    f64  max;
+    f64  visMax;
+    f64  visNum;
+    int  focusSlot;
+    bool focusSmooth;
     
     NVGcolor color;
     Rect     baseRect;
+    Rect     barOutlineRect;
     Rect     barRect;
     Rect     workRect;
     Vec2s    cursorPos;
@@ -211,13 +212,15 @@ typedef struct {
     s32  holdOffset;
     int  hold;
     bool disabled;
+    
+    f32 mod;
 } ScrollBar;
 
-void ScrollBar_Init(ScrollBar* this, int max, f32 height);
+void ScrollBar_Init(ScrollBar* this, int max, int height);
 Rect ScrollBar_GetRect(ScrollBar* this, int slot);
-bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r);
+bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect scrollRect, Rect displayRect);
 bool ScrollBar_Draw(ScrollBar* this, void* vg);
-void ScrollBar_FocusSlot(ScrollBar* this, int slot);
+void ScrollBar_FocusSlot(ScrollBar* this, int slot, bool smooth);
 
 typedef enum {
     CONTEXT_PROP_COLOR,
@@ -234,12 +237,14 @@ typedef struct ContextMenu {
     Vec2s pos;
     struct {
         bool init             : 1;
-        bool setCondition     : 1;
         bool widthAdjustment  : 1;
         bool offsetOriginRect : 1;
         bool rectClamp        : 1;
-        s32  up               : 2;
-        s32  side             : 2;
+        bool distanceCheck    : 1;
+        bool maximize         : 1;
+        int  setCondition     : 2;
+        int  up               : 2;
+        int  side             : 2;
     } state;
     
     void* temp;
@@ -276,11 +281,12 @@ typedef struct GeoGrid {
     void*       passArg;
     void*       elemState;
     void*       swapState;
-    ContextMenu dropMenu;
+    ContextMenu contextMenu;
     
     struct {
         s32  blockSplitting;
         s32  blockElemInput;
+        int  cullSplits;
         bool cleanVtx     : 1;
         bool splittedHold : 1;
     } state;
@@ -338,17 +344,8 @@ extern const ElemAssets gAssets;
 
 typedef struct Element {
     Rect        rect;
-    Vec2f       posTxt;
+    Vec2s       posTxt;
     const char* name;
-    NVGcolor    prim;
-    NVGcolor    shadow;
-    NVGcolor    base;
-    NVGcolor    light;
-    NVGcolor    constlight; // no hover light
-    NVGcolor    texcol;
-    u32 heightAdd;
-    f32 visFaultMix;
-    f32 nameLerp;
     
     struct {
         bool disabled     : 1;
@@ -361,19 +358,33 @@ typedef struct Element {
         bool contextSet   : 1;
         bool faulty       : 1;
         bool instantColor : 1;
-        u32  toggle       : 2;
+        
+        u32 toggle : 2;
     };
     
-    int colOvrdPrim;
-    int colOvrdShadow;
-    int colOvrdBase;
-    int colOvrdLight;
-    int colOvrdTexcol;
+    u8 colOvrdPrim;
+    u8 colOvrdShadow;
+    u8 colOvrdBase;
+    u8 colOvrdLight;
+    u8 colOvrdTexcol;
+    u8 slotNum;
     enum {
         ELEM_TYPE_NONE,
         ELEM_TYPE_TEXTBOX,
         ELEM_TYPE_BOX,
+        ELEM_TYPE_COMBO,
+        ELEM_TYPE_CONTAINER,
     } type;
+    
+    f32 visFaultMix;
+    f32 nameLerp;
+    
+    NVGcolor prim;
+    NVGcolor shadow;
+    NVGcolor base;
+    NVGcolor light;
+    NVGcolor constlight;       // no hover light
+    NVGcolor texcol;
 } Element;
 
 /*============================================================================*/
@@ -467,36 +478,38 @@ typedef struct {
 } ElSlider;
 
 typedef struct ElCombo {
-    Element element;
+    Element       element;
     enum NVGalign align;
-    Arli*       arlist;
-    bool        showDecID : 1;
-    bool        showHexID : 1;
-    const char* menu;
+    Arli* list;
+    struct {
+        bool showDecID  : 1;
+        bool showHexID  : 1;
+        bool controller : 1;
+    };
+    const char* title;
+    int prevIndex;
 } ElCombo;
 
 typedef struct {
     Element   element;
     Arli*     list;
-    Arli*     contextList;
     ScrollBar scroll;
     
     struct {
-        bool pressed   : 1;
-        bool text      : 1;
-        bool beingSet  : 1;
-        bool drag      : 1;
-        bool showDecID : 1;
-        bool showHexID : 1;
+        bool text        : 1;
+        bool mutable     : 1;
+        bool showDecID   : 1;
+        bool showHexID   : 1;
+        bool controller  : 1;
+        bool stretch     : 1;
+        bool holdStretch : 1;
     };
     
-    Rect      grabRect;
     ElTextbox textBox;
     
-    s32 contextKey;
-    s32 heldKey;
-    f32 detachMul;
-    f32 copyLerp;
+    Rect pressRect;
+    int  pressKey;
+    f32  copyLerp;
     
     bool detached;
     enum NVGalign align;
@@ -559,10 +572,22 @@ s32 Element_Textbox(ElTextbox* this);
 ElText* Element_Text(const char* txt);
 s32 Element_Checkbox(ElCheckbox* this);
 int Element_Slider(ElSlider* this);
-s32 Element_Combo(ElCombo* this);
-s32 Element_Container(ElContainer* this);
-
 void Element_Separator(bool drawLine);
+
+/**
+ * Return values
+ *     -1 : unchanged
+ *   >= 0 : selected index
+ */
+s32 Element_Combo(ElCombo* this);
+
+/**
+ * Return values
+ *     -2 : renamed
+ *     -1 : unchanged
+ *   >= 0 : selected index
+ */
+s32 Element_Container(ElContainer* this);
 
 typedef enum {
     BOX_START   = 0,

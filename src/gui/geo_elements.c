@@ -45,11 +45,25 @@ typedef struct {
     bool  copy;
 } DragItem;
 
+typedef struct ElBox {
+    Element  element;
+    ElPanel* panel;
+    Rect     headRect;
+    f32      rowY;
+} ElBox;
+
+typedef struct BoxContext {
+    ElBox* list[16];
+    int    index;
+} BoxContext;
+
 typedef struct {
     GeoGrid* geo;
     Split*   split;
     ElementQueCall* head;
     ElTextbox*      textbox;
+    BoxContext      boxCtx;
+    ElContainer*    interactContainer;
     
     s16 breathYaw;
     f32 breath;
@@ -113,7 +127,7 @@ static void DragItem_Init(GeoGrid* geo, void* src, Rect rect, const char* item, 
 static bool DragItem_Release(GeoGrid* geo, void* src) {
     DragItem* this = &sElemState->dragItem;
     
-    if (src != this->src || this->hold == false) return false;
+    if (this->hold == false || src != this->src) return false;
     
     this->hold = false;
     this->src = NULL;
@@ -123,28 +137,28 @@ static bool DragItem_Release(GeoGrid* geo, void* src) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void ScrollBar_Init(ScrollBar* this, int max, f32 height) {
+void ScrollBar_Init(ScrollBar* this, int max, int height) {
     this->max = max;
     this->slotHeight = height;
-    this->focusSlot = -1;
 }
 
 Rect ScrollBar_GetRect(ScrollBar* this, int slot) {
     Rect r = {
         this->workRect.x,
         this->workRect.y + this->slotHeight * slot,
-        this->workRect.w,
+        this->workRect.w - (SPLIT_SCROLL_WIDTH + SPLIT_SCROLL_PAD) * this->mod,
         this->workRect.h,
     };
     
     return r;
 }
 
-bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r) {
+bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect scrollRect, Rect displayRect) {
     InputType* click = NULL;
     f64 barHeight;
+    Rect prevRect = this->baseRect;
     
-    this->baseRect = this->workRect = r;
+    this->baseRect = this->workRect = scrollRect;
     this->cursorPos = cursorPos;
     this->disabled = !!!input;
     
@@ -156,10 +170,14 @@ bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r) {
         }
     }
     
-    this->visNum = this->baseRect.h / this->slotHeight - 1;
+    this->visNum = this->baseRect.h / this->slotHeight;
     this->visMax = clamp_min(this->max - this->visNum, 0);
-    barHeight = this->baseRect.h * clamp(this->visNum / this->visMax, 0, 1);
-    if (barHeight < 16) barHeight = 16;
+    
+    barHeight = displayRect.h * clamp(this->visNum / this->max, 0, 1);
+    if (barHeight < SPLIT_SCROLL_WIDTH * 2)
+        barHeight = SPLIT_SCROLL_WIDTH * 2;
+    if (barHeight > displayRect.h)
+        barHeight = displayRect.h * 0.75f;
     
     if (this->hold) {
         if (!click || !click->hold)
@@ -167,28 +185,42 @@ bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r) {
         
         else {
             int heldPosY = this->cursorPos.y - this->holdOffset;
-            f64 cur = (heldPosY - this->baseRect.y) / (this->baseRect.h - barHeight);
+            f64 cur = (heldPosY - displayRect.y) / (displayRect.h - barHeight);
             
             this->cur = rint(cur * this->visMax);
         }
         
     } else if (this->focusSlot > -1) {
-        this->vcur =
-            this->cur =
-            clamp(this->focusSlot - this->visNum / 2,
-                0, this->visMax);
-        
+        this->cur = clamp(this->focusSlot - this->visNum / 2, 0, this->visMax);
         this->focusSlot = -1;
+        
+        if (!this->focusSmooth)
+            this->vcur = this->cur;
+    } else if (this->baseRect.h != prevRect.h) {
+        this->vcur = clamp(this->cur, 0, this->visMax);
     }
     
     this->cur = clamp(this->cur, 0, this->visMax);
-    Math_DelSmoothStepToD(&this->vcur, this->cur, 0.25, this->visMax / 4, 0.01);
+    Math_DelSmoothStepToD(&this->vcur, this->cur, 0.25, (f32)this->visMax / 4, 0.01);
     
     f64 vslot = this->vcur;
     f64 vmod = normd(this->vcur, 0, this->visMax);
     
-    this->barRect = Rect_New(RectW(this->baseRect) - (12 + 2), lerpd(vmod, r.y, RectH(this->baseRect) - barHeight), 12, barHeight);
-    this->workRect.y -= vslot * this->slotHeight;
+    this->barOutlineRect = Rect_New(
+        RectW(displayRect) - (SPLIT_SCROLL_WIDTH + SPLIT_SCROLL_PAD),
+        displayRect.y,
+        SPLIT_SCROLL_WIDTH,
+        displayRect.h);
+    this->barRect = Rect_New(
+        RectW(displayRect) - (SPLIT_SCROLL_WIDTH + SPLIT_SCROLL_PAD),
+        ceilf(lerpd(vmod, displayRect.y, RectH(displayRect) - barHeight)),
+        SPLIT_SCROLL_WIDTH,
+        barHeight);
+    
+    f32 target = (this->visNum >= this->max) ? 0.0f : 1.0f;
+    Math_SmoothStepToF(&this->mod, target, 0.25f, 0.25f, 0.01f);
+    
+    this->workRect.y -= rint(vslot * this->slotHeight);
     this->workRect.h = this->slotHeight;
     
     if (Rect_PointIntersect(&this->barRect, UnfoldVec2(this->cursorPos))) {
@@ -204,42 +236,36 @@ bool ScrollBar_Update(ScrollBar* this, Input* input, Vec2s cursorPos, Rect r) {
 bool ScrollBar_Draw(ScrollBar* this, void* vg) {
     Vec2s cursorPos = this->cursorPos;
     
-    if (this->disabled)
-        Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_HIGHLIGHT, 0, 1.0f), 0.5f, 1.0f, 0.01f);
-    
-    else if (this->hold)
+    if (this->hold)
         Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_PRIM, 220, 1.0f), 0.5f, 1.0f, 0.01f);
     
     else {
-        if (Rect_PointIntersect(&this->baseRect, UnfoldVec2(cursorPos))) {
-            if (Rect_PointIntersect(&this->barRect, UnfoldVec2(cursorPos))) {
-                Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_HIGHLIGHT, 220, 1.0f), 0.5f, 1.0f, 0.01f);
-                
-            } else
-                Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_HIGHLIGHT, 125, 1.0f), 0.5f, 1.0f, 0.01f);
+        if (Rect_PointIntersect(&this->barRect, UnfoldVec2(cursorPos))) {
+            Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_HIGHLIGHT, 220, 1.0f), 0.5f, 1.0f, 0.01f);
+            
         } else
-            Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_HIGHLIGHT, 0, 1.0f), 0.5f, 1.0f, 0.01f);
+            Theme_SmoothStepToCol(&this->color, Theme_GetColor(THEME_HIGHLIGHT, 125, 1.0f), 0.5f, 1.0f, 0.01f);
     }
+    
+    if (this->mod < EPSILON)
+        return this->hold;
     
     NVGcolor color = this->color;
+    NVGcolor base = Theme_GetColor(THEME_ELEMENT_BASE, 255, 1.0f);
     
-    if (this->visNum > this->max) {
-        NVGcolor al = color;
-        f32 remap = remapf(this->visNum / this->max, 1.0f, 1.0f + (2.0f / this->max), 0.0f, 1.0f);
-        
-        remap = clamp(remap, 0.0f, 1.0f);
-        al.a = 0;
-        
-        color = Theme_Mix(remap, color, al);
-    }
-    
-    Gfx_DrawRounderRect(vg, this->barRect, color);
+    color.a *= this->mod;
+    base.a *= this->mod;
+    Gfx_DrawRounderRect(vg, Rect_Scale(this->barOutlineRect, -2, -4), base);
+    Gfx_DrawRounderRect(vg, Rect_Scale(this->barRect, -2, -4), color);
+    color.a /= 4;
+    Gfx_DrawRounderOutline(vg, Rect_Scale(this->barOutlineRect, -2, -4), color);
     
     return this->hold;
 }
 
-void ScrollBar_FocusSlot(ScrollBar* this, int slot) {
+void ScrollBar_FocusSlot(ScrollBar* this, int slot, bool smooth) {
     this->focusSlot = slot;
+    this->focusSmooth = smooth;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1386,22 +1412,25 @@ static void Element_ComboDraw(ElementQueCall* call) {
     ElCombo* this = call->arg;
     GeoGrid* geo = call->geo;
     void* vg = geo->vg;
-    Arli* list = this->arlist;
+    Arli* list = this->list;
     Rect r = this->element.rect;
     Vec2f center;
     
-    if (!this->menu) {
-        Gfx_DrawRounderOutline(vg, r, this->element.light);
-        Gfx_DrawRounderRect(vg, r, this->element.shadow);
-    } else {
-        Gfx_DrawRounderRect(vg, r, Theme_Mix(0.2f, this->element.base, this->element.light));
-    }
+    Gfx_DrawRounderOutline(vg, r, this->element.light);
+    Gfx_DrawRounderRect(vg, r, this->element.shadow);
     
     r = this->element.rect;
     
-    if (this->menu) {
+    if (this->controller) {
+        const char* text = "(null)";
+        
+        if (this->title)
+            text = this->title;
+        else if (list)
+            text = list->elemName(list, list->cur);
+        
         nvgScissor(vg, UnfoldRect(r));
-        Gfx_Text(vg, r, this->align, this->element.texcol, this->menu);
+        Gfx_Text(vg, r, this->align, this->element.texcol, text);
         nvgResetScissor(vg);
         
         return;
@@ -1433,7 +1462,7 @@ static void Element_ComboDraw(ElementQueCall* call) {
         sr.w -= 10 + SPLIT_ELEM_X_PADDING + width;
         nvgScissor(vg, UnfoldRect(sr));
         
-        if (geo->dropMenu.element == (void*)this)
+        if (geo->contextMenu.element == (void*)this)
             color = this->element.light;
         
         else
@@ -1454,12 +1483,18 @@ static void Element_ComboDraw(ElementQueCall* call) {
 }
 
 s32 Element_Combo(ElCombo* this) {
-    Arli* list = this->arlist;
-    int index = 0;
+    Arli* list = this->list;
     
     _assert(GEO && SPLIT);
     
-    if (list) index = list->cur;
+    if (this->element.type == ELEM_TYPE_NONE) {
+        this->element.type = ELEM_TYPE_COMBO;
+        
+        this->prevIndex = this->list ? this->list->cur : -16;
+    }
+    
+    if (this->title)
+        this->controller = true;
     
     ELEMENT_QUEUE_CHECK();
     
@@ -1468,12 +1503,13 @@ s32 Element_Combo(ElCombo* this) {
             SPLIT->splitBlockScroll++;
             s32 scrollY = clamp(Input_GetScroll(GEO->input), -1, 1);
             
-            if ( Input_GetCursor(GEO->input, CLICK_L)->release) {
+            if (Input_GetCursor(GEO->input, CLICK_L)->release) {
                 Rect* rect[] = { &SPLIT->rect, &SPLIT->headRect };
                 
-                ContextMenu_Init(GEO, this->arlist, this, CONTEXT_ARLI, Rect_AddPos(this->element.rect, *rect[this->element.header]));
-                ScrollBar_FocusSlot(&GEO->dropMenu.scroll, list->cur);
-            } else if (scrollY)
+                ContextMenu_Init(GEO, list, this, CONTEXT_ARLI, Rect_AddPos(this->element.rect, *rect[this->element.header]));
+                if (!this->controller)
+                    ScrollBar_FocusSlot(&GEO->contextMenu.scroll, list->cur, false);
+            } else if (scrollY && !this->controller)
                 Arli_Set(list, list->cur - scrollY);
         }
     } else
@@ -1481,15 +1517,21 @@ s32 Element_Combo(ElCombo* this) {
     
     ELEMENT_QUEUE(Element_ComboDraw);
     
-    if (list) {
-        this->element.faulty = (list->cur < 0 || list->cur >= list->num);
+    if (list && GEO->contextMenu.element != &this->element) {
+        int prevIndex = this->prevIndex;
+        int curIndex = list->cur;
         
-        return (index - list->cur) | this->element.contextSet;
-    }
+        this->prevIndex = curIndex;
+        
+        if (!this->controller)
+            this->element.faulty = (curIndex < 0 || curIndex >= list->num);
+        
+        if (curIndex - prevIndex)
+            return curIndex;
+    } else
+        this->element.faulty = false;
     
-    this->element.faulty = false;
-    
-    return 0;
+    return -1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1552,6 +1594,12 @@ static Rect Element_Container_GetDragRect(ElContainer* this, s32 i) {
     return r;
 }
 
+static void Element_Container_NewInteract(ElContainer* this) {
+    if (!this->controller) return;
+    
+    sElemState->interactContainer = this;
+}
+
 static void Element_ContainerDraw(ElementQueCall* call) {
     ElContainer* this = call->arg;
     GeoGrid* geo = call->geo;
@@ -1580,6 +1628,9 @@ static void Element_ContainerDraw(ElementQueCall* call) {
     else
         Math_SmoothStepToF(&this->copyLerp, 0.0f, 0.25f, 0.25f, 0.01f);
     
+    if (this->controller && this != sElemState->interactContainer)
+        if (this->list) this->list->cur = -1;
+    
     for (int i = 0; i < list->num; i++) {
         Rect tr = Element_Container_GetListElemRect(this, i);
         
@@ -1592,9 +1643,10 @@ static void Element_ContainerDraw(ElementQueCall* call) {
                 vt.y += 1; vt.h -= 2;
                 col.a = 0.85f;
                 
-                Gfx_DrawRounderRect(
-                    vg, vt, col
-                );
+                if (this->controller == true)
+                    col = Theme_Mix(0.25f, this->element.base, this->element.light);
+                
+                Gfx_DrawRounderRect(vg, vt, col);
             }
             
             if (Split_CursorInRect(SPLIT, &tr) && this->copyLerp > EPSILON) {
@@ -1629,13 +1681,11 @@ static void Element_ContainerDraw(ElementQueCall* call) {
         tr.x += width;
         tr.w -= width;
         
-        nvgScissor(vg, UnfoldRect(tr));
         Gfx_Text(
             vg, tr, this->align,
             this->element.texcol,
             list->elemName(list, i)
         );
-        nvgResetScissor(vg);
     }
     nvgResetScissor(vg);
     
@@ -1674,57 +1724,112 @@ static void Element_ContainerDraw(ElementQueCall* call) {
 
 s32 Element_Container(ElContainer* this) {
     ScrollBar* scroll = &this->scroll;
+    Rect dispRect = Rect_Scale(this->element.rect, -SPLIT_ELEM_X_PADDING, -SPLIT_ELEM_X_PADDING);
     int set = -1;
+    Arli* list = this->list;
+    Input* input = GEO->input;
     
     _assert(GEO && SPLIT);
     
+    if (this->element.type == ELEM_TYPE_NONE)
+        this->element.type = ELEM_TYPE_CONTAINER;
+    
+    ScrollBar_Init(scroll, list ? list->num : 0, SPLIT_TEXT_H);
+    
+    if (this->text) {
+        if (&this->textBox == sElemState->textbox)
+            goto queue_element;
+        
+        this->text = false;
+        set = -2;
+    }
+    
+    if (this->holdStretch) {
+        Cursor_ForceCursor(CURSOR_ARROW_V);
+        f32 dist = FLT_MAX;
+        
+        for (int i = 1; i < 16; i++) {
+            f32 ndist;
+            Vec2s p = {
+                SPLIT->cursorPos.x,
+                this->element.rect.y + (SPLIT_TEXT_H * clamp_min(i, 0) + SPLIT_ELEM_X_PADDING * 2)
+            };
+            
+            if ((ndist = Math_Vec2s_DistXZ(SPLIT->cursorPos, p)) < dist) {
+                dist = ndist;
+                this->element.slotNum = i;
+            }
+        }
+        
+        if (!Input_GetCursor(input, CLICK_L)->release) {
+            ScrollBar_Update(scroll, NULL, SPLIT->cursorPos, dispRect, this->element.rect);
+            this->element.disableTemp = 1;
+            goto queue_element;
+        }
+        
+        this->holdStretch = false;
+    }
+    
+    if (ScrollBar_Update(scroll, input, SPLIT->cursorPos, dispRect, this->element.rect))
+        goto queue_element;
+    
     if (this->list) {
-        Arli* list = this->list;
-        Input* input = GEO->input;
-        Cursor* cursor = &GEO->input->cursor;
+        ELEMENT_QUEUE_CHECK();
+        
+        if (Input_GetCursor(input, CLICK_L)->release) {
+            if (DragItem_Release(GEO, this)) {
+                Rect r = this->element.rect;
+                
+                if (Rect_PointIntersect(&r, UnfoldVec2(SPLIT->cursorPos))) {
+                    s32 i = 0;
+                    s32 id = 0;
+                    
+                    for (; i < list->num; i++) {
+                        Rect r = Element_Container_GetDragRect(this, i);
+                        
+                        if (Rect_PointIntersect(&r, UnfoldVec2(SPLIT->cursorPos)))
+                            break;
+                        id++;
+                    }
+                    
+                    Arli_Insert(list, id, 1, list->copybuf);
+                    Arli_Set(list, id);
+                }
+            }
+        }
+        
+        if (!ELEM_PRESS_CONDITION(this))
+            goto queue_element;
+        
         DragItem* drag = &sElemState->dragItem;
+        int hoverKey = -1;
+        Rect hoverRect;
+        Rect stretchr = this->element.rect;
         
-        if (this->text) {
-            if (&this->textBox == sElemState->textbox)
-                goto queue_element;
-            
-            this->text = false;
+        stretchr.y = RectH(this->element.rect) - 6;
+        stretchr.h = 6;
+        
+        if (this->stretch && Rect_PointIntersect(&stretchr, UnfoldVec2(SPLIT->cursorPos))) {
+            if (Input_GetCursor(input, CLICK_L)->press)
+                this->holdStretch = true;
+            Cursor_ForceCursor(CURSOR_ARROW_V);
+        } else {
+            for (int i = 0; i < list->num; i++) {
+                Rect r = Element_Container_GetListElemRect(this, i);
+                
+                if (Rect_PointIntersect(&r, UnfoldVec2(SPLIT->cursorPos))) {
+                    hoverKey = i;
+                    hoverRect = r;
+                }
+            }
         }
-        
-        ScrollBar_Init(scroll, list->num, SPLIT_TEXT_H);
-        
-        ELEMENT_QUEUE_CHECK(
-            ScrollBar_Update(scroll, NULL, SPLIT->cursorPos, this->element.rect);
-        );
-        
-        if (ScrollBar_Update(scroll, input, SPLIT->cursorPos, this->element.rect))
-            goto queue_element;
-        
-        if (this->drag && this->heldKey > 0 && Math_Vec2s_DistXZ(cursor->pos, cursor->pressPos) > 8) {
-            _log("Drag Item Init");
-            
-            DragItem_Init(GEO, this, this->grabRect, list->elemName(list, this->heldKey - 1), this->list);
-            
-            if (Input_GetKey(input, KEY_LEFT_SHIFT)->hold) {
-                Arli_CopyToBuf(list, this->heldKey - 1);
-                // this->detach.key = list->num;
-            } else
-                Arli_RemoveToBuf(list, this->heldKey - 1);
-            
-            this->heldKey = 0;
-        }
-        
-        if (!ELEM_PRESS_CONDITION(this) && drag->src != this) {
-            this->pressed = false;
-            
-            goto queue_element;
-        }
-        
-        SPLIT->splitBlockScroll++;
         
         if (Input_GetKey(input, KEY_UP)->press) {
             Arli_Set(list, list->cur - 1);
             set = list->cur;
+            
+            Element_Container_NewInteract(this);
+            ScrollBar_FocusSlot(&this->scroll, list->cur, true);
             
             goto queue_element;
         }
@@ -1733,122 +1838,63 @@ s32 Element_Container(ElContainer* this) {
             Arli_Set(list, list->cur + 1);
             set = list->cur;
             
+            Element_Container_NewInteract(this);
+            ScrollBar_FocusSlot(&this->scroll, list->cur, true);
+            
             goto queue_element;
         }
         
-        if ( Input_GetCursor(input, CLICK_R)->press) {
-            if (this->contextList) {
-                Rect cr;
-                this->contextKey = -1;
+        if (Input_GetCursor(input, CLICK_L)->press) {
+            this->pressKey = hoverKey;
+            this->pressRect = hoverRect;
+            
+            if (hoverKey > -1) {
+                Arli_Set(list, hoverKey);
+                set = hoverKey;
                 
-                for (int i = 0; i < list->num; i++) {
-                    Rect r = Element_Container_GetListElemRect(this, i);
-                    
-                    if (Rect_PointIntersect(&r, UnfoldVec2(SPLIT->cursorPos))) {
-                        cr = r;
-                        this->contextKey = i;
-                        break;
-                    }
-                }
-                
-                if (this->contextKey > -1) {
-                    cr = Rect_AddPos(cr, SPLIT->rect);
-                    cr.x = GEO->input->cursor.pressPos.x;
-                    cr.w = 0;
-                    ContextMenu_Init(GEO, this->contextList, this, CONTEXT_ARLI, cr);
-                }
+                Element_Container_NewInteract(this);
             }
             
             goto queue_element;
         }
         
-        if (!Input_GetCursor(input, CLICK_L)->press) {
-            if (!this->pressed)
-                goto queue_element;
-        }
-        
-        if (ELEM_PRESS_CONDITION(this)) {
-            if ( Input_GetCursor(input, CLICK_L)->dual && list->num) {
-                _log("Rename");
-                this->text = true;
-                strncpy(this->textBox.txt, list->elemName(list, list->cur), sizeof(this->textBox.txt));
-                
-                goto queue_element;
-            }
+        if (Input_GetCursor(input, CLICK_L)->dual) {
+            strncpy(this->textBox.txt, list->elemName(list, hoverKey), sizeof(this->textBox.txt));
+            this->text = true;
+            Element_SetActiveTextbox(GEO, SPLIT, &this->textBox);
             
-            if (!this->pressed) {
-                for (int i = 0; i < list->num; i++) {
-                    Rect r = Element_Container_GetListElemRect(this, i);
-                    
-                    if (Rect_PointIntersect(&r, UnfoldVec2(SPLIT->cursorPos))) {
-                        this->heldKey = i + 1;
-                        this->grabRect = r;
-                    }
-                }
-            }
+            goto queue_element;
         }
         
-        this->pressed = true;
-        
-        if (!Input_GetCursor(input, CLICK_L)->release)
+        if (!this->mutable)
             goto queue_element;
         
-        this->pressed = false;
-        this->heldKey = 0;
+        if (Input_GetKey(input, KEY_DELETE)->press)
+            if (list->cur > -1 && list->cur < list->num)
+                Arli_Remove(list, list->cur, 1);
         
-        if (DragItem_Release(GEO, this)) {
-            Rect r = this->element.rect;
+        if (this->pressKey == -1)
+            goto queue_element;
+        if (drag->item)
+            goto queue_element;
+        
+        if (Input_GetCursor(input, CLICK_L)->hold && input->cursor.dragDist > 8) {
+            DragItem_Init(GEO, this, this->pressRect, list->elemName(list, list->cur), this->list);
             
-            r.y -= 8;
-            r.h += 16;
-            
-            if (Rect_PointIntersect(&r, UnfoldVec2(SPLIT->cursorPos))) {
-                s32 i = 0;
-                s32 id = 0;
-                
-                for (; i < list->num; i++) {
-                    Rect r = Element_Container_GetDragRect(this, i);
-                    
-                    // if (i == this->detach.key)
-                    // continue;
-                    
-                    if (Rect_PointIntersect(&r, UnfoldVec2(SPLIT->cursorPos)))
-                        break;
-                    id++;
-                }
-                
-                Arli_Insert(list, id, 1, list->copybuf);
-                Arli_Set(list, id);
-            }
-        } else {
-            for (int i = 0; i < list->num; i++) {
-                Rect r = Element_Container_GetListElemRect(this, i);
-                
-                if (Rect_PointIntersect(&r, UnfoldVec2(SPLIT->cursorPos))) {
-                    Arli_Set(list, i);
-                    set = i;
-                }
-            }
+            if (Input_GetKey(input, KEY_LEFT_SHIFT)->hold)
+                Arli_CopyToBuf(list, list->cur);
+            else
+                Arli_RemoveToBuf(list, list->cur);
         }
     }
     
     ELEMENT_QUEUE(Element_ContainerDraw);
     
     if (this->text) {
-        (void)0;
-        Arli* list = this->list;
-        
-        this->textBox.element.rect = Element_Container_GetListElemRect(this, list->cur);
+        this->textBox.element.rect = this->pressRect;
         Element_Textbox(&this->textBox);
-        this->beingSet = true;
         
-        return -2;
-    }
-    
-    if (this->beingSet) {
-        this->beingSet = false;
-        
-        return this->list->cur;
+        return -1;
     }
     
     return set;
@@ -1894,22 +1940,6 @@ void Element_Separator(bool drawLine) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-typedef struct ElBox {
-    Element  element;
-    ElPanel* panel;
-    Rect     headRect;
-    f32      rowY;
-} ElBox;
-
-typedef struct BoxContext {
-    ElBox* list[16];
-    int    index;
-} BoxContext;
-
-void* Element_AllocBoxContext() {
-    return new(BoxContext);
-}
-
 static void Element_BoxDraw(ElementQueCall* call) {
     ElBox* this = call->arg;
     Rect r = this->element.rect;
@@ -1947,19 +1977,19 @@ static void Element_BoxDraw(ElementQueCall* call) {
 }
 
 static ElBox* BoxPush() {
-    BoxContext* ctx = SPLIT->boxContext;
+    BoxContext* ctx = &sElemState->boxCtx;
     
     return ctx->list[ctx->index++] = new(ElBox);
 }
 
 static ElBox* BoxPop() {
-    BoxContext* ctx = SPLIT->boxContext;
+    BoxContext* ctx = &sElemState->boxCtx;
     
     return ctx->list[--ctx->index];
 }
 
 int Element_Box(BoxState state, ...) {
-    BoxContext* ctx = SPLIT->boxContext;
+    BoxContext* ctx = &sElemState->boxCtx;
     va_list va;
     
     va_start(va, state);
@@ -2065,7 +2095,7 @@ void Element_Button_SetProperties(ElButton* this, const char* text, bool toggle,
 }
 
 void Element_Combo_SetArli(ElCombo* this, Arli* arlist) {
-    this->arlist = arlist;
+    this->list = arlist;
 }
 
 void Element_Color_SetColor(ElColor* this, void* color) {
@@ -2074,7 +2104,7 @@ void Element_Color_SetColor(ElColor* this, void* color) {
 
 void Element_Container_SetArli(ElContainer* this, Arli* list, u32 num) {
     this->list = list;
-    this->element.heightAdd = SPLIT_TEXT_H * clamp_min(num - 1, 0);
+    this->element.slotNum = num;
 }
 
 bool Element_Textbox_SetText(ElTextbox* this, const char* txt) {
@@ -2163,7 +2193,7 @@ static void Element_DisplayName(Element* this) {
 void Element_Row(s32 rectNum, ...) {
     f32 shiftX = clamp_min(sElemState->shiftX, 0);
     f32 widthX = clamp_min(-sElemState->shiftX, 0);
-    f32 x = SPLIT_ELEM_X_PADDING + sElemState->rowX + shiftX;
+    f32 x = SPLIT_ELEM_X_PADDING + sElemState->rowX + shiftX + (SPLIT->dummy ? SPLIT->rect.x : 0) - 1;
     f32 yadd = 0;
     f32 width;
     va_list va;
@@ -2179,13 +2209,14 @@ void Element_Row(s32 rectNum, ...) {
         if (this) {
             Rect* rect = &this->rect;
             
-            if (this->heightAdd && yadd == 0)
-                yadd = this->heightAdd;
+            if (this->slotNum && yadd == 0)
+                yadd = SPLIT_TEXT_H * clamp_min(this->slotNum - 1, 0) + SPLIT_ELEM_X_PADDING * 2;
             
             if (rect) {
                 Element_SetRectImpl(
                     rect,
-                    x + SPLIT_ELEM_X_PADDING, rint(sElemState->rowY - SPLIT->scroll.voffset),
+                    x + SPLIT_ELEM_X_PADDING,
+                    rint(sElemState->rowY - SPLIT->scroll.voffset),
                     width - SPLIT_ELEM_X_PADDING, yadd);
                 if (this->name)
                     Element_DisplayName(this);
@@ -2272,7 +2303,7 @@ static void Element_UpdateElement(ElementQueCall* call) {
             this->press = true;
     }
     
-    if (this == (void*)sElemState->textbox || this == geo->dropMenu.element)
+    if (this == (void*)sElemState->textbox || this == geo->contextMenu.element)
         this->hover = true;
     
     if (this->press && !disabled)

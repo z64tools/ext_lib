@@ -28,6 +28,8 @@ f32 SPLIT_TEXT = __SPLIT_TEXT__;
 f32 SPLIT_TEXT_H = __SPLIT_TEXT_H__;
 f32 SPLIT_ELEM_X_PADDING = __SPLIT_ELEM_X_PADDING__;
 f32 SPLIT_ELEM_Y_PADDING = __SPLIT_ELEM_Y_PADDING__;
+f32 SPLIT_SCROLL_WIDTH = 14;
+f32 SPLIT_SCROLL_PAD = 2;
 
 #undef __SPLIT_GRAB_DIST__
 #undef __SPLIT_CTXM_DIST__
@@ -240,6 +242,8 @@ static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
     this->taskList = new(Arli);
     *this->taskList = Arli_New(void*);
     this->taskCombo = new(ElCombo);
+    this->taskCombo->controller = true;
+    this->taskCombo->align = NVG_ALIGN_CENTER;
     
     _assert(this->taskList != NULL);
     _assert(this->taskCombo != NULL);
@@ -256,8 +260,6 @@ static void Split_SetupTaskEnum(GeoGrid* geo, Split* this) {
 static Split* Split_Alloc(GeoGrid* geo, s32 id) {
     Split* split = new(Split);
     
-    void* Element_AllocBoxContext();
-    split->boxContext = Element_AllocBoxContext();
     split->prevId = -1; // Forces init
     split->id = id;
     
@@ -402,18 +404,12 @@ static void Split_Split(GeoGrid* geo, Split* split, SplitDir dir) {
     geo->actionEdge = newSplit->edge[dir];
     GeoGrid_RemoveDuplicates(geo);
     Edge_SetSlideClamp(geo);
-#if 0
-    // @notice: Possibly not needed but might be something required
-    Split_UpdateRect(split);
-    Split_UpdateRect(newSplit);
-#endif
-    _log("Done");
 }
 
 static void Split_Free(Split* this) {
     info("Kill Split: %s", addr_name(this));
     Arli_Free(this->taskList);
-    vfree(this->taskList, this->taskCombo, this->instance, this->boxContext);
+    vfree(this->taskList, this->taskCombo, this->instance);
 }
 
 static void Split_Kill(GeoGrid* geo, Split* split, SplitDir dir) {
@@ -931,20 +927,29 @@ static void Split_UpdateInstance(GeoGrid* geo, Split* split) {
     _log("OK");
 }
 
-static void Split_Update(GeoGrid* geo) {
+static void Split_CullUpdate(GeoGrid* geo) {
     Split* split = geo->splitHead;
     Cursor* cursor = &geo->input->cursor;
     
-    Cursor_SetCursor(CURSOR_DEFAULT);
+    for (; split != NULL; split = split->next) {
+        if (!split->isHeader) {
+            for (int i = 0; i < 4; i++) {
+                _assert(split->edge[i] != NULL);
+                split->edge[i]->killFlag = false;
+            }
+        }
+    }
+}
+
+static void Split_Update(GeoGrid* geo) {
+    Split* split = geo->splitHead;
+    Cursor* cursor = &geo->input->cursor;
     
     if (geo->actionSplit != NULL && cursor->cursorAction == false)
         Split_ClearActionSplit(geo);
     
     for (; split != NULL; split = split->next)
         Split_UpdateInstance(geo, split);
-    
-    Split_UpdateInstance(geo, &geo->bar[0]);
-    Split_UpdateInstance(geo, &geo->bar[1]);
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */
@@ -1071,7 +1076,7 @@ static void Split_Draw_KillArrow(Split* this, void* vg) {
     }
 }
 
-static void Split_DrawSplit(GeoGrid* geo, Split* split) {
+static void Split_DrawInstance(GeoGrid* geo, Split* split) {
     Element_SetContext(geo, split);
     
     _assert(split != NULL);
@@ -1180,10 +1185,7 @@ static void Split_Draw(GeoGrid* geo) {
     Split* split = geo->splitHead;
     
     for (; split != NULL; split = split->next)
-        Split_DrawSplit(geo, split);
-    
-    Split_DrawSplit(geo, &geo->bar[0]);
-    Split_DrawSplit(geo, &geo->bar[1]);
+        Split_DrawInstance(geo, split);
 }
 
 /* ───────────────────────────────────────────────────────────────────────── */
@@ -1348,11 +1350,24 @@ void GeoGrid_Update(GeoGrid* this) {
     
     this->prevWorkRect = this->workRect;
     
-    ElementState_Set(this->elemState);
-    Element_Flush(this);
+    Cursor_SetCursor(CURSOR_DEFAULT);
     
-    Element_UpdateTextbox(this);
-    Split_Update(this);
+    if (this->state.cullSplits) {
+        this->state.cullSplits = 2;
+        Split_CullUpdate(this);
+        
+    } else {
+        
+        ElementState_Set(this->elemState);
+        Element_Flush(this);
+        
+        Element_UpdateTextbox(this);
+        
+        Split_Update(this);
+    }
+    
+    Split_UpdateInstance(this, &this->bar[0]);
+    Split_UpdateInstance(this, &this->bar[1]);
     
     if (this->state.splittedHold &&  Input_GetCursor(this->input, CLICK_L)->release) {
         this->state.splittedHold = false;
@@ -1378,8 +1393,13 @@ void GeoGrid_Draw(GeoGrid* this) {
         } nvgEndFrame(this->vg);
     }
     
-    Split_Draw(this);
-    if (sDebugMode) Split_DrawDebug(this);
+    if (this->state.cullSplits < 2) {
+        Split_Draw(this);
+        if (sDebugMode) Split_DrawDebug(this);
+    }
+    
+    Split_DrawInstance(this, &this->bar[0]);
+    Split_DrawInstance(this, &this->bar[1]);
     
     glViewport(0, 0, this->wdim->x, this->wdim->y);
     DragItem_Draw(this);
@@ -1397,6 +1417,8 @@ void DummySplit_Push(GeoGrid* this, Split* split, Rect r) {
     split->dummy = true;
     
     ElementState_Set(this->elemState);
+    Element_RowY(r.y + SPLIT_ELEM_X_PADDING * 2);
+    Element_ShiftX(0);
     Element_Flush(this);
     Element_SetContext(this, split);
     Element_UpdateTextbox(this);

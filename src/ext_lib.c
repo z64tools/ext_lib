@@ -2570,6 +2570,25 @@ int sys_emptydir(const char* path) {
     return is_empty;
 }
 
+const char* sys_volumename(const char* volume) {
+    char* vname = NULL;
+    
+#ifdef _WIN32
+    wchar_t temp[strlen(volume) + 1];
+    wchar_t dest[64];
+    
+    strto16(temp, volume);
+    
+    if (!GetVolumeInformationW(temp, dest, 64, 0, 0, 0, 0, 0))
+        return NULL;
+    
+    vname = x_alloc(64);
+    strto8(vname, dest);
+#endif
+    
+    return vname;
+}
+
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 static int sSysIgnore;

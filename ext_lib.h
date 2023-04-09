@@ -477,6 +477,7 @@ int sys_getcorenum(void);
 size_t sys_statsize(const char* file);
 const char* sys_env(env_index_t env);
 int sys_emptydir(const char* path);
+const char* sys_volumename(const char* volume);
 
 int sys_exe(const char* cmd);
 void sys_exed(const char* cmd);
@@ -516,6 +517,7 @@ Arli Arli_New(size_t element_size);
         strncpy(a.type, #element, sizeof(a.type)); \
         a;                                         \
     })
+const char* Arli_StringCallback(Arli* this, size_t pos);
 void Arli_SetElemNameCallback(Arli* this, const char* (*callback)(Arli*, size_t));
 void Arli_Clear(Arli* this);
 void* Arli_At(Arli* this, off_t position);

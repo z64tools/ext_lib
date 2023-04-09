@@ -607,7 +607,9 @@ void Toml_Print(Toml* this, void* d, void (*PRINT)(void*, const char*, ...)) {
         }
     };
     
-    Parse(this->root, "", 0);
+    if (this->root)
+        Parse(this->root, "", 0);
+    PRINT(d, "\n");
 }
 
 void Toml_SaveMem(Toml* this, Memfile* mem) {
@@ -619,8 +621,8 @@ bool Toml_Save(Toml* this, const char* file) {
     Memfile mem = Memfile_New();
     
     this->success = true;
-    Toml_Print(this, &mem, (void*)Memfile_Fmt);
     _log("save toml: %s", file);
+    Toml_Print(this, &mem, (void*)Memfile_Fmt);
     
     mem.param.throwError = false;
     if (Memfile_SaveStr(&mem, file))

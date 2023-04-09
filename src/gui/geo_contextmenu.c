@@ -32,16 +32,12 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
     
     Rect rectLumSat = r;
     Rect rectHue;
-    Rect rectButton;
     hsl_t color;
     
     rectLumSat.h -= SPLIT_ELEM_Y_PADDING + SPLIT_ELEM_X_PADDING + SPLIT_ELEM_Y_PADDING + SPLIT_ELEM_X_PADDING;
     rectHue = rectLumSat;
     rectHue.y += rectHue.h + SPLIT_ELEM_X_PADDING;
     rectHue.h = SPLIT_ELEM_Y_PADDING;
-    
-    rectButton = r;
-    rectButton.h = SPLIT_ELEM_Y_PADDING;
     
     if (this->state.init) {
         color = Color_hsl(unfold_rgb(*prop->rgb8));
@@ -151,10 +147,7 @@ static void ContextProp_Color_Draw(GeoGrid* geo, ContextMenu* this) {
 
 static void ContextProp_Arli_Init(GeoGrid* geo, ContextMenu* this) {
     Arli* list = this->udata;
-    
-    nvgFontFace(geo->vg, "default");
-    nvgFontSize(geo->vg, SPLIT_TEXT);
-    nvgTextAlign(geo->vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
+    ElCombo* combo = (this->element && this->element->type == ELEM_TYPE_COMBO) ? (void*)this->element : NULL;
     
     this->rect.h = 0;
     this->rect.w = 0;
@@ -162,31 +155,44 @@ static void ContextProp_Arli_Init(GeoGrid* geo, ContextMenu* this) {
     
     info("" PRNT_YELW "%s", __FUNCTION__);
     info("list->cur = %d", list->cur);
-    _log("list->num = %d", list->num);
+    
     for (int i = 0; i < list->num; i++) {
-        _log("%-*d: %s", digint(list->num), i, list->elemName(list, i));
         this->rect.w = Max(this->rect.w, Gfx_TextWidth(geo->vg, list->elemName(list, i)));
         this->rect.h += SPLIT_TEXT_H;
     }
     
     this->rect.w += SPLIT_ELEM_X_PADDING * 8;
-    this->rect.h += SPLIT_ELEM_X_PADDING * 4;
+    this->rect.h += SPLIT_ELEM_X_PADDING * 2;
     
     ScrollBar_Init(&this->scroll, list->num, SPLIT_TEXT_H);
+    
+    if (combo && combo->controller) {
+        combo->prevIndex = -1;
+        this->visualKey = -1;
+        this->state.rectClamp = false;
+    }
 }
 
 static void ContextProp_Arli_Draw(GeoGrid* geo, ContextMenu* this) {
+    Rect scrollRect = Rect_Scale(this->rect, -SPLIT_ELEM_X_PADDING, -SPLIT_ELEM_X_PADDING);
     Input* input = geo->input;
     Arli* list = this->udata;
     void* vg = geo->vg;
-    bool hold = ScrollBar_Update(&this->scroll, input, input->cursor.pos, this->rect);
+    bool hold = ScrollBar_Update(&this->scroll, input, input->cursor.pos, scrollRect, this->rect);
+    ElCombo* combo = (this->element && this->element->type == ELEM_TYPE_COMBO) ? (void*)this->element : NULL;
+    NVGcolor highlight;
+    
+    if (combo && combo->controller) {
+        this->visualKey = -1;
+        highlight = Theme_Mix(0.25f, Theme_GetColor(THEME_ELEMENT_BASE, 255, 1.0f), Theme_GetColor(THEME_ELEMENT_LIGHT, 255, 1.0f));
+    } else
+        highlight = Theme_GetColor(THEME_PRIM, 255, 1.0f);
     
     Gfx_SetDefaultTextParams(vg);
     nvgScissor(vg, UnfoldRect(this->rect));
+    
     for (int i = 0; i < list->num; i++) {
         Rect r = ScrollBar_GetRect(&this->scroll, i);
-        
-        r.y += SPLIT_ELEM_X_PADDING * 2;
         
         if (Rect_PointIntersect(&this->rect, UnfoldVec2(input->cursor.pos))) {
             if (!hold && Rect_PointIntersect(&r, UnfoldVec2(input->cursor.pos))) {
@@ -198,18 +204,13 @@ static void ContextProp_Arli_Draw(GeoGrid* geo, ContextMenu* this) {
         }
         
         if (this->visualKey == i) {
-            Rect rr = r;
-            
-            rr.x += SPLIT_ELEM_X_PADDING;
-            rr.w -= SPLIT_ELEM_X_PADDING * 2;
-            Gfx_DrawRounderRect(vg, rr, Theme_GetColor(THEME_PRIM, 255, 1.0f));
+            Gfx_DrawRounderRect(vg, r, highlight);
             Gfx_TextShadow(vg);
         }
         
-        r.x += SPLIT_ELEM_X_PADDING * 2;
         Gfx_Text(vg, r, NVG_ALIGN_MIDDLE | NVG_ALIGN_LEFT, Theme_GetColor(THEME_TEXT, 255, 1.0f), list->elemName(list, i));
-        
     }
+    
     nvgResetScissor(vg);
     
     ScrollBar_Draw(&this->scroll, vg);
@@ -227,8 +228,20 @@ void (*sContextMenuFuncs[][3])(GeoGrid*, ContextMenu*) = {
     [CONTEXT_CUSTOM] =       {},
 };
 
+static void ContextMenu_ClampRect(GeoGrid* geo, ContextMenu* this) {
+    Rect cr = {
+        1,
+        SPLIT_BAR_HEIGHT + 1,
+        geo->wdim->x - 2,
+        geo->wdim->y - (SPLIT_BAR_HEIGHT + 1) * 2
+    };
+    
+    if (this->state.rectClamp)
+        this->rect = Rect_Clamp(this->rect, cr);
+}
+
 void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType type, Rect rect) {
-    ContextMenu* this = &geo->dropMenu;
+    ContextMenu* this = &geo->contextMenu;
     
     _log("context init");
     _assert(uprop != NULL);
@@ -246,9 +259,9 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType 
     this->state.up = -1;
     this->state.side = 1;
     this->state.init = true;
-    this->state.setCondition = false;
     this->state.widthAdjustment = true;
     this->state.offsetOriginRect = true;
+    this->state.distanceCheck = true;
     this->visualKey = -1;
     this->state.rectClamp = true;
     
@@ -273,15 +286,11 @@ void ContextMenu_Init(GeoGrid* geo, void* uprop, void* element, ContextDataType 
         this->state.side = -1;
     }
     
-    Rect cr = {
-        SPLIT_ELEM_Y_PADDING,
-        SPLIT_ELEM_Y_PADDING,
-        geo->wdim->x - SPLIT_ELEM_Y_PADDING * 2,
-        geo->wdim->y - SPLIT_ELEM_Y_PADDING * 2
-    };
+    if (this->state.maximize) {
+        this->rect = Rect_New(0, 0, UnfoldVec2(*geo->wdim));
+    }
     
-    if (this->state.rectClamp)
-        this->rect = Rect_Clamp(this->rect, cr);
+    ContextMenu_ClampRect(geo, this);
     
     _log("ok", type);
 }
@@ -294,7 +303,7 @@ void ContextMenu_Custom(GeoGrid* geo, void* context, void* element, void init(Ge
 }
 
 void ContextMenu_Draw(GeoGrid* geo) {
-    ContextMenu* this = &geo->dropMenu;
+    ContextMenu* this = &geo->contextMenu;
     Cursor* cursor = &geo->input->cursor;
     void* vg = geo->vg;
     
@@ -307,9 +316,14 @@ void ContextMenu_Draw(GeoGrid* geo) {
         return;
     }
     
+    if (this->state.maximize) {
+        this->rect = Rect_New(0, 0, UnfoldVec2(*geo->wdim));
+        ContextMenu_ClampRect(geo, this);
+    }
+    
     nvgBeginFrame(geo->vg, geo->wdim->x, geo->wdim->y, gPixelRatio); {
         Rect r = this->rect;
-        Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_ELEMENT_BASE, 255, 1.25f));
+        Gfx_DrawRounderOutline(vg, r, Theme_GetColor(THEME_ELEMENT_BASE, 255, 1.5f));
         Gfx_DrawRounderRect(vg, r, Theme_GetColor(THEME_ELEMENT_DARK, 255, 1.0f));
         
         nvgScissor(vg, UnfoldRect(r));
@@ -317,14 +331,14 @@ void ContextMenu_Draw(GeoGrid* geo) {
         nvgResetScissor(vg);
     } nvgEndFrame(geo->vg);
     
-    if (Rect_PointDistance(&this->rect, cursor->pos.x, cursor->pos.y) > 0 &&  Input_GetCursor(geo->input, CLICK_ANY)->press) {
+    if (Rect_PointDistance(&this->rect, cursor->pos.x, cursor->pos.y) > 0 && Input_GetCursor(geo->input, CLICK_ANY)->press) {
         ContextMenu_Close(geo);
         
         return;
     }
     
-    if (this->state.setCondition || Rect_PointDistance(&this->rect, cursor->pos.x, cursor->pos.y) > 64) {
-        if (this->state.setCondition) {
+    if (this->state.setCondition || (this->state.distanceCheck && Rect_PointDistance(&this->rect, cursor->pos.x, cursor->pos.y) > 64)) {
+        if (this->state.setCondition > 0) {
             if (this->element)
                 this->element->contextSet = true;
             
@@ -334,12 +348,17 @@ void ContextMenu_Draw(GeoGrid* geo) {
                 case CONTEXT_ARLI: (void)0;
                     Arli_Set(this->udata, this->visualKey);
                     break;
-                case CONTEXT_CUSTOM: (void)0;
-                    if (sContextMenuFuncs[CONTEXT_CUSTOM][FUNC_DEST])
-                        sContextMenuFuncs[CONTEXT_CUSTOM][FUNC_DEST](geo, this);
-                    
+                default:
                     break;
             }
+        } else {
+            if (this->type == CONTEXT_ARLI) {
+                ElCombo* combo = (this->element && this->element->type == ELEM_TYPE_COMBO) ? (void*)this->element : NULL;
+                
+                if (combo && combo->controller)
+                    combo->prevIndex = combo->list->cur;
+            }
+            
         }
         
         ContextMenu_Close(geo);
@@ -347,7 +366,11 @@ void ContextMenu_Draw(GeoGrid* geo) {
 }
 
 void ContextMenu_Close(GeoGrid* geo) {
-    ContextMenu* this = &geo->dropMenu;
+    ContextMenu* this = &geo->contextMenu;
+    
+    if (this->type == CONTEXT_CUSTOM)
+        if (sContextMenuFuncs[CONTEXT_CUSTOM][FUNC_DEST])
+            sContextMenuFuncs[CONTEXT_CUSTOM][FUNC_DEST](geo, this);
     
     if (sColorContext.imgHue.c) {
         nvgDeleteImage(geo->vg, sColorContext.imgHue.id);

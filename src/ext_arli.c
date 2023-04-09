@@ -10,6 +10,10 @@ static const char* Arli_DefaultPrint(Arli* this, size_t pos) {
     return x_fmt("<%d>", pos);
 }
 
+const char* Arli_StringCallback(Arli* this, size_t pos) {
+    return Arli_At(this, pos);
+}
+
 Arli Arli_New(size_t elemSize) {
     Arli this = { .elemSize = elemSize };
     
@@ -85,7 +89,8 @@ void* Arli_Insert(Arli* this, off_t position, size_t num, const void* data) {
         this->begin + this->elemSize * position,
         this->elemSize * (this->num - position));
     
-    if (data) memcpy(
+    if (data)
+        memcpy(
             this->begin + this->elemSize * position,
             data,
             this->elemSize * num);

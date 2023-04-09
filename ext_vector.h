@@ -405,11 +405,13 @@ static inline bool Rect_Check_PosIntersect(Rect* rect, Vec2s* pos) {
     );
 }
 
-static inline void Rect_Translate(Rect* rect, s32 x, s32 y) {
-    rect->x += x;
-    rect->w += x;
-    rect->y += y;
-    rect->h += y;
+static inline Rect Rect_Translate(Rect r, s32 x, s32 y) {
+    r.x += x;
+    r.w += x;
+    r.y += y;
+    r.h += y;
+    
+    return r;
 }
 
 static inline Rect Rect_New(s32 x, s32 y, s32 w, s32 h) {
@@ -538,13 +540,62 @@ static inline Rect Rect_FlipVerti(Rect r, Rect p) {
     return Rect_AddPos(r, p);
 }
 
-static inline Rect Rect_WidenTo(Rect r, int amount) {
+static inline Rect Rect_ExpandX(Rect r, int amount) {
     if (amount < 0) {
-        r.x -= -amount;
-        r.w += -amount;
+        r.x -= abs(amount);
+        r.w += abs(amount);
     } else {
-        r.w += amount;
+        r.w += abs(amount);
     }
+    
+    return r;
+}
+
+static inline Rect Rect_ShrinkX(Rect r, int amount) {
+    if (amount < 0) {
+        r.w -= abs(amount);
+    } else {
+        r.x += abs(amount);
+        r.w -= abs(amount);
+    }
+    
+    return r;
+}
+
+static inline Rect Rect_ExpandY(Rect r, int amount) {
+    amount = -amount;
+    
+    if (amount < 0) {
+        r.y -= abs(amount);
+        r.h += abs(amount);
+    } else {
+        r.h += abs(amount);
+    }
+    
+    return r;
+}
+
+static inline Rect Rect_ShrinkY(Rect r, int amount) {
+    amount = -amount;
+    
+    if (amount < 0) {
+        r.h -= abs(amount);
+    } else {
+        r.y += abs(amount);
+        r.h -= abs(amount);
+    }
+    
+    return r;
+}
+
+static inline Rect Rect_Scale(Rect r, int x, int y) {
+    x = -x;
+    y = -y;
+    
+    r.x += (x);
+    r.w -= (x) * 2;
+    r.y += (y);
+    r.h -= (y) * 2;
     
     return r;
 }

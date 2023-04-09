@@ -53,7 +53,7 @@ void Theme_Init(u32 themeId) {
         sLightTheme[THEME_ELEMENT_BASE] =    (hsl_t) { 000.0 / 360, 0.0, 1.0f - 0.16 };
         sLightTheme[THEME_ELEMENT_DARK] =    (hsl_t) { 000.0 / 360, 0.0, 1.0f - 0.10 };
         
-        sLightTheme[THEME_PRIM] =            (hsl_t) { 10.0 / 360, 0.7, 1.0f - 0.60 };
+        sLightTheme[THEME_PRIM] =            (hsl_t) { 220.0 / 360, 0.7, 0.60 };
         sLightTheme[THEME_NEW] =             (hsl_t) { 100.0 / 360, 0.7, 0.60 };
         sLightTheme[THEME_DELETE] =          (hsl_t) { 0.0 / 360, 0.7, 0.60 };
         sLightTheme[THEME_TEXT] =            (hsl_t) { 000.0 / 360, 0.0, 1.0f - 0.90 };
