@@ -2100,6 +2100,12 @@ void Element_Combo_SetArli(ElCombo* this, Arli* arlist) {
 
 void Element_Color_SetColor(ElColor* this, void* color) {
     this->prop.rgb8 = color;
+    if(this->prop.rgb8 != NULL) {
+      var hsl = Color_hsl(this->prop.rgb8->r, this->prop.rgb8->g, this->prop.rgb8->b);
+      this->prop.hue = hsl.h;
+      this->prop.pos.x = hsl.s;
+      this->prop.pos.y = 1.0f - hsl.l;
+    }
 }
 
 void Element_Container_SetArli(ElContainer* this, Arli* list, u32 num) {

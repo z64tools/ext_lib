@@ -1039,17 +1039,17 @@ hsl_t Color_hsl(f32 r, f32 g, f32 b) {
     r /= 255;
     g /= 255;
     b /= 255;
-    
+
     cmax = fmax(r, (fmax(g, b)));
     cmin = fmin(r, (fmin(g, b)));
     dest->l = (cmax + cmin) / 2;
     d = cmax - cmin;
-    
+
     if (cmax == cmin)
         dest->h = dest->s = 0;
     else {
         dest->s = dest->l > 0.5 ? d / (2 - cmax - cmin) : d / (cmax + cmin);
-        
+
         if (cmax == r) {
             dest->h = (g - b) / d + (g < b ? 6 : 0);
         } else if (cmax == g) {
@@ -1059,7 +1059,7 @@ hsl_t Color_hsl(f32 r, f32 g, f32 b) {
         }
         dest->h /= 6.0;
     }
-    
+
     return hsl;
 }
 
@@ -1071,9 +1071,9 @@ rgb8_t Color_rgb8(f32 h, f32 s, f32 l) {
     } else {
         f32 q = l < 0.5f ? l * (1 + s) : l + s - l * s;
         f32 p = 2.0f * l - q;
-        rgb.r = hue2rgb(p, q, h + 1.0f / 3.0f) * 255;
-        rgb.g = hue2rgb(p, q, h) * 255;
-        rgb.b = hue2rgb(p, q, h - 1.0f / 3.0f) * 255;
+        rgb.r = roundf(hue2rgb(p, q, h + 1.0f / 3.0f) * 255);
+        rgb.g = roundf(hue2rgb(p, q, h) * 255);
+        rgb.b = roundf(hue2rgb(p, q, h - 1.0f / 3.0f) * 255);
     }
     
     return rgb;
