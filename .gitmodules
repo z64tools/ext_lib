@@ -1,12 +1,12 @@
 [submodule "libxm"]
 	path = libxm
-	url = https://github.com/Artefact2/libxm
+	url = https://github.com/Artefact2/libxm.git
 [submodule "miniaudio"]
 	path = miniaudio
-	url = https://github.com/mackron/miniaudio
+	url = https://github.com/mackron/miniaudio.git
 [submodule "minimp3"]
 	path = minimp3
-	url = https://github.com/lieff/minimp3
+	url = https://github.com/lieff/minimp3.git
 [submodule "nanovg"]
 	path = nanovg
 	url = https://github.com/memononen/nanovg.git
